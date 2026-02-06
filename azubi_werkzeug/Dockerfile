@@ -20,8 +20,9 @@ RUN pip3 install --no-cache-dir -r requirements.txt --break-system-packages
 # Copy application code
 COPY . .
 
-# Copy and make run script executable
-COPY run.sh /
-RUN chmod a+x /run.sh
+# Set persistent database path
+ENV DB_PATH=/data/werkzeug.db
 
-CMD [ "/run.sh" ]
+# Run Gunicorn directly
+# 3 workers, binding to all interfaces on port 5000
+CMD ["gunicorn", "--workers", "3", "--bind", "0.0.0.0:5000", "app:app"]
