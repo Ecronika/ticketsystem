@@ -1,0 +1,47 @@
+/* Weicherer Hintergrund */
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Karten sollen leicht schweben */
+.card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Hover Effekt für Klickbare Karten */
+a .card:hover { /* Note: This selector might be too specific depending on HTML structure, but keeping per requirements */
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+}
+
+/* Ensure cards inside anchors or wrapper divs also get hover if needed. 
+   The user's HTML has <a> around button, but card is separate. 
+   Wait, the user's index.html has:
+   <div class="col..."> <div class="card ..."> ... <a ...> ... </a> </div> </div>
+   The hover effect requested was 'a .card:hover', which implies the card is inside an anchor.
+   However, in the user's provided HTML for index.html, the card contains the link.
+   I will add a general card hover class or just apply to .card:hover for better UX if they want the whole card actionable.
+   But to strictly follow:
+*/
+
+.card:hover {
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05); /* Default subtle hover */
+}
+
+/* Die Liste in der Checkbox etwas auflockern */
+.list-group-item {
+    border-left: none;
+    border-right: none;
+}
+
+/* Buttons auf dem Handy besser treffbar machen */
+.btn-group .btn {
+    padding-left: 1.2rem;
+    padding-right: 1.2rem;
+}
+
+/* Cursor pointer for labels */
+.cursor-pointer {
+    cursor: pointer;
+}

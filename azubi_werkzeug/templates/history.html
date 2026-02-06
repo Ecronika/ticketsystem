@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Historie (Letzte 50 Einträge)</h2>
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th>Datum</th>
+                <th>Azubi</th>
+                <th>Werkzeug</th>
+                <th>Bemerkung</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for check in checks %}
+            <tr>
+                <td>{{ check.datum.strftime('%d.%m.%Y %H:%M') }}</td>
+                <td>{{ check.azubi.name }}</td>
+                <td>{{ check.werkzeug.name }}</td>
+                <td>{{ check.bemerkung or '-' }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="text-center">Keine Einträge vorhanden.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

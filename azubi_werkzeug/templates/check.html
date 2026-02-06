@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="fw-bold">Prüfung: {{ azubi.name }}</h3>
+            <span class="text-muted">Datum: {{ current_date }}</span>
+        </div>
+
+        <form action="/submit_check" method="POST">
+            <input type="hidden" name="azubi_id" value="{{ azubi.id }}">
+
+            {% for werkzeug in werkzeuge %}
+            <div class="card shadow-sm border-0 rounded-4 mb-4">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h5 class="fw-bold text-primary"><i class="bi bi-wrench"></i> {{ werkzeug.name }}</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush rounded-bottom-4">
+
+                        <label
+                            class="list-group-item p-3 d-flex justify-content-between align-items-center cursor-pointer">
+                            <div>
+                                <span class="fw-bold">{{ werkzeug.name }}</span>
+                                <div class="text-muted small">Standardgröße</div>
+                            </div>
+                            <div class="btn-group" role="group">
+                                <input type="radio" class="btn-check" name="tool_{{ werkzeug.id }}"
+                                    id="t{{ werkzeug.id }}_ok" value="ok" checked>
+                                <label class="btn btn-outline-success" for="t{{ werkzeug.id }}_ok">OK</label>
+
+                                <input type="radio" class="btn-check" name="tool_{{ werkzeug.id }}"
+                                    id="t{{ werkzeug.id }}_missing" value="missing">
+                                <label class="btn btn-outline-warning" for="t{{ werkzeug.id }}_missing">Fehlt</label>
+
+                                <input type="radio" class="btn-check" name="tool_{{ werkzeug.id }}"
+                                    id="t{{ werkzeug.id }}_broken" value="broken">
+                                <label class="btn btn-outline-danger" for="t{{ werkzeug.id }}_broken">Defekt</label>
+                            </div>
+                        </label>
+
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <div class="card shadow-sm border-0 rounded-4 mb-5">
+                <div class="card-body p-4">
+                    <label class="form-label fw-bold">Gesamteindruck / Bemerkung</label>
+                    <textarea class="form-control mb-3" name="bemerkung" rows="3"
+                        placeholder="Z.B. Werkzeugkoffer sehr sauber..."></textarea>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg rounded-pill shadow">
+                            <i class="bi bi-save"></i> Prüfung speichern
+                        </button>
+                        <a href="/" class="btn btn-light rounded-pill text-muted">Abbrechen</a>
+                    </div>
+                </div>
+            </div>
+
+        </form>
+    </div>
+</div>
+{% endblock %}
