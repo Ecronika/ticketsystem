@@ -1,28 +1,29 @@
 ARG BUILD_FROM=ghcr.io/hassio-addons/base:stable
 FROM $BUILD_FROM
 
-# Install Python and Pip
+# Python und Pip installieren
 RUN \
     apk add --no-cache \
     python3 \
     py3-pip
 
-# Set working directory
+# Arbeitsverzeichnis setzen
 WORKDIR /app
 
-# Copy requirements
+# Requirements kopieren und installieren
 COPY requirements.txt .
-
-# Install dependencies
-# --break-system-packages is needed for newer Python versions in Alpine/Debian managed environments
 RUN pip3 install --no-cache-dir -r requirements.txt --break-system-packages
 
-# Copy application code
+# Den gesamten Code (inklusive run.sh) ins Arbeitsverzeichnis kopieren
 COPY . .
 
-# Set persistent database path
-ENV DB_PATH=/data/werkzeug.db
+# --- WICHTIGE ÄNDERUNG ---
+# 1. Das run.sh Skript ausführbar machen (es liegt jetzt unter /app/run.sh)
+RUN chmod a+x /app/run.sh
 
-# Run Gunicorn directly
-# 3 workers, binding to all interfaces on port 5000
-CMD ["gunicorn", "--workers", "3", "--bind", "0.0.0.0:5000", "app:app"]
+# 2. Den Startbefehl ändern, damit das Skript ausgeführt wird
+CMD [ "/app/run.sh" ]
+# -------------------------
+
+# Datenbank-Pfad setzen
+ENV DB_PATH=/data/werkzeug.db
