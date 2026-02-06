@@ -11,6 +11,9 @@ arch:
   - i386
 ports:
   5000/tcp: 5000
+ingress: true
+ingress_port: 5000
+panel_icon: mdi:tools
 map:
   - config:rw
   - share:rw
