@@ -1,0 +1,24 @@
+#!/usr/bin/with-contenv bashio
+# ==============================================================================
+# Home Assistant Add-on: Azubi Werkzeug Tracker
+# Starts the Azubi Werkzeug Tracker application
+# ==============================================================================
+
+bashio::log.info "Starte Azubi Werkzeug Tracker..."
+
+# Wechsel ins Arbeitsverzeichnis
+cd /app || bashio::exit.nok "Kann nicht nach /app wechseln"
+
+# Datenbank initialisieren
+bashio::log.info "Initialisiere Datenbank..."
+python3 -c "from app import setup_database; setup_database()" \
+    || bashio::exit.nok "Datenbank-Initialisierung fehlgeschlagen"
+
+# Server starten
+bashio::log.info "Starte Gunicorn Server auf Port 5000..."
+exec gunicorn \
+    --workers 3 \
+    --bind 0.0.0.0:5000 \
+    --access-logfile - \
+    --error-logfile - \
+    app:app

@@ -1,13 +1,13 @@
 ARG BUILD_FROM=ghcr.io/hassio-addons/base:stable
 FROM $BUILD_FROM
 
-# Python, Pip UND dos2unix installieren
-# dos2unix ist wichtig, um Windows-Zeilenumbrüche zu reparieren
+# Python, Pip und dos2unix installieren
 RUN \
     apk add --no-cache \
     python3 \
     py3-pip \
-    dos2unix
+    dos2unix \
+    curl
 
 # Arbeitsverzeichnis setzen
 WORKDIR /app
@@ -19,15 +19,20 @@ RUN pip3 install --no-cache-dir -r requirements.txt --break-system-packages
 # Den gesamten Code ins Arbeitsverzeichnis kopieren
 COPY . .
 
-# --- FIX FÜR WINDOWS USER ---
-# 1. Konvertiere run.sh ins Unix-Format (entfernt unsichtbare \r Zeichen)
-RUN dos2unix /app/run.sh
-# 2. Mache das Skript ausführbar
-RUN chmod a+x /app/run.sh
-# ----------------------------
+# S6-Service-Skripte kopieren und ausführbar machen
+COPY rootfs /
 
-# Den Startbefehl setzen
-CMD [ "/app/run.sh" ]
+# Windows-Zeilenumbrüche reparieren für Service-Skripte
+RUN dos2unix /etc/services.d/azubi-werkzeug/run && \
+    dos2unix /etc/services.d/azubi-werkzeug/finish && \
+    chmod a+x /etc/services.d/azubi-werkzeug/run && \
+    chmod a+x /etc/services.d/azubi-werkzeug/finish
 
 # Datenbank-Pfad setzen
 ENV DB_PATH=/data/werkzeug.db
+
+# KEIN CMD! S6 übernimmt das Starten über /etc/services.d/
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:5000/ || exit 1

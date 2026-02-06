@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import os
+import secrets
 
 app = Flask(__name__)
 # Database configuration
@@ -11,7 +12,9 @@ db_path = os.environ.get('DB_PATH', default_db_path)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.secret_key = 'super_secret_key_for_flask_sessions' # Needed for flash messages
+
+# Security: Dynamic Secret Key
+app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 
 db = SQLAlchemy(app)
 
@@ -126,4 +129,5 @@ def setup_database():
 
 if __name__ == '__main__':
     setup_database()
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    app.run(host='0.0.0.0', port=5000, debug=debug_mode)
