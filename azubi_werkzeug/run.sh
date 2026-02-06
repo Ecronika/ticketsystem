@@ -1,4 +1,4 @@
-#!/usr/bin/with-contenv bashio
+#!/bin/bash
 
 echo "Starting Azubi Werkzeug Tracker..."
 
