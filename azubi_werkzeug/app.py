@@ -43,7 +43,7 @@ class Werkzeug(db.Model):
     # inspection_interval_months = db.Column(db.Integer, default=12) # DEPRECATED v2.0.2
     # last_inspection_date = db.Column(db.DateTime, nullable=True) # DEPRECATED v2.0.2
     tech_param_label = db.Column(db.String(50), nullable=True) # New v2.0.2: e.g. "Größe", "Gewicht"
-    checks = db.relationship('Check', backref='werkzeug', lazy=True)
+    checks = db.relationship('Check', backref='werkzeug', lazy=True, cascade="all, delete-orphan")
 
     def __repr__(self):
         return f'<Werkzeug {self.name}>'
