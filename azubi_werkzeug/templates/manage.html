@@ -10,6 +10,8 @@
                 <form action="{{ ingress_path }}{{ url_for('add_azubi') }}" method="POST" class="mb-4">
                     <div class="input-group">
                         <input type="text" name="name" class="form-control" placeholder="Name des Azubis" required>
+                        <input type="number" name="lehrjahr" class="form-control" placeholder="Lehrjahr (1-4)" min="1"
+                            max="4" style="max-width: 120px;" required>
                         <button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg"></i> Hinzufügen</button>
                     </div>
                 </form>
@@ -17,7 +19,10 @@
                 <ul class="list-group list-group-flush">
                     {% for azubi in azubis %}
                     <li class="list-group-item d-flex justify-content-between align-items-center">
-                        {{ azubi.name }}
+                        <div>
+                            <strong>{{ azubi.name }}</strong>
+                            <span class="badge bg-light text-dark ms-2">{{ azubi.lehrjahr }}. Lehrjahr</span>
+                        </div>
                         <form action="{{ ingress_path }}{{ url_for('delete_azubi', id=azubi.id) }}" method="POST"
                             onsubmit="return confirm('Wirklich löschen?');">
                             <button type="submit" class="btn btn-sm btn-outline-danger"><i

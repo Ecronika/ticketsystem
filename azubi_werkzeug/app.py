@@ -29,6 +29,7 @@ db = SQLAlchemy(app)
 class Azubi(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
+    lehrjahr = db.Column(db.Integer, default=1)
     checks = db.relationship('Check', backref='azubi', lazy=True)
 
     def __repr__(self):
@@ -48,19 +49,44 @@ class Check(db.Model):
     azubi_id = db.Column(db.Integer, db.ForeignKey('azubi.id'), nullable=False)
     werkzeug_id = db.Column(db.Integer, db.ForeignKey('werkzeug.id'), nullable=False)
     bemerkung = db.Column(db.String(200), nullable=True)
-    
-    # Optional: Status (z.B. "Ausgegeben", "Zurückgegeben", "Check OK")
-    # For now we assume this is a "Check" definition saying "Student checked this tool"
-    # or "Tool condition check". User context implies "Erfassung und Historie".
-    # We will treat it as a generic log entry for now.
 
 # --- Routes ---
 
 @app.route('/')
 def index():
-    azubis = Azubi.query.all()
-    # In a real app, we would calculate 'status' and 'last_check' here
-    return render_template('index.html', azubis=azubis)
+    azubis_db = Azubi.query.all()
+    azubis_data = []
+    
+    for azubi in azubis_db:
+        # Get last check
+        last_check = Check.query.filter_by(azubi_id=azubi.id).order_by(Check.datum.desc()).first()
+        
+        status = "Unbekannt"
+        status_class = "secondary"
+        last_check_str = "Noch nie"
+        
+        if last_check:
+            last_check_str = last_check.datum.strftime("%d. %b %Y")
+            days_since = (datetime.utcnow() - last_check.datum).days
+            
+            if days_since < 30:
+                status = "Geprüft"
+                status_class = "success"
+            else:
+                status = "Überfällig"
+                status_class = "danger"
+                last_check_str = f"Vor {days_since} Tagen"
+        
+        azubis_data.append({
+            'id': azubi.id,
+            'name': azubi.name,
+            'lehrjahr': azubi.lehrjahr,
+            'status': status,
+            'status_class': status_class,
+            'last_check': last_check_str
+        })
+
+    return render_template('index.html', azubis=azubis_data)
 
 @app.route('/check/<int:azubi_id>', methods=['GET'])
 def check_azubi(azubi_id):
@@ -117,8 +143,9 @@ def manage():
 @app.route('/add_azubi', methods=['POST'])
 def add_azubi():
     name = request.form.get('name')
+    lehrjahr = request.form.get('lehrjahr', 1)
     if name:
-        new_azubi = Azubi(name=name)
+        new_azubi = Azubi(name=name, lehrjahr=lehrjahr)
         db.session.add(new_azubi)
         db.session.commit()
         flash(f'Azubi {name} hinzugefügt.', 'success')
@@ -158,12 +185,31 @@ def delete_werkzeug(id):
 def setup_database():
     with app.app_context():
         db.create_all()
+        
+        # Simple Migration for 'lehrjahr' column
+        import sqlite3
+        try:
+            # We need to check if column exists. SQLAlchemy doesn't do this easily with create_all.
+            # We connect directly to check.
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA table_info(azubi)")
+            columns = [info[1] for info in cursor.fetchall()]
+            
+            if 'lehrjahr' not in columns:
+                print("Migrating DB: Adding 'lehrjahr' column to azubi table.")
+                cursor.execute("ALTER TABLE azubi ADD COLUMN lehrjahr INTEGER DEFAULT 1")
+                conn.commit()
+            conn.close()
+        except Exception as e:
+            print(f"Migration Info: {e}")
+
         # Seed only if absolutely empty? Or just leave it.
         # Original logic preserved for "Dummy Data" if strictly needed, 
         # but user likely wants to manage their own.
         if not Azubi.query.first():
-            db.session.add(Azubi(name="Max Mustermann"))
-            db.session.add(Azubi(name="Lisa Müller"))
+            db.session.add(Azubi(name="Max Mustermann", lehrjahr=2))
+            db.session.add(Azubi(name="Lisa Müller", lehrjahr=1))
             db.session.commit()
             print("Created Dummy Azubis")
             

@@ -13,79 +13,31 @@
 </div>
 
 <div class="row g-4">
-    <!-- Static Example for Max Mustermann -->
-    <div class="col-md-6 col-lg-4">
-        <div class="card h-100 shadow-sm border-0 rounded-4">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start mb-3">
-                    <div>
-                        <h5 class="card-title fw-bold mb-0">Max Mustermann</h5>
-                        <small class="text-muted">2. Lehrjahr</small>
-                    </div>
-                    <span class="badge bg-success rounded-pill">Geprüft</span>
-                </div>
-
-                <div class="mb-3">
-                    <small class="text-secondary text-uppercase fw-bold" style="font-size: 0.7rem;">Letzter
-                        Check</small>
-                    <div class="d-flex align-items-center mt-1">
-                        <i class="bi bi-calendar-check text-success me-2"></i>
-                        <span>12. Okt 2023</span>
-                    </div>
-                </div>
-
-                <div class="d-grid">
-                    <a href="{{ ingress_path }}{{ url_for('check_azubi', azubi_id=1) }}"
-                        class="btn btn-outline-primary rounded-pill">
-                        <i class="bi bi-clipboard-check"></i> Neue Prüfung
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Static Example for Lisa Müller -->
-    <div class="col-md-6 col-lg-4">
-        <div class="card h-100 shadow-sm border-0 rounded-4 border-start border-4 border-danger">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start mb-3">
-                    <div>
-                        <h5 class="card-title fw-bold mb-0">Lisa Müller</h5>
-                        <small class="text-muted">1. Lehrjahr</small>
-                    </div>
-                    <span class="badge bg-danger rounded-pill">Überfällig</span>
-                </div>
-
-                <div class="mb-3">
-                    <small class="text-secondary text-uppercase fw-bold" style="font-size: 0.7rem;">Letzter
-                        Check</small>
-                    <div class="d-flex align-items-center mt-1">
-                        <i class="bi bi-exclamation-triangle text-danger me-2"></i>
-                        <span class="text-danger fw-bold">Vor 6 Wochen</span>
-                    </div>
-                </div>
-
-                <div class="d-grid">
-                    <a href="/check/2" class="btn btn-primary rounded-pill shadow">
-                        <i class="bi bi-play-fill"></i> Jetzt Prüfen
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Dynamic list from DB (if available) -->
     {% for azubi in azubis %}
-    {% if azubi.name not in ["Max Mustermann", "Lisa Müller"] %}
     <div class="col-md-6 col-lg-4">
-        <div class="card h-100 shadow-sm border-0 rounded-4">
+        <div class="card h-100 shadow-sm border-0 rounded-4 border-start border-4 border-{{ azubi.status_class }}">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-3">
                     <div>
                         <h5 class="card-title fw-bold mb-0">{{ azubi.name }}</h5>
-                        <small class="text-muted">--</small>
+                        <small class="text-muted">{{ azubi.lehrjahr }}. Lehrjahr</small>
                     </div>
-                    <span class="badge bg-secondary rounded-pill">Unbekannt</span>
+                    <span class="badge bg-{{ azubi.status_class }} rounded-pill">{{ azubi.status }}</span>
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-secondary text-uppercase fw-bold" style="font-size: 0.7rem;">Letzter
+                        Check</small>
+                    <div class="d-flex align-items-center mt-1">
+                        {% if azubi.status == 'Geprüft' %}
+                        <i class="bi bi-calendar-check text-success me-2"></i>
+                        {% elif azubi.status == 'Überfällig' %}
+                        <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+                        {% else %}
+                        <i class="bi bi-calendar text-secondary me-2"></i>
+                        {% endif %}
+                        <span class="fw-bold">{{ azubi.last_check }}</span>
+                    </div>
                 </div>
 
                 <div class="d-grid mt-4">
@@ -97,7 +49,11 @@
             </div>
         </div>
     </div>
-    {% endif %}
+    {% else %}
+    <div class="col-12 text-center py-5">
+        <h4 class="text-muted">Noch keine Azubis angelegt.</h4>
+        <a href="{{ ingress_path }}{{ url_for('manage') }}" class="btn btn-primary mt-3">Jetzt anlegen</a>
+    </div>
     {% endfor %}
 </div>
 {% endblock %}
