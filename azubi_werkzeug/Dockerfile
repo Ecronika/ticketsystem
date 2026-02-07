@@ -1,4 +1,4 @@
-ARG BUILD_FROM=ghcr.io/hassio-addons/base:stable
+ARG BUILD_FROM
 FROM $BUILD_FROM
 
 # Python, Pip und dos2unix installieren
@@ -19,7 +19,7 @@ RUN pip3 install --no-cache-dir -r requirements.txt --break-system-packages
 # Den gesamten Code ins Arbeitsverzeichnis kopieren
 COPY . .
 
-# S6-Service-Skripte kopieren und ausführbar machen
+# S6-Service-Skripte kopieren
 COPY rootfs /
 
 # Windows-Zeilenumbrüche reparieren für Service-Skripte
