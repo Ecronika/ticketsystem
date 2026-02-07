@@ -53,7 +53,7 @@ import uuid
 class Check(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     session_id = db.Column(db.String(36), nullable=True) # UUID for grouping
-    datum = db.Column(db.DateTime, default=datetime.utcnow)
+    datum = db.Column(db.DateTime, default=datetime.now)
     azubi_id = db.Column(db.Integer, db.ForeignKey('azubi.id'), nullable=False)
     werkzeug_id = db.Column(db.Integer, db.ForeignKey('werkzeug.id'), nullable=False)
     bemerkung = db.Column(db.String(200), nullable=True)
@@ -77,7 +77,7 @@ def index():
         
         if last_check:
             last_check_str = last_check.datum.strftime("%d. %b %Y")
-            days_since = (datetime.utcnow() - last_check.datum).days
+            days_since = (datetime.now() - last_check.datum).days
             
             # Global 3-Month Rule (90 Days)
             if days_since < 90:
@@ -110,7 +110,7 @@ def check_azubi(azubi_id):
     tool_tech_values = {}
     
     last_check_global = Check.query.filter_by(azubi_id=azubi.id).order_by(Check.datum.desc()).first()
-    days_since_global = (datetime.utcnow() - last_check_global.datum).days if last_check_global else 999
+    days_since_global = (datetime.now() - last_check_global.datum).days if last_check_global else 999
     is_overdue = days_since_global > 90
 
     for w in werkzeuge:
@@ -148,7 +148,7 @@ def submit_check():
 
     # Generate Session ID
     session_id = str(uuid.uuid4())
-    check_date = datetime.utcnow()
+    check_date = datetime.now()
 
     werkzeuge = Werkzeug.query.all()
     for werkzeug in werkzeuge:
