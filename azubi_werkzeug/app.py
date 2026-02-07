@@ -11,7 +11,13 @@ default_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'werk
 db_path = os.environ.get('DB_PATH', default_db_path)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+@app.context_processor
+def inject_ingress_path():
+    # Helper to fix links in Home Assistant Ingress
+    return {'ingress_path': request.headers.get('X-Ingress-Path', '')}
 
 # Security: Dynamic Secret Key
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
@@ -70,21 +76,15 @@ def submit_check():
     
     if not azubi_id:
         flash('Fehler: Kein Azubi ausgewählt.', 'error')
-        return redirect(url_for('index'))
+        # Ingress aware redirect
+        ingress = request.headers.get('X-Ingress-Path', '')
+        return redirect(f"{ingress}{url_for('index')}")
 
     # Iterate over all tools and save status
-    # In a real app, we might want to group these into a single "CheckSession" or similar.
-    # For this simple schema, we just save individual Check entries or we need to adapt the schema.
-    # The current schema has one Check per (Azubi, Werkzeug). 
-    # So we loop through the form data.
-    
     werkzeuge = Werkzeug.query.all()
     for werkzeug in werkzeuge:
         status = request.form.get(f'tool_{werkzeug.id}')
         if status:
-            # Create a check entry for this tool
-            # We treat 'status' as 'bemerkung' or we need a status field. 
-            # The user didn't ask to change the DB model, so we'll append status to remark.
             full_bemerkung = f"Status: {status}"
             if bemerkung:
                 full_bemerkung += f" | Note: {bemerkung}"
@@ -99,7 +99,8 @@ def submit_check():
     
     db.session.commit()
     flash('Prüfung erfolgreich gespeichert!', 'success')
-    return redirect(url_for('index'))
+    ingress = request.headers.get('X-Ingress-Path', '')
+    return redirect(f"{ingress}{url_for('index')}")
 
 @app.route('/history')
 def history():
@@ -107,15 +108,62 @@ def history():
     checks = Check.query.order_by(Check.datum.desc()).limit(50).all()
     return render_template('history.html', checks=checks)
 
+@app.route('/manage')
+def manage():
+    azubis = Azubi.query.all()
+    werkzeuge = Werkzeug.query.all()
+    return render_template('manage.html', azubis=azubis, werkzeuge=werkzeuge)
+
+@app.route('/add_azubi', methods=['POST'])
+def add_azubi():
+    name = request.form.get('name')
+    if name:
+        new_azubi = Azubi(name=name)
+        db.session.add(new_azubi)
+        db.session.commit()
+        flash(f'Azubi {name} hinzugefügt.', 'success')
+    ingress = request.headers.get('X-Ingress-Path', '')
+    return redirect(f"{ingress}{url_for('manage')}")
+
+@app.route('/delete_azubi/<int:id>', methods=['POST'])
+def delete_azubi(id):
+    azubi = Azubi.query.get_or_404(id)
+    db.session.delete(azubi)
+    db.session.commit()
+    flash(f'Azubi {azubi.name} gelöscht.', 'success')
+    ingress = request.headers.get('X-Ingress-Path', '')
+    return redirect(f"{ingress}{url_for('manage')}")
+
+@app.route('/add_werkzeug', methods=['POST'])
+def add_werkzeug():
+    name = request.form.get('name')
+    if name:
+        new_werkzeug = Werkzeug(name=name)
+        db.session.add(new_werkzeug)
+        db.session.commit()
+        flash(f'Werkzeug {name} hinzugefügt.', 'success')
+    ingress = request.headers.get('X-Ingress-Path', '')
+    return redirect(f"{ingress}{url_for('manage')}")
+
+@app.route('/delete_werkzeug/<int:id>', methods=['POST'])
+def delete_werkzeug(id):
+    werkzeug = Werkzeug.query.get_or_404(id)
+    db.session.delete(werkzeug)
+    db.session.commit()
+    flash(f'Werkzeug {werkzeug.name} gelöscht.', 'success')
+    ingress = request.headers.get('X-Ingress-Path', '')
+    return redirect(f"{ingress}{url_for('manage')}")
+
 # --- Helper to create DB and Seed Data ---
 def setup_database():
     with app.app_context():
         db.create_all()
-        # Create some dummy data if empty
+        # Seed only if absolutely empty? Or just leave it.
+        # Original logic preserved for "Dummy Data" if strictly needed, 
+        # but user likely wants to manage their own.
         if not Azubi.query.first():
             db.session.add(Azubi(name="Max Mustermann"))
             db.session.add(Azubi(name="Lisa Müller"))
-            db.session.add(Azubi(name="Azubi 03"))
             db.session.commit()
             print("Created Dummy Azubis")
             

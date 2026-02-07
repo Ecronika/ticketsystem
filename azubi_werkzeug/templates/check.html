@@ -9,7 +9,7 @@
             <span class="text-muted">Datum: {{ current_date }}</span>
         </div>
 
-        <form action="/submit_check" method="POST">
+        <form action="{{ ingress_path }}{{ url_for('submit_check') }}" method="POST">
             <input type="hidden" name="azubi_id" value="{{ azubi.id }}">
 
             {% for werkzeug in werkzeuge %}
@@ -56,7 +56,8 @@
                         <button type="submit" class="btn btn-primary btn-lg rounded-pill shadow">
                             <i class="bi bi-save"></i> Prüfung speichern
                         </button>
-                        <a href="/" class="btn btn-light rounded-pill text-muted">Abbrechen</a>
+                        <a href="{{ ingress_path }}{{ url_for('index') }}"
+                            class="btn btn-light rounded-pill text-muted">Abbrechen</a>
                     </div>
                 </div>
             </div>

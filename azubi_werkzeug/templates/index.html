@@ -7,7 +7,8 @@
         <p class="text-muted">Nächste fällige Prüfungen</p>
     </div>
     <div class="col-auto">
-        <a href="#" class="btn btn-primary"><i class="bi bi-person-plus"></i> Neuer Azubi</a>
+        <a href="{{ ingress_path }}{{ url_for('manage') }}" class="btn btn-primary"><i class="bi bi-person-plus"></i>
+            Neuer Azubi</a>
     </div>
 </div>
 
@@ -34,7 +35,8 @@
                 </div>
 
                 <div class="d-grid">
-                    <a href="/check/1" class="btn btn-outline-primary rounded-pill">
+                    <a href="{{ ingress_path }}{{ url_for('check_azubi', azubi_id=1) }}"
+                        class="btn btn-outline-primary rounded-pill">
                         <i class="bi bi-clipboard-check"></i> Neue Prüfung
                     </a>
                 </div>
@@ -87,7 +89,8 @@
                 </div>
 
                 <div class="d-grid mt-4">
-                    <a href="/check/{{ azubi.id }}" class="btn btn-outline-primary rounded-pill">
+                    <a href="{{ ingress_path }}{{ url_for('check_azubi', azubi_id=azubi.id) }}"
+                        class="btn btn-outline-primary rounded-pill">
                         <i class="bi bi-clipboard-check"></i> Neue Prüfung
                     </a>
                 </div>
