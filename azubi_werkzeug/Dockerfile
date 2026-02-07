@@ -23,6 +23,10 @@ COPY static static/
 # Service-Skripte kopieren
 COPY rootfs /
 
+# Ausführungsrechte für Service-Skripte setzen
+RUN chmod a+x /etc/services.d/azubi-werkzeug/run && \
+    chmod a+x /etc/services.d/azubi-werkzeug/finish
+
 # Datenbank-Pfad setzen
 ENV DB_PATH=/data/werkzeug.db
 
