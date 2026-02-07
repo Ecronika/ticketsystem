@@ -59,8 +59,6 @@ class Check(db.Model):
     bemerkung = db.Column(db.String(200), nullable=True)
 
 
-# ... (Routes omitted for brevity, keeping existing) ...
-
 # UPDATE manage route to include logic if needed (currently simple render)
 
 @app.route('/add_werkzeug', methods=['POST'])
