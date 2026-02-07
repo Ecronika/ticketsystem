@@ -290,26 +290,20 @@ def setup_database():
                 cursor.execute("ALTER TABLE azubi ADD COLUMN lehrjahr INTEGER DEFAULT 1")
                 conn.commit()
 
-            cursor.execute("PRAGMA table_info(check)")
-            check_columns = [info[1] for info in cursor.fetchall()]
-            if 'session_id' not in check_columns:
-                print("Migrating DB: Adding 'session_id' column to check table.")
-                cursor.execute("ALTER TABLE check_ ADD COLUMN session_id VARCHAR(36)")
-                # 'check' is a reserved keyword in SQL often, SQLAlchemy uses 'check' but raw SQL might need quotes or check_ if that's the table name.
-                # SQLAlchemy defaults to snake_case class name. 'Check' -> 'check'. 
-                # Let's verify table name from SQLAlchemy conventions. usually 'check'
-                # But 'check' is a keyword. SQLAlchemy usually handles this by quoting or user sets tablename.
-                # If table is named 'check', we must quote it "check".
-                # Let's try safely.
-                # Actually, best to check table name first.
-            
-            # Re-invoking logic to be safer about table names
+            # Check migration for 'check' table (reserved keyword needs quoting)
+            # 1. Verify table exists
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='check'")
             if cursor.fetchone():
+                # 2. Get columns
+                cursor.execute('PRAGMA table_info("check")')
+                check_columns = [info[1] for info in cursor.fetchall()]
+                
+                # 3. Add column if missing
                 if 'session_id' not in check_columns:
-                     cursor.execute('ALTER TABLE "check" ADD COLUMN session_id VARCHAR(36)')
-                     conn.commit()
-
+                    print("Migrating DB: Adding 'session_id' column to check table.")
+                    cursor.execute('ALTER TABLE "check" ADD COLUMN session_id VARCHAR(36)')
+                    conn.commit()
+            
             conn.close()
         except Exception as e:
             print(f"Migration Info: {e}")
