@@ -49,19 +49,6 @@
 
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
-                            <label for="inventoryNumber" class="form-label">Inventar-Nr. (BBiG)</label>
-                            <input type="text" class="form-control rounded-3" id="inventoryNumber"
-                                name="inventory_number" placeholder="INV-2026-001">
-                        </div>
-                        <div class="col-md-6">
-                            <label for="serialNumber" class="form-label">Seriennummer</label>
-                            <input type="text" class="form-control rounded-3" id="serialNumber" name="serial_number"
-                                placeholder="S/N 12345">
-                        </div>
-                    </div>
-
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-6">
                             <label for="materialCategory" class="form-label">VDE Kategorie (VDE 0682-201)</label>
                             <select class="form-select rounded-3" id="materialCategory" name="material_category">
                                 <option value="standard">Standard (Nicht isoliert)</option>
@@ -71,19 +58,10 @@
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label for="inspectionInterval" class="form-label">Prüfintervall</label>
-                            <div class="input-group">
-                                <input type="number" class="form-control rounded-3" id="inspectionInterval"
-                                    name="inspection_interval_months" value="12">
-                                <span class="input-group-text">Monate</span>
-                            </div>
+                            <label for="techParamLabel" class="form-label">Tech. Daten (z.B. Größe, Gewicht)</label>
+                            <input type="text" class="form-control rounded-3" id="techParamLabel"
+                                name="tech_param_label" placeholder="Bezeichnung (optional)">
                         </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="lastInspection" class="form-label">Letzte DGUV V3 Prüfung</label>
-                        <input type="date" class="form-control rounded-3" id="lastInspection"
-                            name="last_inspection_date">
                     </div>
 
                     <button type="submit" class="btn btn-warning text-dark w-100 rounded-pill fw-bold">Werkzeug
@@ -100,9 +78,7 @@
                                 style="font-size: 0.7em;">VDE 1000V</span>
                             {% endif %}
                             <div class="small text-muted">
-                                {% if werkzeug.inventory_number %}Inv: {{ werkzeug.inventory_number }}{% endif %}
-                                {% if werkzeug.last_inspection_date %} | Prüfung: {{
-                                werkzeug.last_inspection_date.strftime('%d.%m.%Y') }}{% endif %}
+                                {% if werkzeug.tech_param_label %}Parameter: {{ werkzeug.tech_param_label }}{% endif %}
                             </div>
                         </div>
                         <form action="{{ ingress_path }}{{ url_for('delete_werkzeug', id=werkzeug.id) }}" method="POST"

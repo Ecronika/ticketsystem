@@ -37,11 +37,12 @@ class Azubi(db.Model):
 class Werkzeug(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    inventory_number = db.Column(db.String(50), nullable=True) # REQ-LC-01
-    serial_number = db.Column(db.String(50), nullable=True) # REQ-LC-01
+    # inventory_number = db.Column(db.String(50), nullable=True) # DEPRECATED v2.0.2
+    # serial_number = db.Column(db.String(50), nullable=True) # DEPRECATED v2.0.2
     material_category = db.Column(db.String(20), default="standard") # REQ-SEC-01 (standard, vollisoliert, teilisoliert, isolierend)
-    inspection_interval_months = db.Column(db.Integer, default=12) # REQ-SEC-03
-    last_inspection_date = db.Column(db.DateTime, nullable=True) # REQ-SEC-05
+    # inspection_interval_months = db.Column(db.Integer, default=12) # DEPRECATED v2.0.2
+    # last_inspection_date = db.Column(db.DateTime, nullable=True) # DEPRECATED v2.0.2
+    tech_param_label = db.Column(db.String(50), nullable=True) # New v2.0.2: e.g. "Größe", "Gewicht"
     checks = db.relationship('Check', backref='werkzeug', lazy=True)
 
     def __repr__(self):
@@ -56,6 +57,7 @@ class Check(db.Model):
     azubi_id = db.Column(db.Integer, db.ForeignKey('azubi.id'), nullable=False)
     werkzeug_id = db.Column(db.Integer, db.ForeignKey('werkzeug.id'), nullable=False)
     bemerkung = db.Column(db.String(200), nullable=True)
+    tech_param_value = db.Column(db.String(50), nullable=True) # New v2.0.2: e.g. "10", "500g"
 
 # --- Routes ---
 
@@ -76,11 +78,12 @@ def index():
             last_check_str = last_check.datum.strftime("%d. %b %Y")
             days_since = (datetime.utcnow() - last_check.datum).days
             
-            if days_since < 30:
+            # Global 3-Month Rule (90 Days)
+            if days_since < 90:
                 status = "Geprüft"
                 status_class = "success"
             else:
-                status = "Überfällig"
+                status = "Überfällig (> 3 Mon.)"
                 status_class = "danger"
                 last_check_str = f"Vor {days_since} Tagen"
         
@@ -103,19 +106,33 @@ def check_azubi(azubi_id):
     
     # Pre-fill logic: Fetch last check for each tool for this azubi
     tool_status_map = {}
+    tool_tech_values = {}
+    
+    last_check_global = Check.query.filter_by(azubi_id=azubi.id).order_by(Check.datum.desc()).first()
+    days_since_global = (datetime.utcnow() - last_check_global.datum).days if last_check_global else 999
+    is_overdue = days_since_global > 90
+
     for w in werkzeuge:
         last_entry = Check.query.filter_by(azubi_id=azubi.id, werkzeug_id=w.id).order_by(Check.datum.desc()).first()
         status = 'ok' # Default
-        if last_entry and last_entry.bemerkung:
-             # Parse status from string "Status: xyz | ..."
-             parts = last_entry.bemerkung.split('|')
-             for p in parts:
-                 if p.strip().startswith("Status:"):
-                     status = p.replace("Status:", "").strip()
-                     break
-        tool_status_map[w.id] = status
+        tech_val = ""
+        
+        if last_entry:
+            if last_entry.bemerkung:
+                 # Parse status from string "Status: xyz | ..."
+                 parts = last_entry.bemerkung.split('|')
+                 for p in parts:
+                     if p.strip().startswith("Status:"):
+                         status = p.replace("Status:", "").strip()
+                         break
+            if last_entry.tech_param_value:
+                tech_val = last_entry.tech_param_value
 
-    return render_template('check.html', azubi=azubi, werkzeuge=werkzeuge, current_date=current_date, tool_status_map=tool_status_map)
+        tool_status_map[w.id] = status
+        tool_tech_values[w.id] = tech_val
+
+    return render_template('check.html', azubi=azubi, werkzeuge=werkzeuge, current_date=current_date, 
+                           tool_status_map=tool_status_map, tool_tech_values=tool_tech_values, is_overdue=is_overdue)
 
 @app.route('/submit_check', methods=['POST'])
 def submit_check():
@@ -135,6 +152,8 @@ def submit_check():
     werkzeuge = Werkzeug.query.all()
     for werkzeug in werkzeuge:
         status = request.form.get(f'tool_{werkzeug.id}')
+        tech_val = request.form.get(f'tech_param_{werkzeug.id}')
+        
         if status:
             full_bemerkung = f"Status: {status}"
             if bemerkung_global:
@@ -145,6 +164,7 @@ def submit_check():
                 azubi_id=azubi_id, 
                 werkzeug_id=werkzeug.id, 
                 bemerkung=full_bemerkung,
+                tech_param_value=tech_val,
                 datum=check_date
             )
             db.session.add(new_check)
@@ -153,6 +173,10 @@ def submit_check():
     flash('Prüfung erfolgreich gespeichert!', 'success')
     ingress = request.headers.get('X-Ingress-Path', '')
     return redirect(f"{ingress}{url_for('index')}")
+
+# ... (history routes omitted, they remain roughly the same, logic needs update if tech param should be shown) ...
+
+# Keep history route for now, update history_details logic later if needed or implicitly covered
 
 @app.route('/history')
 def history():
@@ -234,6 +258,11 @@ def history_details(session_id):
                      # In new structure we append | <global_note>
                      # simple heuristic: use the longest note found or just the first non-empty
                      global_bemerkung = note
+        
+        # New: Add tech value to note display if present
+        if c.tech_param_value:
+             tech_info = f" ({c.werkzeug.tech_param_label}: {c.tech_param_value})"
+             note += tech_info
 
         parsed_checks.append({
             'werkzeug': c.werkzeug.name,
@@ -273,28 +302,15 @@ def delete_azubi(id):
 @app.route('/add_werkzeug', methods=['POST'])
 def add_werkzeug():
     name = request.form.get('name')
-    inventory_number = request.form.get('inventory_number')
-    serial_number = request.form.get('serial_number')
+    # Inventory/Serial removed in UI
     material_category = request.form.get('material_category', 'standard')
-    inspection_interval = request.form.get('inspection_interval_months', 12)
+    tech_param_label = request.form.get('tech_param_label') # New
     
-    # Handle Date Input
-    last_inspection_str = request.form.get('last_inspection_date')
-    last_inspection_date = None
-    if last_inspection_str:
-        try:
-            last_inspection_date = datetime.strptime(last_inspection_str, '%Y-%m-%d')
-        except ValueError:
-            pass # Ignore invalid date
-
     if name:
         new_werkzeug = Werkzeug(
             name=name,
-            inventory_number=inventory_number,
-            serial_number=serial_number,
             material_category=material_category,
-            inspection_interval_months=int(inspection_interval),
-            last_inspection_date=last_inspection_date
+            tech_param_label=tech_param_label
         )
         db.session.add(new_werkzeug)
         db.session.commit()
@@ -316,52 +332,26 @@ def setup_database():
     with app.app_context():
         db.create_all()
         
-        # Simple Migration for 'lehrjahr' column
         import sqlite3
         try:
-            # We need to check if column exists. SQLAlchemy doesn't do this easily with create_all.
-            # We connect directly to check.
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            cursor.execute("PRAGMA table_info(azubi)")
-            columns = [info[1] for info in cursor.fetchall()]
             
-            if 'lehrjahr' not in columns:
-                print("Migrating DB: Adding 'lehrjahr' column to azubi table.")
-                cursor.execute("ALTER TABLE azubi ADD COLUMN lehrjahr INTEGER DEFAULT 1")
+            # --- Check 'tech_param_value' in 'check' table ---
+            cursor.execute('PRAGMA table_info("check")')
+            check_columns = [info[1] for info in cursor.fetchall()]
+            if 'tech_param_value' not in check_columns:
+                print("Migrating DB: Adding 'tech_param_value' column to check table.")
+                cursor.execute('ALTER TABLE "check" ADD COLUMN tech_param_value VARCHAR(50)')
                 conn.commit()
 
-            # Check migration for 'check' table (reserved keyword needs quoting)
-            # 1. Verify table exists
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='check'")
-            if cursor.fetchone():
-                # 2. Get columns
-                cursor.execute('PRAGMA table_info("check")')
-                check_columns = [info[1] for info in cursor.fetchall()]
-                
-                # 3. Add column if missing
-                if 'session_id' not in check_columns:
-                    print("Migrating DB: Adding 'session_id' column to check table.")
-                    cursor.execute('ALTER TABLE "check" ADD COLUMN session_id VARCHAR(36)')
-                    conn.commit()
-
-            # Check migration for 'werkzeug' table (New Compliance Columns)
+            # --- Check 'tech_param_label' in 'werkzeug' table ---
             cursor.execute("PRAGMA table_info(werkzeug)")
             werkzeug_columns = [info[1] for info in cursor.fetchall()]
-            
-            new_w_cols = {
-                'inventory_number': 'VARCHAR(50)',
-                'serial_number': 'VARCHAR(50)',
-                'material_category': 'VARCHAR(20) DEFAULT "standard"',
-                'inspection_interval_months': 'INTEGER DEFAULT 12',
-                'last_inspection_date': 'DATETIME'
-            }
-            
-            for col_name, col_type in new_w_cols.items():
-                if col_name not in werkzeug_columns:
-                    print(f"Migrating DB: Adding '{col_name}' column to werkzeug table.")
-                    cursor.execute(f"ALTER TABLE werkzeug ADD COLUMN {col_name} {col_type}")
-                    conn.commit()
+            if 'tech_param_label' not in werkzeug_columns:
+                print("Migrating DB: Adding 'tech_param_label' column to werkzeug table.")
+                cursor.execute("ALTER TABLE werkzeug ADD COLUMN tech_param_label VARCHAR(50)")
+                conn.commit()
             
             conn.close()
         except Exception as e:
