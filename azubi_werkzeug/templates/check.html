@@ -68,6 +68,29 @@
                                     value="{{ tool_tech_values.get(werkzeug.id, '') }}">
                             </div>
                             {% endif %}
+
+                            <!-- Incident Wizard: Reason Selection (Hidden by default) -->
+                            <div id="incident_div_{{ werkzeug.id }}"
+                                class="mt-2 p-2 bg-light rounded-3 border border-warning-subtle d-none animate__animated animate__fadeIn">
+                                <div class="small fw-bold text-secondary mb-1"><i class="bi bi-question-circle"></i>
+                                    Grund der Meldung:</div>
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <input type="radio" class="btn-check" name="incident_reason_{{ werkzeug.id }}"
+                                        id="reason_wear_{{ werkzeug.id }}" value="Verschleiß" autocomplete="off">
+                                    <label class="btn btn-sm btn-outline-secondary rounded-pill"
+                                        for="reason_wear_{{ werkzeug.id }}">Verschleiß/Alter</label>
+
+                                    <input type="radio" class="btn-check" name="incident_reason_{{ werkzeug.id }}"
+                                        id="reason_lost_{{ werkzeug.id }}" value="Verloren" autocomplete="off">
+                                    <label class="btn btn-sm btn-outline-secondary rounded-pill"
+                                        for="reason_lost_{{ werkzeug.id }}">Verloren</label>
+
+                                    <input type="radio" class="btn-check" name="incident_reason_{{ werkzeug.id }}"
+                                        id="reason_dmg_{{ werkzeug.id }}" value="Beschädigt" autocomplete="off">
+                                    <label class="btn btn-sm btn-outline-secondary rounded-pill"
+                                        for="reason_dmg_{{ werkzeug.id }}">Beschädigt (Fahrlässig)</label>
+                                </div>
+                            </div>
                         </div>
                         {% endfor %}
                     </div>
@@ -76,21 +99,46 @@
 
             <div class="card shadow-sm border-0 rounded-4 mb-5">
                 <div class="card-body p-4">
-                    <label class="form-label fw-bold">Gesamteindruck / Bemerkung</label>
-                    <textarea class="form-control mb-3" name="bemerkung" rows="3"
-                        placeholder="Z.B. Werkzeugkoffer sehr sauber..."></textarea>
-
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary btn-lg rounded-pill shadow">
-                            <i class="bi bi-save"></i> Prüfung speichern
-                        </button>
-                        <a href="{{ ingress_path }}{{ url_for('index') }}"
-                            class="btn btn-light rounded-pill text-muted">Abbrechen</a>
-                    </div>
+                    <label for="bemerkung" class="form-label fw-bold display-6 mb-3"
+                        style="font-size: 1.2rem;">Allgemeine
+                        Bemerkung</label>
+                    <textarea class="form-control rounded-4 bg-light border-0 p-3" id="bemerkung" name="bemerkung"
+                        rows="3" placeholder="Zusätzliche Notizen zur gesamten Prüfung..."></textarea>
                 </div>
+            </div>
+
+            <div class="d-grid pb-5">
+                <button type="submit" class="btn btn-primary btn-lg rounded-pill shadow-lg fw-bold py-3">
+                    <i class="bi bi-check-circle-fill me-2"></i> Prüfung abschließen
+                </button>
             </div>
 
         </form>
     </div>
 </div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const triggers = document.querySelectorAll('input[type="radio"][name^="tool_"]');
+        triggers.forEach(input => {
+            input.addEventListener('change', function () {
+                const toolId = this.name.split('_')[1];
+                const incidentDiv = document.getElementById('incident_div_' + toolId);
+
+                if (this.value === 'missing' || this.value === 'broken') {
+                    incidentDiv.classList.remove('d-none');
+                } else {
+                    incidentDiv.classList.add('d-none');
+                }
+            });
+
+            if (input.checked) {
+                const toolId = input.name.split('_')[1];
+                const incidentDiv = document.getElementById('incident_div_' + toolId);
+                if (input.value === 'missing' || input.value === 'broken') {
+                    incidentDiv.classList.remove('d-none');
+                }
+            }
+        });
+    });
+</script>
 {% endblock %}
