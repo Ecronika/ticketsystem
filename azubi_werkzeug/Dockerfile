@@ -1,13 +1,12 @@
 ARG BUILD_FROM
 FROM $BUILD_FROM
 
-# Python, Pip und dos2unix installieren
+# Python, Pip und notwendige Tools installieren
 RUN \
     apk add --no-cache \
-    python3 \
-    py3-pip \
-    dos2unix \
-    curl
+        python3 \
+        py3-pip \
+        curl
 
 # Arbeitsverzeichnis setzen
 WORKDIR /app
@@ -16,22 +15,16 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt --break-system-packages
 
-# Den gesamten Code ins Arbeitsverzeichnis kopieren
-COPY . .
+# App-Code kopieren
+COPY app.py .
+COPY templates templates/
+COPY static static/
 
-# S6-Service-Skripte kopieren
+# Service-Skripte kopieren
 COPY rootfs /
-
-# Windows-Zeilenumbrüche reparieren für Service-Skripte
-RUN dos2unix /etc/services.d/azubi-werkzeug/run && \
-    dos2unix /etc/services.d/azubi-werkzeug/finish && \
-    chmod a+x /etc/services.d/azubi-werkzeug/run && \
-    chmod a+x /etc/services.d/azubi-werkzeug/finish
 
 # Datenbank-Pfad setzen
 ENV DB_PATH=/data/werkzeug.db
-
-# KEIN CMD! S6 übernimmt das Starten über /etc/services.d/
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
