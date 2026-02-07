@@ -3,81 +3,26 @@
 profile azubi_werkzeug flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/base>
 
-  # Capabilities
-  capability net_bind_service,
-  capability setgid,
-  capability setuid,
-
-  # S6-Overlay Init System
-  /init rix,
-  /bin/** ix,
-  /sbin/** ix,
-  /usr/bin/** ix,
-  /usr/sbin/** ix,
-  /lib/ld-musl-*.so.1 ix,
+  # Allow everything except explicit denies
+  capability,
   
-  # S6 Runtime
-  /run/{s6,s6-rc*,service}/** rwix,
-  /package/** ix,
-  /command/** ix,
-  /etc/s6/** rix,
-  /etc/services.d/** rwix,
-  /etc/cont-init.d/** rwix,
-  /etc/cont-finish.d/** rwix,
-  /var/run/** rwk,
-  /run/{,**} rwk,
+  # File access - allow read/write/execute everywhere
+  /** rwlix,
   
-  # Bashio
-  /usr/lib/bashio/** ix,
-  
-  # Devices and System
-  /dev/tty rw,
-  /dev/null rw,
-  /dev/random r,
-  /dev/urandom r,
-  /proc/*/stat r,
-  /sys/kernel/mm/transparent_hugepage/hpage_pmd_size r,
-  
-  # Temporary files
-  /tmp/** rwk,
-
-  # Python
-  /usr/bin/python3* ix,
-  /usr/lib/python3*/** mr,
-  /usr/local/lib/python3*/** mr,
-  /usr/lib/libpython*.so* mr,
-
-  # Application files
-  /app/ r,
-  /app/** r,
-  /app/**.py rix,
-  /app/templates/** r,
-  /app/static/** r,
-
-  # Gunicorn
-  /usr/bin/gunicorn ix,
-  /usr/lib/python*/site-packages/gunicorn/** mr,
-
-  # Data directory (persistent storage)
-  /data/ rw,
-  /data/** rwk,
-  /data/werkzeug.db rwk,
-  /data/werkzeug.db-* rwk,
-
-  # Config and share access
-  /config/** r,
-  /share/** rw,
-
-  # SSL/TLS certificates
-  /etc/ssl/certs/** r,
-
-  # Network
+  # Network access
   network inet stream,
   network inet6 stream,
   network inet dgram,
   network inet6 dgram,
-
-  # Suppress common AppArmor denials that don't affect functionality
-  deny /proc/sys/kernel/osrelease r,
-  deny /sys/devices/virtual/dmi/id/product_uuid r,
+  
+  # Only deny access to truly sensitive kernel interfaces
+  deny /proc/kcore rwx,
+  deny /proc/kallsyms rwx,
+  deny /sys/kernel/security/** rwx,
+  
+  # Allow signals
+  signal,
+  
+  # Allow ptrace (needed by some debuggers, can be removed if not needed)
+  ptrace,
 }
