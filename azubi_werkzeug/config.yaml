@@ -1,5 +1,5 @@
 name: "Azubi Werkzeug Tracker"
-version: "1.0.4"
+version: "1.0.5"
 slug: "azubi_werkzeug"
 description: "Manage and track tools assigned to apprentices."
 url: "https://github.com/Ecronika/azubi_werkzeug"
@@ -16,6 +16,7 @@ ingress: true
 ingress_port: 5000
 panel_icon: mdi:tools
 panel_title: "Werkzeug Tracker"
+apparmor: true
 hassio_api: false
 hassio_role: default
 options: {}

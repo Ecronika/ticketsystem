@@ -1,0 +1,45 @@
+#include <tunables/global>
+
+profile azubi_werkzeug flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  # Capabilities
+  capability net_bind_service,
+
+  # S6-Overlay
+  /init ix,
+  /bin/** ix,
+  /usr/bin/** ix,
+  /run/{s6,s6-rc*,service}/** ix,
+  /package/** ix,
+  /command/** ix,
+  /etc/services.d/** rwix,
+  /etc/cont-init.d/** rwix,
+  /etc/cont-finish.d/** rwix,
+  /run/{,**} rwk,
+  /dev/tty rw,
+
+  # Bashio
+  /usr/lib/bashio/** ix,
+  /tmp/** rwk,
+
+  # Access to options.json and other service settings
+  /data/** rw,
+
+  # Python und Libraries
+  /usr/lib/python3*/** mr,
+  /usr/local/lib/python3*/** mr,
+
+  # Application
+  /app/** r,
+  /app/**.py rix,
+  /app/templates/** r,
+  /app/static/** r,
+
+  # Database
+  /data/werkzeug.db rwk,
+  /data/werkzeug.db-* rwk,
+
+  # Suppress AppArmor denials
+  deny /proc/sys/kernel/osrelease r,
+}
