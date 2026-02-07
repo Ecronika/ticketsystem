@@ -1,31 +1,60 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h2>Historie (Letzte 50 Einträge)</h2>
-<div class="table-responsive">
-    <table class="table table-striped table-hover">
-        <thead>
-            <tr>
-                <th>Datum</th>
-                <th>Azubi</th>
-                <th>Werkzeug</th>
-                <th>Bemerkung</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for check in checks %}
-            <tr>
-                <td>{{ check.datum.strftime('%d.%m.%Y %H:%M') }}</td>
-                <td>{{ check.azubi.name }}</td>
-                <td>{{ check.werkzeug.name }}</td>
-                <td>{{ check.bemerkung or '-' }}</td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="4" class="text-center">Keine Einträge vorhanden.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="row mb-4 align-items-center">
+    <div class="col">
+        <h2 class="fw-bold text-secondary mb-0">Historie</h2>
+        <p class="text-muted">Vergangene Prüfungen</p>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 rounded-4">
+    <div class="list-group list-group-flush rounded-4">
+        {% for session in sessions %}
+        <a href="{{ ingress_path }}{{ url_for('history_details', session_id=session.session_id) }}"
+            class="list-group-item list-group-item-action p-4 d-flex justify-content-between align-items-center">
+
+            <div class="d-flex align-items-center">
+                <div class="me-4 text-center" style="min-width: 60px;">
+                    <!-- Status Icon for the Session -->
+                    {% if session.is_ok %}
+                    <div class="rounded-circle bg-success-subtle d-flex align-items-center justify-content-center mx-auto"
+                        style="width: 48px; height: 48px;">
+                        <i class="bi bi-check-lg text-success fs-4"></i>
+                    </div>
+                    {% else %}
+                    <div class="rounded-circle bg-warning-subtle d-flex align-items-center justify-content-center mx-auto"
+                        style="width: 48px; height: 48px;">
+                        <i class="bi bi-exclamation-lg text-warning-emphasis fs-4"></i>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <h5 class="fw-bold mb-1">{{ session.azubi_name }}</h5>
+                    <div class="text-muted small">
+                        <i class="bi bi-calendar3 me-1"></i> {{ session.datum.strftime('%d.%m.%Y') }}
+                        <span class="mx-2">•</span>
+                        <i class="bi bi-clock me-1"></i> {{ session.datum.strftime('%H:%M') }} Uhr
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-end d-none d-sm-block">
+                {% if session.is_ok %}
+                <span class="badge bg-success rounded-pill px-3 py-2">Alles OK</span>
+                {% else %}
+                <span class="badge bg-warning text-dark rounded-pill px-3 py-2">Auffälligkeiten</span>
+                {% endif %}
+                <i class="bi bi-chevron-right text-muted ms-3"></i>
+            </div>
+        </a>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-inbox text-muted display-4"></i>
+            <p class="mt-3 text-muted">Keine Einträge in der Historie.</p>
+        </div>
+        {% endfor %}
+    </div>
 </div>
 {% endblock %}

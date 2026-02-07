@@ -43,8 +43,11 @@ class Werkzeug(db.Model):
     def __repr__(self):
         return f'<Werkzeug {self.name}>'
 
+import uuid
+
 class Check(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.String(36), nullable=True) # UUID for grouping
     datum = db.Column(db.DateTime, default=datetime.utcnow)
     azubi_id = db.Column(db.Integer, db.ForeignKey('azubi.id'), nullable=False)
     werkzeug_id = db.Column(db.Integer, db.ForeignKey('werkzeug.id'), nullable=False)
@@ -98,7 +101,7 @@ def check_azubi(azubi_id):
 @app.route('/submit_check', methods=['POST'])
 def submit_check():
     azubi_id = request.form.get('azubi_id')
-    bemerkung = request.form.get('bemerkung')
+    bemerkung_global = request.form.get('bemerkung')
     
     if not azubi_id:
         flash('Fehler: Kein Azubi ausgewählt.', 'error')
@@ -106,20 +109,24 @@ def submit_check():
         ingress = request.headers.get('X-Ingress-Path', '')
         return redirect(f"{ingress}{url_for('index')}")
 
-    # Iterate over all tools and save status
+    # Generate Session ID
+    session_id = str(uuid.uuid4())
+    check_date = datetime.utcnow()
+
     werkzeuge = Werkzeug.query.all()
     for werkzeug in werkzeuge:
         status = request.form.get(f'tool_{werkzeug.id}')
         if status:
             full_bemerkung = f"Status: {status}"
-            if bemerkung:
-                full_bemerkung += f" | Note: {bemerkung}"
+            if bemerkung_global:
+                full_bemerkung += f" | {bemerkung_global}"
             
             new_check = Check(
+                session_id=session_id,
                 azubi_id=azubi_id, 
                 werkzeug_id=werkzeug.id, 
                 bemerkung=full_bemerkung,
-                datum=datetime.utcnow() 
+                datum=check_date
             )
             db.session.add(new_check)
     
@@ -130,9 +137,91 @@ def submit_check():
 
 @app.route('/history')
 def history():
-    # Show last 50 checks, newest first
-    checks = Check.query.order_by(Check.datum.desc()).limit(50).all()
-    return render_template('history.html', checks=checks)
+    # Group checks by session_id (or approximated by logic)
+    # We fetch all checks ordered by date desc
+    all_checks = Check.query.order_by(Check.datum.desc()).all()
+    
+    sessions = []
+    seen_sessions = set()
+    
+    for check in all_checks:
+        sid = check.session_id
+        # Fallback for old data without session_id: group by exact timestamp + azubi
+        if not sid:
+            sid = f"{check.azubi_id}_{check.datum.timestamp()}"
+            
+        if sid not in seen_sessions:
+            seen_sessions.add(sid)
+            
+            # Analyze this session's checks
+            if check.session_id:
+                session_checks = [c for c in all_checks if c.session_id == sid]
+            else:
+                session_checks = [c for c in all_checks if c.azubi_id == check.azubi_id and c.datum == check.datum]
+            
+            # Determine status
+            is_ok = True
+            for c in session_checks:
+                if "Status: missing" in (c.bemerkung or "") or "Status: broken" in (c.bemerkung or ""):
+                    is_ok = False
+                    break
+            
+            sessions.append({
+                'session_id': check.session_id if check.session_id else "LEGACY_" + sid,
+                'datum': check.datum,
+                'azubi_name': check.azubi.name,
+                'is_ok': is_ok,
+                'count': len(session_checks)
+            })
+            
+    return render_template('history.html', sessions=sessions)
+
+@app.route('/history_details/<path:session_id>')
+def history_details(session_id):
+    if session_id.startswith("LEGACY_"):
+        # Decode legacy ID: "LEGACY_azubiId_timestamp"
+        _, azubi_id_str, timestamp_str = session_id.split('_')
+        target_time = datetime.fromtimestamp(float(timestamp_str))
+        checks = Check.query.filter_by(azubi_id=int(azubi_id_str), datum=target_time).all()
+    else:
+        checks = Check.query.filter_by(session_id=session_id).all()
+        
+    if not checks:
+        flash('Prüfung nicht gefunden.', 'error')
+        ingress = request.headers.get('X-Ingress-Path', '')
+        return redirect(f"{ingress}{url_for('history')}")
+
+    azubi = checks[0].azubi
+    datum = checks[0].datum.strftime("%d. %b %Y %H:%M")
+    
+    # Parse status from bemerkung for display
+    # bemerkung format: "Status: ok | Note: ..."
+    parsed_checks = []
+    global_bemerkung = ""
+    
+    for c in checks:
+        status_code = "ok"
+        note = ""
+        parts = (c.bemerkung or "").split('|')
+        for p in parts:
+            p = p.strip()
+            if p.startswith("Status:"):
+                status_code = p.replace("Status:", "").strip()
+            elif not p.startswith("Status:"):
+                note = p # Take the rest as note
+                if note and not global_bemerkung: 
+                     # Try to extract the global note (it's repeated in every check currently)
+                     # In new structure we append | <global_note>
+                     # simple heuristic: use the longest note found or just the first non-empty
+                     global_bemerkung = note
+
+        parsed_checks.append({
+            'werkzeug': c.werkzeug.name,
+            'status': status_code,
+            'note': note
+        })
+
+    return render_template('history_details.html', azubi=azubi, datum=datum, checks=parsed_checks, global_bemerkung=global_bemerkung)
 
 @app.route('/manage')
 def manage():
@@ -200,6 +289,27 @@ def setup_database():
                 print("Migrating DB: Adding 'lehrjahr' column to azubi table.")
                 cursor.execute("ALTER TABLE azubi ADD COLUMN lehrjahr INTEGER DEFAULT 1")
                 conn.commit()
+
+            cursor.execute("PRAGMA table_info(check)")
+            check_columns = [info[1] for info in cursor.fetchall()]
+            if 'session_id' not in check_columns:
+                print("Migrating DB: Adding 'session_id' column to check table.")
+                cursor.execute("ALTER TABLE check_ ADD COLUMN session_id VARCHAR(36)")
+                # 'check' is a reserved keyword in SQL often, SQLAlchemy uses 'check' but raw SQL might need quotes or check_ if that's the table name.
+                # SQLAlchemy defaults to snake_case class name. 'Check' -> 'check'. 
+                # Let's verify table name from SQLAlchemy conventions. usually 'check'
+                # But 'check' is a keyword. SQLAlchemy usually handles this by quoting or user sets tablename.
+                # If table is named 'check', we must quote it "check".
+                # Let's try safely.
+                # Actually, best to check table name first.
+            
+            # Re-invoking logic to be safer about table names
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='check'")
+            if cursor.fetchone():
+                if 'session_id' not in check_columns:
+                     cursor.execute('ALTER TABLE "check" ADD COLUMN session_id VARCHAR(36)')
+                     conn.commit()
+
             conn.close()
         except Exception as e:
             print(f"Migration Info: {e}")
