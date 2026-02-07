@@ -58,6 +58,7 @@ class Check(db.Model):
     werkzeug_id = db.Column(db.Integer, db.ForeignKey('werkzeug.id'), nullable=False)
     bemerkung = db.Column(db.String(200), nullable=True)
     tech_param_value = db.Column(db.String(50), nullable=True) # New v2.0.2: e.g. "10", "500g"
+    incident_reason = db.Column(db.String(50), nullable=True) # New v2.1.0: "Verschleiß", "Verloren", "Defekt (Fahrlässig)"
 
 # --- Routes ---
 
@@ -153,6 +154,7 @@ def submit_check():
     for werkzeug in werkzeuge:
         status = request.form.get(f'tool_{werkzeug.id}')
         tech_val = request.form.get(f'tech_param_{werkzeug.id}')
+        incident_reason = request.form.get(f'incident_reason_{werkzeug.id}') # New Phase 2
         
         if status:
             full_bemerkung = f"Status: {status}"
@@ -165,6 +167,7 @@ def submit_check():
                 werkzeug_id=werkzeug.id, 
                 bemerkung=full_bemerkung,
                 tech_param_value=tech_val,
+                incident_reason=incident_reason,
                 datum=check_date
             )
             db.session.add(new_check)
@@ -174,9 +177,7 @@ def submit_check():
     ingress = request.headers.get('X-Ingress-Path', '')
     return redirect(f"{ingress}{url_for('index')}")
 
-# ... (history routes omitted, they remain roughly the same, logic needs update if tech param should be shown) ...
-
-# Keep history route for now, update history_details logic later if needed or implicitly covered
+# ... (history routes omitted) ...
 
 @app.route('/history')
 def history():
@@ -262,13 +263,15 @@ def history_details(session_id):
         # New: Pass tech params explicitly
         tech_label = c.werkzeug.tech_param_label
         tech_value = c.tech_param_value
+        incident_reason = c.incident_reason # New Phase 2
 
         parsed_checks.append({
             'werkzeug': c.werkzeug.name,
             'status': status_code,
             'note': note,
             'tech_label': tech_label,
-            'tech_value': tech_value
+            'tech_value': tech_value,
+            'incident_reason': incident_reason
         })
 
     return render_template('history_details.html', azubi=azubi, datum=datum, checks=parsed_checks, global_bemerkung=global_bemerkung)
@@ -288,6 +291,22 @@ def add_azubi():
         db.session.add(new_azubi)
         db.session.commit()
         flash(f'Azubi {name} hinzugefügt.', 'success')
+    ingress = request.headers.get('X-Ingress-Path', '')
+    return redirect(f"{ingress}{url_for('manage')}")
+
+@app.route('/edit_azubi/<int:id>', methods=['POST'])
+def edit_azubi(id):
+    azubi = Azubi.query.get_or_404(id)
+    name = request.form.get('name')
+    lehrjahr = request.form.get('lehrjahr')
+    
+    if name:
+        azubi.name = name
+    if lehrjahr:
+        azubi.lehrjahr = lehrjahr
+        
+    db.session.commit()
+    flash(f'Azubi {azubi.name} aktualisiert.', 'success')
     ingress = request.headers.get('X-Ingress-Path', '')
     return redirect(f"{ingress}{url_for('manage')}")
 
@@ -319,6 +338,25 @@ def add_werkzeug():
     ingress = request.headers.get('X-Ingress-Path', '')
     return redirect(f"{ingress}{url_for('manage')}")
 
+@app.route('/edit_werkzeug/<int:id>', methods=['POST'])
+def edit_werkzeug(id):
+    werkzeug = Werkzeug.query.get_or_404(id)
+    name = request.form.get('name')
+    material_category = request.form.get('material_category')
+    tech_param_label = request.form.get('tech_param_label')
+    
+    if name:
+        werkzeug.name = name
+    if material_category:
+        werkzeug.material_category = material_category
+    if tech_param_label is not None: # Can be empty string
+        werkzeug.tech_param_label = tech_param_label
+        
+    db.session.commit()
+    flash(f'Werkzeug {werkzeug.name} aktualisiert.', 'success')
+    ingress = request.headers.get('X-Ingress-Path', '')
+    return redirect(f"{ingress}{url_for('manage')}")
+
 @app.route('/delete_werkzeug/<int:id>', methods=['POST'])
 def delete_werkzeug(id):
     werkzeug = Werkzeug.query.get_or_404(id)
@@ -345,6 +383,12 @@ def setup_database():
                 print("Migrating DB: Adding 'tech_param_value' column to check table.")
                 cursor.execute('ALTER TABLE "check" ADD COLUMN tech_param_value VARCHAR(50)')
                 conn.commit()
+
+            # --- Check 'incident_reason' in 'check' table (Phase 2) ---
+            if 'incident_reason' not in check_columns:
+                 print("Migrating DB: Adding 'incident_reason' column to check table.")
+                 cursor.execute('ALTER TABLE "check" ADD COLUMN incident_reason VARCHAR(50)')
+                 conn.commit()
 
             # --- Check 'tech_param_label' in 'werkzeug' table ---
             cursor.execute("PRAGMA table_info(werkzeug)")
