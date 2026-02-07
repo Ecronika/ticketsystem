@@ -259,15 +259,16 @@ def history_details(session_id):
                      # simple heuristic: use the longest note found or just the first non-empty
                      global_bemerkung = note
         
-        # New: Add tech value to note display if present
-        if c.tech_param_value:
-             tech_info = f" ({c.werkzeug.tech_param_label}: {c.tech_param_value})"
-             note += tech_info
+        # New: Pass tech params explicitly
+        tech_label = c.werkzeug.tech_param_label
+        tech_value = c.tech_param_value
 
         parsed_checks.append({
             'werkzeug': c.werkzeug.name,
             'status': status_code,
-            'note': note
+            'note': note,
+            'tech_label': tech_label,
+            'tech_value': tech_value
         })
 
     return render_template('history_details.html', azubi=azubi, datum=datum, checks=parsed_checks, global_bemerkung=global_bemerkung)

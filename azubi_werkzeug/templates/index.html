@@ -22,7 +22,13 @@
                         <h5 class="card-title fw-bold mb-0">{{ azubi.name }}</h5>
                         <small class="text-muted">{{ azubi.lehrjahr }}. Lehrjahr</small>
                     </div>
-                    <span class="badge bg-{{ azubi.status_class }} rounded-pill">{{ azubi.status }}</span>
+                    <div class="align-self-center">
+                        {% if azubi.status_class == 'danger' %}
+                        <i class="bi bi-exclamation-triangle-fill text-danger fs-3 me-2"
+                            title="Prüfung überfällig!"></i>
+                        {% endif %}
+                        <span class="badge bg-{{ azubi.status_class }} rounded-pill">{{ azubi.status }}</span>
+                    </div>
                 </div>
 
                 <div class="mb-3">

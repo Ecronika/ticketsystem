@@ -49,7 +49,17 @@
 
                     <div>
                         <div class="fw-bold">{{ item.werkzeug }}</div>
-                        <!-- <div class="small text-muted">Standardgröße</div> -->
+                        {% if item.tech_label and item.tech_value %}
+                        <div class="small text-muted">
+                            <i class="bi bi-rulers"></i> {{ item.tech_label }}: <span class="fw-semibold text-dark">{{
+                                item.tech_value }}</span>
+                        </div>
+                        {% endif %}
+                        {% if item.note %}
+                        <div class="small text-muted fst-italic">
+                            Note: {{ item.note }}
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
 
