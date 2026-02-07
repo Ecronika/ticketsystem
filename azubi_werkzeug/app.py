@@ -11,7 +11,6 @@ default_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'werk
 db_path = os.environ.get('DB_PATH', default_db_path)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 @app.context_processor
@@ -57,113 +56,6 @@ class Check(db.Model):
     azubi_id = db.Column(db.Integer, db.ForeignKey('azubi.id'), nullable=False)
     werkzeug_id = db.Column(db.Integer, db.ForeignKey('werkzeug.id'), nullable=False)
     bemerkung = db.Column(db.String(200), nullable=True)
-
-
-# UPDATE manage route to include logic if needed (currently simple render)
-
-@app.route('/add_werkzeug', methods=['POST'])
-def add_werkzeug():
-    name = request.form.get('name')
-    inventory_number = request.form.get('inventory_number')
-    serial_number = request.form.get('serial_number')
-    material_category = request.form.get('material_category', 'standard')
-    inspection_interval = request.form.get('inspection_interval_months', 12)
-    
-    # Handle Date Input
-    last_inspection_str = request.form.get('last_inspection_date')
-    last_inspection_date = None
-    if last_inspection_str:
-        try:
-            last_inspection_date = datetime.strptime(last_inspection_str, '%Y-%m-%d')
-        except ValueError:
-            pass # Ignore invalid date
-
-    if name:
-        new_werkzeug = Werkzeug(
-            name=name,
-            inventory_number=inventory_number,
-            serial_number=serial_number,
-            material_category=material_category,
-            inspection_interval_months=int(inspection_interval),
-            last_inspection_date=last_inspection_date
-        )
-        db.session.add(new_werkzeug)
-        db.session.commit()
-        flash(f'Werkzeug {name} hinzugefügt.', 'success')
-    ingress = request.headers.get('X-Ingress-Path', '')
-    return redirect(f"{ingress}{url_for('manage')}")
-
-# ... (delete_werkzeug omitted) ...
-
-# --- Helper to create DB and Seed Data ---
-def setup_database():
-    with app.app_context():
-        db.create_all()
-        
-        # Simple Migration for 'lehrjahr' column
-        import sqlite3
-        try:
-            # We need to check if column exists. SQLAlchemy doesn't do this easily with create_all.
-            # We connect directly to check.
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            cursor.execute("PRAGMA table_info(azubi)")
-            columns = [info[1] for info in cursor.fetchall()]
-            
-            if 'lehrjahr' not in columns:
-                print("Migrating DB: Adding 'lehrjahr' column to azubi table.")
-                cursor.execute("ALTER TABLE azubi ADD COLUMN lehrjahr INTEGER DEFAULT 1")
-                conn.commit()
-
-            # Check migration for 'check' table (reserved keyword needs quoting)
-            # 1. Verify table exists
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='check'")
-            if cursor.fetchone():
-                # 2. Get columns
-                cursor.execute('PRAGMA table_info("check")')
-                check_columns = [info[1] for info in cursor.fetchall()]
-                
-                # 3. Add column if missing
-                if 'session_id' not in check_columns:
-                    print("Migrating DB: Adding 'session_id' column to check table.")
-                    cursor.execute('ALTER TABLE "check" ADD COLUMN session_id VARCHAR(36)')
-                    conn.commit()
-
-            # Check migration for 'werkzeug' table (New Compliance Columns)
-            cursor.execute("PRAGMA table_info(werkzeug)")
-            werkzeug_columns = [info[1] for info in cursor.fetchall()]
-            
-            new_w_cols = {
-                'inventory_number': 'VARCHAR(50)',
-                'serial_number': 'VARCHAR(50)',
-                'material_category': 'VARCHAR(20) DEFAULT "standard"',
-                'inspection_interval_months': 'INTEGER DEFAULT 12',
-                'last_inspection_date': 'DATETIME'
-            }
-            
-            for col_name, col_type in new_w_cols.items():
-                if col_name not in werkzeug_columns:
-                    print(f"Migrating DB: Adding '{col_name}' column to werkzeug table.")
-                    cursor.execute(f"ALTER TABLE werkzeug ADD COLUMN {col_name} {col_type}")
-                    conn.commit()
-
-            conn.close()
-        except Exception as e:
-            print(f"Migration Info: {e}")
-
-        # Seed only if absolutely empty? Or just leave it.
-        if not Azubi.query.first():
-            db.session.add(Azubi(name="Max Mustermann", lehrjahr=2))
-            db.session.add(Azubi(name="Lisa Müller", lehrjahr=1))
-            db.session.commit()
-            print("Created Dummy Azubis")
-            
-        if not Werkzeug.query.first():
-            db.session.add(Werkzeug(name="Schlitzschraubendreher 3mm", material_category="vollisoliert"))
-            db.session.add(Werkzeug(name="Kreuzschlitz PH2", material_category="vollisoliert"))
-            db.session.add(Werkzeug(name="Zange Knipex", material_category="teilisoliert"))
-            db.session.commit()
-            print("Created Dummy Werkzeuge")
 
 # --- Routes ---
 
