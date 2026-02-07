@@ -96,7 +96,22 @@ def check_azubi(azubi_id):
     azubi = Azubi.query.get_or_404(azubi_id)
     werkzeuge = Werkzeug.query.all()
     current_date = datetime.now().strftime("%d. %b %Y")
-    return render_template('check.html', azubi=azubi, werkzeuge=werkzeuge, current_date=current_date)
+    
+    # Pre-fill logic: Fetch last check for each tool for this azubi
+    tool_status_map = {}
+    for w in werkzeuge:
+        last_entry = Check.query.filter_by(azubi_id=azubi.id, werkzeug_id=w.id).order_by(Check.datum.desc()).first()
+        status = 'ok' # Default
+        if last_entry and last_entry.bemerkung:
+             # Parse status from string "Status: xyz | ..."
+             parts = last_entry.bemerkung.split('|')
+             for p in parts:
+                 if p.strip().startswith("Status:"):
+                     status = p.replace("Status:", "").strip()
+                     break
+        tool_status_map[w.id] = status
+
+    return render_template('check.html', azubi=azubi, werkzeuge=werkzeuge, current_date=current_date, tool_status_map=tool_status_map)
 
 @app.route('/submit_check', methods=['POST'])
 def submit_check():
@@ -162,6 +177,7 @@ def history():
             # Determine status
             is_ok = True
             for c in session_checks:
+                # "not_issued" is neutral, doesn't break "OK" status
                 if "Status: missing" in (c.bemerkung or "") or "Status: broken" in (c.bemerkung or ""):
                     is_ok = False
                     break

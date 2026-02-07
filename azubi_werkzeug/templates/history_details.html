@@ -41,6 +41,8 @@
                     <i class="bi bi-exclamation-octagon-fill text-warning fs-4 me-3"></i>
                     {% elif item.status == 'broken' %}
                     <i class="bi bi-x-circle-fill text-danger fs-4 me-3"></i>
+                    {% elif item.status == 'not_issued' %}
+                    <i class="bi bi-dash-circle-fill text-secondary fs-4 me-3"></i>
                     {% else %}
                     <i class="bi bi-question-circle text-secondary fs-4 me-3"></i>
                     {% endif %}
@@ -59,6 +61,9 @@
                         class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">FEHLT</span>
                     {% elif item.status == 'broken' %}
                     <span class="badge bg-danger-subtle text-danger border border-danger-subtle">DEFEKT</span>
+                    {% elif item.status == 'not_issued' %}
+                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Nicht
+                        ausg.</span>
                     {% endif %}
                 </div>
             </div>

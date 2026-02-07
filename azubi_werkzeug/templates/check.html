@@ -28,16 +28,25 @@
                             </div>
                             <div class="btn-group" role="group">
                                 <input type="radio" class="btn-check" name="tool_{{ werkzeug.id }}"
-                                    id="t{{ werkzeug.id }}_ok" value="ok" checked>
+                                    id="t{{ werkzeug.id }}_ok" value="ok" {{ 'checked' if
+                                    tool_status_map[werkzeug.id]=='ok' else '' }}>
                                 <label class="btn btn-outline-success" for="t{{ werkzeug.id }}_ok">OK</label>
 
                                 <input type="radio" class="btn-check" name="tool_{{ werkzeug.id }}"
-                                    id="t{{ werkzeug.id }}_missing" value="missing">
+                                    id="t{{ werkzeug.id }}_missing" value="missing" {{ 'checked' if
+                                    tool_status_map[werkzeug.id]=='missing' else '' }}>
                                 <label class="btn btn-outline-warning" for="t{{ werkzeug.id }}_missing">Fehlt</label>
 
                                 <input type="radio" class="btn-check" name="tool_{{ werkzeug.id }}"
-                                    id="t{{ werkzeug.id }}_broken" value="broken">
+                                    id="t{{ werkzeug.id }}_broken" value="broken" {{ 'checked' if
+                                    tool_status_map[werkzeug.id]=='broken' else '' }}>
                                 <label class="btn btn-outline-danger" for="t{{ werkzeug.id }}_broken">Defekt</label>
+
+                                <input type="radio" class="btn-check" name="tool_{{ werkzeug.id }}"
+                                    id="t{{ werkzeug.id }}_not_issued" value="not_issued" {{ 'checked' if
+                                    tool_status_map[werkzeug.id]=='not_issued' else '' }}>
+                                <label class="btn btn-outline-secondary" for="t{{ werkzeug.id }}_not_issued">Nicht
+                                    ausg.</label>
                             </div>
                         </label>
 
