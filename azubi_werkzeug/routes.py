@@ -386,21 +386,34 @@ def download_report(filename):
 @main_bp.route('/manage')
 def manage():
     show_archived = request.args.get('show_archived', '0') == '1'
+    page = request.args.get('page', 1, type=int)
+    per_page = 30  # Limit to prevent template rendering timeout
+    
     if show_archived:
         azubis = Azubi.query.order_by(Azubi.name).all()
     else:
         azubis = Azubi.query.filter_by(is_archived=False).order_by(Azubi.name).all()
+    
     examiners = Examiner.query.order_by(Examiner.name).all()
-    werkzeuge = Werkzeug.query.order_by(Werkzeug.name).all()
-    werkzeuge = Werkzeug.query.order_by(Werkzeug.name).all()
+    
+    # Paginate werkzeuge to prevent timeout
+    werkzeuge_pagination = Werkzeug.query.order_by(Werkzeug.name).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    werkzeuge = werkzeuge_pagination.items
     
     # Check for logo existence
     data_dir = get_data_dir()
     logo_path = os.path.join(data_dir, 'static', 'img', 'logo.png')
     logo_exists = os.path.exists(logo_path)
 
-    return render_template('manage.html', azubis=azubis, examiners=examiners, werkzeuge=werkzeuge, 
-                           show_archived=show_archived, logo_exists=logo_exists)
+    return render_template('manage.html', 
+                           azubis=azubis, 
+                           examiners=examiners, 
+                           werkzeuge=werkzeuge,
+                           werkzeuge_pagination=werkzeuge_pagination,
+                           show_archived=show_archived, 
+                           logo_exists=logo_exists)
 
 @main_bp.route('/toggle_migration_mode', methods=['POST'])
 def toggle_migration_mode():
