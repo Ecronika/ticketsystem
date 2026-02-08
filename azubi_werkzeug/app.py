@@ -239,7 +239,7 @@ def index():
         
         assigned_count = len(get_assigned_tools(azubi.id))
         
-        azubis_data.append({
+        dashboard_data.append({
             'id': azubi.id,
             'name': azubi.name,
             'lehrjahr': azubi.lehrjahr,
@@ -249,7 +249,7 @@ def index():
             'assigned_count': assigned_count
         })
 
-    return render_template('index.html', azubis=azubis_data)
+    return render_template('index.html', azubis=dashboard_data)
 
 @app.route('/check/<int:azubi_id>', methods=['GET'])
 def check_azubi(azubi_id):
