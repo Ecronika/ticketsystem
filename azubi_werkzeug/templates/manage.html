@@ -406,8 +406,10 @@
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                                         <div class="d-flex justify-content-end gap-1">
                                             <button type="button" class="btn btn-sm btn-light text-primary border-0"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#editWerkzeugModal{{ werkzeug.id }}" title="Bearbeiten">
+                                                data-bs-toggle="modal" data-bs-target="#editWerkzeugModal"
+                                                data-id="{{ werkzeug.id }}" data-name="{{ werkzeug.name }}"
+                                                data-category="{{ werkzeug.material_category }}"
+                                                data-param="{{ werkzeug.tech_param_label or '' }}" title="Bearbeiten">
                                                 <i class="bi bi-pencil"></i>
                                             </button>
                                             <button type="submit" class="btn btn-sm btn-light text-danger border-0"
@@ -418,58 +420,7 @@
                                     </form>
                                 </td>
                             </tr>
-
-                            <!-- Edit Werkzeug Modal -->
-                            <div class="modal fade" id="editWerkzeugModal{{ werkzeug.id }}" tabindex="-1"
-                                aria-hidden="true">
-                                <div class="modal-dialog">
-                                    <div class="modal-content text-start">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title">Werkzeug bearbeiten</h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                                aria-label="Close"></button>
-                                        </div>
-                                        <form
-                                            action="{{ ingress_path }}{{ url_for('main.edit_werkzeug', id=werkzeug.id) }}"
-                                            method="POST">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                                            <div class="modal-body">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Bezeichnung</label>
-                                                    <input type="text" class="form-control" name="name"
-                                                        value="{{ werkzeug.name }}" required>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label">VDE Kategorie</label>
-                                                    <select class="form-select" name="material_category">
-                                                        <option value="standard" {{ 'selected' if
-                                                            werkzeug.material_category=='standard' }}>Standard</option>
-                                                        <option value="teilisoliert" {{ 'selected' if
-                                                            werkzeug.material_category=='teilisoliert' }}>Teilisoliert
-                                                        </option>
-                                                        <option value="vollisoliert" {{ 'selected' if
-                                                            werkzeug.material_category=='vollisoliert' }}>Vollisoliert
-                                                        </option>
-                                                        <option value="isolierend" {{ 'selected' if
-                                                            werkzeug.material_category=='isolierend' }}>Vollkunststoff
-                                                        </option>
-                                                    </select>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label">Tech. Daten (Label)</label>
-                                                    <input type="text" class="form-control" name="tech_param_label"
-                                                        value="{{ werkzeug.tech_param_label or '' }}">
-                                                </div>
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary"
-                                                    data-bs-dismiss="modal">Abbrechen</button>
-                                                <button type="submit" class="btn btn-primary">Speichern</button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
+                            {% endfor %}
                             {% else %}
                             <tr>
                                 <td colspan="4" class="text-center text-muted py-3">Keine Werkzeuge angelegt.</td>
@@ -509,6 +460,48 @@
                         werkzeuge_pagination.pages }} ({{ werkzeuge_pagination.total }} Werkzeuge insgesamt)</p>
                 </nav>
                 {% endif %}
+
+                <!-- Single Dynamic Edit Modal for ALL Werkzeuge -->
+                <div class="modal fade" id="editWerkzeugModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content text-start">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Werkzeug bearbeiten</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <form id="editWerkzeugForm" method="POST">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                <div class="modal-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Bezeichnung</label>
+                                        <input type="text" class="form-control" id="modalWerkzeugName" name="name"
+                                            required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">VDE Kategorie</label>
+                                        <select class="form-select" id="modalWerkzeugCategory" name="material_category">
+                                            <option value="standard">Standard</option>
+                                            <option value="teilisoliert">Teilisoliert</option>
+                                            <option value="vollisoliert">Vollisoliert (1000V)</option>
+                                            <option value="isolierend">Vollkunststoff</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Tech. Daten (Label)</label>
+                                        <input type="text" class="form-control" id="modalWerkzeugParam"
+                                            name="tech_param_label">
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary"
+                                        data-bs-dismiss="modal">Abbrechen</button>
+                                    <button type="submit" class="btn btn-primary">Speichern</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -560,6 +553,31 @@
 
         filterTable('searchAzubi', 'azubiTable');
         filterTable('searchWerkzeug', 'werkzeugTable');
+        filterTable('searchExaminer', 'examinerTable');
+
+        // Dynamic Modal Population for Werkzeuge
+        const editWerkzeugModal = document.getElementById('editWerkzeugModal');
+        if (editWerkzeugModal) {
+            editWerkzeugModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget; // Button that triggered modal
+
+                // Extract data from button's data-* attributes
+                const id = button.getAttribute('data-id');
+                const name = button.getAttribute('data-name');
+                const category = button.getAttribute('data-category');
+                const param = button.getAttribute('data-param');
+
+                // Update form action dynamically
+                const form = document.getElementById('editWerkzeugForm');
+                const ingressPath = '{{ ingress_path }}';
+                form.action = ingressPath + '/edit_werkzeug/' + id;
+
+                // Populate form fields
+                document.getElementById('modalWerkzeugName').value = name || '';
+                document.getElementById('modalWerkzeugCategory').value = category || 'standard';
+                document.getElementById('modalWerkzeugParam').value = param || '';
+            });
+        }
     });
 </script>
 {% endblock %}
