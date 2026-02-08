@@ -767,6 +767,29 @@ def setup_database():
              # Optional: Seed a default examiner
              pass
 
+@app.route('/upload_logo', methods=['POST'])
+def upload_logo():
+    if 'logo' not in request.files:
+        flash('Keine Datei ausgewählt', 'danger')
+        return redirect(url_for('manage'))
+    
+    file = request.files['logo']
+    
+    if file.filename == '':
+        flash('Keine Datei ausgewählt', 'danger')
+        return redirect(url_for('manage'))
+        
+    if file:
+        filename = 'logo.png'
+        # Ensure static/img exists
+        img_folder = os.path.join(app.root_path, 'static', 'img')
+        os.makedirs(img_folder, exist_ok=True)
+        
+        file.save(os.path.join(img_folder, filename))
+        flash('Logo erfolgreich hochgeladen', 'success')
+        
+    return redirect(url_for('manage'))
+
 if __name__ == '__main__':
     setup_database()
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
