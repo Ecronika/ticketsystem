@@ -13,8 +13,32 @@
                     <h4 class="card-title fw-bold mb-0">Azubis verwalten</h4>
                     <p class="text-muted small mb-0">Verwaltung der Auszubildenden.</p>
                 </div>
-                <div style="max-width: 200px;" class="flex-grow-1">
-                    <input type="text" id="searchAzubi" class="form-control form-control-sm" placeholder="Suchen...">
+                <div class="d-flex gap-2 align-items-center flex-grow-1 justify-content-end">
+                    <!-- Archive Filter -->
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                            data-bs-toggle="dropdown">
+                            <i class="bi bi-filter"></i> Filter
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item {{ 'active' if not show_archived else '' }}"
+                                    href="{{ ingress_path }}{{ url_for('manage', show_archived=0) }}">
+                                    Aktive anzeigen
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {{ 'active' if show_archived else '' }}"
+                                    href="{{ ingress_path }}{{ url_for('manage', show_archived=1) }}">
+                                    Alle (inkl. Archiv) anzeigen
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div style="max-width: 200px;">
+                        <input type="text" id="searchAzubi" class="form-control form-control-sm"
+                            placeholder="Suchen...">
+                    </div>
                 </div>
             </div>
 
@@ -50,7 +74,12 @@
                         <tbody>
                             {% for azubi in azubis %}
                             <tr>
-                                <td class="fw-bold">{{ azubi.name }}</td>
+                                <td class="fw-bold">
+                                    {{ azubi.name }}
+                                    {% if azubi.is_archived %}
+                                    <span class="badge bg-secondary ms-1">Archiviert</span>
+                                    {% endif %}
+                                </td>
                                 <td class="text-center"><span class="badge bg-light text-dark border">{{ azubi.lehrjahr
                                         }}. LJ</span></td>
                                 <div class="text-end">
@@ -58,13 +87,40 @@
                                         method="POST" onsubmit="return confirm('Wirklich löschen?');" class="d-inline">
                                         <td>
                                             <div class="d-flex justify-content-end gap-1">
-                                                <!-- Edit would go here -->
+                                                <!-- Report -->
+                                                <a href="{{ ingress_path }}{{ url_for('end_of_training_report', id=azubi.id) }}"
+                                                    class="btn btn-sm btn-light text-primary border-0"
+                                                    title="Ausbildungsende-Protokoll">
+                                                    <i class="bi bi-file-earmark-pdf"></i>
+                                                </a>
+
+                                                <!-- Edit -->
                                                 <button type="button"
                                                     class="btn btn-sm btn-light text-secondary border-0"
                                                     data-bs-toggle="modal"
                                                     data-bs-target="#editAzubiModal{{ azubi.id }}" title="Bearbeiten">
                                                     <i class="bi bi-pencil"></i>
                                                 </button>
+
+                                                <!-- Archive / Unarchive -->
+                                                {% if azubi.is_archived %}
+                                                <button type="submit"
+                                                    formaction="{{ ingress_path }}{{ url_for('unarchive_azubi', id=azubi.id) }}"
+                                                    class="btn btn-sm btn-light text-success border-0"
+                                                    title="Wiederherstellen">
+                                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                                </button>
+                                                {% else %}
+                                                <button type="submit"
+                                                    formaction="{{ ingress_path }}{{ url_for('archive_azubi', id=azubi.id) }}"
+                                                    class="btn btn-sm btn-light text-warning border-0"
+                                                    title="Archivieren"
+                                                    onclick="return confirm('Azubi archivieren? (Nur möglich wenn alle Werkzeuge zurückgegeben sind)')">
+                                                    <i class="bi bi-archive"></i>
+                                                </button>
+                                                {% endif %}
+
+                                                <!-- Delete -->
                                                 <button type="submit" class="btn btn-sm btn-light text-danger border-0"
                                                     title="Löschen">
                                                     <i class="bi bi-trash"></i>
@@ -185,8 +241,14 @@
                     <h4 class="card-title fw-bold mb-0">Werkzeuge verwalten</h4>
                     <p class="text-muted small mb-0">Inventarliste und technische Daten.</p>
                 </div>
-                <div style="max-width: 200px;" class="flex-grow-1">
-                    <input type="text" id="searchWerkzeug" class="form-control form-control-sm" placeholder="Suchen...">
+                <div class="d-flex gap-2 align-items-center flex-grow-1 justify-content-end">
+                    <a href="{{ ingress_path }}{{ url_for('generate_qr_codes') }}" class="btn btn-sm btn-outline-dark">
+                        <i class="bi bi-qr-code"></i> QR-Codes drucken
+                    </a>
+                    <div style="max-width: 200px;">
+                        <input type="text" id="searchWerkzeug" class="form-control form-control-sm"
+                            placeholder="Suchen...">
+                    </div>
                 </div>
             </div>
             <div class="card-body px-4">

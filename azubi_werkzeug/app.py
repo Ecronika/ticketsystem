@@ -1,6 +1,6 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, make_response
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import secrets
 import uuid
@@ -51,6 +51,7 @@ class Azubi(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     lehrjahr = db.Column(db.Integer, default=1)
+    is_archived = db.Column(db.Boolean, default=False) # Phase 6: Succession
     checks = db.relationship('Check', backref='azubi', lazy=True)
 
     def __repr__(self):
@@ -96,6 +97,86 @@ class Check(db.Model):
 
 # --- Routes ---
 
+# --- Phase 6: Reporting & Lifecycle Routes ---
+
+@app.route('/generate_qr_codes')
+def generate_qr_codes():
+    from azubi_werkzeug.pdf_utils import generate_qr_codes_pdf
+    
+    # Fetch all tools
+    tools = Werkzeug.query.order_by(Werkzeug.name).all()
+    
+    if not tools:
+        flash('Keine Werkzeuge vorhanden.', 'warning')
+        return redirect(url_for('manage'))
+
+    try:
+        pdf = generate_qr_codes_pdf(tools)
+        
+        # Output
+        response = make_response(pdf.output(dest='S').encode('latin1'))
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = 'attachment; filename=Werkzeug_QRCodes.pdf'
+        return response
+    except Exception as e:
+        print(f"Error generating QR Codes: {e}")
+        flash(f'Fehler beim Erstellen der QR-Codes: {e}', 'danger')
+        ingress = request.headers.get('X-Ingress-Path', '')
+        return redirect(f"{ingress}{url_for('manage')}")
+
+@app.route('/archive_azubi/<int:id>', methods=['POST'])
+def archive_azubi(id):
+    azubi = Azubi.query.get_or_404(id)
+    
+    # Security Check: Are tools still assigned?
+    assigned_cards = get_assigned_tools(azubi.id)
+    if assigned_cards:
+        flash(f'Warnung: {azubi.name} hat noch {len(assigned_cards)} Werkzeuge im Besitz! Bitte erst zurückgeben.', 'danger')
+        ingress = request.headers.get('X-Ingress-Path', '')
+        return redirect(f"{ingress}{url_for('manage')}")
+        
+    azubi.is_archived = True
+    db.session.commit()
+    flash(f'{azubi.name} wurde archiviert.', 'success')
+    ingress = request.headers.get('X-Ingress-Path', '')
+    return redirect(f"{ingress}{url_for('manage')}")
+
+@app.route('/unarchive_azubi/<int:id>', methods=['POST'])
+def unarchive_azubi(id):
+    azubi = Azubi.query.get_or_404(id)
+    azubi.is_archived = False
+    db.session.commit()
+    flash(f'{azubi.name} wurde wiederhergestellt.', 'success')
+    ingress = request.headers.get('X-Ingress-Path', '')
+    return redirect(f"{ingress}{url_for('manage')}")
+
+@app.route('/report/end_of_training/<int:id>')
+def end_of_training_report(id):
+    from azubi_werkzeug.pdf_utils import generate_end_of_training_report
+    
+    azubi = Azubi.query.get_or_404(id)
+    
+    # 1. Check Inventory
+    assigned = get_assigned_tools(azubi.id)
+    is_clear = (len(assigned) == 0)
+    
+    # 2. Get Full History
+    # Join with Werkzeug to get names
+    history = Check.query.filter_by(azubi_id=id).order_by(Check.datum.desc()).all()
+    
+    try:
+        pdf = generate_end_of_training_report(azubi, history, is_clear)
+        
+        response = make_response(pdf.output(dest='S').encode('latin1'))
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename=Ausbildungsende_{azubi.name}.pdf'
+        return response
+    except Exception as e:
+        print(f"Error generating Report: {e}")
+        flash(f'Fehler beim Erstellen des Berichts: {e}', 'danger')
+        ingress = request.headers.get('X-Ingress-Path', '')
+        return redirect(f"{ingress}{url_for('manage')}")
+
 
 
 # --- Helper Functions ---
@@ -124,10 +205,14 @@ def get_assigned_tools(azubi_id):
 
 @app.route('/')
 def index():
-    azubis_db = Azubi.query.all()
-    azubis_data = []
+    # Only show active azubis
+    azubis = Azubi.query.filter_by(is_archived=False).order_by(Azubi.name).all()
     
-    for azubi in azubis_db:
+    dashboard_data = []
+    today = datetime.now().date()
+    three_months_ago = today - timedelta(days=90)
+    
+    for azubi in azubis:
         # Get last check (any type)
         last_check = Check.query.filter_by(azubi_id=azubi.id).order_by(Check.datum.desc()).first()
         
@@ -439,10 +524,17 @@ def download_report(filename):
 
 @app.route('/manage')
 def manage():
-    azubis = Azubi.query.all()
-    werkzeuge = Werkzeug.query.all()
-    examiners = Examiner.query.all()
-    return render_template('manage.html', azubis=azubis, werkzeuge=werkzeuge, examiners=examiners)
+    # Filter Logic for Azubis
+    show_archived = request.args.get('show_archived', '0') == '1'
+    
+    if show_archived:
+        azubis = Azubi.query.order_by(Azubi.name).all()
+    else:
+        azubis = Azubi.query.filter_by(is_archived=False).order_by(Azubi.name).all()
+        
+    examiners = Examiner.query.order_by(Examiner.name).all()
+    werkzeuge = Werkzeug.query.order_by(Werkzeug.name).all()
+    return render_template('manage.html', azubis=azubis, examiners=examiners, werkzeuge=werkzeuge, show_archived=show_archived)
 
 @app.route('/add_examiner', methods=['POST'])
 def add_examiner():
@@ -617,6 +709,14 @@ def setup_database():
                 # So if we added the model, it should be fine.
                 pass 
             
+            # --- Phase 6: is_archived in 'Azubi' ---
+            cursor.execute("PRAGMA table_info(azubi)")
+            azubi_columns = [info[1] for info in cursor.fetchall()]
+            if 'is_archived' not in azubi_columns:
+                print("Migrating DB: Adding 'is_archived' column to azubi table.")
+                cursor.execute("ALTER TABLE azubi ADD COLUMN is_archived BOOLEAN DEFAULT 0")
+                conn.commit()
+
             conn.close()
         except Exception as e:
             print(f"Migration Info: {e}")
