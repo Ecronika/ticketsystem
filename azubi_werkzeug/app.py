@@ -141,20 +141,7 @@ def setup_database():
         except Exception as e:
             app.logger.error(f"Migration Info: {e}")
 
-        # Seed Data
-        if not Azubi.query.first():
-            db.session.add(Azubi(name="Max Mustermann", lehrjahr=2))
-            db.session.add(Azubi(name="Lisa Müller", lehrjahr=1))
-            db.session.commit()
-            app.logger.info("Created Dummy Azubis")
-            
-        if not Werkzeug.query.first():
-            db.session.add(Werkzeug(name="Schlitzschraubendreher 3mm"))
-            db.session.add(Werkzeug(name="Kreuzschlitz PH2"))
-            db.session.add(Werkzeug(name="Zange Knipex"))
-            db.session.add(Werkzeug(name="Hammer 500g"))
-            db.session.commit()
-            app.logger.info("Created Dummy Werkzeuge")
+
 
 # --- Global Error Handlers ---
 @app.errorhandler(413) # Payload Too Large
