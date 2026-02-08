@@ -41,8 +41,16 @@
               href="{{ ingress_path }}{{ url_for('main.history') }}">Historie</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link {{ 'active' if request.endpoint and request.endpoint == 'main.manage' else '' }}"
-              href="{{ ingress_path }}{{ url_for('main.manage') }}">Verwaltung</a>
+            <a class="nav-link {{ 'active' if request.endpoint and request.endpoint == 'main.tools' else '' }}"
+              href="{{ ingress_path }}{{ url_for('main.tools') }}">Werkzeuge</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {{ 'active' if request.endpoint and request.endpoint == 'main.personnel' else '' }}"
+              href="{{ ingress_path }}{{ url_for('main.personnel') }}">Personal</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {{ 'active' if request.endpoint and request.endpoint == 'main.settings' else '' }}"
+              href="{{ ingress_path }}{{ url_for('main.settings') }}">Einstellungen</a>
           </li>
           <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
             <button class="btn btn-outline-light btn-sm" id="contrastToggle" title="Hoher Kontrast">

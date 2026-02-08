@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h2>System-Einstellungen</h2>
+
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h5>Firmenlogo</h5>
+        </div>
+        <div class="card-body">
+            {% if logo_exists %}
+            <div class="mb-3">
+                <img src="{{ ingress_path }}{{ url_for('main.serve_logo') }}" style="max-height: 150px"
+                    class="img-thumbnail">
+            </div>
+            {% else %}
+            <p class="text-muted">Kein Logo hochgeladen.</p>
+            {% endif %}
+
+            <form action="{{ ingress_path }}{{ url_for('main.upload_logo') }}" method="POST"
+                enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <div class="mb-3">
+                    <label class="form-label">Logo hochladen (PNG)</label>
+                    <input type="file" name="logo" class="form-control" accept="image/png" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Hochladen</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

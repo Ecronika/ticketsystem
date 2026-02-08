@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session, Response
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session, Response, jsonify
 from sqlalchemy.orm import joinedload
 from extensions import db, limiter
 from models import Azubi, Werkzeug, Examiner, Check
@@ -383,14 +383,32 @@ def download_report(filename):
 
 @main_bp.route('/manage')
 def manage():
-    show_archived = request.args.get('show_archived', '0') == '1'
+    """Redirect old /manage to new /tools page for backward compatibility"""
+    return redirect(url_for('main.tools'))
+
+@main_bp.route('/tools')
+def tools():
+    """Tools management page"""
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
     
-    # FIX: Pagination for both Werkzeuge AND Azubis
-    werkzeug_page = request.args.get('page', 1, type=int)  # Legacy param name kept for compatibility
+    werkzeuge_pagination = Werkzeug.query.order_by(Werkzeug.name).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    werkzeuge = werkzeuge_pagination.items
+    
+    return render_template('tools.html',
+                          werkzeuge=werkzeuge,
+                          werkzeuge_pagination=werkzeuge_pagination)
+
+@main_bp.route('/personnel')
+def personnel():
+    """Personnel management page (Azubis + Examiners)"""
     azubi_page = request.args.get('azubi_page', 1, type=int)
-    per_page = 20  # Reduced from 30 to 20 for less load
+    show_archived = request.args.get('show_archived', '0') == '1'
+    per_page = 20
     
-    # Paginate Azubis
+    # Query azubis
     query = Azubi.query.order_by(Azubi.name)
     if not show_archived:
         query = query.filter_by(is_archived=False)
@@ -398,27 +416,23 @@ def manage():
     azubi_pagination = query.paginate(page=azubi_page, per_page=per_page, error_out=False)
     azubis = azubi_pagination.items
     
+    # Query examiners (not paginated, typically few items)
     examiners = Examiner.query.order_by(Examiner.name).all()
     
-    # Paginate Werkzeuge  
-    werkzeuge_pagination = Werkzeug.query.order_by(Werkzeug.name).paginate(
-        page=werkzeug_page, per_page=per_page, error_out=False
-    )
-    werkzeuge = werkzeuge_pagination.items
-    
-    # Check for logo existence
+    return render_template('personnel.html',
+                          azubis=azubis,
+                          azubi_pagination=azubi_pagination,
+                          examiners=examiners,
+                          show_archived=show_archived)
+
+@main_bp.route('/settings')
+def settings():
+    """System settings page"""
     data_dir = get_data_dir()
     logo_path = os.path.join(data_dir, 'static', 'img', 'logo.png')
     logo_exists = os.path.exists(logo_path)
-
-    return render_template('manage.html', 
-                           azubis=azubis,
-                           azubi_pagination=azubi_pagination,  # NEW: Pass to template
-                           examiners=examiners, 
-                           werkzeuge=werkzeuge,
-                           werkzeuge_pagination=werkzeuge_pagination,
-                           show_archived=show_archived, 
-                           logo_exists=logo_exists)
+    
+    return render_template('settings.html', logo_exists=logo_exists)
 
 @main_bp.route('/toggle_migration_mode', methods=['POST'])
 def toggle_migration_mode():
@@ -515,7 +529,37 @@ def add_werkzeug():
         for field, errors in form.errors.items():
             for error in errors:
                 flash(f"Fehler bei {field}: {error}", 'error')
-    return redirect(f"{ingress}{url_for('main.manage')}")
+    return redirect(f"{ingress}{url_for('main.tools')}")
+
+@main_bp.route('/api/werkzeug', methods=['POST'])
+def api_add_werkzeug():
+    """AJAX endpoint for adding werkzeug without page reload"""
+    try:
+        form = WerkzeugForm(request.form)
+        if not form.validate():
+            return jsonify({'success': False, 'errors': form.errors}), 400
+        
+        new_werkzeug = Werkzeug(
+            name=form.name.data,
+            material_category=form.material_category.data,
+            tech_param_label=form.tech_param_label.data
+        )
+        db.session.add(new_werkzeug)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'werkzeug': {
+                'id': new_werkzeug.id,
+                'name': new_werkzeug.name,
+                'category': new_werkzeug.material_category,
+                'param': new_werkzeug.tech_param_label or ''
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @main_bp.route('/edit_werkzeug/<int:id>', methods=['POST'])
 def edit_werkzeug(id):

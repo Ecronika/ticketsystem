@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <!-- Azubi Management -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm border-0 rounded-4 h-100">
+                <div
+                    class="card-header bg-white border-bottom-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <h4 class="card-title fw-bold mb-0">Azubis verwalten</h4>
+                        <p class="text-muted small mb-0">Verwaltung der Auszubildenden.</p>
+                    </div>
+                    <div class="d-flex gap-2 align-items-center flex-grow-1 justify-content-end">
+                        <!-- Archive Filter -->
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                                data-bs-toggle="dropdown">
+                                <i class="bi bi-filter"></i> Filter
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item {{ 'active' if not show_archived else '' }}"
+                                        href="{{ ingress_path }}{{ url_for('main.personnel', show_archived=0) }}">
+                                        Aktive anzeigen
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item {{ 'active' if show_archived else '' }}"
+                                        href="{{ ingress_path }}{{ url_for('main.personnel', show_archived=1) }}">
+                                        Alle (inkl. Archiv) anzeigen
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                        <div style="max-width: 200px;">
+                            <input type="text" id="searchAzubi" class="form-control form-control-sm"
+                                placeholder="Suchen...">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body px-4">
+                    <!-- Add Azubi Form -->
+                    <form id="addAzubiForm" class="mb-4 bg-light p-3 rounded-3 border">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                        <div class="row g-2 align-items-center">
+                            <div class="col-12 col-md-7">
+                                <input type="text" name="name" class="form-control form-control-sm" placeholder="Name"
+                                    required>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <input type="number" name="lehrjahr" class="form-control form-control-sm"
+                                    placeholder="LJ" min="1" max="4" required>
+                            </div>
+                            <div class="col-6 col-md-2 text-end">
+                                <button class="btn btn-primary btn-sm w-100" type="submit">
+                                    <i class="bi bi-plus-lg"></i> Hinzufügen
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <div class="table-responsive">
+                        <table id="azubiTable" class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th scope="col" class="w-50">Name</th>
+                                    <th scope="col" class="w-25 text-center">Lehrjahr</th>
+                                    <th scope="col" class="w-25 text-end">Aktion</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for azubi in azubis %}
+                                <tr>
+                                    <td class="fw-bold">
+                                        {{ azubi.name }}
+                                        {% if azubi.is_archived %}
+                                        <span class="badge bg-secondary ms-1">Archiviert</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-light text-dark border">{{ azubi.lehrjahr }}. LJ</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <form action="{{ ingress_path }}{{ url_for('main.delete_azubi', id=azubi.id) }}"
+                                            method="POST" onsubmit="return confirm('Wirklich löschen?');"
+                                            class="d-inline">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                            <div class="d-flex justify-content-end gap-1">
+                                                <a href="{{ ingress_path }}{{ url_for('main.end_of_training_report', id=azubi.id) }}"
+                                                    class="btn btn-sm btn-light text-primary border-0"
+                                                    title="Ausbildungsende-Protokoll">
+                                                    <i class="bi bi-file-earmark-pdf"></i>
+                                                </a>
+                                                <button type="button"
+                                                    class="btn btn-sm btn-light text-secondary border-0"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#editAzubiModal{{ azubi.id }}" title="Bearbeiten">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                {% if azubi.is_archived %}
+                                                <button type="submit"
+                                                    formaction="{{ ingress_path }}{{ url_for('main.unarchive_azubi', id=azubi.id) }}"
+                                                    class="btn btn-sm btn-light text-success border-0"
+                                                    title="Wiederherstellen">
+                                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                                </button>
+                                                {% else %}
+                                                <button type="submit"
+                                                    formaction="{{ ingress_path }}{{ url_for('main.archive_azubi', id=azubi.id) }}"
+                                                    class="btn btn-sm btn-light text-warning border-0"
+                                                    title="Archivieren"
+                                                    onclick="return confirm('Azubi archivieren? (Nur möglich wenn alle Werkzeuge zurückgegeben sind)')">
+                                                    <i class="bi bi-archive"></i>
+                                                </button>
+                                                {% endif %}
+                                                <button type="submit" class="btn btn-sm btn-light text-danger border-0"
+                                                    title="Löschen">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </td>
+                                </tr>
+
+                                <!-- Edit Azubi Modal -->
+                                <div class="modal fade" id="editAzubiModal{{ azubi.id }}" tabindex="-1"
+                                    aria-hidden="true">
+                                    <div class="modal-dialog modal-sm">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h6 class="modal-title fw-bold">Azubi bearbeiten</h6>
+                                                <button type="button" class="btn-close"
+                                                    data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <form
+                                                action="{{ ingress_path }}{{ url_for('main.edit_azubi', id=azubi.id) }}"
+                                                method="POST">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                                <div class="modal-body">
+                                                    <div class="mb-2">
+                                                        <label class="form-label small">Name</label>
+                                                        <input type="text" class="form-control form-control-sm"
+                                                            name="name" value="{{ azubi.name }}" required>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <label class="form-label small">Lehrjahr</label>
+                                                        <input type="number" class="form-control form-control-sm"
+                                                            name="lehrjahr" value="{{ azubi.lehrjahr }}" min="1" max="4"
+                                                            required>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer p-1">
+                                                    <button type="submit"
+                                                        class="btn btn-primary btn-sm w-100">Speichern</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted py-3">Keine Azubis vorhanden.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Azubi Pagination -->
+                    {% if azubi_pagination and azubi_pagination.pages > 1 %}
+                    <nav aria-label="Azubi pagination" class="mt-3">
+                        <ul class="pagination pagination-sm justify-content-center">
+                            <li class="page-item {% if azubi_pagination.page == 1 %}disabled{% endif %}">
+                                <a class="page-link"
+                                    href="{{ ingress_path }}{{ url_for('main.personnel', azubi_page=azubi_pagination.page-1, show_archived=1 if show_archived else 0) }}">Zurück</a>
+                            </li>
+                            <li class="page-item disabled">
+                                <span class="page-link">{{ azubi_pagination.page }} / {{ azubi_pagination.pages
+                                    }}</span>
+                            </li>
+                            <li
+                                class="page-item {% if azubi_pagination.page == azubi_pagination.pages %}disabled{% endif %}">
+                                <a class="page-link"
+                                    href="{{ ingress_path }}{{ url_for('main.personnel', azubi_page=azubi_pagination.page+1, show_archived=1 if show_archived else 0) }}">Weiter</a>
+                            </li>
+                        </ul>
+                        <p class="text-center text-muted small">{{ azubi_pagination.total }} Azubis insgesamt</p>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Examiner Management -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm border-0 rounded-4 h-100">
+                <div class="card-header bg-white border-bottom-0 pt-4 px-4 pb-0">
+                    <h4 class="card-title fw-bold mb-0">Prüfer verwalten</h4>
+                    <p class="text-muted small mb-0">Liste der Prüfer / Ausbilder.</p>
+                </div>
+                <div class="card-body px-4">
+                    <!-- Add Examiner Form -->
+                    <form id="addExaminerForm" class="mb-4 bg-light p-3 rounded-3 border">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                        <div class="row g-2 align-items-center">
+                            <div class="col-8 col-md-9">
+                                <input type="text" name="name" class="form-control form-control-sm" placeholder="Name"
+                                    required>
+                            </div>
+                            <div class="col-4 col-md-3 text-end">
+                                <button class="btn btn-primary btn-sm w-100" type="submit">
+                                    <i class="bi bi-plus-lg"></i> Add
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <div class="table-responsive">
+                        <table id="examinerTable" class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Name</th>
+                                    <th class="text-end">Aktion</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for examiner in examiners %}
+                                <tr>
+                                    <td class="fw-bold">{{ examiner.name }}</td>
+                                    <td class="text-end">
+                                        <form
+                                            action="{{ ingress_path }}{{ url_for('main.delete_examiner', id=examiner.id) }}"
+                                            method="POST" onsubmit="return confirm('Wirklich löschen?');"
+                                            class="d-inline">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                            <button type="submit" class="btn btn-sm btn-light text-danger border-0"
+                                                title="Löschen">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="2" class="text-center text-muted py-3">Keine Prüfer angelegt.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Table search filter
+        function filterTable(inputId, tableId) {
+            const input = document.getElementById(inputId);
+            const table = document.getElementById(tableId);
+            if (!input || !table) return;
+
+            input.addEventListener('keyup', function () {
+                table.style.opacity = '0.5';
+                const filter = this.value.toLowerCase();
+                setTimeout(() => {
+                    const rows = table.getElementsByTagName('tr');
+                    for (let i = 1; i < rows.length; i++) {
+                        const row = rows[i];
+                        if (row.cells.length < 2 && row.cells[0].getAttribute('colspan')) continue;
+                        const text = row.textContent || row.innerText;
+                        row.style.display = text.toLowerCase().indexOf(filter) > -1 ? "" : "none";
+                    }
+                    table.style.opacity = '1';
+                }, 200);
+            });
+        }
+
+        filterTable('searchAzubi', 'azubiTable');
+        filterTable('searchExaminer', 'examinerTable');
+
+        // AJAX Add Azubi (simple reload for now)
+        const addFormAzubi = document.getElementById('addAzubiForm');
+        if (addFormAzubi) {
+            addFormAzubi.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                const button = this.querySelector('button[type="submit"]');
+                button.disabled = true;
+                button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+                fetch('{{ ingress_path }}{{ url_for("main.add_azubi") }}', {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(() => window.location.reload())
+                    .catch(error => {
+                        alert('Fehler: ' + error);
+                        button.disabled = false;
+                        button.innerHTML = '<i class="bi bi-plus-lg"></i> Hinzufügen';
+                    });
+            });
+        }
+
+        // AJAX Add Examiner (simple reload for now)
+        const addFormExaminer = document.getElementById('addExaminerForm');
+        if (addFormExaminer) {
+            addFormExaminer.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                const button = this.querySelector('button[type="submit"]');
+                button.disabled = true;
+                button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+                fetch('{{ ingress_path }}{{ url_for("main.add_examiner") }}', {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(() => window.location.reload())
+                    .catch(error => {
+                        alert('Fehler: ' + error);
+                        button.disabled = false;
+                        button.innerHTML = '<i class="bi bi-plus-lg"></i> Add';
+                    });
+            });
+        }
+    });
+</script>
+{% endblock %}
