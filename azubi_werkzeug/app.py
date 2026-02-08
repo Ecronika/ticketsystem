@@ -138,6 +138,21 @@ def setup_database():
                 cursor.execute("CREATE INDEX idx_check_datum ON \"check\" (datum)")
                 conn.commit()
 
+            # --- Phase 9: UI Sorting Indexes (Performance Fix) ---
+            cursor.execute("PRAGMA index_list('azubi')")
+            azubi_indexes = [row[1] for row in cursor.fetchall()]
+            if 'idx_azubi_name' not in azubi_indexes:
+                app.logger.info("Migrating DB: Creating Index idx_azubi_name")
+                cursor.execute("CREATE INDEX idx_azubi_name ON azubi (name)")
+                conn.commit()
+
+            cursor.execute("PRAGMA index_list('werkzeug')")
+            werkzeug_indexes = [row[1] for row in cursor.fetchall()]
+            if 'idx_werkzeug_name' not in werkzeug_indexes:
+                app.logger.info("Migrating DB: Creating Index idx_werkzeug_name")
+                cursor.execute("CREATE INDEX idx_werkzeug_name ON werkzeug (name)")
+                conn.commit()
+
             conn.close()
         except Exception as e:
             app.logger.error(f"Migration Info: {e}")

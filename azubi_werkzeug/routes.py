@@ -1,5 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_from_directory, make_response, current_app, session
-from sqlalchemy.orm import joinedload
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session, Response
 from sqlalchemy.orm import joinedload
 from extensions import db, limiter
 from models import Azubi, Werkzeug, Examiner, Check
@@ -9,6 +8,7 @@ import os
 import uuid
 import base64
 from pdf_utils import generate_handover_pdf, generate_qr_codes_pdf, generate_end_of_training_report
+from functools import lru_cache
 
 main_bp = Blueprint('main', __name__)
 
@@ -21,30 +21,25 @@ def get_data_dir():
     # Retrieve data_dir from app config or calculate it
     return current_app.config.get('DATA_DIR', os.path.dirname(os.path.abspath(__file__)))
 
+# FIX: Cache must be outside request function
+@lru_cache(maxsize=1)
+def _get_logo_data(logo_path):
+    """Cached logo reader"""
+    with open(logo_path, 'rb') as f:
+        return f.read()
+
 def get_assigned_tools(azubi_id):
-    """Calculates currently assigned tools for an Azubi based on history."""
-    checks = Check.query.filter_by(azubi_id=azubi_id).order_by(Check.datum.asc()).all()
-    assigned = set()
-    
+    """Returns a list of werkzeug_ids currently assigned to the azubi."""
+    checks = Check.query.filter_by(azubi_id=azubi_id, returned_date=None).all()
+    assigned = [c.werkzeug_id for c in checks]
     for c in checks:
-        if c.check_type == 'issue':
-            assigned.add(c.werkzeug_id)
-        elif c.check_type == 'return':
-            if c.werkzeug_id in assigned:
+        if c.werkzeug_id in assigned and c.returned_date is not None:
                 assigned.remove(c.werkzeug_id)
     return assigned
 
 @main_bp.route('/logo')
 def serve_logo():
     """Serve logo from DATA_DIR with caching"""
-    from functools import lru_cache
-    
-    @lru_cache(maxsize=1)
-    def _get_logo_data(logo_path):
-        """Cached logo reader"""
-        with open(logo_path, 'rb') as f:
-            return f.read()
-    
     data_dir = get_data_dir()
     logo_path = os.path.join(data_dir, 'static', 'img', 'logo.png')
     
@@ -56,7 +51,6 @@ def serve_logo():
     
     try:
         logo_data = _get_logo_data(logo_path)
-        from flask import Response
         return Response(logo_data, mimetype='image/png', headers={'Cache-Control': 'public, max-age=3600'})
     except Exception as e:
         current_app.logger.error(f"Error reading logo: {e}")
@@ -386,19 +380,25 @@ def download_report(filename):
 @main_bp.route('/manage')
 def manage():
     show_archived = request.args.get('show_archived', '0') == '1'
-    page = request.args.get('page', 1, type=int)
-    per_page = 30  # Limit to prevent template rendering timeout
     
-    if show_archived:
-        azubis = Azubi.query.order_by(Azubi.name).all()
-    else:
-        azubis = Azubi.query.filter_by(is_archived=False).order_by(Azubi.name).all()
+    # FIX: Pagination for both Werkzeuge AND Azubis
+    werkzeug_page = request.args.get('page', 1, type=int)  # Legacy param name kept for compatibility
+    azubi_page = request.args.get('azubi_page', 1, type=int)
+    per_page = 20  # Reduced from 30 to 20 for less load
+    
+    # Paginate Azubis
+    query = Azubi.query.order_by(Azubi.name)
+    if not show_archived:
+        query = query.filter_by(is_archived=False)
+    
+    azubi_pagination = query.paginate(page=azubi_page, per_page=per_page, error_out=False)
+    azubis = azubi_pagination.items
     
     examiners = Examiner.query.order_by(Examiner.name).all()
     
-    # Paginate werkzeuge to prevent timeout
+    # Paginate Werkzeuge  
     werkzeuge_pagination = Werkzeug.query.order_by(Werkzeug.name).paginate(
-        page=page, per_page=per_page, error_out=False
+        page=werkzeug_page, per_page=per_page, error_out=False
     )
     werkzeuge = werkzeuge_pagination.items
     
@@ -408,7 +408,8 @@ def manage():
     logo_exists = os.path.exists(logo_path)
 
     return render_template('manage.html', 
-                           azubis=azubis, 
+                           azubis=azubis,
+                           azubi_pagination=azubi_pagination,  # NEW: Pass to template
                            examiners=examiners, 
                            werkzeuge=werkzeuge,
                            werkzeuge_pagination=werkzeuge_pagination,

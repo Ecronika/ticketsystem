@@ -174,6 +174,26 @@
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Azubi Pagination Controls -->
+                {% if azubi_pagination and azubi_pagination.pages > 1 %}
+                <nav aria-label="Azubi pagination" class="mt-3">
+                    <ul class="pagination pagination-sm justify-content-center">
+                        <li class="page-item {% if azubi_pagination.page == 1 %}disabled{% endif %}">
+                            <a class="page-link"
+                                href="{{ ingress_path }}{{ url_for('main.manage', azubi_page=azubi_pagination.page-1, show_archived=1 if show_archived else 0) }}">Zurück</a>
+                        </li>
+                        <li class="page-item disabled"><span class="page-link">{{ azubi_pagination.page }} / {{
+                                azubi_pagination.pages }}</span></li>
+                        <li
+                            class="page-item {% if azubi_pagination.page == azubi_pagination.pages %}disabled{% endif %}">
+                            <a class="page-link"
+                                href="{{ ingress_path }}{{ url_for('main.manage', azubi_page=azubi_pagination.page+1, show_archived=1 if show_archived else 0) }}">Weiter</a>
+                        </li>
+                    </ul>
+                    <p class="text-center text-muted small">{{ azubi_pagination.total }} Azubis insgesamt</p>
+                </nav>
+                {% endif %}
             </div>
         </div>
     </div>
