@@ -7,9 +7,15 @@
     <!-- Azubi Management -->
     <div class="col-md-5 mb-4">
         <div class="card shadow-sm border-0 rounded-4 h-100">
-            <div class="card-header bg-white border-bottom-0 pt-4 px-4 pb-0">
-                <h4 class="card-title fw-bold">Azubis verwalten</h4>
-                <p class="text-muted small">Neue Auszubildende hinzufügen oder bearbeiten.</p>
+            <div
+                class="card-header bg-white border-bottom-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <h4 class="card-title fw-bold mb-0">Azubis verwalten</h4>
+                    <p class="text-muted small mb-0">Verwaltung der Auszubildenden.</p>
+                </div>
+                <div style="max-width: 200px;" class="flex-grow-1">
+                    <input type="text" id="searchAzubi" class="form-control form-control-sm" placeholder="Suchen...">
+                </div>
             </div>
 
             <div class="card-body px-4">
@@ -33,7 +39,7 @@
                 </form>
 
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle">
+                    <table id="azubiTable" class="table table-hover align-middle">
                         <thead class="table-light">
                             <tr>
                                 <th scope="col" class="w-50">Name</th>
@@ -116,9 +122,15 @@
     <!-- Werkzeug Management -->
     <div class="col-md-7 mb-4">
         <div class="card shadow-sm border-0 rounded-4 h-100">
-            <div class="card-header bg-white border-bottom-0 pt-4 px-4 pb-0">
-                <h4 class="card-title fw-bold">Werkzeuge verwalten</h4>
-                <p class="text-muted small">Inventarliste und technische Daten.</p>
+            <div
+                class="card-header bg-white border-bottom-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <h4 class="card-title fw-bold mb-0">Werkzeuge verwalten</h4>
+                    <p class="text-muted small mb-0">Inventarliste und technische Daten.</p>
+                </div>
+                <div style="max-width: 200px;" class="flex-grow-1">
+                    <input type="text" id="searchWerkzeug" class="form-control form-control-sm" placeholder="Suchen...">
+                </div>
             </div>
             <div class="card-body px-4">
                 <!-- Add Werkzeug Form (Toolbar) -->
@@ -149,7 +161,7 @@
                 </form>
 
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle">
+                    <table id="werkzeugTable" class="table table-hover align-middle">
                         <thead class="table-light">
                             <tr>
                                 <th scope="col" style="width: 35%;">Bezeichnung</th>
@@ -261,4 +273,32 @@
         </div>
     </div>
 </div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        function filterTable(inputId, tableId) {
+            const input = document.getElementById(inputId);
+            const table = document.getElementById(tableId);
+            const rows = table.getElementsByTagName('tr');
+
+            input.addEventListener('keyup', function () {
+                const filter = input.value.toLowerCase();
+                // Start from 1 to skip header
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    // Skip if it's the "No data" row or modal row (if any, though modals are usually outside table or hidden)
+                    // Just check text content
+                    const text = row.textContent || row.innerText;
+                    if (text.toLowerCase().indexOf(filter) > -1) {
+                        row.style.display = "";
+                    } else {
+                        row.style.display = "none";
+                    }
+                }
+            });
+        }
+
+        filterTable('searchAzubi', 'azubiTable');
+        filterTable('searchWerkzeug', 'werkzeugTable');
+    });
+</script>
 {% endblock %}
