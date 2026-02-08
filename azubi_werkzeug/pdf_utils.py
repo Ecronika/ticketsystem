@@ -36,7 +36,8 @@ class HandoverReport(FPDF):
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
         self.set_text_color(128)
-        self.cell(0, 10, f'Seite {self.page_no()}/{self.alias_nb_pages()}', 0, 0, 'C')
+        # Use {nb} for total pages (requires alias_nb_pages() call)
+        self.cell(0, 10, f'Seite {self.page_no()}/{{nb}}', 0, 0, 'C')
 
     def chapter_title(self, label):
         self.set_font('Arial', 'B', 11)
@@ -263,15 +264,16 @@ def generate_end_of_training_report(azubi, history_entries, is_inventory_clear):
     pdf.set_font('Arial', '', 10)
     h = 6
     
-    pdf.set_font('Arial', 'B', 10)
-    pdf.cell(15, h, "Azubi:", 0, 0)
-    pdf.set_font('Arial', '', 10)
-    pdf.cell(50, h, f"{azubi.name} (Lehrjahr: {azubi.lehrjahr})", 0, 0)
-    
+    # Matched Layout with HandoverReport
     pdf.set_font('Arial', 'B', 10)
     pdf.cell(20, h, "Datum:", 0, 0)
     pdf.set_font('Arial', '', 10)
-    pdf.cell(40, h, datetime.now().strftime('%d.%m.%Y'), 0, 1)
+    pdf.cell(40, h, datetime.now().strftime('%d.%m.%Y'), 0, 0)
+
+    pdf.set_font('Arial', 'B', 10)
+    pdf.cell(15, h, "Azubi:", 0, 0)
+    pdf.set_font('Arial', '', 10)
+    pdf.cell(50, h, f"{azubi.name} (Lehrjahr: {azubi.lehrjahr})", 0, 1)
     
     pdf.ln(5)
     
@@ -335,13 +337,13 @@ def generate_end_of_training_report(azubi, history_entries, is_inventory_clear):
                      break
         
         # Map common status codes to German
-        status_map = {
+        status_map_display = {
             'ok': 'i.O.',
             'missing': 'Fehlt',
             'broken': 'Defekt',
             'not_issued': 'Nicht ausgegeben'
         }
-        status_display = status_map.get(status, status)
+        status_display = status_map_display.get(status, status)
         
         if status_display:
             details = f"{tool_name} ({status_display})"
@@ -350,12 +352,24 @@ def generate_end_of_training_report(azubi, history_entries, is_inventory_clear):
         
         # Name kürzen falls nötig
         details = details[:55]
+        
+        # Conditional Color
+        if status in ['missing', 'broken']:
+            pdf.set_text_color(200, 0, 0)
+            pdf.set_font('Arial', 'B', 9)
+        else:
+            pdf.set_text_color(0)
+            pdf.set_font('Arial', '', 9)
 
         pdf.cell(25, h_row, date_str, 1)
         pdf.cell(25, h_row, type_str, 1)
         pdf.cell(40, h_row, examiner[:20], 1)
         pdf.cell(100, h_row, details, 1)
         pdf.ln()
+
+    # Reset Color
+    pdf.set_text_color(0)
+    pdf.set_font('Arial', '', 10)
 
     # --- Signatures ---
     # Check page break
