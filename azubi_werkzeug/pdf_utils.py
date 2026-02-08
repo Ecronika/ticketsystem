@@ -36,7 +36,7 @@ class HandoverReport(FPDF):
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
         self.set_text_color(128)
-        self.cell(0, 10, f'Seite {self.page_no()}/{{nb}}', 0, 0, 'C')
+        self.cell(0, 10, f'Seite {self.page_no()}/{self.alias_nb_pages()}', 0, 0, 'C')
 
     def chapter_title(self, label):
         self.set_font('Arial', 'B', 11)
@@ -124,7 +124,7 @@ def generate_handover_pdf(azubi_name, examiner_name, tools, check_type, signatur
 
         # Name kürzen falls zu lang für eine Zeile
         name = tool['name'][:50] 
-
+        
         # Farbliche Hervorhebung bei Problemen
         if tool['status'] in ['missing', 'broken']:
             pdf.set_text_color(200, 0, 0) # Rot
@@ -258,53 +258,75 @@ def generate_end_of_training_report(azubi, history_entries, is_inventory_clear):
     pdf = HandoverReport(title="Ausbildungs-Ende Protokoll")
     pdf.alias_nb_pages()
     
-    # Azubi Details
-    pdf.set_font('Arial', 'B', 12)
-    pdf.cell(0, 10, f"Azubi: {azubi.name} (Lehrjahr: {azubi.lehrjahr})", 0, 1)
-    pdf.set_font('Arial', '', 11)
-    pdf.cell(0, 8, f"Datum Bericht: {datetime.now().strftime('%d.%m.%Y')}", 0, 1)
+    # --- Kopfdaten ---
+    pdf.set_y(30)
+    pdf.set_font('Arial', '', 10)
+    h = 6
     
-    # Inventory Status
-    pdf.ln(5)
-    pdf.set_font('Arial', 'B', 12)
-    pdf.cell(0, 10, "Status Werkzeugrückgabe:", 0, 1)
-    
-    pdf.set_font('Arial', '', 11)
-    if is_inventory_clear:
-        # Green-ish
-        pdf.set_text_color(0, 100, 0)
-        pdf.cell(0, 10, "[OK] Alle Werkzeuge wurden zurückgegeben.", 0, 1)
-    else:
-        # Red
-        pdf.set_text_color(200, 0, 0)
-        pdf.cell(0, 10, "[ACHTUNG] Es befinden sich noch Werkzeuge im Besitz!", 0, 1)
-    pdf.set_text_color(0, 0, 0)
-    
-    # History Summary
-    pdf.ln(10)
-    pdf.set_font('Arial', 'B', 12)
-    pdf.cell(0, 10, "Historie Zusammenfassung:", 0, 1)
-    
-    # Table Header
     pdf.set_font('Arial', 'B', 10)
-    pdf.set_fill_color(240, 240, 240)
-    # Widths: Date(25), Type(25), Examiner(40), Tool/Status(100)
-    pdf.cell(25, 8, "Datum", 1, 0, 'C', True)
-    pdf.cell(25, 8, "Typ", 1, 0, 'C', True)
-    pdf.cell(40, 8, "Prüfer", 1, 0, 'C', True)
-    pdf.cell(100, 8, "Werkzeug / Status", 1, 1, 'L', True)
+    pdf.cell(15, h, "Azubi:", 0, 0)
+    pdf.set_font('Arial', '', 10)
+    pdf.cell(50, h, f"{azubi.name} (Lehrjahr: {azubi.lehrjahr})", 0, 0)
+    
+    pdf.set_font('Arial', 'B', 10)
+    pdf.cell(20, h, "Datum:", 0, 0)
+    pdf.set_font('Arial', '', 10)
+    pdf.cell(40, h, datetime.now().strftime('%d.%m.%Y'), 0, 1)
+    
+    pdf.ln(5)
+    
+    # --- Status Werkzeugrückgabe ---
+    pdf.chapter_title("Status Werkzeugrückgabe")
+    pdf.set_font('Arial', '', 10)
+    
+    if is_inventory_clear:
+        pdf.set_text_color(0, 100, 0) # Dunkelgrün
+        pdf.cell(0, 8, "[OK] Alle Werkzeuge wurden zurückgegeben.", 0, 1)
+    else:
+        pdf.set_text_color(200, 0, 0) # Rot
+        pdf.set_font('Arial', 'B', 10)
+        pdf.cell(0, 8, "[ACHTUNG] Es befinden sich noch Werkzeuge im Besitz!", 0, 1)
+    
+    pdf.set_text_color(0)
+    pdf.set_font('Arial', '', 10)
+    pdf.ln(5)
+    
+    # --- Historie Zusammenfassung ---
+    pdf.chapter_title("Historie Zusammenfassung")
+    
+    # Tabellenkopf
+    pdf.set_font('Arial', 'B', 9) 
+    pdf.set_fill_color(220, 220, 220)
+    h_row = 7
+    
+    # Breiten optimieren: Datum(25), Typ(25), Ausbilder(40), Werkzeug(100)
+    pdf.cell(25, h_row, "Datum", 1, 0, 'L', True)
+    pdf.cell(25, h_row, "Vorgang", 1, 0, 'L', True)
+    pdf.cell(40, h_row, "Ausbilder", 1, 0, 'L', True)
+    pdf.cell(100, h_row, "Werkzeug / Status", 1, 1, 'L', True)
     
     pdf.set_font('Arial', '', 9)
+    
+    # Type Mapping
+    type_map = {
+        'issue': 'Ausgabe',
+        'return': 'Rückgabe',
+        'check': 'Prüfung'
+    }
+    
     for entry in history_entries:
         date_str = entry.datum.strftime('%d.%m.%Y')
-        type_str = (entry.check_type or "CHECK").upper()
+        # Translate Link
+        raw_type = entry.check_type or "check"
+        type_str = type_map.get(raw_type, raw_type.capitalize())
+        
         examiner = entry.examiner or "-"
         
         # Tool Name + Status
         tool_name = entry.werkzeug.name if entry.werkzeug else "Unbekannt"
         
         # Parse status from bemerkung
-        status = "Unbekannt"
+        status = ""
         if entry.bemerkung:
              parts = entry.bemerkung.split('|')
              for p in parts:
@@ -319,27 +341,46 @@ def generate_end_of_training_report(azubi, history_entries, is_inventory_clear):
             'broken': 'Defekt',
             'not_issued': 'Nicht ausgegeben'
         }
-        status = status_map.get(status, status)
+        status_display = status_map.get(status, status)
         
-        details = f"{tool_name} ({status})"
+        if status_display:
+            details = f"{tool_name} ({status_display})"
+        else:
+            details = tool_name
         
-        pdf.cell(25, 8, date_str, 1, 0, 'C')
-        pdf.cell(25, 8, type_str, 1, 0, 'C')
-        pdf.cell(40, 8, examiner[:20], 1, 0, 'C')
-        pdf.cell(100, 8, details[:55], 1, 1, 'L')
+        # Name kürzen falls nötig
+        details = details[:55]
 
-    # Signatures
-    pdf.ln(20)
-    pdf.set_font('Arial', 'B', 11)
-    pdf.cell(0, 10, "Hiermit bestätige ich die ordnungsgemäße Rückgabe/Übernahme:", 0, 1)
-    pdf.ln(15)
-    
-    y = pdf.get_y()
-    pdf.line(10, y, 90, y)
-    pdf.line(110, y, 190, y)
-    
-    pdf.cell(80, 5, "Unterschrift Azubi", 0, 0, 'C')
-    pdf.cell(20, 5, "", 0, 0) # Gap
-    pdf.cell(80, 5, "Unterschrift Ausbilder", 0, 1, 'C')
+        pdf.cell(25, h_row, date_str, 1)
+        pdf.cell(25, h_row, type_str, 1)
+        pdf.cell(40, h_row, examiner[:20], 1)
+        pdf.cell(100, h_row, details, 1)
+        pdf.ln()
 
+    # --- Signatures ---
+    # Check page break
+    if pdf.get_y() > 230:
+        pdf.add_page()
+        
+    pdf.ln(10)
+    pdf.chapter_title("Bestätigung")
+    
+    pdf.set_font('Arial', '', 10)
+    pdf.multi_cell(0, 5, "Hiermit wird die Kenntnisnahme des oben genannten Status sowie die ordnungsgemäße Abwicklung zum Ausbildungsende bestätigt.")
+    pdf.ln(10)
+    
+    start_y = pdf.get_y()
+    box_height = 35
+    
+    # Box Azubi
+    pdf.set_xy(10, start_y)
+    pdf.rect(10, start_y, 90, box_height)
+    pdf.set_font('Arial', '', 8)
+    pdf.text(12, start_y + 4, "Unterschrift Azubi")
+    
+    # Box Ausbilder
+    pdf.set_xy(110, start_y)
+    pdf.rect(110, start_y, 80, box_height)
+    pdf.text(112, start_y + 4, "Unterschrift Ausbilder / Verantwortlicher")
+    
     return pdf
