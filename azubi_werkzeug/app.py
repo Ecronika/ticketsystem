@@ -101,7 +101,7 @@ class Check(db.Model):
 
 @app.route('/generate_qr_codes')
 def generate_qr_codes():
-    from azubi_werkzeug.pdf_utils import generate_qr_codes_pdf
+    from pdf_utils import generate_qr_codes_pdf
     
     # Fetch all tools
     tools = Werkzeug.query.order_by(Werkzeug.name).all()
@@ -152,7 +152,7 @@ def unarchive_azubi(id):
 
 @app.route('/report/end_of_training/<int:id>')
 def end_of_training_report(id):
-    from azubi_werkzeug.pdf_utils import generate_end_of_training_report
+    from pdf_utils import generate_end_of_training_report
     
     azubi = Azubi.query.get_or_404(id)
     
@@ -237,7 +237,7 @@ def index():
                 last_check_str = f"Vor {days_since} Tagen"
                 sort_order = 2
             else:
-                status = "Geprüft (Grün)"
+                status = "Geprüft"
                 status_class = "success"
                 sort_order = 3
         else:
