@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+azubi_werkzeug/reports/
+azubi_werkzeug/signatures/
+.DS_Store
+.idea/
+.vscode/
+venv/
+env/

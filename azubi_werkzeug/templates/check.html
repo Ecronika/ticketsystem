@@ -2,199 +2,361 @@
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-lg-8">
+    <div class="col-lg-10"> <!-- Wider for Table/Signatures -->
 
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h3 class="fw-bold">Prüfung: {{ azubi.name }}</h3>
-            <span class="text-muted">Datum: {{ current_date }}</span>
+            <div>
+                <h3 class="fw-bold">Prüfung / Ausgabe: {{ azubi.name }}</h3>
+                <span class="text-muted">Datum: {{ current_date }}</span>
+            </div>
+            {% if is_overdue %}
+            <span class="badge bg-danger rounded-pill px-3 py-2">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i> Überfällig
+            </span>
+            {% endif %}
         </div>
 
-        {% if is_overdue %}
-        <div class="alert alert-danger shadow-sm mb-4 border-start border-danger border-4" role="alert">
-            <h4 class="alert-heading fw-bold"><i class="bi bi-exclamation-triangle-fill"></i> DGUV V3 Prüfung
-                überfällig!</h4>
-            <p class="mb-0">Die letzte Prüfung dieses Auszubildenden liegt mehr als 3 Monate zurück.</p>
-        </div>
-        {% endif %}
-
-        <form action="{{ ingress_path }}{{ url_for('submit_check') }}" method="POST">
+        <form action="{{ ingress_path }}{{ url_for('submit_check') }}" method="POST" id="checkForm">
             <input type="hidden" name="azubi_id" value="{{ azubi.id }}">
+            <input type="hidden" name="signature_azubi_data" id="sigAzubiData">
+            <input type="hidden" name="signature_examiner_data" id="sigExaminerData">
 
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-white border-0 py-3">
-                    <h5 class="mb-0 text-secondary fw-bold">Kontrolle durchführen</h5>
+            <!-- Phase 3: Meta Data (Examiner & Type) -->
+            <div class="card shadow-sm border-0 rounded-4 mb-4">
+                <div class="card-header bg-white border-bottom-0 pt-4 px-4 pb-0">
+                    <h5 class="card-title fw-bold">1. Vorgangsdaten</h5>
                 </div>
-                <div class="card-body">
-                    <div class="list-group list-group-flush">
-                        {% for werkzeug in werkzeuge %}
-                        <div class="list-group-item px-0 py-3">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <div>
-                                    <span class="fw-bold fs-5">{{ werkzeug.name }}</span>
-                                    {% if werkzeug.material_category != 'standard' %}
-                                    <span class="badge bg-danger-subtle text-danger ms-2">VDE 1000V</span>
-                                    {% endif %}
-                                </div>
-                                <div class="btn-group" role="group">
-                                    <input type="radio" class="btn-check tools-radio" name="tool_{{ werkzeug.id }}"
-                                        id="ok_{{ werkzeug.id }}" value="ok" {{ 'checked' if
-                                        tool_status_map[werkzeug.id]=='ok' else '' }}>
-                                    <label class="btn btn-outline-success" for="ok_{{ werkzeug.id }}">OK</label>
-
-                                    <input type="radio" class="btn-check tools-radio" name="tool_{{ werkzeug.id }}"
-                                        id="missing_{{ werkzeug.id }}" value="missing" {{ 'checked' if
-                                        tool_status_map[werkzeug.id]=='missing' else '' }}>
-                                    <label class="btn btn-outline-warning" for="missing_{{ werkzeug.id }}">Fehlt</label>
-
-                                    <input type="radio" class="btn-check tools-radio" name="tool_{{ werkzeug.id }}"
-                                        id="broken_{{ werkzeug.id }}" value="broken" {{ 'checked' if
-                                        tool_status_map[werkzeug.id]=='broken' else '' }}>
-                                    <label class="btn btn-outline-danger" for="broken_{{ werkzeug.id }}">Defekt</label>
-
-                                    <input type="radio" class="btn-check tools-radio" name="tool_{{ werkzeug.id }}"
-                                        id="not_issued_{{ werkzeug.id }}" value="not_issued" {{ 'checked' if
-                                        tool_status_map[werkzeug.id]=='not_issued' else '' }}>
-                                    <label class="btn btn-outline-secondary" for="not_issued_{{ werkzeug.id }}">Nicht
-                                        ausgegeben</label>
-                                </div>
-                            </div>
-
-                            {% if werkzeug.tech_param_label %}
-                            <div class="input-group input-group-sm mt-2" style="max-width: 300px;">
-                                <span class="input-group-text bg-light border-0 fw-bold text-secondary">{{
-                                    werkzeug.tech_param_label }} *</span>
-                                <input type="text" class="form-control border-light bg-light tech-param-input"
-                                    data-tool-id="{{ werkzeug.id }}" name="tech_param_{{ werkzeug.id }}"
-                                    placeholder="Wert eingeben (Pflicht)"
-                                    value="{{ tool_tech_values.get(werkzeug.id, '') }}">
-                            </div>
-                            {% endif %}
-
-                            <!-- Incident Wizard: Reason Selection (Hidden by default) -->
-                            <div id="incident_div_{{ werkzeug.id }}"
-                                class="mt-2 p-2 bg-light rounded-3 border border-warning-subtle d-none animate__animated animate__fadeIn">
-                                <div class="small fw-bold text-secondary mb-1"><i class="bi bi-question-circle"></i>
-                                    Grund der Meldung:</div>
-                                <div class="d-flex gap-2 flex-wrap">
-                                    <input type="radio" class="btn-check" name="incident_reason_{{ werkzeug.id }}"
-                                        id="reason_wear_{{ werkzeug.id }}" value="Verschleiß" autocomplete="off">
-                                    <label class="btn btn-sm btn-outline-secondary rounded-pill"
-                                        for="reason_wear_{{ werkzeug.id }}">Verschleiß/Alter</label>
-
-                                    <input type="radio" class="btn-check" name="incident_reason_{{ werkzeug.id }}"
-                                        id="reason_lost_{{ werkzeug.id }}" value="Verloren" autocomplete="off">
-                                    <label class="btn btn-sm btn-outline-secondary rounded-pill"
-                                        for="reason_lost_{{ werkzeug.id }}">Verloren</label>
-
-                                    <input type="radio" class="btn-check" name="incident_reason_{{ werkzeug.id }}"
-                                        id="reason_dmg_{{ werkzeug.id }}" value="Beschädigt" autocomplete="off">
-                                    <label class="btn btn-sm btn-outline-secondary rounded-pill"
-                                        for="reason_dmg_{{ werkzeug.id }}">Beschädigt (Fahrlässig)</label>
-                                </div>
+                <div class="card-body px-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Art des Vorgangs</label>
+                            <select class="form-select" name="check_type" id="checkTypeSelector" required>
+                                <option value="check" selected>Reguläre Prüfung (Bestand)</option>
+                                <option value="issue">Werkzeug-Ausgabe (Neu)</option>
+                                <option value="return">Werkzeug-Rückgabe</option>
+                            </select>
+                            <div class="form-text text-primary">
+                                <i class="bi bi-info-circle"></i>
+                                <span id="typeHelp">Prüft vorhandene Werkzeuge auf Zustand.</span>
                             </div>
                         </div>
-                        {% endfor %}
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Name des Prüfers / Ausbilders</label>
+                            <input type="text" class="form-control" name="examiner" placeholder="Max Mustermann"
+                                required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Allgemeine Bemerkung</label>
+                            <textarea class="form-control" name="bemerkung" rows="2"
+                                placeholder="Optional..."></textarea>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="card shadow-sm border-0 rounded-4 mb-5">
-                <div class="card-body p-4">
-                    <label for="bemerkung" class="form-label fw-bold display-6 mb-3"
-                        style="font-size: 1.2rem;">Allgemeine
-                        Bemerkung</label>
-                    <textarea class="form-control rounded-4 bg-light border-0 p-3" id="bemerkung" name="bemerkung"
-                        rows="3" placeholder="Zusätzliche Notizen zur gesamten Prüfung..."></textarea>
+            <!-- Tool List -->
+            <div class="card shadow-sm border-0 rounded-4 mb-4">
+                <div
+                    class="card-header bg-white border-bottom-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center">
+                    <h5 class="card-title fw-bold mb-0">2. Werkzeuge wählen</h5>
+                    <span class="badge bg-primary rounded-pill" id="toolCountBadge">{{ werkzeuge|length }}</span>
+                </div>
+                <div class="card-body px-4 pt-2">
+                    <div class="alert alert-info py-2 small" id="selectionHint">
+                        <i class="bi bi-arrow-down-square"></i> Bitte wählen Sie die betroffenen Werkzeuge aus.
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 5%;">
+                                        <input class="form-check-input" type="checkbox" id="selectAll">
+                                    </th>
+                                    <th style="width: 35%;">Werkzeug</th>
+                                    <th style="width: 20%;">Aktueller Status</th>
+                                    <th style="width: 40%;">Zustand / Prüfung</th>
+                                </tr>
+                            </thead>
+                            <tbody id="toolTableBody">
+                                {% for item in werkzeuge %}
+                                <!-- Item: {obj, is_assigned, last_status, last_tech_val} -->
+                                <tr class="tool-row" data-assigned="{{ 'true' if item.is_assigned else 'false' }}"
+                                    id="row_{{ item.obj.id }}">
+
+                                    <td>
+                                        <!-- Checkbox to select tool for this action -->
+                                        <input class="form-check-input tool-select" type="checkbox"
+                                            name="tool_{{ item.obj.id }}" value="ok" id="check_{{ item.obj.id }}">
+                                    </td>
+
+                                    <td>
+                                        <div class="fw-bold">{{ item.obj.name }}</div>
+                                        <div class="small text-muted">
+                                            {{ item.obj.material_category }}
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        <!-- Last Status Badge -->
+                                        {% if item.is_assigned %}
+                                        <span
+                                            class="badge bg-info-subtle text-info-emphasis border border-info-subtle">Im
+                                            Besitz</span>
+                                        {% else %}
+                                        <span class="badge bg-light text-muted border">Nicht ausgegeben</span>
+                                        {% endif %}
+
+                                        {% if item.last_status == 'missing' %}
+                                        <span
+                                            class="badge bg-danger-subtle text-danger border border-danger-subtle ms-1">Fehlt</span>
+                                        {% elif item.last_status == 'broken' %}
+                                        <span
+                                            class="badge bg-warning-subtle text-warning border border-warning-subtle ms-1">Defekt</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <td>
+                                        <div class="d-flex gap-2 flex-wrap action-controls">
+                                            <!-- Status Radios -->
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <input type="radio" class="btn-check status-radio"
+                                                    name="status_radio_{{ item.obj.id }}"
+                                                    id="btnradio1_{{ item.obj.id }}" value="ok" checked
+                                                    data-target="check_{{ item.obj.id }}">
+                                                <label class="btn btn-outline-success"
+                                                    for="btnradio1_{{ item.obj.id }}">OK</label>
+
+                                                <input type="radio" class="btn-check status-radio"
+                                                    name="status_radio_{{ item.obj.id }}"
+                                                    id="btnradio2_{{ item.obj.id }}" value="broken"
+                                                    data-target="check_{{ item.obj.id }}">
+                                                <label class="btn btn-outline-warning"
+                                                    for="btnradio2_{{ item.obj.id }}">Defekt</label>
+
+                                                <input type="radio" class="btn-check status-radio"
+                                                    name="status_radio_{{ item.obj.id }}"
+                                                    id="btnradio3_{{ item.obj.id }}" value="missing"
+                                                    data-target="check_{{ item.obj.id }}">
+                                                <label class="btn btn-outline-danger"
+                                                    for="btnradio3_{{ item.obj.id }}">Fehlt</label>
+                                            </div>
+
+                                            <!-- Tech Param Input -->
+                                            {% if item.obj.tech_param_label %}
+                                            <input type="text" class="form-control form-control-sm tech-input"
+                                                style="width: 120px;" name="tech_param_{{ item.obj.id }}"
+                                                placeholder="{{ item.obj.tech_param_label }}"
+                                                value="{{ item.last_tech_val or '' }}">
+                                            {% endif %}
+                                        </div>
+
+                                        <!-- Incident Reason (Initially hidden) -->
+                                        <div class="mt-2 incident-div" id="incident_div_{{ item.obj.id }}"
+                                            style="display:none;">
+                                            <select
+                                                class="form-select form-select-sm border-danger text-danger incident-select"
+                                                name="incident_reason_{{ item.obj.id }}">
+                                                <option value="" disabled selected>Grund wählen...</option>
+                                                <option value="Verschleiß">Verschleiß (Normal)</option>
+                                                <option value="Fahrlässig">Beschädigt (Fahrlässig/Haftung)</option>
+                                            </select>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-            <div class="d-grid pb-5">
-                <button type="submit" class="btn btn-primary btn-lg rounded-pill shadow-lg fw-bold py-3">
-                    <i class="bi bi-check-circle-fill me-2"></i> Prüfung abschließen
-                </button>
+            <!-- Signatures -->
+            <div class="card shadow-sm border-0 rounded-4 mb-4">
+                <div class="card-header bg-white border-bottom-0 pt-4 px-4 pb-0">
+                    <h5 class="card-title fw-bold">3. Unterschriften</h5>
+                    <p class="text-muted small">Bitte unterschreiben Sie auf dem Bildschirm.</p>
+                </div>
+                <div class="card-body px-4">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold small text-uppercase">Azubi: {{ azubi.name }}</label>
+                            <div class="border rounded bg-light" style="height: 150px; position: relative;">
+                                <canvas id="canvasAzubi"
+                                    style="width: 100%; height: 100%; touch-action: none;"></canvas>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-link text-muted"
+                                onclick="clearResult('Azubi')">Löschen</button>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold small text-uppercase">Prüfer / Ausbilder</label>
+                            <div class="border rounded bg-light" style="height: 150px; position: relative;">
+                                <canvas id="canvasExaminer"
+                                    style="width: 100%; height: 100%; touch-action: none;"></canvas>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-link text-muted"
+                                onclick="clearResult('Examiner')">Löschen</button>
+                        </div>
+                    </div>
+                </div>
             </div>
+
+            <!-- Sticky Bottom Bar -->
+            <div class="fixed-bottom bg-white border-top shadow p-3">
+                <div class="container d-flex justify-content-between align-items-center">
+                    <a href="{{ ingress_path }}{{ url_for('index') }}" class="btn btn-outline-secondary">Abbrechen</a>
+                    <button type="submit" class="btn btn-primary px-5 fw-bold" id="submitBtn">
+                        <i class="bi bi-check-circle-fill me-2"></i> Speichern & PDF erstellen
+                    </button>
+                </div>
+            </div>
+            <!-- Spacer for sticky footer -->
+            <div style="height: 80px;"></div>
 
         </form>
     </div>
 </div>
+
+<!-- Signature Pad JS -->
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const form = document.querySelector('form');
-        const triggers = document.querySelectorAll('input[type="radio"][name^="tool_"]');
+        // --- Signature Pads ---
+        const canvasAzubi = document.getElementById('canvasAzubi');
+        const canvasExaminer = document.getElementById('canvasExaminer');
 
-        // --- 1. Toggle Logic ---
-        triggers.forEach(input => {
-            input.addEventListener('change', function () {
-                const toolId = this.name.split('_')[1];
-                const incidentDiv = document.getElementById('incident_div_' + toolId);
+        function resizeCanvas(canvas) {
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            canvas.getContext("2d").scale(ratio, ratio);
+        }
 
-                if (this.value === 'missing' || this.value === 'broken') {
-                    incidentDiv.classList.remove('d-none');
-                } else {
-                    incidentDiv.classList.add('d-none');
-                    // Optional: Clear selection if hidden?
-                    // const reasonRadios = document.getElementsByName('incident_reason_' + toolId);
-                    // reasonRadios.forEach(r => r.checked = false);
-                }
-            });
-
-            if (input.checked) {
-                const toolId = input.name.split('_')[1];
-                const incidentDiv = document.getElementById('incident_div_' + toolId);
-                if (input.value === 'missing' || input.value === 'broken') {
-                    incidentDiv.classList.remove('d-none');
-                }
-            }
+        resizeCanvas(canvasAzubi);
+        resizeCanvas(canvasExaminer);
+        window.addEventListener("resize", () => {
+            resizeCanvas(canvasAzubi);
+            resizeCanvas(canvasExaminer);
         });
 
-        // --- 2. Validation Logic ---
-        form.addEventListener('submit', function (event) {
-            let isValid = true;
-            let firstError = null;
+        const padAzubi = new SignaturePad(canvasAzubi);
+        const padExaminer = new SignaturePad(canvasExaminer);
 
-            // Check Technical Parameters
-            const techInputs = document.querySelectorAll('.tech-param-input');
-            techInputs.forEach(input => {
-                const toolId = input.dataset.toolId;
-                const selectedStatus = document.querySelector(`input[name="tool_${toolId}"]:checked`);
+        // Expose clear functions
+        window.clearResult = function (who) {
+            if (who === 'Azubi') padAzubi.clear();
+            if (who === 'Examiner') padExaminer.clear();
+        };
 
-                if (selectedStatus && selectedStatus.value === 'ok') {
-                    if (!input.value.trim()) {
-                        input.classList.add('is-invalid');
-                        isValid = false;
-                        if (!firstError) firstError = input;
-                    } else {
-                        input.classList.remove('is-invalid');
-                    }
+        // --- Action Type Logic ---
+        const checkTypeSelector = document.getElementById('checkTypeSelector');
+        const typeHelp = document.getElementById('typeHelp');
+        const toolRows = document.querySelectorAll('.tool-row');
+        const selectAllCheckbox = document.getElementById('selectAll');
+
+        function updateView() {
+            const type = checkTypeSelector.value;
+            let visibleCount = 0;
+
+            // Update Help Text
+            if (type === 'check') typeHelp.textContent = 'Prüft vorhandene Werkzeuge auf Zustand.';
+            if (type === 'issue') typeHelp.textContent = 'Fügt Werkzeuge zum Bestand des Azubis hinzu.';
+            if (type === 'return') typeHelp.textContent = 'Entfernt Werkzeuge aus dem Bestand.';
+
+            // Filter Rows
+            toolRows.forEach(row => {
+                const isAssigned = row.getAttribute('data-assigned') === 'true';
+                let shouldShow = false;
+
+                if (type === 'issue') {
+                    shouldShow = !isAssigned; // Show unassigned
                 } else {
-                    input.classList.remove('is-invalid');
+                    shouldShow = isAssigned; // 'check' and 'return' need assigned tools
+                }
+
+                if (shouldShow) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                    // Uncheck hidden rows to avoid accidental submit
+                    const cb = row.querySelector('.tool-select');
+                    if (cb) cb.checked = false;
                 }
             });
 
-            // Check Incident Reasons
-            triggers.forEach(input => {
-                if (input.checked && (input.value === 'missing' || input.value === 'broken')) {
-                    const toolId = input.name.split('_')[1];
-                    const reasonSelected = document.querySelector(`input[name="incident_reason_${toolId}"]:checked`);
-                    const incidentDiv = document.getElementById('incident_div_' + toolId);
+            document.getElementById('toolCountBadge').textContent = visibleCount;
 
-                    if (!reasonSelected) {
-                        incidentDiv.classList.add('border-danger');
-                        incidentDiv.style.borderWidth = "2px";
-                        isValid = false;
-                        if (!firstError) firstError = incidentDiv;
-                    } else {
-                        incidentDiv.classList.remove('border-danger');
-                        incidentDiv.style.borderWidth = "";
-                    }
+            // Reset Select All
+            selectAllCheckbox.checked = false;
+        }
+
+        checkTypeSelector.addEventListener('change', updateView);
+        // Initial Call
+        updateView();
+
+        // --- Select All Logic ---
+        selectAllCheckbox.addEventListener('change', function () {
+            const isChecked = this.checked;
+            toolRows.forEach(row => {
+                if (row.style.display !== 'none') {
+                    const cb = row.querySelector('.tool-select');
+                    cb.checked = isChecked;
                 }
             });
+        });
 
-            if (!isValid) {
-                event.preventDefault();
-                alert('Bitte füllen Sie alle Pflichtfelder aus:\n- Technische Parameter (bei OK)\n- Grund der Meldung (bei Fehlt/Defekt)');
-                if (firstError) firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // --- Status & Incident Logic ---
+        const statusRadios = document.querySelectorAll('.status-radio');
+        statusRadios.forEach(radio => {
+            radio.addEventListener('change', function () {
+                const targetId = this.dataset.target;
+                const targetCheckbox = document.getElementById(targetId);
+
+                // Check the main checkbox if a status is clicked
+                targetCheckbox.checked = true;
+
+                // Update checkbox value
+                targetCheckbox.value = this.value;
+
+                // Handle Incident Div
+                const parentRow = this.closest('tr');
+                const incidentDiv = parentRow.querySelector('.incident-div');
+                const incidentSelect = parentRow.querySelector('.incident-select');
+                const techInput = parentRow.querySelector('.tech-input');
+
+                if (this.value === 'missing' || this.value === 'broken') {
+                    incidentDiv.style.display = 'block';
+                    incidentSelect.setAttribute('required', 'required');
+                    if (techInput) techInput.removeAttribute('required');
+                } else {
+                    incidentDiv.style.display = 'none';
+                    incidentSelect.removeAttribute('required');
+                    incidentSelect.value = ""; // Reset
+                    if (techInput) techInput.setAttribute('required', 'required'); // Require tech param for OK tools?
+                }
+            });
+        });
+
+        // --- Form Submit ---
+        document.getElementById('checkForm').addEventListener('submit', function (e) {
+            if (padAzubi.isEmpty() || padExaminer.isEmpty()) {
+                e.preventDefault();
+                alert("Bitte beide Unterschriften leisten!");
+                return;
             }
+
+            // Validate Tool Selection
+            const checkedTools = document.querySelectorAll('.tool-select:checked');
+            if (checkedTools.length === 0) {
+                e.preventDefault();
+                alert("Bitte mindestens ein Werkzeug auswählen.");
+                return;
+            }
+
+            // Save Signatures
+            document.getElementById('sigAzubiData').value = padAzubi.toDataURL();
+            document.getElementById('sigExaminerData').value = padExaminer.toDataURL();
         });
     });
 </script>
