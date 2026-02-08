@@ -48,7 +48,16 @@ def serve_logo():
         current_app.logger.warning(f"Logo not found at {logo_path}")
         return "Logo not found", 404
     
-    return send_from_directory(logo_dir, 'logo.png')
+    # Read file directly instead of using send_from_directory
+    try:
+        with open(logo_path, 'rb') as f:
+            logo_data = f.read()
+        
+        from flask import Response
+        return Response(logo_data, mimetype='image/png')
+    except Exception as e:
+        current_app.logger.error(f"Error reading logo: {e}")
+        return "Error reading logo", 500
 
 @main_bp.route('/debug/paths')
 def debug_paths():
