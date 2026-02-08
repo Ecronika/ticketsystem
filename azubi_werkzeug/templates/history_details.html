@@ -55,6 +55,11 @@
                                 item.tech_value }}</span>
                         </div>
                         {% endif %}
+                        {% if item.incident_reason %}
+                        <div class="small text-danger mt-1">
+                            <i class="bi bi-exclamation-circle"></i> Grund: <strong>{{ item.incident_reason }}</strong>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
 

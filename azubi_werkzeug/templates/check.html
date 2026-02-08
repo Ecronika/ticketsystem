@@ -36,22 +36,22 @@
                                     {% endif %}
                                 </div>
                                 <div class="btn-group" role="group">
-                                    <input type="radio" class="btn-check" name="tool_{{ werkzeug.id }}"
+                                    <input type="radio" class="btn-check tools-radio" name="tool_{{ werkzeug.id }}"
                                         id="ok_{{ werkzeug.id }}" value="ok" {{ 'checked' if
                                         tool_status_map[werkzeug.id]=='ok' else '' }}>
                                     <label class="btn btn-outline-success" for="ok_{{ werkzeug.id }}">OK</label>
 
-                                    <input type="radio" class="btn-check" name="tool_{{ werkzeug.id }}"
+                                    <input type="radio" class="btn-check tools-radio" name="tool_{{ werkzeug.id }}"
                                         id="missing_{{ werkzeug.id }}" value="missing" {{ 'checked' if
                                         tool_status_map[werkzeug.id]=='missing' else '' }}>
                                     <label class="btn btn-outline-warning" for="missing_{{ werkzeug.id }}">Fehlt</label>
 
-                                    <input type="radio" class="btn-check" name="tool_{{ werkzeug.id }}"
+                                    <input type="radio" class="btn-check tools-radio" name="tool_{{ werkzeug.id }}"
                                         id="broken_{{ werkzeug.id }}" value="broken" {{ 'checked' if
                                         tool_status_map[werkzeug.id]=='broken' else '' }}>
                                     <label class="btn btn-outline-danger" for="broken_{{ werkzeug.id }}">Defekt</label>
 
-                                    <input type="radio" class="btn-check" name="tool_{{ werkzeug.id }}"
+                                    <input type="radio" class="btn-check tools-radio" name="tool_{{ werkzeug.id }}"
                                         id="not_issued_{{ werkzeug.id }}" value="not_issued" {{ 'checked' if
                                         tool_status_map[werkzeug.id]=='not_issued' else '' }}>
                                     <label class="btn btn-outline-secondary" for="not_issued_{{ werkzeug.id }}">Nicht
@@ -62,9 +62,10 @@
                             {% if werkzeug.tech_param_label %}
                             <div class="input-group input-group-sm mt-2" style="max-width: 300px;">
                                 <span class="input-group-text bg-light border-0 fw-bold text-secondary">{{
-                                    werkzeug.tech_param_label }}</span>
-                                <input type="text" class="form-control border-light bg-light"
-                                    name="tech_param_{{ werkzeug.id }}" placeholder="Wert eingeben..."
+                                    werkzeug.tech_param_label }} *</span>
+                                <input type="text" class="form-control border-light bg-light tech-param-input"
+                                    data-tool-id="{{ werkzeug.id }}" name="tech_param_{{ werkzeug.id }}"
+                                    placeholder="Wert eingeben (Pflicht)"
                                     value="{{ tool_tech_values.get(werkzeug.id, '') }}">
                             </div>
                             {% endif %}
