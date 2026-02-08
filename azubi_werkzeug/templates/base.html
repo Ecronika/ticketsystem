@@ -11,6 +11,16 @@
 </head>
 
 <body class="bg-light">
+  <script>
+    // Critical: Apply High Contrast immediately to prevent FOUC
+    (function () {
+      try {
+        if (localStorage.getItem('highContrast') === 'true') {
+          document.body.classList.add('high-contrast-mode');
+        }
+      } catch (e) { }
+    })();
+  </script>
 
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
     <div class="container">
@@ -68,9 +78,8 @@
         return;
       }
 
-      // Load saved preference
-      if (localStorage.getItem('highContrast') === 'true') {
-        body.classList.add('high-contrast-mode');
+      // Sync button state with current body class (set by top script)
+      if (body.classList.contains('high-contrast-mode')) {
         toggleBtn.classList.remove('btn-outline-light');
         toggleBtn.classList.add('btn-light');
       }

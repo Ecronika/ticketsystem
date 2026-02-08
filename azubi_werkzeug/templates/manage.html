@@ -335,22 +335,32 @@
         function filterTable(inputId, tableId) {
             const input = document.getElementById(inputId);
             const table = document.getElementById(tableId);
+            if (!input || !table) return;
+
+            // A11y Fix: Add label if missing
+            if (!input.getAttribute('aria-label')) {
+                input.setAttribute('aria-label', 'Tabelle filtern');
+            }
+
             const rows = table.getElementsByTagName('tr');
+            let timeout = null;
 
             input.addEventListener('keyup', function () {
-                const filter = input.value.toLowerCase();
-                // Start from 1 to skip header
-                for (let i = 1; i < rows.length; i++) {
-                    const row = rows[i];
-                    // Skip if it's the "No data" row or modal row (if any, though modals are usually outside table or hidden)
-                    // Just check text content
-                    const text = row.textContent || row.innerText;
-                    if (text.toLowerCase().indexOf(filter) > -1) {
-                        row.style.display = "";
-                    } else {
-                        row.style.display = "none";
+                clearTimeout(timeout);
+                // Performance Fix: Debounce 200ms
+                timeout = setTimeout(() => {
+                    const filter = input.value.toLowerCase();
+                    // Start from 1 to skip header
+                    for (let i = 1; i < rows.length; i++) {
+                        const row = rows[i];
+                        const text = row.textContent || row.innerText;
+                        if (text.toLowerCase().indexOf(filter) > -1) {
+                            row.style.display = "";
+                        } else {
+                            row.style.display = "none";
+                        }
                     }
-                }
+                }, 200);
             });
         }
 

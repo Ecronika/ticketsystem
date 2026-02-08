@@ -236,22 +236,49 @@
         const canvasAzubi = document.getElementById('canvasAzubi');
         const canvasExaminer = document.getElementById('canvasExaminer');
 
-        function resizeCanvas(canvas) {
+        // Helper: Resize with data preservation
+        function resizeCanvas(canvas, pad) {
             const ratio = Math.max(window.devicePixelRatio || 1, 1);
+
+            // Store data if pad exists and has content
+            let data = null;
+            if (pad && !pad.isEmpty()) {
+                data = pad.toDataURL();
+            }
+
             canvas.width = canvas.offsetWidth * ratio;
             canvas.height = canvas.offsetHeight * ratio;
             canvas.getContext("2d").scale(ratio, ratio);
+
+            // Restore data
+            if (data) {
+                pad.fromDataURL(data);
+            } else if (pad) {
+                pad.clear(); // Ensure clean state if empty
+            }
         }
 
-        resizeCanvas(canvasAzubi);
-        resizeCanvas(canvasExaminer);
-        window.addEventListener("resize", () => {
-            resizeCanvas(canvasAzubi);
-            resizeCanvas(canvasExaminer);
-        });
-
+        // Initialize Pads first
         const padAzubi = new SignaturePad(canvasAzubi);
         const padExaminer = new SignaturePad(canvasExaminer);
+
+        // Initial Resize
+        resizeCanvas(canvasAzubi, null);
+        resizeCanvas(canvasExaminer, null);
+
+        // Re-assign clear logic because resize clears native context
+        padAzubi.clear();
+        padExaminer.clear();
+
+        // Robust Resize Listener
+        let resizeTimeout;
+        window.addEventListener("resize", () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                resizeCanvas(canvasAzubi, padAzubi);
+                resizeCanvas(canvasExaminer, padExaminer);
+            }, 100); // Debounce
+        });
 
         // Expose clear functions
         window.clearResult = function (who) {
@@ -264,6 +291,7 @@
         const typeHelp = document.getElementById('typeHelp');
         const toolRows = document.querySelectorAll('.tool-row');
         const selectAllCheckbox = document.getElementById('selectAll');
+        const toolCountBadge = document.getElementById('toolCountBadge');
 
         function updateView() {
             const type = checkTypeSelector.value;
@@ -280,9 +308,9 @@
                 let shouldShow = false;
 
                 if (type === 'issue') {
-                    shouldShow = !isAssigned; // Show unassigned
+                    shouldShow = !isAssigned;
                 } else {
-                    shouldShow = isAssigned; // 'check' and 'return' need assigned tools
+                    shouldShow = isAssigned;
                 }
 
                 if (shouldShow) {
@@ -290,26 +318,26 @@
                     visibleCount++;
                 } else {
                     row.style.display = 'none';
-                    // Uncheck hidden rows to avoid accidental submit
+                    // UX Fix: Uncheck hidden rows prevents accidental submission
                     const cb = row.querySelector('.tool-select');
                     if (cb) cb.checked = false;
                 }
             });
 
-            document.getElementById('toolCountBadge').textContent = visibleCount;
+            if (toolCountBadge) toolCountBadge.textContent = visibleCount;
 
-            // Reset Select All
+            // Reset Select All when view changes
             selectAllCheckbox.checked = false;
         }
 
         checkTypeSelector.addEventListener('change', updateView);
-        // Initial Call
-        updateView();
+        updateView(); // Initial Call
 
-        // --- Select All Logic ---
+        // --- Select All Logic (FIXED) ---
         selectAllCheckbox.addEventListener('change', function () {
             const isChecked = this.checked;
             toolRows.forEach(row => {
+                // BUGFIX: Only select visible rows!
                 if (row.style.display !== 'none') {
                     const cb = row.querySelector('.tool-select');
                     cb.checked = isChecked;
@@ -325,10 +353,10 @@
                 const targetCheckbox = document.getElementById(targetId);
 
                 // Check the main checkbox if a status is clicked
-                targetCheckbox.checked = true;
+                if (targetCheckbox) targetCheckbox.checked = true; // Safety check
 
                 // Update checkbox value
-                targetCheckbox.value = this.value;
+                if (targetCheckbox) targetCheckbox.value = this.value;
 
                 // Handle Incident Div
                 const parentRow = this.closest('tr');
@@ -343,25 +371,34 @@
                 } else {
                     incidentDiv.style.display = 'none';
                     incidentSelect.removeAttribute('required');
-                    incidentSelect.value = ""; // Reset
-                    if (techInput) techInput.setAttribute('required', 'required'); // Require tech param for OK tools?
+                    incidentSelect.value = ""; // Reset value
+                    // Logic: Tech param might be required if label exists, depends on business rule.
+                    // Assuming 'ok' means we verified the param.
+                    if (techInput) techInput.setAttribute('required', 'required');
                 }
             });
         });
 
-        // --- Form Submit ---
+        // --- Form Submit Validation ---
         document.getElementById('checkForm').addEventListener('submit', function (e) {
+            let valid = true;
+            let errorMsg = "";
+
             if (padAzubi.isEmpty() || padExaminer.isEmpty()) {
-                e.preventDefault();
-                alert("Bitte beide Unterschriften leisten!");
-                return;
+                valid = false;
+                errorMsg = "Bitte beide Unterschriften leisten!";
             }
 
             // Validate Tool Selection
             const checkedTools = document.querySelectorAll('.tool-select:checked');
             if (checkedTools.length === 0) {
+                valid = false;
+                errorMsg = "Bitte mindestens ein Werkzeug auswählen.";
+            }
+
+            if (!valid) {
                 e.preventDefault();
-                alert("Bitte mindestens ein Werkzeug auswählen.");
+                alert(errorMsg);
                 return;
             }
 
