@@ -388,6 +388,7 @@
         // --- Form Submit Validation ---
         const form = document.getElementById('checkForm');
         const errorAlert = document.getElementById('validationError');
+        const errorTextSpan = document.getElementById('errorText');
 
         form.addEventListener('submit', function (e) {
             let valid = true;
@@ -395,7 +396,7 @@
 
             // Reset Error
             errorAlert.style.display = 'none';
-            errorAlert.textContent = "";
+            errorTextSpan.textContent = "";
 
             if (padAzubi.isEmpty() || padExaminer.isEmpty()) {
                 valid = false;
@@ -415,8 +416,8 @@
 
             if (!valid) {
                 e.preventDefault();
-                // Show Error Alert
-                errorAlert.textContent = errorMsg;
+                // Show Error Alert (Target span to preserve icon)
+                errorTextSpan.textContent = errorMsg;
                 errorAlert.style.display = 'block';
                 // Scroll to error
                 errorAlert.scrollIntoView({ behavior: 'smooth', block: 'center' });
