@@ -225,17 +225,26 @@ def index():
             days_since = (datetime.now() - last_check.datum).days
             
             # Global 3-Month Rule (90 Days)
-            if days_since < 90:
-                status = "Geprüft"
-                status_class = "success"
-            else:
+            # Warning if < 4 weeks remaining (approx 28 days) -> > 62 days passed
+            if days_since >= 90:
                 status = "Überfällig (> 3 Mon.)"
                 status_class = "danger"
                 last_check_str = f"Vor {days_since} Tagen"
+                sort_order = 1
+            elif days_since >= 62:
+                status = "Prüfung fällig (< 4 Wochen)"
+                status_class = "warning"
+                last_check_str = f"Vor {days_since} Tagen"
+                sort_order = 2
+            else:
+                status = "Geprüft (Grün)"
+                status_class = "success"
+                sort_order = 3
         else:
             # New Phase 3: If no check, maybe just registered
             status = "Neu / Leer"
             status_class = "info"
+            sort_order = 4
         
         assigned_count = len(get_assigned_tools(azubi.id))
         
@@ -246,8 +255,12 @@ def index():
             'status': status,
             'status_class': status_class,
             'last_check': last_check_str,
-            'assigned_count': assigned_count
+            'assigned_count': assigned_count,
+            'sort_order': sort_order
         })
+
+    # Sort by Urgency (sort_order asc), then by Name
+    dashboard_data.sort(key=lambda x: (x['sort_order'], x['name']))
 
     return render_template('index.html', azubis=dashboard_data)
 
