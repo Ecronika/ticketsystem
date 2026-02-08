@@ -34,6 +34,13 @@ def get_assigned_tools(azubi_id):
                 assigned.remove(c.werkzeug_id)
     return assigned
 
+@main_bp.route('/logo')
+def serve_logo():
+    """Serve logo from DATA_DIR (not from static folder)"""
+    data_dir = get_data_dir()
+    logo_dir = os.path.join(data_dir, 'static', 'img')
+    return send_from_directory(logo_dir, 'logo.png')
+
 @main_bp.route('/')
 def index():
     azubis = Azubi.query.filter_by(is_archived=False).order_by(Azubi.name).all()
