@@ -39,6 +39,15 @@ def serve_logo():
     """Serve logo from DATA_DIR (not from static folder)"""
     data_dir = get_data_dir()
     logo_dir = os.path.join(data_dir, 'static', 'img')
+    logo_path = os.path.join(logo_dir, 'logo.png')
+    
+    current_app.logger.info(f"Serving logo from: {logo_path}")
+    current_app.logger.info(f"Logo exists: {os.path.exists(logo_path)}")
+    
+    if not os.path.exists(logo_path):
+        current_app.logger.warning(f"Logo not found at {logo_path}")
+        return "Logo not found", 404
+    
     return send_from_directory(logo_dir, 'logo.png')
 
 @main_bp.route('/')

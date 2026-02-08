@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
+from werkzeug.exceptions import NotFound
 from extensions import db, csrf, limiter
 from routes import main_bp
 from models import Azubi, Werkzeug, Examiner, Check
@@ -155,6 +156,17 @@ def handle_exception(e):
     # Pass through HTTP errors
     if isinstance(e, int):
         return e
+    
+    # Handle 404 separately to avoid issues with request.endpoint being None
+    if isinstance(e, NotFound):
+        return """
+        <!DOCTYPE html>
+        <html><head><title>404 - Nicht gefunden</title></head>
+        <body style="font-family: Arial; text-align: center; padding: 50px;">
+            <h1>404 - Seite nicht gefunden</h1>
+            <p><a href="/">Zurück zur Startseite</a></p>
+        </body></html>
+        """, 404
         
     app.logger.error(f"Unhandled Exception: {e}", exc_info=True)
     return render_template('base.html', content=f"<h1>Ein unerwarteter Fehler ist aufgetreten</h1><p>{e}</p>"), 500
