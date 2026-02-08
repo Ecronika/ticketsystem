@@ -296,9 +296,9 @@ def generate_end_of_training_report(azubi, history_entries, is_inventory_clear):
     
     pdf.set_font('Arial', '', 9)
     for entry in history_entries:
-        date_str = entry.date.strftime('%d.%m.%Y')
+        date_str = entry.datum.strftime('%d.%m.%Y')
         type_str = (entry.check_type or "CHECK").upper()
-        examiner = entry.examiner_name or "-"
+        examiner = entry.examiner or "-"
         
         # Tool Name + Status
         tool_name = entry.tool.name if entry.tool else "Unbekannt"
