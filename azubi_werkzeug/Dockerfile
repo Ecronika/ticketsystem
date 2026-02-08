@@ -4,9 +4,9 @@ FROM $BUILD_FROM
 # Python, Pip und notwendige Tools installieren
 RUN \
     apk add --no-cache \
-        python3 \
-        py3-pip \
-        curl
+    python3 \
+    py3-pip \
+    curl
 
 # Arbeitsverzeichnis setzen
 WORKDIR /app
@@ -17,6 +17,7 @@ RUN pip3 install --no-cache-dir -r requirements.txt --break-system-packages
 
 # App-Code kopieren
 COPY app.py .
+COPY pdf_utils.py .
 COPY templates templates/
 COPY static static/
 
