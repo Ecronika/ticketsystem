@@ -35,7 +35,15 @@ def generate_handover_pdf(azubi_name, examiner_name, tools, check_type, signatur
     # Ensure output directory exists
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
-    pdf = HandoverReport(title=f"Werkzeug-{check_type.capitalize()}-Protokoll")
+    # Translate Check Type for Title
+    type_map = {
+        'issue': 'Ausgabe',
+        'return': 'Rückgabe',
+        'check': 'Prüf'
+    }
+    title_type = type_map.get(check_type, 'Protokoll')
+    
+    pdf = HandoverReport(title=f"Werkzeug-{title_type}-Protokoll")
     pdf.alias_nb_pages()
     
     # Meta Data
@@ -48,20 +56,40 @@ def generate_handover_pdf(azubi_name, examiner_name, tools, check_type, signatur
     # Tool List
     pdf.chapter_title("Betroffene Werkzeuge")
     pdf.set_font('Arial', 'B', 10)
-    # Header
-    pdf.cell(10, 10, "ID", 1)
-    pdf.cell(80, 10, "Bezeichnung", 1)
-    pdf.cell(40, 10, "Kategorie", 1)
-    pdf.cell(60, 10, "Zustand/Status", 1)
+    # Header - Total width ~190
+    # pdf.cell(10, 10, "ID", 1) # Removed
+    pdf.cell(90, 10, "Werkzeug", 1)
+    pdf.cell(50, 10, "Kategorie", 1)
+    pdf.cell(50, 10, "Zustand", 1)
     pdf.ln()
     
     pdf.set_font('Arial', '', 10)
     for tool in tools:
         # tool struct: {'id': 1, 'name': 'Hammer', 'category': 'standard', 'status': 'ok'}
-        pdf.cell(10, 10, str(tool['id']), 1)
-        pdf.cell(80, 10, tool['name'], 1)
-        pdf.cell(40, 10, tool['category'], 1)
-        pdf.cell(60, 10, tool['status'], 1)
+        
+        # Translate Status
+        status_map = {
+            'ok': 'In Ordnung',
+            'missing': 'Fehlt',
+            'broken': 'Defekt',
+            'not_issued': 'Nicht ausgegeben'
+        }
+        status_text = status_map.get(tool['status'], tool['status'])
+        
+        # Translate Category (if needed, though likely already German-ish in DB 'standard', 'teilisoliert')
+        # DB limits: standard, teilisoliert, vollisoliert, isolierend
+        cat_map = {
+            'standard': 'Standard',
+            'teilisoliert': 'Teilisoliert',
+            'vollisoliert': 'Vollisoliert (1000V)',
+            'isolierend': 'Vollkunststoff'
+        }
+        cat_text = cat_map.get(tool['category'], tool['category'])
+
+        # pdf.cell(10, 10, str(tool['id']), 1) # Removed
+        pdf.cell(90, 10, tool['name'], 1)
+        pdf.cell(50, 10, cat_text, 1)
+        pdf.cell(50, 10, status_text, 1)
         pdf.ln()
         
     pdf.ln(20)
