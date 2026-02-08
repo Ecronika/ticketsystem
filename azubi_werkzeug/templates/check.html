@@ -119,7 +119,10 @@
 </div>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const form = document.querySelector('form');
         const triggers = document.querySelectorAll('input[type="radio"][name^="tool_"]');
+
+        // --- 1. Toggle Logic ---
         triggers.forEach(input => {
             input.addEventListener('change', function () {
                 const toolId = this.name.split('_')[1];
@@ -129,6 +132,9 @@
                     incidentDiv.classList.remove('d-none');
                 } else {
                     incidentDiv.classList.add('d-none');
+                    // Optional: Clear selection if hidden?
+                    // const reasonRadios = document.getElementsByName('incident_reason_' + toolId);
+                    // reasonRadios.forEach(r => r.checked = false);
                 }
             });
 
@@ -138,6 +144,56 @@
                 if (input.value === 'missing' || input.value === 'broken') {
                     incidentDiv.classList.remove('d-none');
                 }
+            }
+        });
+
+        // --- 2. Validation Logic ---
+        form.addEventListener('submit', function (event) {
+            let isValid = true;
+            let firstError = null;
+
+            // Check Technical Parameters
+            const techInputs = document.querySelectorAll('.tech-param-input');
+            techInputs.forEach(input => {
+                const toolId = input.dataset.toolId;
+                const selectedStatus = document.querySelector(`input[name="tool_${toolId}"]:checked`);
+
+                if (selectedStatus && selectedStatus.value === 'ok') {
+                    if (!input.value.trim()) {
+                        input.classList.add('is-invalid');
+                        isValid = false;
+                        if (!firstError) firstError = input;
+                    } else {
+                        input.classList.remove('is-invalid');
+                    }
+                } else {
+                    input.classList.remove('is-invalid');
+                }
+            });
+
+            // Check Incident Reasons
+            triggers.forEach(input => {
+                if (input.checked && (input.value === 'missing' || input.value === 'broken')) {
+                    const toolId = input.name.split('_')[1];
+                    const reasonSelected = document.querySelector(`input[name="incident_reason_${toolId}"]:checked`);
+                    const incidentDiv = document.getElementById('incident_div_' + toolId);
+
+                    if (!reasonSelected) {
+                        incidentDiv.classList.add('border-danger');
+                        incidentDiv.style.borderWidth = "2px";
+                        isValid = false;
+                        if (!firstError) firstError = incidentDiv;
+                    } else {
+                        incidentDiv.classList.remove('border-danger');
+                        incidentDiv.style.borderWidth = "";
+                    }
+                }
+            });
+
+            if (!isValid) {
+                event.preventDefault();
+                alert('Bitte füllen Sie alle Pflichtfelder aus:\n- Technische Parameter (bei OK)\n- Grund der Meldung (bei Fehlt/Defekt)');
+                if (firstError) firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         });
     });
