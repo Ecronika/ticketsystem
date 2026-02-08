@@ -114,7 +114,7 @@ def generate_qr_codes():
         pdf = generate_qr_codes_pdf(tools)
         
         # Output
-        response = make_response(pdf.output(dest='S').encode('latin1'))
+        response = make_response(pdf.output(dest='S'))
         response.headers['Content-Type'] = 'application/pdf'
         response.headers['Content-Disposition'] = 'attachment; filename=Werkzeug_QRCodes.pdf'
         return response
@@ -167,7 +167,7 @@ def end_of_training_report(id):
     try:
         pdf = generate_end_of_training_report(azubi, history, is_clear)
         
-        response = make_response(pdf.output(dest='S').encode('latin1'))
+        response = make_response(pdf.output(dest='S'))
         response.headers['Content-Type'] = 'application/pdf'
         response.headers['Content-Disposition'] = f'attachment; filename=Ausbildungsende_{azubi.name}.pdf'
         return response
