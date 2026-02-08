@@ -56,6 +56,13 @@ class Werkzeug(db.Model):
     def __repr__(self):
         return f'<Werkzeug {self.name}>'
 
+class Examiner(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    
+    def __repr__(self):
+        return f'<Examiner {self.name}>'
+
 class Check(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     session_id = db.Column(db.String(36), nullable=True) # UUID for grouping
@@ -149,6 +156,7 @@ def index():
 def check_azubi(azubi_id):
     azubi = Azubi.query.get_or_404(azubi_id)
     werkzeuge = Werkzeug.query.all()
+    examiners = Examiner.query.all()
     current_date = datetime.now().strftime("%d. %b %Y")
     
     # Calculate assigned tools
@@ -185,7 +193,7 @@ def check_azubi(azubi_id):
             'last_tech_val': tech_val
         })
 
-    return render_template('check.html', azubi=azubi, werkzeuge=mapped_werkzeuge, current_date=current_date, 
+    return render_template('check.html', azubi=azubi, werkzeuge=mapped_werkzeuge, examiners=examiners, current_date=current_date, 
                            is_overdue=is_overdue)
 
 @app.route('/submit_check', methods=['POST'])
@@ -418,7 +426,28 @@ def download_report(filename):
 def manage():
     azubis = Azubi.query.all()
     werkzeuge = Werkzeug.query.all()
-    return render_template('manage.html', azubis=azubis, werkzeuge=werkzeuge)
+    examiners = Examiner.query.all()
+    return render_template('manage.html', azubis=azubis, werkzeuge=werkzeuge, examiners=examiners)
+
+@app.route('/add_examiner', methods=['POST'])
+def add_examiner():
+    name = request.form.get('name')
+    if name:
+        new_examiner = Examiner(name=name)
+        db.session.add(new_examiner)
+        db.session.commit()
+        flash(f'Prüfer {name} hinzugefügt.', 'success')
+    ingress = request.headers.get('X-Ingress-Path', '')
+    return redirect(f"{ingress}{url_for('manage')}")
+
+@app.route('/delete_examiner/<int:id>', methods=['POST'])
+def delete_examiner(id):
+    examiner = Examiner.query.get_or_404(id)
+    db.session.delete(examiner)
+    db.session.commit()
+    flash(f'Prüfer {examiner.name} gelöscht.', 'success')
+    ingress = request.headers.get('X-Ingress-Path', '')
+    return redirect(f"{ingress}{url_for('manage')}")
 
 @app.route('/add_azubi', methods=['POST'])
 def add_azubi():
@@ -549,6 +578,18 @@ def setup_database():
                 cursor.execute("ALTER TABLE \"check\" ADD COLUMN report_path VARCHAR(200)")
                 conn.commit()
             
+            # --- Phase 3.5: Examiner Table ---
+            # SQLAlchemy create_all handles creation if not exists, but good to be explicit or handle migrations
+            # if we were adding columns. Since it's a new table, create_all should cover it.
+            # However, let's verify it exists just in case.
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='examiner'")
+            if not cursor.fetchone():
+                print("Migrating DB: Creating 'examiner' table...")
+                # create_all above should have done this, but if db already existed, it might skip?
+                # Actually create_all ONLY creates tables that don't exist.
+                # So if we added the model, it should be fine.
+                pass 
+            
             conn.close()
         except Exception as e:
             print(f"Migration Info: {e}")
@@ -569,6 +610,11 @@ def setup_database():
             db.session.add(Werkzeug(name="Hammer 500g"))
             db.session.commit()
             print("Created Dummy Werkzeuge")
+            
+        # Seed dummy examiner if none?
+        if not Examiner.query.first():
+             # Optional: Seed a default examiner
+             pass
 
 if __name__ == '__main__':
     setup_database()

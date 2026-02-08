@@ -42,8 +42,19 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Name des Prüfers / Ausbilders</label>
+                            {% if examiners %}
+                            <select class="form-select" name="examiner" required>
+                                <option value="" disabled selected>Prüfer wählen...</option>
+                                {% for examiner in examiners %}
+                                <option value="{{ examiner.name }}">{{ examiner.name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% else %}
                             <input type="text" class="form-control" name="examiner" placeholder="Max Mustermann"
                                 required>
+                            <div class="form-text text-warning"><i class="bi bi-exclamation-triangle"></i> Keine Prüfer
+                                angelegt.</div>
+                            {% endif %}
                         </div>
                         <div class="col-12">
                             <label class="form-label">Allgemeine Bemerkung</label>
