@@ -69,6 +69,23 @@
                                 placeholder="Optional..."></textarea>
                         </div>
                     </div>
+                    <!-- Migration Mode Inputs -->
+                    {% if session.get('migration_mode') %}
+                    <div class="alert alert-warning border-warning mt-3">
+                        <h6 class="fw-bold"><i class="bi bi-rewind-circle-fill"></i> Migration Modus (Backfill)</h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Datum der Prüfung (Manuell)</label>
+                                <input type="date" class="form-control" name="custom_date"
+                                    value="{{ current_date[:10] }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Uhrzeit</label>
+                                <input type="time" class="form-control" name="custom_time" value="12:00" required>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
 
@@ -215,24 +232,34 @@
                                 onclick="clearResult('Examiner')">Löschen</button>
                         </div>
                     </div>
+                    {% if session.get('migration_mode') %}
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" name="skip_signature" id="skipSignature"
+                            value="yes">
+                        <label class="form-check-label fw-bold" for="skipSignature">
+                            Unterschrift überspringen (Nur bei Migration zulässig)
+                        </label>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
-
-            <!-- Sticky Bottom Bar -->
-            <div class="fixed-bottom bg-white border-top shadow p-3">
-                <div class="container d-flex justify-content-between align-items-center">
-                    <a href="{{ ingress_path }}{{ url_for('main.index') }}"
-                        class="btn btn-outline-secondary">Abbrechen</a>
-                    <button type="submit" class="btn btn-primary px-5 fw-bold" id="submitBtn">
-                        <i class="bi bi-check-circle-fill me-2"></i> Speichern & PDF erstellen
-                    </button>
-                </div>
-            </div>
-            <!-- Spacer for sticky footer -->
-            <div style="height: 80px;"></div>
-
-        </form>
     </div>
+</div>
+
+<!-- Sticky Bottom Bar -->
+<div class="fixed-bottom bg-white border-top shadow p-3">
+    <div class="container d-flex justify-content-between align-items-center">
+        <a href="{{ ingress_path }}{{ url_for('main.index') }}" class="btn btn-outline-secondary">Abbrechen</a>
+        <button type="submit" class="btn btn-primary px-5 fw-bold" id="submitBtn">
+            <i class="bi bi-check-circle-fill me-2"></i> Speichern & PDF erstellen
+        </button>
+    </div>
+</div>
+<!-- Spacer for sticky footer -->
+<div style="height: 80px;"></div>
+
+</form>
+</div>
 </div>
 
 <!-- Signature Pad JS -->
@@ -400,13 +427,16 @@
             errorAlert.style.display = 'none';
             errorTextSpan.textContent = "";
 
-            if (padAzubi.isEmpty() || padExaminer.isEmpty()) {
+            const skipSig = document.getElementById('skipSignature');
+            const isSkip = skipSig && skipSig.checked;
+
+            if (!isSkip && (padAzubi.isEmpty() || padExaminer.isEmpty())) {
                 valid = false;
                 errorMsg = "Bitte beide Unterschriften leisten!";
             } else {
                 // Save Signatures if valid so far
-                document.getElementById('sigAzubiData').value = padAzubi.toDataURL();
-                document.getElementById('sigExaminerData').value = padExaminer.toDataURL();
+                if (!padAzubi.isEmpty()) document.getElementById('sigAzubiData').value = padAzubi.toDataURL();
+                if (!padExaminer.isEmpty()) document.getElementById('sigExaminerData').value = padExaminer.toDataURL();
             }
 
             // Validate Tool Selection

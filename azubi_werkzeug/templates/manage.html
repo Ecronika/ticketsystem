@@ -258,6 +258,31 @@
                     </div>
                     <div class="form-text mt-1 text-muted small">Empfohlen: PNG mit transparentem Hintergrund.</div>
                 </form>
+
+                <hr class="my-4">
+
+                <label class="form-label small fw-bold">Daten-Migration (Backfill)</label>
+                <form action="{{ ingress_path }}{{ url_for('main.toggle_migration_mode') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    {% if session.get('migration_mode') %}
+                    <div class="alert alert-warning d-flex align-items-center mb-2" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <div>
+                            <strong>Migration Modus Aktiv</strong><br>
+                            <small>Manuelle Datumsangabe + Optionaler Unterschrift.</small>
+                        </div>
+                    </div>
+                    <button class="btn btn-outline-danger w-100" type="submit">
+                        <i class="bi bi-toggle-on"></i> Deaktivieren
+                    </button>
+                    {% else %}
+                    <button class="btn btn-outline-secondary w-100" type="submit">
+                        <i class="bi bi-toggle-off"></i> Modus aktivieren
+                    </button>
+                    <div class="form-text mt-1 text-muted small">Erlaubt das Nachtragen alter Prüfungen ohne
+                        Unterschrift.</div>
+                    {% endif %}
+                </form>
             </div>
         </div>
     </div>

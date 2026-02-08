@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_from_directory, make_response, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_from_directory, make_response, current_app, session
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import joinedload
 from extensions import db, limiter
@@ -146,23 +146,44 @@ def submit_check():
     sig_azubi_path = None
     sig_examiner_path = None
     
-    if sig_azubi_data and ',' in sig_azubi_data:
-        header, encoded = sig_azubi_data.split(",", 1)
-        data = base64.b64decode(encoded)
-        path = os.path.join(data_dir, 'signatures', f"{session_id}_azubi.png")
-        with open(path, "wb") as f:
-            f.write(data)
-        sig_azubi_path = path
-
-    if sig_examiner_data and ',' in sig_examiner_data:
-        header, encoded = sig_examiner_data.split(",", 1)
-        data = base64.b64decode(encoded)
-        path = os.path.join(data_dir, 'signatures', f"{session_id}_examiner.png")
-        with open(path, "wb") as f:
-            f.write(data)
-        sig_examiner_path = path
-
+    # --- Migration Mode Logic ---
+    is_migration = session.get('migration_mode', False)
     check_date = datetime.now()
+    skip_sig = False
+
+    if is_migration:
+        c_date = request.form.get('custom_date')
+        c_time = request.form.get('custom_time')
+        skip_sig = request.form.get('skip_signature') == 'yes'
+        
+        if c_date and c_time:
+            try:
+                check_date = datetime.strptime(f"{c_date} {c_time}", "%Y-%m-%d %H:%M")
+            except ValueError:
+                pass # Fallback to now
+        elif c_date:
+             try:
+                check_date = datetime.strptime(f"{c_date} 12:00", "%Y-%m-%d %H:%M")
+             except ValueError:
+                pass
+
+    # Save Signatures (if not skipped and data present)
+    if not skip_sig:
+        if sig_azubi_data and ',' in sig_azubi_data:
+            header, encoded = sig_azubi_data.split(",", 1)
+            data = base64.b64decode(encoded)
+            path = os.path.join(data_dir, 'signatures', f"{session_id}_azubi.png")
+            with open(path, "wb") as f:
+                f.write(data)
+            sig_azubi_path = path
+
+        if sig_examiner_data and ',' in sig_examiner_data:
+            header, encoded = sig_examiner_data.split(",", 1)
+            data = base64.b64decode(encoded)
+            path = os.path.join(data_dir, 'signatures', f"{session_id}_examiner.png")
+            with open(path, "wb") as f:
+                f.write(data)
+            sig_examiner_path = path
     selected_tools = []
     werkzeuge = Werkzeug.query.all()
     reports_to_create = []
@@ -326,7 +347,17 @@ def manage():
         azubis = Azubi.query.filter_by(is_archived=False).order_by(Azubi.name).all()
     examiners = Examiner.query.order_by(Examiner.name).all()
     werkzeuge = Werkzeug.query.order_by(Werkzeug.name).all()
+    werkzeuge = Werkzeug.query.order_by(Werkzeug.name).all()
     return render_template('manage.html', azubis=azubis, examiners=examiners, werkzeuge=werkzeuge, show_archived=show_archived)
+
+@main_bp.route('/toggle_migration_mode', methods=['POST'])
+def toggle_migration_mode():
+    current_mode = session.get('migration_mode', False)
+    session['migration_mode'] = not current_mode
+    status = "aktiviert" if session['migration_mode'] else "deaktiviert"
+    flash(f'Migration Modus wurde {status}.', 'info')
+    ingress = request.headers.get('X-Ingress-Path', '')
+    return redirect(f"{ingress}{url_for('main.manage')}")
 
 @main_bp.route('/add_examiner', methods=['POST'])
 def add_examiner():
