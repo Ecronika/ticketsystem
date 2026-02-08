@@ -27,7 +27,21 @@ def inject_ingress_path():
     return {'ingress_path': request.headers.get('X-Ingress-Path', '')}
 
 # Security: Dynamic Secret Key
-app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+# Security: Dynamic Secret Key (Persistent)
+secret_file = os.path.join(data_dir, 'secret.key')
+if os.path.exists(secret_file):
+    try:
+        with open(secret_file, 'r') as f:
+            app.secret_key = f.read().strip()
+    except Exception:
+        app.secret_key = secrets.token_hex(32)
+else:
+    app.secret_key = secrets.token_hex(32)
+    try:
+        with open(secret_file, 'w') as f:
+            f.write(app.secret_key)
+    except OSError:
+        pass # Fallback to transient key if FS is read-only
 
 db = SQLAlchemy(app)
 
@@ -481,6 +495,12 @@ def edit_azubi(id):
 @app.route('/delete_azubi/<int:id>', methods=['POST'])
 def delete_azubi(id):
     azubi = Azubi.query.get_or_404(id)
+    # Check for history to prevent data loss
+    if azubi.checks:
+        flash(f'Fehler: Azubi "{azubi.name}" hat Historie und kann nicht gelöscht werden.', 'error')
+        ingress = request.headers.get('X-Ingress-Path', '')
+        return redirect(f"{ingress}{url_for('manage')}")
+
     db.session.delete(azubi)
     db.session.commit()
     flash(f'Azubi {azubi.name} gelöscht.', 'success')
@@ -528,6 +548,12 @@ def edit_werkzeug(id):
 @app.route('/delete_werkzeug/<int:id>', methods=['POST'])
 def delete_werkzeug(id):
     werkzeug = Werkzeug.query.get_or_404(id)
+    # Check for history to prevent data loss
+    if werkzeug.checks:
+        flash(f'Fehler: Werkzeug "{werkzeug.name}" wird in Protokollen verwendet und kann nicht gelöscht werden.', 'error')
+        ingress = request.headers.get('X-Ingress-Path', '')
+        return redirect(f"{ingress}{url_for('manage')}")
+
     db.session.delete(werkzeug)
     db.session.commit()
     flash(f'Werkzeug {werkzeug.name} gelöscht.', 'success')

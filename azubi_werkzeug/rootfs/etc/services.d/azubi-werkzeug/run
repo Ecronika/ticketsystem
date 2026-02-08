@@ -17,7 +17,7 @@ python3 -c "from app import setup_database; setup_database()" \
 # Server starten
 bashio::log.info "Starte Gunicorn Server auf Port 5000..."
 exec gunicorn \
-    --workers 3 \
+    --workers 1 \
     --bind 0.0.0.0:5000 \
     --access-logfile - \
     --error-logfile - \

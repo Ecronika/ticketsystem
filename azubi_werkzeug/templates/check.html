@@ -417,7 +417,12 @@
             if (!valid) {
                 e.preventDefault();
                 // Show Error Alert (Target span to preserve icon)
-                errorTextSpan.textContent = errorMsg;
+                if (errorTextSpan) {
+                    errorTextSpan.textContent = errorMsg;
+                } else {
+                    errorAlert.textContent = errorMsg; // Fallback
+                }
+
                 errorAlert.style.display = 'block';
                 // Scroll to error
                 errorAlert.scrollIntoView({ behavior: 'smooth', block: 'center' });
