@@ -29,13 +29,17 @@ def _get_logo_data(logo_path):
         return f.read()
 
 def get_assigned_tools(azubi_id):
-    """Returns a list of werkzeug_ids currently assigned to the azubi."""
-    checks = Check.query.filter_by(azubi_id=azubi_id, returned_date=None).all()
-    assigned = [c.werkzeug_id for c in checks]
+    """Calculates currently assigned tools for an Azubi based on history."""
+    checks = Check.query.filter_by(azubi_id=azubi_id).order_by(Check.datum.asc()).all()
+    assigned = set()
+    
     for c in checks:
-        if c.werkzeug_id in assigned and c.returned_date is not None:
+        if c.check_type == 'issue':
+            assigned.add(c.werkzeug_id)
+        elif c.check_type == 'return':
+            if c.werkzeug_id in assigned:
                 assigned.remove(c.werkzeug_id)
-    return assigned
+    return list(assigned)
 
 @main_bp.route('/logo')
 def serve_logo():
