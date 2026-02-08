@@ -310,7 +310,8 @@ def submit_check():
 def history():
     # Group checks by session_id (or approximated by logic)
     # We fetch all checks ordered by date desc
-    all_checks = Check.query.order_by(Check.datum.desc()).all()
+    # Performance Fix: Limit to 100 most recent checks to prevent rendering lag
+    all_checks = Check.query.order_by(Check.datum.desc()).limit(100).all()
     
     sessions = []
     seen_sessions = set()
