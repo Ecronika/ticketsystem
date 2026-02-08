@@ -18,6 +18,10 @@ RUN pip3 install --no-cache-dir -r requirements.txt --break-system-packages
 # App-Code kopieren
 COPY app.py .
 COPY pdf_utils.py .
+COPY extensions.py .
+COPY models.py .
+COPY routes.py .
+COPY forms.py .
 COPY templates templates/
 COPY static static/
 
