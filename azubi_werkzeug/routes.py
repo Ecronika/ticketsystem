@@ -521,8 +521,9 @@ def upload_logo():
              return redirect(f"{ingress}{url_for('main.manage')}")
 
         filename = 'logo.png'
-        # Ensure static/img exists
-        img_folder = os.path.join(current_app.root_path, 'static', 'img')
+        # Use get_data_dir() for consistency with logo display check
+        data_dir = get_data_dir()
+        img_folder = os.path.join(data_dir, 'static', 'img')
         os.makedirs(img_folder, exist_ok=True)
         file.save(os.path.join(img_folder, filename))
         flash('Logo erfolgreich hochgeladen', 'success')
