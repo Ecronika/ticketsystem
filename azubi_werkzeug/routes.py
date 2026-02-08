@@ -36,25 +36,28 @@ def get_assigned_tools(azubi_id):
 
 @main_bp.route('/logo')
 def serve_logo():
-    """Serve logo from DATA_DIR (not from static folder)"""
+    """Serve logo from DATA_DIR with caching"""
+    from functools import lru_cache
+    
+    @lru_cache(maxsize=1)
+    def _get_logo_data(logo_path):
+        """Cached logo reader"""
+        with open(logo_path, 'rb') as f:
+            return f.read()
+    
     data_dir = get_data_dir()
-    logo_dir = os.path.join(data_dir, 'static', 'img')
-    logo_path = os.path.join(logo_dir, 'logo.png')
+    logo_path = os.path.join(data_dir, 'static', 'img', 'logo.png')
     
     current_app.logger.info(f"Serving logo from: {logo_path}")
-    current_app.logger.info(f"Logo exists: {os.path.exists(logo_path)}")
     
     if not os.path.exists(logo_path):
         current_app.logger.warning(f"Logo not found at {logo_path}")
         return "Logo not found", 404
     
-    # Read file directly instead of using send_from_directory
     try:
-        with open(logo_path, 'rb') as f:
-            logo_data = f.read()
-        
+        logo_data = _get_logo_data(logo_path)
         from flask import Response
-        return Response(logo_data, mimetype='image/png')
+        return Response(logo_data, mimetype='image/png', headers={'Cache-Control': 'public, max-age=3600'})
     except Exception as e:
         current_app.logger.error(f"Error reading logo: {e}")
         return "Error reading logo", 500
