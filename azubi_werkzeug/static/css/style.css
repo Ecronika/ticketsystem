@@ -141,3 +141,31 @@ body.high-contrast-mode .table td,
 body.high-contrast-mode .table th {
     border-color: #666666 !important;
 }
+
+/* Fix für Listen-Elemente im High Contrast Mode */
+body.high-contrast-mode .list-group-item {
+    background-color: #000000 !important;
+    /* Schwarz statt Weiß */
+    color: #FFFF00 !important;
+    /* Gelbe Schrift */
+    border: 1px solid #FFFF00 !important;
+    /* Gelber Rahmen zur Trennung */
+}
+
+/* Fix für die kleinen Zeitstempel-Texte */
+body.high-contrast-mode .list-group-item .text-muted {
+    color: #FFFF00 !important;
+    /* Auch Gelb erzwingen */
+    opacity: 0.8;
+    /* Leicht abgedunkelt zur Unterscheidung */
+}
+
+/* Fix für die runden Icon-Hintergründe (Grüner/Gelber Kreis) */
+body.high-contrast-mode .rounded-circle.bg-success-subtle,
+body.high-contrast-mode .rounded-circle.bg-warning-subtle,
+body.high-contrast-mode .rounded-circle.bg-danger-subtle,
+body.high-contrast-mode .rounded-circle.bg-info-subtle {
+    background-color: #222222 !important;
+    /* Dunkler Hintergrund für Icons */
+    border: 1px solid #FFFF00 !important;
+}
