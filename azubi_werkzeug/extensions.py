@@ -5,4 +5,7 @@ from flask_limiter.util import get_remote_address
 
 db = SQLAlchemy()
 csrf = CSRFProtect()
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri="memory://"  # Explizit für Single-Worker-Setup
+)
