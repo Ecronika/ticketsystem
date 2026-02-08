@@ -348,7 +348,14 @@ def manage():
     examiners = Examiner.query.order_by(Examiner.name).all()
     werkzeuge = Werkzeug.query.order_by(Werkzeug.name).all()
     werkzeuge = Werkzeug.query.order_by(Werkzeug.name).all()
-    return render_template('manage.html', azubis=azubis, examiners=examiners, werkzeuge=werkzeuge, show_archived=show_archived)
+    
+    # Check for logo existence
+    data_dir = get_data_dir()
+    logo_path = os.path.join(data_dir, 'static', 'img', 'logo.png')
+    logo_exists = os.path.exists(logo_path)
+
+    return render_template('manage.html', azubis=azubis, examiners=examiners, werkzeuge=werkzeuge, 
+                           show_archived=show_archived, logo_exists=logo_exists)
 
 @main_bp.route('/toggle_migration_mode', methods=['POST'])
 def toggle_migration_mode():

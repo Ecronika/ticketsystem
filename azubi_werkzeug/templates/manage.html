@@ -249,6 +249,15 @@
             </div>
             <div class="card-body px-4">
                 <label class="form-label small fw-bold">Firmenlogo für Protokolle</label>
+                {% if logo_exists %}
+                <div class="mb-3 d-flex align-items-center bg-light p-2 rounded border">
+                    <img src="{{ url_for('static', filename='img/logo.png') }}?t={{ range(1, 10000) | random }}"
+                        alt="Aktuelles Logo" style="max-height: 40px; width: auto;" class="me-3">
+                    <span class="badg bg-success text-success bg-opacity-10 border border-success">
+                        <i class="bi bi-check-circle-fill"></i> Aktiv
+                    </span>
+                </div>
+                {% endif %}
                 <form action="{{ ingress_path }}{{ url_for('main.upload_logo') }}" method="POST"
                     enctype="multipart/form-data" class="bg-light p-3 rounded-3 border">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
