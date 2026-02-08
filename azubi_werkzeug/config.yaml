@@ -22,5 +22,11 @@ panel_icon: mdi:tools
 panel_title: "Werkzeug Tracker"
 hassio_api: false
 hassio_role: default
-options: {}
-schema: {}
+options:
+  ssl: false
+  certfile: fullchain.pem
+  keyfile: privkey.pem
+schema:
+  ssl: bool
+  certfile: str
+  keyfile: str

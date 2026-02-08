@@ -43,7 +43,7 @@
                 </div>
 
                 <div class="d-grid mt-4">
-                    <a href="{{ ingress_path }}{{ url_for('check_azubi', azubi_id=azubi.id) }}"
+                    <a href="{{ ingress_path }}{{ url_for('main.check_azubi', azubi_id=azubi.id) }}"
                         class="btn btn-outline-primary rounded-pill">
                         <i class="bi bi-clipboard-check"></i> Neue Prüfung
                     </a>
@@ -58,7 +58,7 @@
         </div>
         <h4 class="text-muted fw-bold">Noch keine Azubis angelegt.</h4>
         <p class="text-secondary">Starten Sie, indem Sie Ihren ersten Azubi hinzufügen.</p>
-        <a href="{{ ingress_path }}{{ url_for('manage') }}"
+        <a href="{{ ingress_path }}{{ url_for('main.manage') }}"
             class="btn btn-primary btn-lg rounded-pill mt-3 px-5 shadow-sm">
             <i class="bi bi-plus-lg me-2"></i> Jetzt anlegen
         </a>

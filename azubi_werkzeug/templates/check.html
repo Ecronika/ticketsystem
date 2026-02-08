@@ -16,7 +16,8 @@
             {% endif %}
         </div>
 
-        <form action="{{ ingress_path }}{{ url_for('submit_check') }}" method="POST" id="checkForm">
+        <form action="{{ ingress_path }}{{ url_for('main.submit_check') }}" method="POST" id="checkForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             <input type="hidden" name="azubi_id" value="{{ azubi.id }}">
             <input type="hidden" name="signature_azubi_data" id="sigAzubiData">
             <input type="hidden" name="signature_examiner_data" id="sigExaminerData">
@@ -220,7 +221,8 @@
             <!-- Sticky Bottom Bar -->
             <div class="fixed-bottom bg-white border-top shadow p-3">
                 <div class="container d-flex justify-content-between align-items-center">
-                    <a href="{{ ingress_path }}{{ url_for('index') }}" class="btn btn-outline-secondary">Abbrechen</a>
+                    <a href="{{ ingress_path }}{{ url_for('main.index') }}"
+                        class="btn btn-outline-secondary">Abbrechen</a>
                     <button type="submit" class="btn btn-primary px-5 fw-bold" id="submitBtn">
                         <i class="bi bi-check-circle-fill me-2"></i> Speichern & PDF erstellen
                     </button>

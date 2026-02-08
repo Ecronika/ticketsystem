@@ -14,11 +14,36 @@ bashio::log.info "Initialisiere Datenbank..."
 python3 -c "from app import setup_database; setup_database()" \
     || bashio::exit.nok "Datenbank-Initialisierung fehlgeschlagen"
 
-# Server starten
-bashio::log.info "Starte Gunicorn Server auf Port 5000..."
-exec gunicorn \
-    --workers 1 \
-    --bind 0.0.0.0:5000 \
-    --access-logfile - \
-    --error-logfile - \
-    app:app
+# SSL Konfiguration lesen
+SSL=$(bashio::config 'ssl')
+CERTFILE=$(bashio::config 'certfile')
+KEYFILE=$(bashio::config 'keyfile')
+
+# Pruefe ob SSL aktiviert ist
+if bashio::var.true "${SSL}"; then
+    bashio::log.info "SSL ist aktiviert."
+    bashio::log.info "Zertifikat: /ssl/${CERTFILE}"
+    bashio::log.info "Key: /ssl/${KEYFILE}"
+    
+    # Server starten mit SSL
+    bashio::log.info "Starte Gunicorn Server mit SSL auf Port 5000..."
+    exec gunicorn \
+        --workers 1 \
+        --bind 0.0.0.0:5000 \
+        --certfile "/ssl/${CERTFILE}" \
+        --keyfile "/ssl/${KEYFILE}" \
+        --access-logfile - \
+        --error-logfile - \
+        app:app
+else
+    bashio::log.info "SSL ist deaktiviert."
+    
+    # Server starten ohne SSL
+    bashio::log.info "Starte Gunicorn Server auf Port 5000..."
+    exec gunicorn \
+        --workers 1 \
+        --bind 0.0.0.0:5000 \
+        --access-logfile - \
+        --error-logfile - \
+        app:app
+fi

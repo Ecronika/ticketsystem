@@ -11,3 +11,4 @@ azubi_werkzeug/signatures/
 .vscode/
 venv/
 env/
+azubi_werkzeug/secret.key

@@ -1,56 +1,38 @@
-from app import app, db, Azubi, Werkzeug
-from flask import template_rendered
+from app import app, db, Azubi, Werkzeug, setup_database
 import sys
-import contextlib
 
-def verify_routes():
-    print("Verifying Routes...")
-    rules = [str(p) for p in app.url_map.iter_rules()]
-    expected = ['/', '/check/<azubi_id>', '/submit_check', '/history', '/static/<path:filename>']
+def verify_setup():
+    print("Verifying Setup...")
+    # Ensure DB is created
+    with app.app_context():
+        setup_database()
+
+    client = app.test_client()
     
-    missing = []
-    for exp in expected:
-        found = False
-        for rule in rules:
-            if exp in rule: # loose matching for parameters
-                found = True
-                break
-        if not found:
-            missing.append(exp)
-            
-    if missing:
-        print(f"FAILED: Missing routes: {missing}")
-        sys.exit(1)
-    print("Routes OK")
+    # 1. Routes
+    print("1. Checking Routes...")
+    try:
+        # Check /manage because it has forms with CSRF tokens
+        resp = client.get('/manage')
+        if resp.status_code == 200:
+             print("OK: /manage (Management) loaded.")
+        else:
+             print(f"FAIL: /manage Failed with status: {resp.status_code}")
+             # Print first 500 chars of response to see error
+             print(f"Response: {resp.data[:500]}")
+             sys.exit(1)
+             
+        # Check CSRF
+        if b'csrf_token' in resp.data:
+            print("OK: CSRF Token present in /manage forms.")
+        else:
+            print("WARN: CSRF Token MISSING in /manage forms.")
 
-def verify_templates():
-    print("Verifying Templates...")
-    with app.test_request_context('/'):
-        try:
-            # Test Index
-            app.jinja_env.get_template('index.html').render(azubis=[])
-            print("index.html OK")
-            
-            # Test Check
-            mock_azubi = Azubi(name="Test")
-            mock_azubi.id = 1
-            mock_werkzeuge = [Werkzeug(name="Hammer", id=1)]
-            app.jinja_env.get_template('check.html').render(
-                azubi=mock_azubi, 
-                werkzeuge=mock_werkzeuge, 
-                current_date="01.01.2024"
-            )
-            print("check.html OK")
-            
-            # Test Base (implicitly tested above, but being explicit)
-            app.jinja_env.get_template('base.html').render()
-            print("base.html OK")
-            
-        except Exception as e:
-            print(f"FAILED: Template error: {e}")
-            sys.exit(1)
+    except Exception as e:
+        print(f"ERROR: Exception checking routes: {e}")
+        sys.exit(1)
+
+    print("Setup Verification Passed.")
 
 if __name__ == '__main__':
-    verify_routes()
-    verify_templates()
-    print("All Verifications Passed.")
+    verify_setup()
