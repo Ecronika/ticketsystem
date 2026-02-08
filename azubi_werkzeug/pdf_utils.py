@@ -3,9 +3,9 @@ import os
 from datetime import datetime
 
 # Konfiguration für das Logo
-# Legen Sie eine Datei 'logo.png' in den Ordner 'azubi_werkzeug/static/img/' 
-# oder passen Sie den Pfad hier an.
-LOGO_PATH = os.path.join(os.path.dirname(__file__), 'static', 'img', 'logo.png')
+# Priorisiert DATA_DIR (für Docker), fallback zu lokalem Pfad
+_data_dir = os.environ.get('DATA_DIR', os.path.dirname(__file__))
+LOGO_PATH = os.path.join(_data_dir, 'static', 'img', 'logo.png')
 
 class HandoverReport(FPDF):
     def __init__(self, title="Werkzeug-Protokoll"):
