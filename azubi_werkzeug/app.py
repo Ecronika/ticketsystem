@@ -420,12 +420,21 @@ def submit_check():
 
 @app.route('/history')
 def history():
-    # Group checks by session_id (or approximated by logic)
-    # We fetch all checks ordered by date desc
+    # Filter by Azubi
+    azubi_id = request.args.get('azubi_id')
+    
+    query = Check.query.order_by(Check.datum.desc())
+    
+    if azubi_id and azubi_id != 'all':
+        query = query.filter_by(azubi_id=int(azubi_id))
+        
     # FIX: limit(100) was too low because it counts individual tool checks (rows). 
     # A single session can have 50+ rows. increased to 2000 to cover reasonable history.
     # Long term: Implement real pagination based on sessions.
-    all_checks = Check.query.order_by(Check.datum.desc()).limit(2000).all()
+    all_checks = query.limit(2000).all()
+    
+    # Get all Azubis for Filter Dropdown
+    azubis = Azubi.query.order_by(Azubi.name).all()
     
     sessions = []
     seen_sessions = set()
@@ -461,7 +470,7 @@ def history():
                 'count': len(session_checks)
             })
             
-    return render_template('history.html', sessions=sessions)
+    return render_template('history.html', sessions=sessions, azubis=azubis, selected_azubi_id=int(azubi_id) if azubi_id and azubi_id != 'all' else None)
 
 @app.route('/history_details/<path:session_id>')
 def history_details(session_id):
