@@ -90,7 +90,7 @@
                                         <input class="form-check-input" type="checkbox" id="selectAll">
                                     </th>
                                     <th style="width: 35%;">Werkzeug</th>
-                                    <th style="width: 20%;">Aktueller Status</th>
+                                    <th class="d-none d-md-table-cell" style="width: 20%;">Aktueller Status</th>
                                     <th style="width: 40%;">Zustand / Prüfung</th>
                                 </tr>
                             </thead>
@@ -113,7 +113,7 @@
                                         </div>
                                     </td>
 
-                                    <td>
+                                    <td class="d-none d-md-table-cell">
                                         <!-- Last Status Badge -->
                                         {% if item.is_assigned %}
                                         <span

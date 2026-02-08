@@ -221,19 +221,19 @@
                     <table id="werkzeugTable" class="table table-hover align-middle">
                         <thead class="table-light">
                             <tr>
-                                <th scope="col" style="width: 35%;">Bezeichnung</th>
-                                <th scope="col" style="width: 25%;">Kategorie</th>
-                                <th scope="col" style="width: 25%;">Tech. Daten</th>
-                                <th scope="col" style="width: 15%;" class="text-end">Aktion</th>
+                                <th>Bezeichnung</th>
+                                <th class="d-none d-md-table-cell">Kategorie</th> <!-- Hidden on Mobile -->
+                                <th class="d-none d-lg-table-cell">Tech. Parameter</th> <!-- Hidden on Mobile/Tablet -->
+                                <th class="text-end">Aktion</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="werkzeugTableBody">
                             {% for werkzeug in werkzeuge %}
                             <tr>
                                 <td>
                                     <div class="fw-bold">{{ werkzeug.name }}</div>
                                 </td>
-                                <td>
+                                <td class="d-none d-md-table-cell">
                                     {% if werkzeug.material_category == 'standard' %}
                                     <span
                                         class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Standard</span>
@@ -346,13 +346,21 @@
             let timeout = null;
 
             input.addEventListener('keyup', function () {
+                // Visual Feedback: Show "Loading" state (opacity reduction)
+                table.style.opacity = '0.5';
+                table.style.transition = 'opacity 0.2s';
+
                 clearTimeout(timeout);
+
                 // Performance Fix: Debounce 200ms
                 timeout = setTimeout(() => {
                     const filter = input.value.toLowerCase();
                     // Start from 1 to skip header
                     for (let i = 1; i < rows.length; i++) {
                         const row = rows[i];
+                        // Skip if it's the "No Data" row (colspan)
+                        if (row.cells.length < 2 && row.cells[0].getAttribute('colspan')) continue;
+
                         const text = row.textContent || row.innerText;
                         if (text.toLowerCase().indexOf(filter) > -1) {
                             row.style.display = "";
@@ -360,6 +368,9 @@
                             row.style.display = "none";
                         }
                     }
+
+                    // Restore Opacity
+                    table.style.opacity = '1';
                 }, 200);
             });
         }

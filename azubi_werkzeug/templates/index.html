@@ -53,8 +53,15 @@
     </div>
     {% else %}
     <div class="col-12 text-center py-5">
-        <h4 class="text-muted">Noch keine Azubis angelegt.</h4>
-        <a href="{{ ingress_path }}{{ url_for('manage') }}" class="btn btn-primary mt-3">Jetzt anlegen</a>
+        <div class="text-secondary mb-3 opacity-25">
+            <i class="bi bi-tools" style="font-size: 5rem;"></i>
+        </div>
+        <h4 class="text-muted fw-bold">Noch keine Azubis angelegt.</h4>
+        <p class="text-secondary">Starten Sie, indem Sie Ihren ersten Azubi hinzufügen.</p>
+        <a href="{{ ingress_path }}{{ url_for('manage') }}"
+            class="btn btn-primary btn-lg rounded-pill mt-3 px-5 shadow-sm">
+            <i class="bi bi-plus-lg me-2"></i> Jetzt anlegen
+        </a>
     </div>
     {% endfor %}
 </div>
