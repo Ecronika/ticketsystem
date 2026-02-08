@@ -301,8 +301,26 @@ def generate_end_of_training_report(azubi, history_entries, is_inventory_clear):
         examiner = entry.examiner or "-"
         
         # Tool Name + Status
-        tool_name = entry.tool.name if entry.tool else "Unbekannt"
-        status = entry.status
+        tool_name = entry.werkzeug.name if entry.werkzeug else "Unbekannt"
+        
+        # Parse status from bemerkung
+        status = "Unbekannt"
+        if entry.bemerkung:
+             parts = entry.bemerkung.split('|')
+             for p in parts:
+                 if "Status:" in p:
+                     status = p.replace("Status:", "").strip()
+                     break
+        
+        # Map common status codes to German
+        status_map = {
+            'ok': 'i.O.',
+            'missing': 'Fehlt',
+            'broken': 'Defekt',
+            'not_issued': 'Nicht ausgegeben'
+        }
+        status = status_map.get(status, status)
+        
         details = f"{tool_name} ({status})"
         
         pdf.cell(25, 8, date_str, 1, 0, 'C')
