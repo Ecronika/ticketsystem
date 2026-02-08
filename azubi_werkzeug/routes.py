@@ -50,6 +50,23 @@ def serve_logo():
     
     return send_from_directory(logo_dir, 'logo.png')
 
+@main_bp.route('/debug/paths')
+def debug_paths():
+    """Debug endpoint to check paths"""
+    import os
+    data_dir = get_data_dir()
+    logo_path = os.path.join(data_dir, 'static', 'img', 'logo.png')
+    
+    return {
+        'DATA_DIR_env': os.environ.get('DATA_DIR', 'NOT SET'),
+        'data_dir': data_dir,
+        'logo_path': logo_path,
+        'logo_exists': os.path.exists(logo_path),
+        'logo_size': os.path.getsize(logo_path) if os.path.exists(logo_path) else 0,
+        'cwd': os.getcwd(),
+        'files_in_data_static_img': os.listdir(os.path.join(data_dir, 'static', 'img')) if os.path.exists(os.path.join(data_dir, 'static', 'img')) else []
+    }
+
 @main_bp.route('/')
 def index():
     azubis = Azubi.query.filter_by(is_archived=False).order_by(Azubi.name).all()
