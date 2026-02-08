@@ -2,72 +2,109 @@ from fpdf import FPDF
 import os
 from datetime import datetime
 
+# Konfiguration für das Logo
+# Legen Sie eine Datei 'logo.png' in den Ordner 'azubi_werkzeug/static/img/' 
+# oder passen Sie den Pfad hier an.
+LOGO_PATH = os.path.join(os.path.dirname(__file__), 'static', 'img', 'logo.png')
+
 class HandoverReport(FPDF):
     def __init__(self, title="Werkzeug-Protokoll"):
         super().__init__()
         self.report_title = title
+        self.set_auto_page_break(auto=True, margin=15)
         self.add_page()
         
     def header(self):
-        # Logo could go here
-        # self.image('logo.png', 10, 8, 33)
-        self.set_font('Arial', 'B', 15)
-        self.cell(0, 10, self.report_title, 0, 1, 'C')
-        self.ln(10)
+        # 1. Logo Einbindung (wenn vorhanden)
+        if os.path.exists(LOGO_PATH):
+            # x=10, y=8, w=30 (Breite 30mm, Höhe automatisch proportional)
+            self.image(LOGO_PATH, 10, 8, 30)
+            # Verschiebe den Titel nach rechts, damit er nicht im Logo steht
+            self.set_x(45) 
+        
+        # 2. Titel
+        self.set_font('Arial', 'B', 16)
+        # Titelbreite 0 = bis zum rechten Rand
+        self.cell(0, 10, self.report_title, 0, 1, 'R') 
+        
+        # Linie unter dem Header
+        self.set_draw_color(200, 200, 200)
+        self.line(10, 25, 200, 25)
+        self.ln(20) # Abstand zum Inhalt (angepasst an Logo-Höhe)
 
     def footer(self):
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
+        self.set_text_color(128)
         self.cell(0, 10, f'Seite {self.page_no()}/{{nb}}', 0, 0, 'C')
 
     def chapter_title(self, label):
-        self.set_font('Arial', 'B', 12)
-        self.set_fill_color(200, 220, 255)
-        self.cell(0, 6, label, 0, 1, 'L', 1)
-        self.ln(4)
-
-    def chapter_body(self, text):
-        self.set_font('Arial', '', 12)
-        self.multi_cell(0, 5, text)
-        self.ln()
+        self.set_font('Arial', 'B', 11)
+        self.set_fill_color(240, 240, 240) # Hellgrau
+        self.set_text_color(0)
+        self.cell(0, 8, label, 0, 1, 'L', 1) # Höhe reduziert auf 8
+        self.ln(2) # Kleiner Abstand
 
 def generate_handover_pdf(azubi_name, examiner_name, tools, check_type, signature_paths, output_path):
-    # Ensure output directory exists
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
-    # Translate Check Type for Title
+    # Titel Logik
     type_map = {
-        'issue': 'Ausgabe',
-        'return': 'Rückgabe',
-        'check': 'Prüf'
+        'issue': 'Ausgabeprotokoll',
+        'return': 'Rückgabeprotokoll',
+        'check': 'Prüfprotokoll'
     }
-    title_type = type_map.get(check_type, 'Protokoll')
+    title_text = type_map.get(check_type, 'Werkzeug-Protokoll')
     
-    pdf = HandoverReport(title=f"Werkzeug-{title_type}-Protokoll")
+    pdf = HandoverReport(title=title_text)
     pdf.alias_nb_pages()
     
-    # Meta Data
-    pdf.set_font('Arial', '', 12)
-    pdf.cell(0, 10, f"Datum: {datetime.now().strftime('%d.%m.%Y %H:%M')}", 0, 1)
-    pdf.cell(0, 10, f"Azubi: {azubi_name}", 0, 1)
-    pdf.cell(0, 10, f"Prüfer: {examiner_name}", 0, 1)
-    pdf.ln(10)
-    
-    # Tool List
-    pdf.chapter_title("Betroffene Werkzeuge")
-    pdf.set_font('Arial', 'B', 10)
-    # Header - Total width ~190
-    # pdf.cell(10, 10, "ID", 1) # Removed
-    pdf.cell(90, 10, "Werkzeug", 1)
-    pdf.cell(50, 10, "Kategorie", 1)
-    pdf.cell(50, 10, "Zustand", 1)
-    pdf.ln()
-    
+    # --- KOMPAKTE METADATEN (NEBENEINANDER) ---
+    pdf.set_y(30) # Startposition nach Header fixieren
     pdf.set_font('Arial', '', 10)
+    
+    # Zeilenhöhe 6mm statt 10mm
+    h = 6 
+    
+    # Wir nutzen Cell mit ln=0 für Nebeneinander
+    pdf.set_font('Arial', 'B', 10)
+    pdf.cell(20, h, "Datum:", 0, 0)
+    pdf.set_font('Arial', '', 10)
+    pdf.cell(40, h, datetime.now().strftime('%d.%m.%Y %H:%M'), 0, 0)
+    
+    pdf.set_font('Arial', 'B', 10)
+    pdf.cell(15, h, "Azubi:", 0, 0)
+    pdf.set_font('Arial', '', 10)
+    pdf.cell(50, h, azubi_name, 0, 0)
+    
+    pdf.set_font('Arial', 'B', 10)
+    pdf.cell(15, h, "Prüfer:", 0, 0)
+    pdf.set_font('Arial', '', 10)
+    pdf.cell(0, h, examiner_name, 0, 1) # ln=1 für Zeilenumbruch am Ende
+    
+    pdf.ln(5) # Kleiner Abstand zur Tabelle
+    
+    # --- TABELLE ---
+    pdf.chapter_title(f"Betroffene Werkzeuge ({len(tools)} Stück)")
+    
+    # Tabellenkopf
+    pdf.set_font('Arial', 'B', 9)
+    pdf.set_fill_color(220, 220, 220)
+    # Breiten optimiert: Name bekommt den meisten Platz
+    w_name = 90
+    w_cat = 50
+    w_status = 50
+    h_row = 7 # Reduzierte Zeilenhöhe (war 10)
+    
+    pdf.cell(w_name, h_row, "Werkzeugbezeichnung", 1, 0, 'L', True)
+    pdf.cell(w_cat, h_row, "Kategorie", 1, 0, 'L', True)
+    pdf.cell(w_status, h_row, "Zustand / Status", 1, 1, 'L', True)
+    
+    # Inhalt
+    pdf.set_font('Arial', '', 9)
+    
     for tool in tools:
-        # tool struct: {'id': 1, 'name': 'Hammer', 'category': 'standard', 'status': 'ok'}
-        
-        # Translate Status
+        # Status Übersetzung
         status_map = {
             'ok': 'In Ordnung',
             'missing': 'Fehlt',
@@ -76,8 +113,7 @@ def generate_handover_pdf(azubi_name, examiner_name, tools, check_type, signatur
         }
         status_text = status_map.get(tool['status'], tool['status'])
         
-        # Translate Category (if needed, though likely already German-ish in DB 'standard', 'teilisoliert')
-        # DB limits: standard, teilisoliert, vollisoliert, isolierend
+        # Kategorie Übersetzung
         cat_map = {
             'standard': 'Standard',
             'teilisoliert': 'Teilisoliert',
@@ -86,33 +122,58 @@ def generate_handover_pdf(azubi_name, examiner_name, tools, check_type, signatur
         }
         cat_text = cat_map.get(tool['category'], tool['category'])
 
-        # pdf.cell(10, 10, str(tool['id']), 1) # Removed
-        pdf.cell(90, 10, tool['name'], 1)
-        pdf.cell(50, 10, cat_text, 1)
-        pdf.cell(50, 10, status_text, 1)
+        # Name kürzen falls zu lang für eine Zeile
+        name = tool['name'][:50] 
+
+        # Farbliche Hervorhebung bei Problemen
+        if tool['status'] in ['missing', 'broken']:
+            pdf.set_text_color(200, 0, 0) # Rot
+            pdf.set_font('Arial', 'B', 9)
+        else:
+            pdf.set_text_color(0)
+            pdf.set_font('Arial', '', 9)
+
+        pdf.cell(w_name, h_row, name, 1)
+        pdf.cell(w_cat, h_row, cat_text, 1)
+        pdf.cell(w_status, h_row, status_text, 1)
         pdf.ln()
         
-    pdf.ln(20)
+    pdf.set_text_color(0) # Reset Farbe
+    pdf.ln(10)
     
-    # Signatures
+    # --- UNTERSCHRIFTEN ---
+    # Prüfen, ob noch genug Platz auf der Seite ist (ca 50mm nötig), sonst neue Seite
+    if pdf.get_y() > 230:
+        pdf.add_page()
+        
     pdf.chapter_title("Unterschriften")
     
     start_y = pdf.get_y()
+    box_height = 35 # Etwas kompakter (war 40)
     
-    # Azubi Signature
+    # Box Azubi
     pdf.set_xy(10, start_y)
-    pdf.cell(90, 40, "", 1) # Box
-    pdf.text(12, start_y + 5, "Unterschrift Azubi")
+    pdf.rect(10, start_y, 90, box_height) # Rahmen zeichnen
+    pdf.set_font('Arial', '', 8)
+    pdf.text(12, start_y + 4, "Unterschrift Azubi")
+    
     if signature_paths.get('azubi') and os.path.exists(signature_paths['azubi']):
-        pdf.image(signature_paths['azubi'], x=15, y=start_y+10, w=80, h=30)
+        # Bild einpassen
+        pdf.image(signature_paths['azubi'], x=15, y=start_y+5, w=60, h=25)
         
-    # Examiner Signature
+    # Box Prüfer
     pdf.set_xy(110, start_y)
-    pdf.cell(90, 40, "", 1) # Box
-    pdf.text(112, start_y + 5, f"Unterschrift Prüfer")
+    pdf.rect(110, start_y, 80, box_height)
+    pdf.text(112, start_y + 4, "Unterschrift Prüfer")
+    
     if signature_paths.get('examiner') and os.path.exists(signature_paths['examiner']):
-        pdf.image(signature_paths['examiner'], x=115, y=start_y+10, w=80, h=30)
-        
+        pdf.image(signature_paths['examiner'], x=115, y=start_y+5, w=60, h=25)
+    
+    # Rechtlicher Hinweis unten drunter (optional, aber professionell)
+    pdf.set_xy(10, start_y + box_height + 2)
+    pdf.set_font('Arial', 'I', 7)
+    pdf.multi_cell(0, 3, "Mit der Unterschrift wird die Vollständigkeit (bei Ausgabe) bzw. der oben genannte Zustand (bei Prüfung/Rückgabe) bestätigt.")
+
     pdf.output(output_path)
     return output_path
 
