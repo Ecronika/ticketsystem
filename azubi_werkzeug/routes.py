@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_from_directory, make_response, current_app
 from sqlalchemy.orm import joinedload
-from extensions import db
+from sqlalchemy.orm import joinedload
+from extensions import db, limiter
 from models import Azubi, Werkzeug, Examiner, Check
 from forms import AzubiForm, ExaminerForm, WerkzeugForm
 from datetime import datetime, timedelta
@@ -447,6 +448,7 @@ def delete_werkzeug(id):
     return redirect(f"{ingress}{url_for('main.manage')}")
 
 @main_bp.route('/upload_logo', methods=['POST'])
+@limiter.limit("5 per minute")
 def upload_logo():
     ingress = request.headers.get('X-Ingress-Path', '')
     if 'logo' not in request.files:
@@ -466,8 +468,8 @@ def upload_logo():
 
         header = file.read(1024)
         file.seek(0)
-        is_png = header.startswith(b'\\x89PNG\\r\\n\\x1a\\n') 
-        is_jpeg = header.startswith(b'\\xff\\xd8\\xff')
+        is_png = header.startswith(b'\x89PNG\r\n\x1a\n') 
+        is_jpeg = header.startswith(b'\xff\xd8\xff')
         
         if not (is_png or is_jpeg):
             flash('Ungültiges Format (Nur PNG/JPG erlaubt).', 'error')

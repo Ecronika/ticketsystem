@@ -1,5 +1,5 @@
-from flask import Flask
-from extensions import db, csrf
+from flask import Flask, render_template, request, redirect, url_for, flash
+from extensions import db, csrf, limiter
 from routes import main_bp
 from models import Azubi, Werkzeug, Examiner, Check
 import os
@@ -56,8 +56,10 @@ else:
         pass
 
 # Initialize Extensions
+# Initialize Extensions
 csrf.init_app(app)
 db.init_app(app)
+limiter.init_app(app)
 
 # Register Blueprints
 app.register_blueprint(main_bp)
@@ -153,6 +155,22 @@ def setup_database():
             db.session.add(Werkzeug(name="Hammer 500g"))
             db.session.commit()
             app.logger.info("Created Dummy Werkzeuge")
+
+# --- Global Error Handlers ---
+@app.errorhandler(413) # Payload Too Large
+def request_entity_too_large(e):
+    app.logger.warning(f"File upload too large: {request.content_length}")
+    flash('Datei zu groß (max. 2MB).', 'error')
+    return redirect(url_for('main.manage'))
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    # Pass through HTTP errors
+    if isinstance(e, int):
+        return e
+        
+    app.logger.error(f"Unhandled Exception: {e}", exc_info=True)
+    return render_template('base.html', content=f"<h1>Ein unerwarteter Fehler ist aufgetreten</h1><p>{e}</p>"), 500
 
 if __name__ == '__main__':
     setup_database()

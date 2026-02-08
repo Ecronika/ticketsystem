@@ -4,3 +4,5 @@ gunicorn==21.2.0
 fpdf2
 Flask-WTF
 qrcode
+Flask-Limiter
+pytest

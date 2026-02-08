@@ -26,10 +26,10 @@ class WerkzeugForm(FlaskForm):
         Length(min=2, max=100, message="Bezeichnung muss zwischen 2 und 100 Zeichen lang sein.")
     ])
     material_category = SelectField('Kategorie', validators=[Optional()], choices=[
-        ('Handwerkzeug', 'Handwerkzeug'),
-        ('Elektrowerkzeug', 'Elektrowerkzeug'),
-        ('Messmittel', 'Messmittel'),
-        ('Sonstiges', 'Sonstiges')
+        ('standard', 'Standard'),
+        ('teilisoliert', 'Teilisoliert'),
+        ('vollisoliert', 'Vollisoliert (1000V)'),
+        ('isolierend', 'Vollkunststoff')
     ])
     tech_param_label = StringField('Tech. Parameter (Name)', validators=[Optional(), Length(max=50)])
     tech_param_value = StringField('Tech. Parameter (Wert)', validators=[Optional(), Length(max=50)])
