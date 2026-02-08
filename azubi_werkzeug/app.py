@@ -75,42 +75,7 @@ class Check(db.Model):
 
 # --- Routes ---
 
-@app.route('/')
-def index():
-    azubis_db = Azubi.query.all()
-    azubis_data = []
-    
-    for azubi in azubis_db:
-        # Get last check
-        last_check = Check.query.filter_by(azubi_id=azubi.id).order_by(Check.datum.desc()).first()
-        
-        status = "Unbekannt"
-        status_class = "secondary"
-        last_check_str = "Noch nie"
-        
-        if last_check:
-            last_check_str = last_check.datum.strftime("%d. %b %Y")
-            days_since = (datetime.now() - last_check.datum).days
-            
-            # Global 3-Month Rule (90 Days)
-            if days_since < 90:
-                status = "Geprüft"
-                status_class = "success"
-            else:
-                status = "Überfällig (> 3 Mon.)"
-                status_class = "danger"
-                last_check_str = f"Vor {days_since} Tagen"
-        
-        azubis_data.append({
-            'id': azubi.id,
-            'name': azubi.name,
-            'lehrjahr': azubi.lehrjahr,
-            'status': status,
-            'status_class': status_class,
-            'last_check': last_check_str
-        })
 
-    return render_template('index.html', azubis=azubis_data)
 
 # --- Helper Functions ---
 def get_assigned_tools(azubi_id):
