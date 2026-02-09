@@ -298,7 +298,14 @@
                     method: 'POST',
                     body: formData
                 })
-                    .then(() => window.location.reload())
+                    // TODO: Replace with dynamic row insertion like tools.html
+                    .then(() => {
+                        // TEMP: Reload disabled to prevent timeout
+                        alert('Azubi hinzugefügt! Bitte Seite manuell neu laden.');
+                        addFormAzubi.reset();
+                        button.disabled = false;
+                        button.innerHTML = '<i class="bi bi-plus-lg"></i> Hinzufügen';
+                    })
                     .catch(error => {
                         alert('Fehler: ' + error);
                         button.disabled = false;

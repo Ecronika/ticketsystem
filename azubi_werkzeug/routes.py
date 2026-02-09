@@ -441,7 +441,7 @@ def toggle_migration_mode():
     status = "aktiviert" if session['migration_mode'] else "deaktiviert"
     flash(f'Migration Modus wurde {status}.', 'info')
     ingress = request.headers.get('X-Ingress-Path', '')
-    return redirect(f"{ingress}{url_for('main.manage')}")
+    return redirect(f"{ingress}{url_for('main.personnel')}")
 
 @main_bp.route('/add_examiner', methods=['POST'])
 def add_examiner():
@@ -456,7 +456,7 @@ def add_examiner():
         for field, errors in form.errors.items():
             for error in errors:
                 flash(f"Fehler bei {field}: {error}", 'error')
-    return redirect(f"{ingress}{url_for('main.manage')}")
+    return redirect(f"{ingress}{url_for('main.personnel')}")
 
 @main_bp.route('/delete_examiner/<int:id>', methods=['POST'])
 def delete_examiner(id):
@@ -465,7 +465,7 @@ def delete_examiner(id):
     db.session.commit()
     flash(f'Prüfer {examiner.name} gelöscht.', 'success')
     ingress = request.headers.get('X-Ingress-Path', '')
-    return redirect(f"{ingress}{url_for('main.manage')}")
+    return redirect(f"{ingress}{url_for('main.personnel')}")
 
 @main_bp.route('/add_azubi', methods=['POST'])
 def add_azubi():
@@ -480,7 +480,7 @@ def add_azubi():
         for field, errors in form.errors.items():
             for error in errors:
                 flash(f"Fehler bei {field}: {error}", 'error')
-    return redirect(f"{ingress}{url_for('main.manage')}")
+    return redirect(f"{ingress}{url_for('main.personnel')}")
 
 @main_bp.route('/edit_azubi/<int:id>', methods=['POST'])
 def edit_azubi(id):
@@ -496,7 +496,7 @@ def edit_azubi(id):
         for field, errors in form.errors.items():
             for error in errors:
                 flash(f"Fehler bei {field}: {error}", 'error')
-    return redirect(f"{ingress}{url_for('main.manage')}")
+    return redirect(f"{ingress}{url_for('main.personnel')}")
 
 @main_bp.route('/delete_azubi/<int:id>', methods=['POST'])
 def delete_azubi(id):
@@ -504,13 +504,13 @@ def delete_azubi(id):
     if azubi.checks:
         flash(f'Fehler: Azubi "{azubi.name}" hat Historie und kann nicht gelöscht werden.', 'error')
         ingress = request.headers.get('X-Ingress-Path', '')
-        return redirect(f"{ingress}{url_for('main.manage')}")
+        return redirect(f"{ingress}{url_for('main.personnel')}")
 
     db.session.delete(azubi)
     db.session.commit()
     flash(f'Azubi {azubi.name} gelöscht.', 'success')
     ingress = request.headers.get('X-Ingress-Path', '')
-    return redirect(f"{ingress}{url_for('main.manage')}")
+    return redirect(f"{ingress}{url_for('main.personnel')}")
 
 @main_bp.route('/add_werkzeug', methods=['POST'])
 def add_werkzeug():
@@ -576,7 +576,7 @@ def edit_werkzeug(id):
         for field, errors in form.errors.items():
             for error in errors:
                 flash(f"Fehler bei {field}: {error}", 'error')
-    return redirect(f"{ingress}{url_for('main.manage')}")
+    return redirect(f"{ingress}{url_for('main.tools')}")
 
 @main_bp.route('/delete_werkzeug/<int:id>', methods=['POST'])
 def delete_werkzeug(id):
@@ -584,13 +584,13 @@ def delete_werkzeug(id):
     if werkzeug.checks:
         flash(f'Fehler: Werkzeug "{werkzeug.name}" wird in Protokollen verwendet und kann nicht gelöscht werden.', 'error')
         ingress = request.headers.get('X-Ingress-Path', '')
-        return redirect(f"{ingress}{url_for('main.manage')}")
+        return redirect(f"{ingress}{url_for('main.tools')}")
 
     db.session.delete(werkzeug)
     db.session.commit()
     flash(f'Werkzeug {werkzeug.name} gelöscht.', 'success')
     ingress = request.headers.get('X-Ingress-Path', '')
-    return redirect(f"{ingress}{url_for('main.manage')}")
+    return redirect(f"{ingress}{url_for('main.tools')}")
 
 @main_bp.route('/upload_logo', methods=['POST'])
 @limiter.limit("5 per minute")
@@ -598,18 +598,18 @@ def upload_logo():
     ingress = request.headers.get('X-Ingress-Path', '')
     if 'logo' not in request.files:
         flash('Keine Datei ausgewählt', 'danger')
-        return redirect(f"{ingress}{url_for('main.manage')}")
+        return redirect(f"{ingress}{url_for('main.settings')}")
     
     file = request.files['logo']
     if file.filename == '':
         flash('Keine Datei ausgewählt', 'danger')
-        return redirect(f"{ingress}{url_for('main.manage')}")
+        return redirect(f"{ingress}{url_for('main.settings')}")
         
     if file:
         filename_ext = file.filename.rsplit('.', 1)[-1].lower()
         if filename_ext not in ['png', 'jpg', 'jpeg']:
              flash('Ungültige Dateiendung (Nur .png, .jpg, .jpeg).', 'error')
-             return redirect(f"{ingress}{url_for('main.manage')}")
+             return redirect(f"{ingress}{url_for('main.settings')}")
 
         header = file.read(1024)
         file.seek(0)
@@ -618,14 +618,14 @@ def upload_logo():
         
         if not (is_png or is_jpeg):
             flash('Ungültiges Format (Nur PNG/JPG erlaubt).', 'error')
-            return redirect(f"{ingress}{url_for('main.manage')}")
+            return redirect(f"{ingress}{url_for('main.settings')}")
 
         file.seek(0, os.SEEK_END)
         size = file.tell()
         file.seek(0)
         if size > 2 * 1024 * 1024:
              flash('Datei zu groß (max. 2MB).', 'error')
-             return redirect(f"{ingress}{url_for('main.manage')}")
+             return redirect(f"{ingress}{url_for('main.settings')}")
 
         filename = 'logo.png'
         # Use get_data_dir() for consistency with logo display check
@@ -635,7 +635,7 @@ def upload_logo():
         file.save(os.path.join(img_folder, filename))
         flash('Logo erfolgreich hochgeladen', 'success')
         
-    return redirect(f"{ingress}{url_for('main.manage')}")
+    return redirect(f"{ingress}{url_for('main.settings')}")
 
 @main_bp.route('/generate_qr_codes')
 def generate_qr_codes():
@@ -643,7 +643,7 @@ def generate_qr_codes():
     if not tools:
         flash('Keine Werkzeuge vorhanden.', 'warning')
         ingress = request.headers.get('X-Ingress-Path', '')
-        return redirect(f"{ingress}{url_for('main.manage')}")
+        return redirect(f"{ingress}{url_for('main.settings')}")
 
     try:
         pdf = generate_qr_codes_pdf(tools)
@@ -655,7 +655,7 @@ def generate_qr_codes():
         current_app.logger.error(f"Error generating QR Codes: {e}")
         flash(f'Fehler beim Erstellen der QR-Codes: {e}', 'danger')
         ingress = request.headers.get('X-Ingress-Path', '')
-        return redirect(f"{ingress}{url_for('main.manage')}")
+        return redirect(f"{ingress}{url_for('main.settings')}")
 
 @main_bp.route('/archive_azubi/<int:id>', methods=['POST'])
 def archive_azubi(id):
@@ -664,13 +664,13 @@ def archive_azubi(id):
     if assigned_cards:
         flash(f'Warnung: {azubi.name} hat noch {len(assigned_cards)} Werkzeuge im Besitz! Bitte erst zurückgeben.', 'danger')
         ingress = request.headers.get('X-Ingress-Path', '')
-        return redirect(f"{ingress}{url_for('main.manage')}")
+        return redirect(f"{ingress}{url_for('main.personnel')}")
         
     azubi.is_archived = True
     db.session.commit()
     flash(f'{azubi.name} wurde archiviert.', 'success')
     ingress = request.headers.get('X-Ingress-Path', '')
-    return redirect(f"{ingress}{url_for('main.manage')}")
+    return redirect(f"{ingress}{url_for('main.personnel')}")
 
 @main_bp.route('/unarchive_azubi/<int:id>', methods=['POST'])
 def unarchive_azubi(id):
@@ -679,7 +679,7 @@ def unarchive_azubi(id):
     db.session.commit()
     flash(f'{azubi.name} wurde wiederhergestellt.', 'success')
     ingress = request.headers.get('X-Ingress-Path', '')
-    return redirect(f"{ingress}{url_for('main.manage')}")
+    return redirect(f"{ingress}{url_for('main.personnel')}")
 
 @main_bp.route('/report/end_of_training/<int:id>')
 def end_of_training_report(id):
