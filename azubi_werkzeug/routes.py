@@ -441,7 +441,7 @@ def toggle_migration_mode():
     status = "aktiviert" if session['migration_mode'] else "deaktiviert"
     flash(f'Migration Modus wurde {status}.', 'info')
     ingress = request.headers.get('X-Ingress-Path', '')
-    return redirect(f"{ingress}{url_for('main.personnel')}")
+    return redirect(f"{ingress}{url_for('main.settings')}")
 
 @main_bp.route('/add_examiner', methods=['POST'])
 def add_examiner():
@@ -554,6 +554,59 @@ def api_add_werkzeug():
                 'name': new_werkzeug.name,
                 'category': new_werkzeug.material_category,
                 'param': new_werkzeug.tech_param_label or ''
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@main_bp.route('/api/azubi', methods=['POST'])
+def api_add_azubi():
+    """AJAX endpoint for adding azubi without page reload"""
+    try:
+        form = AzubiForm(request.form)
+        if not form.validate():
+            return jsonify({'success': False, 'errors': form.errors}), 400
+        
+        new_azubi = Azubi(
+            name=form.name.data,
+            lehrjahr=form.lehrjahr.data
+        )
+        db.session.add(new_azubi)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'azubi': {
+                'id': new_azubi.id,
+                'name': new_azubi.name,
+                'lehrjahr': new_azubi.lehrjahr,
+                'is_archived': new_azubi.is_archived
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@main_bp.route('/api/examiner', methods=['POST'])
+def api_add_examiner():
+    """AJAX endpoint for adding examiner without page reload"""
+    try:
+        form = ExaminerForm(request.form)
+        if not form.validate():
+            return jsonify({'success': False, 'errors': form.errors}), 400
+        
+        new_examiner = Examiner(
+            name=form.name.data
+        )
+        db.session.add(new_examiner)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'examiner': {
+                'id': new_examiner.id,
+                'name': new_examiner.name
             }
         })
     except Exception as e:
