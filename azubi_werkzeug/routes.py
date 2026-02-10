@@ -605,6 +605,10 @@ def api_add_werkzeug():
                 'param': new_werkzeug.tech_param_label or ''
             }
         })
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.logger.error(f"API add werkzeug error: {e}")
+        return jsonify({'success': False, 'error': 'Datenbankfehler beim Hinzufügen des Werkzeugs'}), 500
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
