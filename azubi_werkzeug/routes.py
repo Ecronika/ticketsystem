@@ -21,13 +21,6 @@ def get_data_dir():
     # Retrieve data_dir from app config or calculate it
     return current_app.config.get('DATA_DIR', os.path.dirname(os.path.abspath(__file__)))
 
-# FIX: Cache must be outside request function
-@lru_cache(maxsize=1)
-def _get_logo_data(logo_path):
-    """Cached logo reader"""
-    with open(logo_path, 'rb') as f:
-        return f.read()
-
 def get_assigned_tools(azubi_id):
     """Calculates currently assigned tools for an Azubi based on history."""
     checks = Check.query.filter_by(azubi_id=azubi_id).order_by(Check.datum.asc()).all()
@@ -43,19 +36,37 @@ def get_assigned_tools(azubi_id):
 
 @main_bp.route('/logo')
 def serve_logo():
-    """Serve logo from DATA_DIR with caching"""
+    """Serve logo from DATA_DIR with ETag-based caching"""
     data_dir = get_data_dir()
     logo_path = os.path.join(data_dir, 'static', 'img', 'logo.png')
-    
-    current_app.logger.info(f"Serving logo from: {logo_path}")
     
     if not os.path.exists(logo_path):
         current_app.logger.warning(f"Logo not found at {logo_path}")
         return "Logo not found", 404
     
     try:
-        logo_data = _get_logo_data(logo_path)
-        return Response(logo_data, mimetype='image/png', headers={'Cache-Control': 'public, max-age=3600'})
+        # Use file modification time as ETag for cache validation
+        mtime = os.path.getmtime(logo_path)
+        etag = f'"{int(mtime)}"'
+        
+        # Check if client has current version (HTTP 304 Not Modified)
+        if request.headers.get('If-None-Match') == etag:
+            return Response(status=304)
+        
+        # Read and serve logo with ETag
+        with open(logo_path, 'rb') as f:
+            logo_data = f.read()
+        
+        from datetime import datetime
+        return Response(
+            logo_data,
+            mimetype='image/png',
+            headers={
+                'ETag': etag,
+                'Cache-Control': 'public, max-age=3600',
+                'Last-Modified': datetime.fromtimestamp(mtime).strftime('%a, %d %b %Y %H:%M:%S GMT')
+            }
+        )
     except Exception as e:
         current_app.logger.error(f"Error reading logo: {e}")
         return "Error reading logo", 500
@@ -691,10 +702,6 @@ def upload_logo():
         img_folder = os.path.join(data_dir, 'static', 'img')
         os.makedirs(img_folder, exist_ok=True)
         file.save(os.path.join(img_folder, filename))
-        
-        # ADDITIONAL FIX #10: Clear logo cache after upload
-        # NOTE: _get_logo_data is defined at the top of this file, reference it directly
-        _get_logo_data.cache_clear()
         
         flash('Logo erfolgreich hochgeladen', 'success')
         
