@@ -10,12 +10,10 @@
         </div>
         <div class="card-body">
             {% if logo_exists %}
-            <div class="mb-3">
-                <img src="{{ ingress_path }}{{ url_for('main.serve_logo') }}" style="max-height: 150px"
-                    class="img-thumbnail">
-            </div>
-            {% else %}
-            <p class="text-muted">Kein Logo hochgeladen.</p>
+            <p class="text-muted mb-3">Aktuelles Logo (max. 2MB, PNG/JPG):</p>
+            <img src="{{ ingress_path }}{{ url_for('main.serve_logo') }}?v={{ logo_version }}" style="max-height: 150px"
+                class="img-thumbnail mb-3" alt="Aktuelles Logo"
+                onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
             {% endif %}
 
             <form action="{{ ingress_path }}{{ url_for('main.upload_logo') }}" method="POST"
