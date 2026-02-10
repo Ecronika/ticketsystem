@@ -637,6 +637,10 @@ def api_add_azubi():
                 'is_archived': new_azubi.is_archived
             }
         })
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.logger.error(f"API add azubi error: {e}")
+        return jsonify({'success': False, 'error': 'Datenbankfehler beim Hinzufügen des Azubis'}), 500
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -662,6 +666,10 @@ def api_add_examiner():
                 'name': new_examiner.name
             }
         })
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.logger.error(f"API add examiner error: {e}")
+        return jsonify({'success': False, 'error': 'Datenbankfehler beim Hinzufügen des Prüfers'}), 500
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
