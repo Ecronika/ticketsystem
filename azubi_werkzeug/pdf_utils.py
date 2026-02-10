@@ -1,11 +1,17 @@
 from fpdf import FPDF
 import os
 from datetime import datetime
+from flask import current_app
 
-# Konfiguration für das Logo
-# Priorisiert DATA_DIR (für Docker), fallback zu lokalem Pfad
-_data_dir = os.environ.get('DATA_DIR', os.path.dirname(__file__))
-LOGO_PATH = os.path.join(_data_dir, 'static', 'img', 'logo.png')
+# Logo path wird dynamisch über current_app.config geholt
+def get_logo_path():
+    """Get logo path from Flask app config (DATA_DIR)"""
+    try:
+        data_dir = current_app.config.get('DATA_DIR', os.path.dirname(__file__))
+    except RuntimeError:
+        # Fallback wenn außerhalb des App-Kontexts
+        data_dir = os.environ.get('DATA_DIR', os.path.dirname(__file__))
+    return os.path.join(data_dir, 'static', 'img', 'logo.png')
 
 class HandoverReport(FPDF):
     def __init__(self, title="Werkzeug-Protokoll"):
@@ -16,9 +22,10 @@ class HandoverReport(FPDF):
         
     def header(self):
         # 1. Logo Einbindung (wenn vorhanden)
-        if os.path.exists(LOGO_PATH):
+        logo_path = get_logo_path()
+        if os.path.exists(logo_path):
             # x=10, y=8, w=30 (Breite 30mm, Höhe automatisch proportional)
-            self.image(LOGO_PATH, 10, 8, 30)
+            self.image(logo_path, 10, 8, 30)
             # Verschiebe den Titel nach rechts, damit er nicht im Logo steht
             self.set_x(45) 
         
