@@ -57,10 +57,45 @@ else:
         pass
 
 # Initialize Extensions
-# Initialize Extensions
 csrf.init_app(app)
 db.init_app(app)
 limiter.init_app(app)
+
+# Security: Content-Security-Policy (Issue #3)
+# CONDITIONAL: Use Talisman for standalone, manual headers for Home Assistant
+IS_HOMEASSISTANT = os.environ.get('SUPERVISOR_TOKEN') is not None
+
+if not IS_HOMEASSISTANT:
+    # Standalone deployment: Use Flask-Talisman
+    from flask_talisman import Talisman
+    Talisman(app, 
+        force_https=False,  # External proxy (nginx/traefik) handles SSL
+        content_security_policy={
+            'default-src': "'self'",
+            'script-src': ["'self'", 'cdn.jsdelivr.net'],
+            'style-src': ["'self'", 'cdn.jsdelivr.net', "'unsafe-inline'"],  # Bootstrap inline styles
+            'img-src': ["'self'", 'data:'],  # data: for inline images/QR codes
+            'font-src': ["'self'", 'cdn.jsdelivr.net']
+        }
+    )
+    app.logger.info("Security: Flask-Talisman enabled (CSP + Security Headers)")
+else:
+    # Home Assistant Ingress: Talisman breaks X-Ingress-Path, use manual headers
+    @app.after_request
+    def add_security_headers(response):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        # CSP headers (same policy as Talisman)
+        response.headers['Content-Security-Policy'] = (
+            "default-src 'self'; "
+            "script-src 'self' cdn.jsdelivr.net; "
+            "style-src 'self' cdn.jsdelivr.net 'unsafe-inline'; "
+            "img-src 'self' data:; "
+            "font-src 'self' cdn.jsdelivr.net"
+        )
+        return response
+    app.logger.info("Security: Manual CSP headers enabled (Home Assistant Ingress mode)")
 
 # Register Blueprints
 app.register_blueprint(main_bp)
