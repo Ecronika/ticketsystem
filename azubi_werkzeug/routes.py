@@ -693,9 +693,8 @@ def upload_logo():
         file.save(os.path.join(img_folder, filename))
         
         # ADDITIONAL FIX #10: Clear logo cache after upload
-        from routes import _get_logo_data
-        if hasattr(_get_logo_data, 'cache_clear'):
-            _get_logo_data.cache_clear()
+        # NOTE: _get_logo_data is defined at the top of this file, reference it directly
+        _get_logo_data.cache_clear()
         
         flash('Logo erfolgreich hochgeladen', 'success')
         
