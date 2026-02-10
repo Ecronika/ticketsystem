@@ -680,15 +680,27 @@ def upload_logo():
              flash('Datei zu groß (max. 2MB).', 'error')
              return redirect(f"{ingress}{url_for('main.settings')}")
 
-        filename = 'logo.png'
+        # SECURITY FIX #2: Use secure_filename() to prevent path traversal
+        from werkzeug.utils import secure_filename
+        
+        # Always save as 'logo.png' but sanitize for safety
+        filename = secure_filename('logo.png')
+        
         # Use get_data_dir() for consistency with logo display check
         data_dir = get_data_dir()
         img_folder = os.path.join(data_dir, 'static', 'img')
         os.makedirs(img_folder, exist_ok=True)
         file.save(os.path.join(img_folder, filename))
+        
+        # ADDITIONAL FIX #10: Clear logo cache after upload
+        from routes import _get_logo_data
+        if hasattr(_get_logo_data, 'cache_clear'):
+            _get_logo_data.cache_clear()
+        
         flash('Logo erfolgreich hochgeladen', 'success')
         
     return redirect(f"{ingress}{url_for('main.settings')}")
+
 
 @main_bp.route('/generate_qr_codes')
 def generate_qr_codes():

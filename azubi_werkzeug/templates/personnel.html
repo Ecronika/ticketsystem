@@ -306,9 +306,19 @@
                             const azubi = data.azubi;
 
                             const newRow = document.createElement('tr');
-                            newRow.innerHTML = `
-                                <td class="fw-bold">${azubi.name}</td>
-                                <td class="text-center"><span class="badge bg-light text-dark border">${azubi.lehrjahr}. LJ</span></td>
+
+                            // SECURITY FIX #13: Use textContent for user data to prevent XSS
+                            const nameCell = document.createElement('td');
+                            nameCell.className = 'fw-bold';
+                            nameCell.textContent = azubi.name;  // Auto-escaped!
+
+                            const lehrjahrCell = document.createElement('td');
+                            lehrjahrCell.className = 'text-center';
+                            lehrjahrCell.innerHTML = `<span class="badge bg-light text-dark border">${azubi.lehrjahr}. LJ</span>`;
+
+                            const actionCell = document.createElement('td');
+                            actionCell.className = 'text-end';
+                            actionCell.innerHTML = `
                                 <td class="text-end">
                                     <form action="{{ ingress_path }}/delete_azubi/${azubi.id}" method="POST" onsubmit="return confirm('Wirklich löschen?');" class="d-inline">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
@@ -386,8 +396,15 @@
                             const examiner = data.examiner;
 
                             const newRow = document.createElement('tr');
-                            newRow.innerHTML = `
-                                <td class="fw-bold">${examiner.name}</td>
+
+                            // SECURITY FIX #13: Use textContent for user data to prevent XSS
+                            const nameCell = document.createElement('td');
+                            nameCell.className = 'fw-bold';
+                            nameCell.textContent = examiner.name;  // Auto-escaped!
+
+                            const actionCell = document.createElement('td');
+                            actionCell.className = 'text-end';
+                            actionCell.innerHTML = `
                                 <td class="text-end">
                                     <form action="{{ ingress_path }}/delete_examiner/${examiner.id}" method="POST" onsubmit="return confirm('Wirklich löschen?');" class="d-inline">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />

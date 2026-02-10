@@ -270,10 +270,25 @@
                             }
 
                             const newRow = document.createElement('tr');
-                            newRow.innerHTML = `
-                                <td><div class="fw-bold">${werkzeug.name}</div></td>
-                                <td class="d-none d-md-table-cell">${categoryBadge}</td>
-                                <td class="d-none d-md-table-cell">${werkzeug.param || '-'}</td>
+
+                            // SECURITY FIX #13: Use textContent for user data to prevent XSS
+                            const nameCell = document.createElement('td');
+                            const nameBold = document.createElement('div');
+                            nameBold.className = 'fw-bold';
+                            nameBold.textContent = werkzeug.name;  // Auto-escaped!
+                            nameCell.appendChild(nameBold);
+
+                            const categoryCell = document.createElement('td');
+                            categoryCell.className = 'd-none d-md-table-cell';
+                            categoryCell.innerHTML = categoryBadge;  // Safe: we generated it
+
+                            const paramCell = document.createElement('td');
+                            paramCell.className = 'd-none d-md-table-cell';
+                            paramCell.textContent = werkzeug.param || '-';  // Auto-escaped!
+
+                            const actionCell = document.createElement('td');
+                            actionCell.className = 'text-end';
+                            actionCell.innerHTML = `
                                 <td class="text-end">
                                     <form action="{{ ingress_path }}/delete_werkzeug/${werkzeug.id}" method="POST" onsubmit="return confirm('Wirklich löschen?');" class="d-inline">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
@@ -292,6 +307,11 @@
                                     </form>
                                 </td>
                             `;
+
+                            newRow.appendChild(nameCell);
+                            newRow.appendChild(categoryCell);
+                            newRow.appendChild(paramCell);
+                            newRow.appendChild(actionCell);
 
                             // Remove "no items" row if it exists
                             const noItemsRow = tbody.querySelector('tr td[colspan="4"]');
