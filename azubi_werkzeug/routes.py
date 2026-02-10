@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session, Response, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session, Response, jsonify, make_response
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError  # Issue #4: Error handling
 from extensions import db, limiter
