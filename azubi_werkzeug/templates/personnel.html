@@ -340,6 +340,11 @@
                                 </td>
                             `;
 
+                            // CRITICAL FIX: Append cells to row!
+                            newRow.appendChild(nameCell);
+                            newRow.appendChild(lehrjahrCell);
+                            newRow.appendChild(actionCell);
+
                             // Remove "no items" row if it exists
                             const noItemsRow = tbody.querySelector('tr td[colspan="3"]');
                             if (noItemsRow) {
@@ -414,6 +419,10 @@
                                     </form>
                                 </td>
                             `;
+
+                            // CRITICAL FIX: Append cells to row!
+                            newRow.appendChild(nameCell);
+                            newRow.appendChild(actionCell);
 
                             const noItemsRow = tbody.querySelector('tr td[colspan="2"]');
                             if (noItemsRow) {
