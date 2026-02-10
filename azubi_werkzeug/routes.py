@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session, Response, jsonify
 from sqlalchemy.orm import joinedload
+from sqlalchemy.exc import SQLAlchemyError  # Issue #4: Error handling
 from extensions import db, limiter
 from models import Azubi, Werkzeug, Examiner, Check
 from forms import AzubiForm, ExaminerForm, WerkzeugForm
@@ -8,7 +9,6 @@ import os
 import uuid
 import base64
 from pdf_utils import generate_handover_pdf, generate_qr_codes_pdf, generate_end_of_training_report
-from functools import lru_cache
 
 main_bp = Blueprint('main', __name__)
 
@@ -29,6 +29,31 @@ def inject_ingress_path():
             pass
     
     return {'ingress_path': ingress, 'logo_version': logo_version}
+
+# Issue #4: Helper function for database error handling
+def handle_db_error(error, operation_name, redirect_route='main.index', custom_message=None):
+    """
+    Centralized database error handling with logging and user feedback.
+    
+    Args:
+        error: The SQLAlchemyError exception
+        operation_name: Description of the operation (for logging)
+        redirect_route: Route to redirect to after error
+        custom_message: Optional custom error message for user
+    """
+    # Roll back the session
+    db.session.rollback()
+    
+    # Log the error with context
+    current_app.logger.error(f"Database error during {operation_name}: {str(error)}")
+    
+    # User-friendly error message
+    if custom_message:
+        flash(custom_message, 'danger')
+    else:
+        flash('Ein Datenbankfehler ist aufgetreten. Bitte versuchen Sie es später erneut.', 'danger')
+    
+    return redirect(url_for(redirect_route))
 
 def get_data_dir():
     # Retrieve data_dir from app config or calculate it

@@ -215,6 +215,13 @@
         if (editWerkzeugModal) {
             editWerkzeugModal.addEventListener('show.bs.modal', function (event) {
                 const button = event.relatedTarget;
+
+                // FIX: Defensive programming - check if button exists
+                if (!button) {
+                    console.warn('editWerkzeugModal opened without relatedTarget');
+                    return;
+                }
+
                 const id = button.getAttribute('data-id');
                 const name = button.getAttribute('data-name');
                 const category = button.getAttribute('data-category');
