@@ -99,10 +99,11 @@ if not IS_HOMEASSISTANT:
         force_https=False,  # External proxy (nginx/traefik) handles SSL
         content_security_policy={
             'default-src': "'self'",
-            'script-src': ["'self'", 'cdn.jsdelivr.net'],
+            'script-src': ["'self'", 'cdn.jsdelivr.net', "'unsafe-inline'"],  # Inline scripts in templates
             'style-src': ["'self'", 'cdn.jsdelivr.net', "'unsafe-inline'"],  # Bootstrap inline styles
             'img-src': ["'self'", 'data:'],  # data: for inline images/QR codes
-            'font-src': ["'self'", 'cdn.jsdelivr.net']
+            'font-src': ["'self'", 'cdn.jsdelivr.net'],
+            'connect-src': ["'self'", 'cdn.jsdelivr.net']  # For source maps
         }
     )
     app.logger.info("Security: Flask-Talisman enabled (CSP + Security Headers)")
@@ -116,10 +117,11 @@ else:
         # CSP headers (same policy as Talisman)
         response.headers['Content-Security-Policy'] = (
             "default-src 'self'; "
-            "script-src 'self' cdn.jsdelivr.net; "
+            "script-src 'self' cdn.jsdelivr.net 'unsafe-inline'; "
             "style-src 'self' cdn.jsdelivr.net 'unsafe-inline'; "
             "img-src 'self' data:; "
-            "font-src 'self' cdn.jsdelivr.net"
+            "font-src 'self' cdn.jsdelivr.net; "
+            "connect-src 'self' cdn.jsdelivr.net"
         )
         return response
     app.logger.info("Security: Manual CSP headers enabled (Home Assistant Ingress mode)")
