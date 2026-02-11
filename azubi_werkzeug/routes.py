@@ -585,6 +585,115 @@ def toggle_migration_mode():
     ingress = request.headers.get('X-Ingress-Path', '')
     return redirect(f"{ingress}{url_for('main.settings')}")
 
+@main_bp.route('/delete_session/<path:session_id>', methods=['POST'])
+def delete_session(session_id):
+    """Delete an entire check session (only in migration mode).
+    
+    Safety features:
+    - Only works in migration mode
+    - Confirmation modal required (UI)
+    - Deletes all associated files (PDF, signatures)
+    - Comprehensive audit logging
+    """
+    import time
+    start_time = time.time()
+    
+    ingress = request.headers.get('X-Ingress-Path', '')
+    
+    # SAFETY CHECK: Only allow deletion in migration mode
+    if not session.get('migration_mode', False):
+        current_app.logger.warning(f"Delete session attempted WITHOUT migration mode: session_id={session_id}")
+        flash('⚠️ Session-Löschung nur im Migration-Modus erlaubt!', 'danger')
+        return redirect(f"{ingress}{url_for('main.history')}")
+    
+    try:
+        # Check for legacy sessions (can't delete without real session_id)
+        if session_id.startswith('LEGACY_'):
+            current_app.logger.warning(f"Attempted to delete legacy session: {session_id}")
+            flash('Legacy-Sessions ohne UUID können nicht gelöscht werden.', 'warning')
+            return redirect(f"{ingress}{url_for('main.history')}")
+        
+        # Find all checks in this session
+        checks = Check.query.filter_by(session_id=session_id).all()
+        
+        if not checks:
+            current_app.logger.warning(f"Delete session not found: {session_id}")
+            flash('Session nicht gefunden.', 'warning')
+            return redirect(f"{ingress}{url_for('main.history')}")
+        
+        # Collect session info for logging
+        azubi_name = checks[0].azubi.name
+        azubi_id = checks[0].azubi_id
+        datum = checks[0].datum
+        examiner = checks[0].examiner or 'Unbekannt'
+        check_count = len(checks)
+        
+        # File cleanup
+        data_dir = get_data_dir()
+        files_deleted = []
+        
+        # Delete PDF report
+        if checks[0].report_path and os.path.exists(checks[0].report_path):
+            try:
+                os.remove(checks[0].report_path)
+                pdf_filename = os.path.basename(checks[0].report_path)
+                files_deleted.append(f'PDF:{pdf_filename}')
+            except OSError as e:
+                current_app.logger.error(f"Failed to delete PDF {checks[0].report_path}: {e}")
+        
+        # Delete azubi signature
+        sig_azubi = checks[0].signature_azubi
+        if sig_azubi and os.path.exists(sig_azubi):
+            try:
+                os.remove(sig_azubi)
+                files_deleted.append('Sig_Azubi')
+            except OSError as e:
+                current_app.logger.error(f"Failed to delete azubi signature {sig_azubi}: {e}")
+        
+        # Delete examiner signature
+        sig_examiner = checks[0].signature_examiner
+        if sig_examiner and os.path.exists(sig_examiner):
+            try:
+                os.remove(sig_examiner)
+                files_deleted.append('Sig_Examiner')
+            except OSError as e:
+                current_app.logger.error(f"Failed to delete examiner signature {sig_examiner}: {e}")
+        
+        # Delete all check records from database
+        for check in checks:
+            db.session.delete(check)
+        
+        db.session.commit()
+        
+        duration = time.time() - start_time
+        
+        # CRITICAL AUDIT LOG
+        current_app.logger.warning(
+            f"🗑️ SESSION DELETED | session_id={session_id} | "
+            f"azubi={azubi_name}(id:{azubi_id}) | datum={datum.strftime('%Y-%m-%d %H:%M')} | "
+            f"examiner={examiner} | checks_deleted={check_count} | "
+            f"files={', '.join(files_deleted) if files_deleted else 'none'} | "
+            f"duration={duration:.3f}s | migration_mode=True"
+        )
+        
+        flash(
+            f'✅ Session erfolgreich gelöscht: {azubi_name} - {datum.strftime("%d.%m.%Y %H:%M")} '
+            f'({check_count} Checks, {len(files_deleted)} Dateien)', 
+            'success'
+        )
+        return redirect(f"{ingress}{url_for('main.history')}")
+        
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.logger.error(f"Database error deleting session {session_id}: {e}", exc_info=True)
+        flash('❌ Datenbankfehler beim Löschen der Session.', 'danger')
+        return redirect(f"{ingress}{url_for('main.history_details', session_id=session_id)}")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Unexpected error deleting session {session_id}: {e}", exc_info=True)
+        flash(f'❌ Fehler beim Löschen: {str(e)}', 'danger')
+        return redirect(f"{ingress}{url_for('main.history_details', session_id=session_id)}")
+
 @main_bp.route('/add_examiner', methods=['POST'])
 def add_examiner():
     form = ExaminerForm(request.form)
