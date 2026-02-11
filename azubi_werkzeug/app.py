@@ -17,8 +17,12 @@ app.config.update(
     # SESSION_COOKIE_SECURE=True # Disabled for Ingress (SSL terminated by HA Proxy)
 )
 
-# Logging Configuration (Issue #17)
-from logging.handlers import RotatingFileHandler
+# Logging Configuration - ASYNC (Non-blocking)
+# Issue: Synchronous file I/O was blocking request threads during heavy logging
+# Solution: QueueHandler writes to memory queue (instant), background thread handles disk I/O
+from logging.handlers import RotatingFileHandler, QueueHandler, QueueListener
+import queue
+import atexit
 
 # Determine log file location based on DATA_DIR
 # Note: We need to get DATA_DIR early for logging setup
@@ -27,7 +31,10 @@ db_path = os.environ.get('DB_PATH', default_db_path)
 data_dir = os.path.dirname(db_path)
 log_file = os.path.join(data_dir, 'app.log')
 
-# RotatingFileHandler: 10MB per file, keep 3 backups (max 30MB total)
+# Create log queue for async processing
+log_queue = queue.Queue(-1)  # Unlimited size
+
+# File handler - runs in BACKGROUND THREAD (non-blocking)
 file_handler = RotatingFileHandler(
     log_file,
     maxBytes=10_000_000,  # 10MB
@@ -39,7 +46,7 @@ file_formatter = logging.Formatter(
 )
 file_handler.setFormatter(file_formatter)
 
-# Console handler for Docker/systemd logs
+# Console handler - also in background thread
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setLevel(logging.INFO)
 console_formatter = logging.Formatter(
@@ -47,12 +54,21 @@ console_formatter = logging.Formatter(
 )
 console_handler.setFormatter(console_formatter)
 
-# Add both handlers
-app.logger.addHandler(file_handler)
-app.logger.addHandler(console_handler)
+# Queue listener - processes log queue in background thread
+queue_listener = QueueListener(log_queue, file_handler, console_handler, respect_handler_level=True)
+queue_listener.start()
+
+# Queue handler - writes to queue (NON-BLOCKING, instant!)
+queue_handler = QueueHandler(log_queue)
+
+# App logger uses queue (no I/O blocking!)
+app.logger.addHandler(queue_handler)
 app.logger.setLevel(logging.INFO)
 
-app.logger.info(f"Logging initialized: File={log_file}, Console=stdout")
+# Ensure listener stops cleanly on shutdown
+atexit.register(queue_listener.stop)
+
+app.logger.info(f"Async logging initialized: File={log_file}, Console=stdout, Queue=ENABLED")
 
 # Database configuration (using data_dir from logging setup above)
 # data_dir, db_path already defined during logging init
