@@ -190,10 +190,30 @@
                                             style="display:none;">
                                             <select
                                                 class="form-select form-select-sm border-danger text-danger incident-select"
-                                                name="incident_reason_{{ item.obj.id }}">
+                                                name="incident_reason_{{ item.obj.id }}"
+                                                data-tool-id="{{ item.obj.id }}">
                                                 <option value="" disabled selected>Grund wählen...</option>
-                                                <option value="Verschleiß">Verschleiß (Normal)</option>
-                                                <option value="Fahrlässig">Beschädigt (Fahrlässig/Haftung)</option>
+
+                                                <!-- Defekt-Gründe (only for broken) -->
+                                                <optgroup label="🔧 Defekt-Gründe" class="broken-reasons">
+                                                    <option value="Verschleiß">Verschleiß (Normal)</option>
+                                                    <option value="Fahrlässig">Beschädigt (Fahrlässig/Haftung)</option>
+                                                    <option value="Materialfehler">Materialfehler (Fabrikation)</option>
+                                                    <option value="Unsachgemäß">Unsachgemäße Nutzung</option>
+                                                    <option value="Überlastung">Überlastung</option>
+                                                    <option value="Sturz">Sturz/Fall</option>
+                                                    <option value="Feuchtigkeit">Feuchtigkeit/Rost</option>
+                                                </optgroup>
+
+                                                <!-- Fehlt-Gründe (only for missing) -->
+                                                <optgroup label="❌ Fehlt-Gründe" class="missing-reasons">
+                                                    <option value="Verloren">Verloren</option>
+                                                    <option value="Vergessen">Vergessen (Zuhause/Ort)</option>
+                                                    <option value="Gestohlen">Gestohlen</option>
+                                                    <option value="Ausgeliehen">Ausgeliehen (Kollege)</option>
+                                                    <option value="Nicht zurück">Nicht zurückgegeben</option>
+                                                    <option value="Unbekannt">Verbleib unbekannt</option>
+                                                </optgroup>
                                             </select>
                                         </div>
                                     </td>
@@ -403,10 +423,31 @@
                     incidentDiv.style.display = 'block';
                     incidentSelect.setAttribute('required', 'required');
                     if (techInput) techInput.removeAttribute('required');
+
+                    // DYNAMIC FILTERING: Show only relevant optgroups
+                    const brokenGroup = incidentSelect.querySelector('.broken-reasons');
+                    const missingGroup = incidentSelect.querySelector('.missing-reasons');
+
+                    if (this.value === 'broken') {
+                        // Show defekt-gründe, hide fehlt-gründe
+                        if (brokenGroup) brokenGroup.style.display = '';
+                        if (missingGroup) missingGroup.style.display = 'none';
+                    } else if (this.value === 'missing') {
+                        // Show fehlt-gründe, hide defekt-gründe
+                        if (brokenGroup) brokenGroup.style.display = 'none';
+                        if (missingGroup) missingGroup.style.display = '';
+                    }
                 } else {
                     incidentDiv.style.display = 'none';
                     incidentSelect.removeAttribute('required');
                     incidentSelect.value = ""; // Reset value
+
+                    // Show all optgroups again when hidden
+                    const brokenGroup = incidentSelect.querySelector('.broken-reasons');
+                    const missingGroup = incidentSelect.querySelector('.missing-reasons');
+                    if (brokenGroup) brokenGroup.style.display = '';
+                    if (missingGroup) missingGroup.style.display = '';
+
                     // Logic: Tech param might be required if label exists, depends on business rule.
                     // Assuming 'ok' means we verified the param.
                     if (techInput) techInput.setAttribute('required', 'required');
