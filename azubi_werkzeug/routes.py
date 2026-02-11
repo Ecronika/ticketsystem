@@ -396,46 +396,80 @@ def submit_check():
 
 @main_bp.route('/history')
 def history():
+    import time
+    start_time = time.time()
+    
     azubi_id = request.args.get('azubi_id')
-    query = Check.query.order_by(Check.datum.desc())
     
-    if azubi_id and azubi_id != 'all':
-        query = query.filter_by(azubi_id=int(azubi_id))
+    try:
+        query = Check.query.order_by(Check.datum.desc())
         
-    all_checks = query.options(joinedload(Check.azubi)).limit(2000).all()
-    azubis = Azubi.query.order_by(Azubi.name).all()
-    
-    sessions = []
-    seen_sessions = set()
-    
-    for check in all_checks:
-        sid = check.session_id
-        if not sid:
-            sid = f"{check.azubi_id}_{check.datum.timestamp()}"
-            
-        if sid not in seen_sessions:
-            seen_sessions.add(sid)
-            
+        if azubi_id and azubi_id != 'all':
+            query = query.filter_by(azubi_id=int(azubi_id))
+        
+        # Load checks with eager loading
+        query_start = time.time()
+        all_checks = query.options(joinedload(Check.azubi)).limit(2000).all()
+        query_duration = time.time() - query_start
+        current_app.logger.info(f"History query loaded {len(all_checks)} checks in {query_duration:.3f}s")
+        
+        azubis = Azubi.query.order_by(Azubi.name).all()
+        
+        # OPTIMIZED: Group checks by session_id using dict (O(N) instead of O(N²))
+        group_start = time.time()
+        sessions_dict = {}
+        
+        for check in all_checks:
+            # Generate session key
             if check.session_id:
-                session_checks = [c for c in all_checks if c.session_id == sid]
+                sid = check.session_id
             else:
-                session_checks = [c for c in all_checks if c.azubi_id == check.azubi_id and c.datum == check.datum]
+                sid = f"LEGACY_{check.azubi_id}_{int(check.datum.timestamp())}"
             
-            is_ok = True
-            for c in session_checks:
-                if "Status: missing" in (c.bemerkung or "") or "Status: broken" in (c.bemerkung or ""):
-                    is_ok = False
-                    break
+            # Group by session
+            if sid not in sessions_dict:
+                sessions_dict[sid] = {
+                    'session_id': check.session_id if check.session_id else sid,
+                    'datum': check.datum,
+                    'azubi_name': check.azubi.name,
+                    'checks': [],
+                    'is_ok': True
+                }
             
+            sessions_dict[sid]['checks'].append(check)
+            
+            # Check if any tool is missing/broken
+            if "Status: missing" in (check.bemerkung or "") or "Status: broken" in (check.bemerkung or ""):
+                sessions_dict[sid]['is_ok'] = False
+        
+        # Convert to list and add count
+        sessions = []
+        for sid, session_data in sessions_dict.items():
             sessions.append({
-                'session_id': check.session_id if check.session_id else "LEGACY_" + sid,
-                'datum': check.datum,
-                'azubi_name': check.azubi.name,
-                'is_ok': is_ok,
-                'count': len(session_checks)
+                'session_id': session_data['session_id'],
+                'datum': session_data['datum'],
+                'azubi_name': session_data['azubi_name'],
+                'is_ok': session_data['is_ok'],
+                'count': len(session_data['checks'])
             })
-            
-    return render_template('history.html', sessions=sessions, azubis=azubis, selected_azubi_id=int(azubi_id) if azubi_id and azubi_id != 'all' else None)
+        
+        group_duration = time.time() - group_start
+        current_app.logger.info(f"History grouping completed in {group_duration:.3f}s ({len(sessions)} sessions)")
+        
+        total_duration = time.time() - start_time
+        current_app.logger.info(f"History route completed in {total_duration:.3f}s (query:{query_duration:.3f}s, grouping:{group_duration:.3f}s)")
+        
+        return render_template('history.html', sessions=sessions, azubis=azubis, 
+                             selected_azubi_id=int(azubi_id) if azubi_id and azubi_id != 'all' else None)
+                             
+    except SQLAlchemyError as e:
+        current_app.logger.error(f"Database error in history: {e}", exc_info=True)
+        flash('Fehler beim Laden der Historie', 'danger')
+        return redirect(url_for('main.index'))
+    except Exception as e:
+        current_app.logger.error(f"Error in history: {e}", exc_info=True)
+        flash(f'Fehler: {str(e)}', 'danger')
+        return redirect(url_for('main.index'))
 
 @main_bp.route('/history_details/<path:session_id>')
 def history_details(session_id):
