@@ -88,6 +88,38 @@ csrf.init_app(app)
 db.init_app(app)
 limiter.init_app(app)
 
+# SQLite Connection Optimization (Fix for Worker Timeouts)
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+import sqlite3
+
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_conn, connection_record):
+    """Set SQLite pragmas for better performance and concurrency.
+    
+    This fixes worker timeout issues caused by database locks.
+    CRITICAL for multi-user concurrent access.
+    """
+    if isinstance(dbapi_conn, sqlite3.Connection):
+        cursor = dbapi_conn.cursor()
+        
+        # CRITICAL: Set busy timeout to 30 seconds
+        # SQLite waits up to 30s for lock release instead of failing immediately
+        cursor.execute("PRAGMA busy_timeout = 30000")
+        
+        # WAL mode for better concurrent read/write
+        # Allows simultaneous reads during writes - GAME CHANGER for concurrency!
+        cursor.execute("PRAGMA journal_mode = WAL")
+        
+        # Increase cache size for better performance
+        cursor.execute("PRAGMA cache_size = -10000")  # 10MB cache
+        
+        # Synchronous = NORMAL for better performance (safe with WAL mode)
+        cursor.execute("PRAGMA synchronous = NORMAL")
+        
+        cursor.close()
+        app.logger.info("SQLite pragmas set: busy_timeout=30s, WAL mode, cache=10MB")
+
 # Security: Content-Security-Policy (Issue #3)
 # CONDITIONAL: Use Talisman for standalone, manual headers for Home Assistant
 IS_HOMEASSISTANT = os.environ.get('SUPERVISOR_TOKEN') is not None
