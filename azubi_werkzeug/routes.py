@@ -305,7 +305,8 @@ def submit_check():
         query_duration = time.time() - query_start
         current_app.logger.info(f"Werkzeug query took {query_duration:.3f}s for {len(werkzeuge)} tools")
         
-        # Create dict for fast lookupwerkzeug_dict = {w.id: w for w in werkzeuge}
+        # Create dict for fast lookup
+        werkzeug_dict = {w.id: w for w in werkzeuge}
         
         selected_tools = []
         reports_to_create = []
