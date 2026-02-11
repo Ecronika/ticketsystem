@@ -337,7 +337,8 @@ def submit_check():
                 check_type=check_type,
                 examiner=examiner,
                 signature_azubi=sig_azubi_path,
-                signature_examiner=sig_examiner_path
+                signature_examiner=sig_examiner_path,
+                report_path=None  # Will be updated after PDF generation
             )
             db.session.add(new_check)
             reports_to_create.append(new_check)
@@ -349,12 +350,21 @@ def submit_check():
                 'status': status
             })
 
+        # CRITICAL FIX: Commit IMMEDIATELY to release SQLite WRITE LOCK!
+        # This prevents blocking other users during PDF generation (1-2 seconds)
+        commit_start = time.time()
+        db.session.commit()
+        commit_duration = time.time() - commit_start
+        current_app.logger.info(f"Database commit took {commit_duration:.3f}s for {len(reports_to_create)} records")
+        
+        # NOW generate PDF OUTSIDE of transaction (no lock held!)
+        pdf_path = None
         if selected_tools:
             azubi = Azubi.query.get(azubi_id)
             pdf_filename = f"Protokoll_{check_type}_{azubi.name.replace(' ', '_')}_{check_date.strftime('%Y%m%d_%H%M')}.pdf"
             pdf_path = os.path.join(data_dir, 'reports', pdf_filename)
             
-            # Generate PDF
+            # Generate PDF (1-2 seconds, but NO DATABASE LOCK!)
             pdf_start = time.time()
             generate_handover_pdf(
                 azubi_name=azubi.name, 
@@ -365,17 +375,18 @@ def submit_check():
                 output_path=pdf_path
             )
             pdf_duration = time.time() - pdf_start
-            current_app.logger.info(f"PDF generation took {pdf_duration:.3f}s")
+            current_app.logger.info(f"PDF generation took {pdf_duration:.3f}s (outside transaction)")
             
-            # Update report paths
-            for record in reports_to_create:
-                record.report_path = pdf_path
-
-        # Commit all changes
-        commit_start = time.time()
-        db.session.commit()
-        commit_duration = time.time() - commit_start
-        current_app.logger.info(f"Database commit took {commit_duration:.3f}s for {len(reports_to_create)} records")
+            # Update PDF paths in SEPARATE transaction (fast update, minimal lock time)
+            update_start = time.time()
+            check_ids = [record.id for record in reports_to_create]
+            Check.query.filter(Check.id.in_(check_ids)).update(
+                {'report_path': pdf_path},
+                synchronize_session=False
+            )
+            db.session.commit()
+            update_duration = time.time() - update_start
+            current_app.logger.info(f"PDF path update took {update_duration:.3f}s (separate transaction)")
         
         total_duration = time.time() - start_time
         current_app.logger.info(f"Check submission completed in {total_duration:.3f}s (query:{query_duration:.3f}s, pdf:{pdf_duration if selected_tools else 0:.3f}s, commit:{commit_duration:.3f}s)")
