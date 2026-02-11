@@ -396,11 +396,13 @@ def submit_check():
         
     except SQLAlchemyError as e:
         db.session.rollback()
+        db.session.remove()  # Explicit cleanup to prevent connection leaks
         current_app.logger.error(f"Database error in submit_check: {e}", exc_info=True)
         flash('Datenbankfehler beim Speichern der Prüfung. Bitte erneut versuchen.', 'danger')
         return redirect(f"{ingress}{url_for('main.index')}")
     except Exception as e:
         db.session.rollback()
+        db.session.remove()  # Explicit cleanup to prevent connection leaks
         current_app.logger.error(f"Error in submit_check: {e}", exc_info=True)
         flash(f'Fehler beim Speichern: {str(e)}', 'danger')
         return redirect(f"{ingress}{url_for('main.index')}")
@@ -704,11 +706,13 @@ def delete_session(session_id):
         
     except SQLAlchemyError as e:
         db.session.rollback()
+        db.session.remove()  # Explicit cleanup to prevent connection leaks
         current_app.logger.error(f"Database error deleting session {session_id}: {e}", exc_info=True)
         flash('❌ Datenbankfehler beim Löschen der Session.', 'danger')
         return redirect(f"{ingress}{url_for('main.history_details', session_id=session_id)}")
     except Exception as e:
         db.session.rollback()
+        db.session.remove()  # Explicit cleanup to prevent connection leaks
         current_app.logger.error(f"Unexpected error deleting session {session_id}: {e}", exc_info=True)
         flash(f'❌ Fehler beim Löschen: {str(e)}', 'danger')
         return redirect(f"{ingress}{url_for('main.history_details', session_id=session_id)}")

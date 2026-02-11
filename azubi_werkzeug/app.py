@@ -161,6 +161,20 @@ else:
 # Register Blueprints
 app.register_blueprint(main_bp)
 
+# Database Session Cleanup (Prevent Connection Leaks)
+@app.teardown_appcontext
+def remove_session(exception=None):
+    """Ensure database session is properly cleaned up after each request.
+    
+    This prevents connection leaking, especially important when:
+    - Multiple commits happen in single request
+    - Exceptions occur during transactions
+    - PDF generation fails after first commit
+    
+    Critical for SQLite connection pool management.
+    """
+    db.session.remove()
+
 # --- Helper to create DB and Seed Data ---
 def setup_database():
     with app.app_context():
