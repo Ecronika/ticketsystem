@@ -29,6 +29,8 @@ if bashio::var.true "${SSL}"; then
     bashio::log.info "Starte Gunicorn Server mit SSL auf Port 5000..."
     exec gunicorn \
         --workers 1 \
+        --timeout 120 \
+        --graceful-timeout 120 \
         --bind 0.0.0.0:5000 \
         --certfile "/ssl/${CERTFILE}" \
         --keyfile "/ssl/${KEYFILE}" \
@@ -42,6 +44,8 @@ else
     bashio::log.info "Starte Gunicorn Server auf Port 5000..."
     exec gunicorn \
         --workers 1 \
+        --timeout 120 \
+        --graceful-timeout 120 \
         --bind 0.0.0.0:5000 \
         --access-logfile - \
         --error-logfile - \
