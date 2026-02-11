@@ -515,7 +515,15 @@ def history_details(session_id):
             'incident_reason': c.incident_reason
         })
 
-    return render_template('history_details.html', azubi=azubi, datum=datum, checks=parsed_checks, global_bemerkung=global_bemerkung, check_type=check_type, examiner=examiner, report_path=report_path)
+    return render_template('history_details.html', 
+                         azubi=azubi, 
+                         datum=datum, 
+                         checks=parsed_checks, 
+                         global_bemerkung=global_bemerkung, 
+                         check_type=check_type, 
+                         examiner=examiner, 
+                         report_path=report_path,
+                         session_id=session_id)
 
 @main_bp.route('/download_report/<path:filename>')
 def download_report(filename):
