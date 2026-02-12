@@ -133,8 +133,13 @@ def set_sqlite_pragma(dbapi_conn, connection_record):
         # Synchronous = NORMAL for better performance (safe with WAL mode)
         cursor.execute("PRAGMA synchronous = NORMAL")
         
+        # NEW: Optimize for SD card (User Request)
+        cursor.execute("PRAGMA temp_store = MEMORY")  # Temp data in RAM
+        cursor.execute("PRAGMA mmap_size = 268435456")  # 256MB memory-mapped I/O
+        cursor.execute("PRAGMA wal_autocheckpoint = 1000")  # Less frequent WAL checkpoints
+        
         cursor.close()
-        app.logger.info("SQLite pragmas set: busy_timeout=30s, WAL mode, cache=10MB")
+        app.logger.info("SQLite pragmas set: busy_timeout=30s, WAL mode, cache=10MB, SD-optimized (mmap/mem-temp)")
 
 # Security: Content-Security-Policy (Issue #3)
 # CONDITIONAL: Use Talisman for standalone, manual headers for Home Assistant
