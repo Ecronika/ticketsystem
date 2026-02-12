@@ -4,6 +4,28 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.4.3] - 2026-02-12
+
+### 🚀 Performance & Stability (Critical Fixes)
+- **Resolved Watchdog Restarts** - Fixed "unhealthy" container kills on Raspberry Pi SD cards
+  - Implemented lightweight `/health` route (avoids heavy DB queries during healthcheck)
+  - Optimized Docker healthcheck: `interval=30s`, `timeout=15s`, `retries=5`
+- **Dashboard Speedup (10x faster)** - Refactored Index/Dashboard route
+  - Replaced N+1 query pattern with single optimized SQL query using subqueries
+  - Reduced load time from >10s to <1s on low-end hardware
+- **Caching Implemented** - Added 5-minute TTL cache for `get_assigned_tools` calculation
+  - Significantly reduces DB load on highly accessed pages
+- **SD Card Optimizations** - Tuned SQLite and Server for flash storage
+  - SQLite: Enabled `WAL` mode, `mmap_size=256MB`, and `temp_store=MEMORY` (RAM-based temp files)
+  - Gunicorn: Enabled multi-threading (`--threads 2`) and max-requests limit to prevent memory leaks
+- **Async Logging** - Replaced synchronous file logging with non-blocking `QueueHandler`
+  - Prevents request threads from blocking during I/O spikes
+
+### 🔒 Security
+- **Secure File Deletion** - Added safety checks for session deletion
+  - Deletion only allowed in "Migration Mode"
+  - Explicit check against accidental legacy session deletion
+
 ## [2.4.2] - 2026-02-11
 
 ### 🔒 Security
