@@ -35,6 +35,6 @@ RUN chmod a+x /etc/services.d/azubi-werkzeug/run && \
 # Datenbank-Pfad setzen
 ENV DB_PATH=/data/werkzeug.db
 
-# Healthcheck
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:5000/ || exit 1
+# Healthcheck (Optimized for SD Card / Slow Start)
+HEALTHCHECK --interval=30s --timeout=15s --start-period=30s --retries=5 \
+    CMD curl -f http://localhost:5000/health || exit 1

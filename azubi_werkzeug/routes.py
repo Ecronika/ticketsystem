@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session, Response, jsonify, make_response, send_from_directory
 from sqlalchemy.orm import joinedload
+from sqlalchemy import func, select  # For optimized queries
 from sqlalchemy.exc import SQLAlchemyError  # Issue #4: Error handling
 from extensions import db, limiter
 from models import Azubi, Werkzeug, Examiner, Check
@@ -59,8 +60,22 @@ def get_data_dir():
     # Retrieve data_dir from app config or calculate it
     return current_app.config.get('DATA_DIR', os.path.dirname(os.path.abspath(__file__)))
 
+# Cache settings for get_assigned_tools
+_assigned_tools_cache = {}
+_cache_timeout = timedelta(minutes=5)
+
 def get_assigned_tools(azubi_id):
-    """Calculates currently assigned tools for an Azubi based on history."""
+    """Calculates currently assigned tools for an Azubi - WITH CACHING (5 min)"""
+    cache_key = f"assigned_{azubi_id}"
+    now = datetime.now()
+    
+    # Check cache
+    if cache_key in _assigned_tools_cache:
+        cached_data, timestamp = _assigned_tools_cache[cache_key]
+        if now - timestamp < _cache_timeout:
+            return cached_data
+            
+    # Calculate (Heavy DB Operation)
     checks = Check.query.filter_by(azubi_id=azubi_id).order_by(Check.datum.asc()).all()
     assigned = set()
     
@@ -70,7 +85,13 @@ def get_assigned_tools(azubi_id):
         elif c.check_type == 'return':
             if c.werkzeug_id in assigned:
                 assigned.remove(c.werkzeug_id)
-    return list(assigned)
+                
+    result = list(assigned)
+    
+    # Update cache
+    _assigned_tools_cache[cache_key] = (result, now)
+    
+    return result
 
 @main_bp.route('/logo')
 def serve_logo():
@@ -126,43 +147,66 @@ def debug_paths():
         'files_in_data_static_img': os.listdir(os.path.join(data_dir, 'static', 'img')) if os.path.exists(os.path.join(data_dir, 'static', 'img')) else []
     }
 
+@main_bp.route('/health')
+def health_check():
+    """Lightweight healthcheck endpoint - no heavy DB operations"""
+    try:
+        # Simple DB connection check
+        db.session.execute(db.text('SELECT 1')).fetchone()
+        return 'OK', 200
+    except Exception as e:
+        current_app.logger.error(f"Healthcheck failed: {e}")
+        return 'FAIL', 503
+
 @main_bp.route('/')
 def index():
-    azubis = Azubi.query.filter_by(is_archived=False).order_by(Azubi.name).all()
+    import time
+    start_time = time.time()
+    
+    # OPTIMIERT: Single query with subquery for last check date (Fixes N+1 problem)
+    # Subquery: Get latest check date per azubi
+    subq = (
+        db.session.query(
+            Check.azubi_id,
+            func.max(Check.datum).label('last_datum')
+        )
+        .group_by(Check.azubi_id)
+        .subquery()
+    )
+    
+    # Join azubis with their last check in ONE query
+    azubis_with_checks = (
+        db.session.query(Azubi, subq.c.last_datum)
+        .outerjoin(subq, Azubi.id == subq.c.azubi_id)
+        .filter(Azubi.is_archived == False)
+        .order_by(Azubi.name)
+        .all()
+    )
     
     dashboard_data = []
+    now = datetime.now()
     
-    for azubi in azubis:
-        last_check = Check.query.filter_by(azubi_id=azubi.id).order_by(Check.datum.desc()).first()
+    for azubi, last_datum in azubis_with_checks:
+        start_loop = time.time()
         
-        status = "Unbekannt"
-        status_class = "secondary"
-        last_check_str = "Noch nie"
-        sort_order = 4
-        
-        if last_check:
-            last_check_str = last_check.datum.strftime("%d. %b %Y")
-            days_since = (datetime.now() - last_check.datum).days
+        # Calculate status
+        if last_datum:
+            days_since = (now - last_datum).days
+            last_check_str = last_datum.strftime("%d. %b %Y")
             
             if days_since >= 90:
-                status = "Überfällig (> 3 Mon.)"
-                status_class = "danger"
+                status, status_class, sort_order = "Überfällig (> 3 Mon.)", "danger", 1
                 last_check_str = f"Vor {days_since} Tagen"
-                sort_order = 1
             elif days_since >= 62:
-                status = "Prüfung fällig (< 4 Wochen)"
-                status_class = "warning"
+                status, status_class, sort_order = "Prüfung fällig (< 4 Wochen)", "warning", 2
                 last_check_str = f"Vor {days_since} Tagen"
-                sort_order = 2
             else:
-                status = "Geprüft"
-                status_class = "success"
-                sort_order = 3
+                status, status_class, sort_order = "Geprüft", "success", 3
         else:
-            status = "Neu / Leer"
-            status_class = "info"
-            sort_order = 4
+            status, status_class = "Neu / Leer", "info"
+            last_check_str, sort_order = "Noch nie", 4
         
+        # Get assigned tools count (now using CACHED version)
         assigned_count = len(get_assigned_tools(azubi.id))
         
         dashboard_data.append({
@@ -175,8 +219,12 @@ def index():
             'assigned_count': assigned_count,
             'sort_order': sort_order
         })
-
+    
     dashboard_data.sort(key=lambda x: (x['sort_order'], x['name']))
+    
+    duration = time.time() - start_time
+    current_app.logger.info(f"Index route completed in {duration:.3f}s (Optimized)")
+    
     return render_template('index.html', azubis=dashboard_data)
 
 @main_bp.route('/check/<int:azubi_id>', methods=['GET'])
