@@ -467,6 +467,7 @@ def exchange_tool():
     azubi_id = request.form.get('azubi_id')
     tool_id = request.form.get('tool_id')
     reason = request.form.get('reason') # e.g. "Defekt", "Verloren"
+    is_payable = request.form.get('is_payable') == 'on'
     signature_data = request.form.get('signature_azubi_data')
     ingress = request.headers.get('X-Ingress-Path', '')
     
@@ -495,7 +496,7 @@ def exchange_tool():
             azubi_id=azubi_id,
             werkzeug_id=tool_id,
             check_type='return',
-            bemerkung=f'Austausch (Altteil): {reason}',
+            bemerkung=f'Austausch (Altteil): {reason}' + (' (Kostenpflichtig)' if is_payable else ''),
             incident_reason=reason,
             datum=check_date,
             tech_param_value='Austausch',
@@ -509,7 +510,7 @@ def exchange_tool():
             azubi_id=azubi_id,
             werkzeug_id=tool_id,
             check_type='issue',
-            bemerkung='Austausch (Neuteil)',
+            bemerkung='Austausch (Neuteil)' + (' (Kostenpflichtig)' if is_payable else ''),
             incident_reason='Ersatzbeschaffung',
             datum=check_date,
             tech_param_value='Neu',
