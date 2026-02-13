@@ -4,6 +4,18 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.5.1] - 2026-02-13
+### Added
+- **Backup & Rollback:** CLI scripts (`backup.py`, `rollback.py`) for data safety.
+- **Payable Exchange:** Option to mark tool exchanges as "Kostenpflichtig".
+- **API Documentation:** New `API_DOCS.md` for developers.
+
+### Changed
+- Refactored internal logic to use `CheckType` constants instead of magic strings.
+
+### Fixed
+- Restored missing Jinja block in dashboard (Hotfix for 500 Error).
+
 ## [2.5.0] - 2026-02-13
 
 ### 🚀 New Features

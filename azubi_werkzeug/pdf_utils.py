@@ -2,6 +2,7 @@ from fpdf import FPDF
 import os
 from datetime import datetime
 from flask import current_app
+from .models import CheckType
 
 # Logo path wird dynamisch über current_app.config geholt
 def get_logo_path():
@@ -57,11 +58,12 @@ def generate_handover_pdf(azubi_name, examiner_name, tools, check_type, signatur
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
     # Titel Logik
+    # Titel Logik
     type_map = {
-        'issue': 'Ausgabeprotokoll',
-        'return': 'Rückgabeprotokoll',
-        'check': 'Prüfprotokoll',
-        'exchange': 'Austauschprotokoll'
+        CheckType.ISSUE: 'Ausgabeprotokoll',
+        CheckType.RETURN: 'Rückgabeprotokoll',
+        CheckType.CHECK: 'Prüfprotokoll',
+        CheckType.EXCHANGE: 'Austauschprotokoll'
     }
     title_text = type_map.get(check_type, 'Werkzeug-Protokoll')
     
@@ -319,15 +321,15 @@ def generate_end_of_training_report(azubi, history_entries, is_inventory_clear):
     
     # Type Mapping
     type_map = {
-        'issue': 'Ausgabe',
-        'return': 'Rückgabe',
-        'check': 'Prüfung'
+        CheckType.ISSUE: 'Ausgabe',
+        CheckType.RETURN: 'Rückgabe',
+        CheckType.CHECK: 'Prüfung'
     }
     
     for entry in history_entries:
         date_str = entry.datum.strftime('%d.%m.%Y')
         # Translate Link
-        raw_type = entry.check_type or "check"
+        raw_type = entry.check_type or CheckType.CHECK
         type_str = type_map.get(raw_type, raw_type.capitalize())
         
         examiner = entry.examiner or "-"

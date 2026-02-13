@@ -80,9 +80,9 @@ def get_assigned_tools(azubi_id):
     assigned = set()
     
     for c in checks:
-        if c.check_type == 'issue':
+        if c.check_type == CheckType.ISSUE:
             assigned.add(c.werkzeug_id)
-        elif c.check_type == 'return':
+        elif c.check_type == CheckType.RETURN:
             if c.werkzeug_id in assigned:
                 assigned.remove(c.werkzeug_id)
                 
@@ -495,7 +495,7 @@ def exchange_tool():
             session_id=session_id,
             azubi_id=azubi_id,
             werkzeug_id=tool_id,
-            check_type='return',
+            check_type=CheckType.RETURN,
             bemerkung=f'Austausch (Altteil): {reason}' + (' (Kostenpflichtig)' if is_payable else ''),
             incident_reason=reason,
             datum=check_date,
@@ -509,7 +509,7 @@ def exchange_tool():
             session_id=session_id,
             azubi_id=azubi_id,
             werkzeug_id=tool_id,
-            check_type='issue',
+            check_type=CheckType.ISSUE,
             bemerkung='Austausch (Neuteil)' + (' (Kostenpflichtig)' if is_payable else ''),
             incident_reason='Ersatzbeschaffung',
             datum=check_date,
@@ -522,27 +522,27 @@ def exchange_tool():
         db.session.add(issue_entry)
         db.session.commit()
         
-        # 3. PDF Generation (Combined)
-        # Fetch data for PDF
+        # 3. Generate PDF Report (Combined)
+        # Fetch tool details for the PDF
+        tool = Werkzeug.query.get(tool_id)
         azubi = Azubi.query.get(azubi_id)
-        werkzeug = Werkzeug.query.get(tool_id)
         
-        # List items for PDF
+        # For exchange, we show both actions
         tools_list = [
-            {'name': werkzeug.name, 'category': werkzeug.material_category, 'status': f'Rückgabe ({reason})'},
-            {'name': werkzeug.name, 'category': werkzeug.material_category, 'status': 'Ausgabe (Neu)'}
+            {'name': tool.name, 'category': tool.material_category, 'status': f'Rückgabe ({reason})'},
+            {'name': tool.name, 'category': tool.material_category, 'status': 'Ausgabe (Neu)'}
         ]
         
-        pdf_filename = f"Austausch_{azubi.name.replace(' ', '_')}_{check_date.strftime('%Y%m%d_%H%M')}.pdf"
-        pdf_path = os.path.join(data_dir, 'reports', pdf_filename)
+        pdf_filename = f"austausch_{session_id}.pdf"
+        output_path = os.path.join(data_dir, 'reports', pdf_filename)
         
         generate_handover_pdf(
-            azubi_name=azubi.name,
-            examiner_name="System/Austausch", # Automated process
-            tools=tools_list,
-            check_type='exchange', # Special type for title logic
+            azubi_name=azubi.name, 
+            examiner_name="System", 
+            tools=tools_list, 
+            check_type=CheckType.EXCHANGE, # Special type for title logic
             signature_paths={'azubi': sig_path},
-            output_path=pdf_path
+            output_path=output_path
         )
         
         # 4. Update Report Paths

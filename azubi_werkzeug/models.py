@@ -39,7 +39,7 @@ class Check(db.Model):
     incident_reason = db.Column(db.String(50), nullable=True)
     
     # Audit Trail
-    check_type = db.Column(db.String(20), default="check")
+    check_type = db.Column(db.String(20), default=CheckType.CHECK)
     examiner = db.Column(db.String(100), nullable=True)
     signature_azubi = db.Column(db.String(200), nullable=True)
     signature_examiner = db.Column(db.String(200), nullable=True)
