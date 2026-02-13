@@ -4,6 +4,21 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.5.0] - 2026-02-13
+
+### 🚀 New Features
+- **Tool Exchange (Austausch)** - One-Click workflow for replacing defective/lost tools
+  - Wraps "Return" and "Issue" into a single transaction
+  - Maintains correct inventory history (Defect -> Replacement)
+  - **Dashboard:** New "Austauschen" button with signature pad modal
+  - **Reports:** Generates combined "Austauschprotokoll" PDF
+  - **Backend:** Transactional safety with shared session ID
+
+### 📦 Included Fixes (from v2.4.3)
+- **Performance:** 10x faster Dashboard loading (N+1 Query fix)
+- **Stability:** Solved Watchdog timeouts on Raspberry Pi SD cards
+- **Health:** New lightweight `/health` endpoint for Docker
+
 ## [2.4.3] - 2026-02-12
 
 ### 🚀 Performance & Stability (Critical Fixes)

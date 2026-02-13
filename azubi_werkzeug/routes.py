@@ -455,6 +455,125 @@ def submit_check():
         flash(f'Fehler beim Speichern: {str(e)}', 'danger')
         return redirect(f"{ingress}{url_for('main.index')}")
 
+@main_bp.route('/exchange_tool', methods=['POST'])
+def exchange_tool():
+    """
+    Handles One-Click Tool Exchange (Defective -> New).
+    Creates two records (Return + Issue) with shared session_id.
+    """
+    import time
+    start_time = time.time()
+    
+    azubi_id = request.form.get('azubi_id')
+    tool_id = request.form.get('tool_id')
+    reason = request.form.get('reason') # e.g. "Defekt", "Verloren"
+    signature_data = request.form.get('signature_azubi_data')
+    ingress = request.headers.get('X-Ingress-Path', '')
+    
+    if not all([azubi_id, tool_id, reason, signature_data]):
+        flash('Fehler: Unvollständige Daten für Austausch.', 'error')
+        return redirect(f"{ingress}{url_for('main.index')}")
+        
+    try:
+        data_dir = get_data_dir()
+        session_id = str(uuid.uuid4())
+        check_date = datetime.now()
+        
+        # 1. Save Signature (Essential for liability!)
+        sig_path = None
+        if signature_data and ',' in signature_data:
+            header, encoded = signature_data.split(",", 1)
+            data = base64.b64decode(encoded)
+            sig_path = os.path.join(data_dir, 'signatures', f"{session_id}_azubi.png")
+            with open(sig_path, "wb") as f:
+                f.write(data)
+                
+        # 2. Database Records
+        # Return Entry (Old Tool)
+        ret_entry = Check(
+            session_id=session_id,
+            azubi_id=azubi_id,
+            werkzeug_id=tool_id,
+            check_type='return',
+            bemerkung=f'Austausch (Altteil): {reason}',
+            incident_reason=reason,
+            datum=check_date,
+            tech_param_value='Austausch',
+            signature_azubi=None, # Returned item doesn't need receipt signature
+            report_path=None
+        )
+        
+        # Issue Entry (New Tool)
+        issue_entry = Check(
+            session_id=session_id,
+            azubi_id=azubi_id,
+            werkzeug_id=tool_id,
+            check_type='issue',
+            bemerkung='Austausch (Neuteil)',
+            incident_reason='Ersatzbeschaffung',
+            datum=check_date,
+            tech_param_value='Neu',
+            signature_azubi=sig_path, # Receipt signature on NEW item
+            report_path=None
+        )
+        
+        db.session.add(ret_entry)
+        db.session.add(issue_entry)
+        db.session.commit()
+        
+        # 3. PDF Generation (Combined)
+        # Fetch data for PDF
+        azubi = Azubi.query.get(azubi_id)
+        werkzeug = Werkzeug.query.get(tool_id)
+        
+        # List items for PDF
+        tools_list = [
+            {'name': werkzeug.name, 'category': werkzeug.material_category, 'status': f'Rückgabe ({reason})'},
+            {'name': werkzeug.name, 'category': werkzeug.material_category, 'status': 'Ausgabe (Neu)'}
+        ]
+        
+        pdf_filename = f"Austausch_{azubi.name.replace(' ', '_')}_{check_date.strftime('%Y%m%d_%H%M')}.pdf"
+        pdf_path = os.path.join(data_dir, 'reports', pdf_filename)
+        
+        generate_handover_pdf(
+            azubi_name=azubi.name,
+            examiner_name="System/Austausch", # Automated process
+            tools=tools_list,
+            check_type='exchange', # Special type for title logic
+            signature_paths={'azubi': sig_path},
+            output_path=pdf_path
+        )
+        
+        # 4. Update Report Paths
+        ret_entry.report_path = pdf_path
+        issue_entry.report_path = pdf_path
+        db.session.commit()
+        
+        # 5. Invalidations
+        # Clear cache for this azubi
+        _assigned_tools_cache.pop(f"assigned_{azubi_id}", None)
+
+        current_app.logger.info(f"Tool Exchange completed for {azubi.name} (Tool {tool_id}) in {time.time()-start_time:.3f}s")
+        flash('Werkzeug erfolgreich ausgetauscht.', 'success')
+        return redirect(f"{ingress}{url_for('main.index')}")
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Exchange failed: {e}", exc_info=True)
+        flash(f'Fehler beim Austausch: {str(e)}', 'error')
+        return redirect(f"{ingress}{url_for('main.index')}")
+
+@main_bp.route('/api/assigned_tools/<int:azubi_id>')
+def api_get_assigned_tools(azubi_id):
+    """API to get assigned tools for dropdown"""
+    # Use our cached function
+    tool_ids = get_assigned_tools(azubi_id)
+    
+    # Fetch names
+    tools = Werkzeug.query.filter(Werkzeug.id.in_(tool_ids)).order_by(Werkzeug.name).all()
+    
+    return jsonify([{'id': t.id, 'name': t.name} for t in tools])
+
 @main_bp.route('/history')
 def history():
     import time

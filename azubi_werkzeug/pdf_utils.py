@@ -60,7 +60,8 @@ def generate_handover_pdf(azubi_name, examiner_name, tools, check_type, signatur
     type_map = {
         'issue': 'Ausgabeprotokoll',
         'return': 'Rückgabeprotokoll',
-        'check': 'Prüfprotokoll'
+        'check': 'Prüfprotokoll',
+        'exchange': 'Austauschprotokoll'
     }
     title_text = type_map.get(check_type, 'Werkzeug-Protokoll')
     
