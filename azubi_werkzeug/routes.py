@@ -3,7 +3,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import func, select  # For optimized queries
 from sqlalchemy.exc import SQLAlchemyError  # Issue #4: Error handling
 from extensions import db, limiter
-from models import Azubi, Werkzeug, Examiner, Check
+from models import Azubi, Werkzeug, Examiner, Check, CheckType
 from forms import AzubiForm, ExaminerForm, WerkzeugForm
 from datetime import datetime, timedelta
 import os
@@ -752,6 +752,9 @@ def personnel():
     azubi_page = request.args.get('azubi_page', 1, type=int)
     show_archived = request.args.get('show_archived', '0') == '1'
     per_page = 20
+    query = Azubi.query.order_by(Azubi.name)
+    
+    if not show_archived:
         query = query.filter_by(is_archived=False)
     
     try:

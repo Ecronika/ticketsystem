@@ -1,6 +1,12 @@
 from extensions import db
 from datetime import datetime
 
+class CheckType:
+    CHECK = 'check'
+    ISSUE = 'issue'
+    RETURN = 'return'
+    EXCHANGE = 'exchange'
+
 class Azubi(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)

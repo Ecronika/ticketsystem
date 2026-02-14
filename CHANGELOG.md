@@ -3,6 +3,16 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [2.5.3] - 2026-02-14
+
+### 🐛 Critical Bug Fixes (Hotfix)
+- **Fixed Service Crash:** Resolved `IndentationError` in `routes.py` that prevented application startup.
+- **Fixed Frontend Error:** Resolved global scope pollution in `check.html` where `window.clearResult` was conflicting with other scripts.
+- **Improved Code Stability:** Added missing `CheckType` class to `models.py` to prevent potential runtime errors during tool exchange.
+
+### 🔒 Security
+- **Hardened Session Deletion:** Verified and enforced `migration_mode` check for the `delete_session` endpoint.
+
 ## [2.5.2] - 2026-02-14
 ### Changed
 - **UX:** Mobile Signature Pad is now throttled for smoother drawing.

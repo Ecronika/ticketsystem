@@ -2,7 +2,7 @@ from fpdf import FPDF
 import os
 from datetime import datetime
 from flask import current_app
-from .models import CheckType
+from models import CheckType
 
 # Logo path wird dynamisch über current_app.config geholt
 def get_logo_path():

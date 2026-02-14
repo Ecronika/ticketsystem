@@ -240,7 +240,7 @@
                                     style="width: 100%; height: 100%; touch-action: none;"></canvas>
                             </div>
                             <button type="button" class="btn btn-sm btn-link text-muted"
-                                onclick="clearResult('Azubi')">Löschen</button>
+                                id="clearAzubi">Löschen</button>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold small text-uppercase">Prüfer / Ausbilder</label>
@@ -249,7 +249,7 @@
                                     style="width: 100%; height: 100%; touch-action: none;"></canvas>
                             </div>
                             <button type="button" class="btn btn-sm btn-link text-muted"
-                                onclick="clearResult('Examiner')">Löschen</button>
+                                id="clearExaminer">Löschen</button>
                         </div>
                     </div>
                     {% if session.get('migration_mode') %}
@@ -335,11 +335,9 @@
             }, 100); // Debounce
         });
 
-        // Expose clear functions
-        window.clearResult = function (who) {
-            if (who === 'Azubi') padAzubi.clear();
-            if (who === 'Examiner') padExaminer.clear();
-        };
+        // Event Listeners for Clear Buttons (Avoids Global Scope)
+        document.getElementById('clearAzubi').addEventListener('click', () => padAzubi.clear());
+        document.getElementById('clearExaminer').addEventListener('click', () => padExaminer.clear());
 
         // --- Action Type Logic ---
         const checkTypeSelector = document.getElementById('checkTypeSelector');
