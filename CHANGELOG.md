@@ -3,6 +3,11 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [2.5.4] - 2026-02-14
+
+### 🐛 Critical Bug Fixes
+- **Fixed Crash in Tool Exchange:** Resolved `NameError: name 'pdf_path' is not defined` when exchanging tools.
+
 ## [2.5.3] - 2026-02-14
 
 ### 🐛 Critical Bug Fixes (Hotfix)

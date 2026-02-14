@@ -560,8 +560,8 @@ def exchange_tool():
         )
         
         # 4. Update Report Paths
-        ret_entry.report_path = pdf_path
-        issue_entry.report_path = pdf_path
+        ret_entry.report_path = output_path
+        issue_entry.report_path = output_path
         db.session.commit()
         
         # 5. Invalidations
