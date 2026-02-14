@@ -21,6 +21,7 @@ COPY pdf_utils.py .
 COPY extensions.py .
 COPY models.py .
 COPY routes.py .
+COPY services.py .
 COPY forms.py .
 COPY templates templates/
 COPY static static/
