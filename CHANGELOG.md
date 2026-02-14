@@ -3,8 +3,17 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [2.5.2] - 2026-02-14
+### Changed
+- **UX:** Mobile Signature Pad is now throttled for smoother drawing.
+- **Accessibility:** Added ARIA labels to navigation and buttons.
 
-## [2.5.1] - 2026-02-13
+### Fixed
+- **Cache:** Logo update now clears Jinja2 cache immediately.
+- **Stability:** Prevented race conditions in session ID generation.
+- **Pagination:** Fixed edge case where accessing page > total_pages caused errors (now redirects).
+- **DevOps:** Application now validates critical environment variables on startup.
+
 ### Added
 - **Backup & Rollback:** CLI scripts (`backup.py`, `rollback.py`) for data safety.
 - **Payable Exchange:** Option to mark tool exchanges as "Kostenpflichtig".

@@ -56,6 +56,14 @@ def handle_db_error(error, operation_name, redirect_route='main.index', custom_m
     
     return redirect(url_for(redirect_route))
 
+def generate_unique_session_id():
+    """Generates a unique session ID, preventing collision."""
+    # Combine timestamp and UUID for better uniqueness/ordering
+    import time
+    timestamp = int(time.time() * 1000)
+    uid = str(uuid.uuid4()).split('-')[0] # Shorten UUID part
+    return f"{timestamp}-{uid}"
+
 def get_data_dir():
     # Retrieve data_dir from app config or calculate it
     return current_app.config.get('DATA_DIR', os.path.dirname(os.path.abspath(__file__)))
@@ -287,7 +295,9 @@ def submit_check():
         sig_examiner_data = request.form.get('signature_examiner_data')
         
         data_dir = get_data_dir()
-        session_id = str(uuid.uuid4())
+        data_dir = get_data_dir()
+        session_id = generate_unique_session_id()
+        sig_azubi_path = None
         sig_azubi_path = None
         sig_examiner_path = None
         
@@ -477,7 +487,7 @@ def exchange_tool():
         
     try:
         data_dir = get_data_dir()
-        session_id = str(uuid.uuid4())
+        session_id = generate_unique_session_id()
         check_date = datetime.now()
         
         # 1. Save Signature (Essential for liability!)
@@ -488,6 +498,10 @@ def exchange_tool():
             sig_path = os.path.join(data_dir, 'signatures', f"{session_id}_azubi.png")
             with open(sig_path, "wb") as f:
                 f.write(data)
+            
+            # Clear Jinja2 cache to ensure logo update is visible
+            current_app.jinja_env.cache = {}
+            flash('Logo erfolgreich hochgeladen', 'success')
                 
         # 2. Database Records
         # Return Entry (Old Tool)
@@ -738,14 +752,24 @@ def personnel():
     azubi_page = request.args.get('azubi_page', 1, type=int)
     show_archived = request.args.get('show_archived', '0') == '1'
     per_page = 20
-    
-    # Query azubis
-    query = Azubi.query.order_by(Azubi.name)
-    if not show_archived:
         query = query.filter_by(is_archived=False)
     
-    azubi_pagination = query.paginate(page=azubi_page, per_page=per_page, error_out=False)
-    azubis = azubi_pagination.items
+    try:
+        azubi_pagination = query.paginate(page=azubi_page, per_page=per_page, error_out=False)
+        
+        # FIX: Edge Case - If page > max_pages, redirect to last page
+        if azubi_page > 1 and azubi_page > azubi_pagination.pages:
+           flash('Seite existiert nicht, leite zur letzten Seite um.', 'info')
+           # We need to rebuild the current URL but with modified page
+           args = request.args.copy()
+           args['azubi_page'] = azubi_pagination.pages
+           return redirect(url_for(request.endpoint, **args))
+           
+    except Exception as e:
+        current_app.logger.error(f"Pagination failed: {e}")
+        azubi_pagination = None # Handle pagination error gracefully
+    
+    azubis = azubi_pagination.items if azubi_pagination else []
     
     # Query examiners (not paginated, typically few items)
     examiners = Examiner.query.order_by(Examiner.name).all()

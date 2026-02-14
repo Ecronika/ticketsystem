@@ -17,6 +17,15 @@ app.config.update(
     # SESSION_COOKIE_SECURE=True # Disabled for Ingress (SSL terminated by HA Proxy)
 )
 
+# --- Environment Validation ---
+# Ensure critical variables are set (or fallback is known)
+# Note: SECRET_KEY and DATA_DIR are handled below, but we log warnings for clarity.
+if not os.environ.get('SECRET_KEY') and not os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'secret.key')):
+    logging.warning("No SECRET_KEY set and no secret.key file found. A new key will be generated (sessions invalid on restart).")
+
+if not os.environ.get('DATA_DIR'):
+     logging.info(f"DATA_DIR not set. Using default: {os.path.dirname(os.path.abspath(__file__))}")
+
 # Logging Configuration - ASYNC (Non-blocking)
 # Issue: Synchronous file I/O was blocking request threads during heavy logging
 # Solution: QueueHandler writes to memory queue (instant), background thread handles disk I/O

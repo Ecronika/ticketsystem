@@ -20,10 +20,11 @@
                     </div>
                     <div class="align-self-center">
                         {% if azubi.status_class == 'danger' %}
-                        <i class="bi bi-exclamation-triangle-fill text-danger fs-3 me-2"
-                            title="Prüfung überfällig!"></i>
+                        <i class="bi bi-exclamation-triangle-fill text-danger fs-3 me-2" title="Prüfung überfällig!"
+                            aria-label="Status: Überfällig"></i>
                         {% endif %}
-                        <span class="badge bg-{{ azubi.status_class }} rounded-pill">{{ azubi.status }}</span>
+                        <span class="badge bg-{{ azubi.status_class }} rounded-pill" role="status">{{ azubi.status
+                            }}</span>
                     </div>
                 </div>
 
@@ -32,25 +33,27 @@
                         Check</small>
                     <div class="d-flex align-items-center mt-1">
                         {% if azubi.status == 'Geprüft' %}
-                        <i class="bi bi-calendar-check text-success me-2"></i>
+                        <i class="bi bi-calendar-check text-success me-2" aria-hidden="true"></i>
                         {% elif azubi.status == 'Überfällig' %}
-                        <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+                        <i class="bi bi-exclamation-triangle text-danger me-2" aria-hidden="true"></i>
                         {% else %}
-                        <i class="bi bi-calendar text-secondary me-2"></i>
+                        <i class="bi bi-calendar text-secondary me-2" aria-hidden="true"></i>
                         {% endif %}
-                        <span class="fw-bold">{{ azubi.last_check }}</span>
+                        <span class="fw-bold" aria-label="Letztes Prüfdatum">{{ azubi.last_check }}</span>
                     </div>
                 </div>
 
                 <div class="d-flex gap-2 mt-4">
                     <a href="{{ ingress_path }}{{ url_for('main.check_azubi', azubi_id=azubi.id) }}"
-                        class="btn btn-outline-primary rounded-pill flex-grow-1">
-                        <i class="bi bi-clipboard-check"></i> Neue Prüfung
+                        class="btn btn-outline-primary rounded-pill flex-grow-1"
+                        aria-label="Neue Prüfung für {{ azubi.name }} starten">
+                        <i class="bi bi-clipboard-check" aria-hidden="true"></i> Neue Prüfung
                     </a>
                     <button type="button" class="btn btn-outline-warning rounded-pill" data-bs-toggle="modal"
                         data-bs-target="#exchangeModal" data-azubi-id="{{ azubi.id }}"
-                        data-azubi-name="{{ azubi.name }}" title="Werkzeug austauschen (Defekt/Verloren)">
-                        <i class="bi bi-arrow-repeat"></i>
+                        data-azubi-name="{{ azubi.name }}" title="Werkzeug austauschen (Defekt/Verloren)"
+                        aria-label="Werkzeug austauschen für {{ azubi.name }}">
+                        <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
                     </button>
                 </div>
             </div>
@@ -167,7 +170,10 @@
             }
             window.addEventListener("resize", resizeCanvas);
             resizeCanvas();
-            padAzubi = new SignaturePad(canvas, { backgroundColor: 'rgb(248, 249, 250)' });
+            padAzubi = new SignaturePad(canvas, {
+                backgroundColor: 'rgb(248, 249, 250)',
+                throttle: 16 // ~60fps for smoother lines on mobile
+            });
         }
 
         // Modal Logic
