@@ -3,6 +3,12 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [2.5.5] - 2026-02-14
+
+### 💄 UX Improvements
+- **History View:** "Tool Exchange" transactions are now correctly labeled as **"Werkzeug-Austausch"** in details (previously showed as simple Return/Issue).
+- **Dashboard:** Renamed "Kostenpflichtig Austauschen" button to **"Werkzeug austauschen"** to avoid confusion (cost is optional).
+
 ## [2.5.4] - 2026-02-14
 
 ### 🐛 Critical Bug Fixes

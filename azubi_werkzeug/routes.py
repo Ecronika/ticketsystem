@@ -688,6 +688,17 @@ def history_details(session_id):
     examiner = first_c.examiner
     report_path = first_c.report_path
     
+    # Detect Exchange (Austausch)
+    # Since exchange creates RETURN + ISSUE, we check if any item has "Austausch" in comments
+    # or if we have mixed types in one session (Return + Issue)
+    has_return = any(c.check_type == CheckType.RETURN for c in checks)
+    has_issue = any(c.check_type == CheckType.ISSUE for c in checks)
+    
+    if has_return and has_issue and len(checks) >= 2:
+        check_type = 'exchange'
+    elif any('Austausch' in (c.bemerkung or '') for c in checks):
+        check_type = 'exchange'
+    
     parsed_checks = []
     global_bemerkung = ""
     
