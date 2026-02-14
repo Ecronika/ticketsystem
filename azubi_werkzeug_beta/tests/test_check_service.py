@@ -59,3 +59,42 @@ def test_exchange_enum_handling(test_app):
     assert CheckType.ISSUE == 'issue'
     assert CheckType.RETURN == 'return'
     assert CheckType.EXCHANGE == 'exchange'
+
+def test_check_submission_missing_azubi(test_app):
+    """Test submission with invalid Azubi ID"""
+    with test_app.app_context():
+        tool = Werkzeug.query.first()
+        
+        # Use invalid ID - Service SHOULD raise ValueError now
+        with pytest.raises(ValueError, match="Azubi mit ID 99999 nicht gefunden"):
+            CheckService.process_check_submission(
+                azubi_id=99999,
+                examiner_name="Test Examiner",
+                tool_ids=[tool.id],
+                form_data={'tool_' + str(tool.id): 'ok'}
+            )
+
+def test_check_submission_invalid_tool(test_app):
+    """Test submission with invalid Tool ID"""
+    with test_app.app_context():
+        azubi = Azubi.query.first()
+        
+        # Use invalid Tool ID (database has empty tool list for this ID)
+        # CheckService iterates over tool_ids and does Werkzeug.query.get(tool_id) - wait, does it?
+        # Let's check implementation. It filters by ID.
+        
+        # If I pass a tool ID that doesn't exist, the loop `for tool_id in tool_ids` will still run?
+        # No, the implementation selects tools: `werkzeuge = Werkzeug.query.filter(Werkzeug.id.in_(tool_ids)).all()`
+        # If I pass [99999], werkzeuge will be empty.
+        # But the code iterates `for tool_id in tool_ids` later? No, it iterates `for tool in werkzeuge`.
+        # So nothing happens.
+        
+        result = CheckService.process_check_submission(
+            azubi_id=azubi.id,
+            examiner_name="Test Examiner",
+            tool_ids=[99999],
+            form_data={}
+        )
+        # Should return success but count 0?
+        assert result['success'] is True
+        assert result['count'] == 0

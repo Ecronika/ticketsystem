@@ -77,6 +77,12 @@ class CheckService:
         if not check_date:
             check_date = datetime.now()
             
+        # 0. Validate Azubi
+        azubi = Azubi.query.get(azubi_id)
+        if not azubi:
+             current_app.logger.error(f"CheckService: Azubi {azubi_id} not found")
+             raise ValueError(f"Azubi mit ID {azubi_id} nicht gefunden")
+            
         # 1. Setup Session
         session_id = CheckService.generate_unique_session_id()
         data_dir = CheckService.get_data_dir()
@@ -147,9 +153,18 @@ class CheckService:
             
         # 6. Generate PDF (If tools selected)
         pdf_path = None
+        # 6. Generate PDF (If tools selected)
+        pdf_path = None
         if selected_tools:
             try:
-                azubi = Azubi.query.get(azubi_id)
+                # Azubi already validated at start
+                # azubi object needs to be re-fetched? No, we can use the one from start if we keep it.
+                # But typically better to stick to ID lookup or ensure object is attached to session.
+                # Since we committed, the session might be clean. Safe to re-fetch or use if bound.
+                # simpler to just re-fetch or rely on previous variable if scope allows.
+                # The 'azubi' variable from start IS in scope!
+                pass 
+
                 pdf_filename = f"Protokoll_{check_type.value}_{azubi.name.replace(' ', '_')}_{check_date.strftime('%Y%m%d_%H%M')}.pdf"
                 pdf_path = os.path.join(data_dir, 'reports', pdf_filename)
                 

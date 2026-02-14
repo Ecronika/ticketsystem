@@ -11,3 +11,67 @@
 2026-02-14 11:08:30,334 - app - INFO - CheckService: Processed 1 checks in 0.066s
 2026-02-14 11:08:30,349 - app - ERROR - PDF Generation failed: 'NoneType' object has no attribute 'encode'
 2026-02-14 11:08:30,349 - app - INFO - CheckService: Processed 1 checks in 0.004s
+2026-02-14 11:20:03,064 - app - INFO - Async logging initialized: File=C:\Users\tpaul\.gemini\antigravity\scratch\azubi_werkzeug\azubi_werkzeug_beta\app.log, Console=stdout, Queue=ENABLED
+2026-02-14 11:20:03,082 - app - INFO - Security: Flask-Talisman enabled (CSP + Security Headers)
+2026-02-14 11:20:03,123 - app - INFO - SQLite pragmas set: busy_timeout=30s, WAL mode, cache=10MB, SD-optimized (mmap/mem-temp)
+2026-02-14 11:20:03,171 - app - INFO - CheckService: Processed 1 checks in 0.030s
+2026-02-14 11:20:03,188 - app - ERROR - PDF Generation failed: 'NoneType' object has no attribute 'encode'
+2026-02-14 11:20:03,188 - app - INFO - CheckService: Processed 1 checks in 0.003s
+2026-02-14 11:20:24,892 - app - INFO - Async logging initialized: File=C:\Users\tpaul\.gemini\antigravity\scratch\azubi_werkzeug\azubi_werkzeug_beta\app.log, Console=stdout, Queue=ENABLED
+2026-02-14 11:20:24,912 - app - INFO - Security: Flask-Talisman enabled (CSP + Security Headers)
+2026-02-14 11:20:24,956 - app - INFO - SQLite pragmas set: busy_timeout=30s, WAL mode, cache=10MB, SD-optimized (mmap/mem-temp)
+2026-02-14 11:20:24,996 - app - INFO - CheckService: Processed 1 checks in 0.025s
+2026-02-14 11:20:25,012 - app - ERROR - PDF Generation failed: 'NoneType' object has no attribute 'encode'
+2026-02-14 11:20:25,012 - app - INFO - CheckService: Processed 1 checks in 0.003s
+2026-02-14 11:20:25,030 - app - ERROR - Azubi 99999 not found for PDF generation
+2026-02-14 11:20:25,030 - app - ERROR - PDF Generation failed: Azubi mit ID 99999 nicht gefunden
+2026-02-14 11:20:25,030 - app - INFO - CheckService: Processed 1 checks in 0.003s
+2026-02-14 11:20:25,170 - app - INFO - CheckService: Processed 0 checks in 0.001s
+2026-02-14 11:20:41,583 - app - INFO - Async logging initialized: File=C:\Users\tpaul\.gemini\antigravity\scratch\azubi_werkzeug\azubi_werkzeug_beta\app.log, Console=stdout, Queue=ENABLED
+2026-02-14 11:20:41,601 - app - INFO - Security: Flask-Talisman enabled (CSP + Security Headers)
+2026-02-14 11:20:41,662 - app - INFO - SQLite pragmas set: busy_timeout=30s, WAL mode, cache=10MB, SD-optimized (mmap/mem-temp)
+2026-02-14 11:20:41,709 - app - INFO - CheckService: Processed 1 checks in 0.028s
+2026-02-14 11:20:41,730 - app - ERROR - PDF Generation failed: 'NoneType' object has no attribute 'encode'
+2026-02-14 11:20:41,730 - app - INFO - CheckService: Processed 1 checks in 0.005s
+2026-02-14 11:20:41,757 - app - ERROR - Azubi 99999 not found for PDF generation
+2026-02-14 11:20:41,757 - app - ERROR - PDF Generation failed: Azubi mit ID 99999 nicht gefunden
+2026-02-14 11:20:41,757 - app - INFO - CheckService: Processed 1 checks in 0.004s
+2026-02-14 11:20:41,930 - app - INFO - CheckService: Processed 0 checks in 0.001s
+2026-02-14 11:20:51,596 - app - INFO - Async logging initialized: File=C:\Users\tpaul\.gemini\antigravity\scratch\azubi_werkzeug\azubi_werkzeug_beta\app.log, Console=stdout, Queue=ENABLED
+2026-02-14 11:20:51,616 - app - INFO - Security: Flask-Talisman enabled (CSP + Security Headers)
+2026-02-14 11:20:51,656 - app - INFO - SQLite pragmas set: busy_timeout=30s, WAL mode, cache=10MB, SD-optimized (mmap/mem-temp)
+2026-02-14 11:20:51,705 - app - INFO - CheckService: Processed 1 checks in 0.028s
+2026-02-14 11:20:51,723 - app - ERROR - PDF Generation failed: 'NoneType' object has no attribute 'encode'
+2026-02-14 11:20:51,723 - app - INFO - CheckService: Processed 1 checks in 0.004s
+2026-02-14 11:20:51,743 - app - ERROR - Azubi 99999 not found for PDF generation
+2026-02-14 11:20:51,743 - app - ERROR - PDF Generation failed: Azubi mit ID 99999 nicht gefunden
+2026-02-14 11:20:51,743 - app - INFO - CheckService: Processed 1 checks in 0.002s
+2026-02-14 11:20:51,916 - app - INFO - CheckService: Processed 0 checks in 0.001s
+2026-02-14 11:21:22,569 - app - INFO - Async logging initialized: File=C:\Users\tpaul\.gemini\antigravity\scratch\azubi_werkzeug\azubi_werkzeug_beta\app.log, Console=stdout, Queue=ENABLED
+2026-02-14 11:21:22,585 - app - INFO - Security: Flask-Talisman enabled (CSP + Security Headers)
+2026-02-14 11:21:22,621 - app - INFO - SQLite pragmas set: busy_timeout=30s, WAL mode, cache=10MB, SD-optimized (mmap/mem-temp)
+2026-02-14 11:21:22,661 - app - INFO - CheckService: Processed 1 checks in 0.023s
+2026-02-14 11:21:22,675 - app - ERROR - PDF Generation failed: 'NoneType' object has no attribute 'encode'
+2026-02-14 11:21:22,675 - app - INFO - CheckService: Processed 1 checks in 0.003s
+2026-02-14 11:21:22,690 - app - ERROR - CheckService: Azubi 99999 not found
+2026-02-14 11:21:22,839 - app - INFO - CheckService: Processed 0 checks in 0.001s
+2026-02-14 11:21:50,557 - app - INFO - Async logging initialized: File=C:\Users\tpaul\.gemini\antigravity\scratch\azubi_werkzeug\azubi_werkzeug_beta\app.log, Console=stdout, Queue=ENABLED
+2026-02-14 11:21:50,574 - app - INFO - Security: Flask-Talisman enabled (CSP + Security Headers)
+2026-02-14 11:21:50,610 - app - INFO - SQLite pragmas set: busy_timeout=30s, WAL mode, cache=10MB, SD-optimized (mmap/mem-temp)
+2026-02-14 11:21:50,654 - app - INFO - CheckService: Processed 1 checks in 0.027s
+2026-02-14 11:21:50,667 - app - ERROR - PDF Generation failed: 'NoneType' object has no attribute 'encode'
+2026-02-14 11:21:50,668 - app - INFO - CheckService: Processed 1 checks in 0.004s
+2026-02-14 11:21:50,682 - app - ERROR - CheckService: Azubi 99999 not found
+2026-02-14 11:21:50,840 - app - INFO - CheckService: Processed 0 checks in 0.001s
+2026-02-14 11:21:59,420 - app - INFO - Async logging initialized: File=C:\Users\tpaul\.gemini\antigravity\scratch\azubi_werkzeug\azubi_werkzeug_beta\app.log, Console=stdout, Queue=ENABLED
+2026-02-14 11:21:59,437 - app - INFO - Security: Flask-Talisman enabled (CSP + Security Headers)
+2026-02-14 11:21:59,474 - app - INFO - SQLite pragmas set: busy_timeout=30s, WAL mode, cache=10MB, SD-optimized (mmap/mem-temp)
+2026-02-14 11:21:59,494 - app - ERROR - CheckService: Azubi 99999 not found
+2026-02-14 11:22:17,516 - app - INFO - Async logging initialized: File=C:\Users\tpaul\.gemini\antigravity\scratch\azubi_werkzeug\azubi_werkzeug_beta\app.log, Console=stdout, Queue=ENABLED
+2026-02-14 11:22:17,533 - app - INFO - Security: Flask-Talisman enabled (CSP + Security Headers)
+2026-02-14 11:22:17,578 - app - INFO - SQLite pragmas set: busy_timeout=30s, WAL mode, cache=10MB, SD-optimized (mmap/mem-temp)
+2026-02-14 11:22:17,619 - app - INFO - CheckService: Processed 1 checks in 0.025s
+2026-02-14 11:22:17,633 - app - ERROR - PDF Generation failed: 'NoneType' object has no attribute 'encode'
+2026-02-14 11:22:17,633 - app - INFO - CheckService: Processed 1 checks in 0.004s
+2026-02-14 11:22:17,650 - app - ERROR - CheckService: Azubi 99999 not found
+2026-02-14 11:22:17,658 - app - INFO - CheckService: Processed 0 checks in 0.000s

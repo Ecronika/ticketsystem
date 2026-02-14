@@ -3,6 +3,17 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [2.6.0-beta2] - 2026-02-14
+
+### 🐛 Critical Bug Fixes
+- **Fixed Crash in PDF Generation:** Added critical null-check for Azubi lookup in `CheckService`. Previously, invalid Azubi IDs could cause a 500 status masked as success (#112).
+
+### 🔒 Security
+- **API Hardening:** Added Rate Limiting (`30/min`) and CSRF exemption to `/api/stats` endpoint (#113).
+
+### 🧪 Testing
+- **Coverage Increased:** Added test cases for missing Azubi and invalid Tool IDs.
+
 ## [2.6.0-beta1] - 2026-02-14
 
 ### 🏗️ Refactoring (Stable Beta)

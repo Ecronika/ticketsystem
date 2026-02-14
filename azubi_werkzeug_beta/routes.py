@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, select  # For optimized queries
 from sqlalchemy.exc import SQLAlchemyError  # Issue #4: Error handling
-from extensions import db, limiter
+from extensions import db, limiter, csrf
 from models import Azubi, Werkzeug, Examiner, Check, CheckType
 from forms import AzubiForm, ExaminerForm, WerkzeugForm
 from datetime import datetime, timedelta
@@ -461,18 +461,21 @@ def api_get_assigned_tools(azubi_id):
     return jsonify([{'id': t.id, 'name': t.name} for t in tools])
 
 @main_bp.route('/api/stats')
+@limiter.limit("30 per minute")
+@csrf.exempt
 def api_stats():
     """Returns basic statistics for dashboard"""
     total_tools = Werkzeug.query.count()
     total_azubis = Azubi.query.filter_by(is_archived=False).count()
     
-    # Tools status
-    # This is heavy, so we might want to cache it or approximate
-    # For now, simplistic approach
+    # New metrics for v2.6.0-beta2
+    start_of_day = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    checks_today = Check.query.filter(Check.datum >= start_of_day).count()
     
     return jsonify({
         'total_tools': total_tools,
         'total_azubis': total_azubis,
+        'checks_today': checks_today,
         'generated_at': datetime.now().isoformat()
     })
 
