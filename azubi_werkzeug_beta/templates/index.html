@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2 class="fw-bold text-secondary">Azubi Übersicht</h2>
+        <p class="text-muted">Nächste fällige Prüfungen</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    {% for azubi in azubis %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100 shadow-sm border-0 rounded-4 border-start border-4 border-{{ azubi.status_class }}">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h5 class="card-title fw-bold mb-0">{{ azubi.name }}</h5>
+                        <small class="text-muted">{{ azubi.lehrjahr }}. Lehrjahr</small>
+                    </div>
+                    <div class="align-self-center">
+                        {% if azubi.status_class == 'danger' %}
+                        <i class="bi bi-exclamation-triangle-fill text-danger fs-3 me-2" title="Prüfung überfällig!"
+                            aria-label="Status: Überfällig"></i>
+                        {% endif %}
+                        <span class="badge bg-{{ azubi.status_class }} rounded-pill" role="status">{{ azubi.status
+                            }}</span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-secondary text-uppercase fw-bold" style="font-size: 0.7rem;">Letzter
+                        Check</small>
+                    <div class="d-flex align-items-center mt-1">
+                        {% if azubi.status == 'Geprüft' %}
+                        <i class="bi bi-calendar-check text-success me-2" aria-hidden="true"></i>
+                        {% elif azubi.status == 'Überfällig' %}
+                        <i class="bi bi-exclamation-triangle text-danger me-2" aria-hidden="true"></i>
+                        {% else %}
+                        <i class="bi bi-calendar text-secondary me-2" aria-hidden="true"></i>
+                        {% endif %}
+                        <span class="fw-bold" aria-label="Letztes Prüfdatum">{{ azubi.last_check }}</span>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 mt-4">
+                    <a href="{{ ingress_path }}{{ url_for('main.check_azubi', azubi_id=azubi.id) }}"
+                        class="btn btn-outline-primary rounded-pill flex-grow-1"
+                        aria-label="Neue Prüfung für {{ azubi.name }} starten">
+                        <i class="bi bi-clipboard-check" aria-hidden="true"></i> Neue Prüfung
+                    </a>
+                    <button type="button" class="btn btn-outline-warning rounded-pill" data-bs-toggle="modal"
+                        data-bs-target="#exchangeModal" data-azubi-id="{{ azubi.id }}"
+                        data-azubi-name="{{ azubi.name }}" title="Werkzeug austauschen (Defekt/Verloren)"
+                        aria-label="Werkzeug austauschen für {{ azubi.name }}">
+                        <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12 text-center py-5">
+        <div class="text-secondary mb-3 opacity-25">
+            <i class="bi bi-tools" style="font-size: 5rem;"></i>
+        </div>
+        <h4 class="text-muted fw-bold">Noch keine Azubis angelegt.</h4>
+        <p class="text-secondary">Starten Sie, indem Sie Ihren ersten Azubi hinzufügen.</p>
+        <a href="{{ ingress_path }}{{ url_for('main.manage') }}"
+            class="btn btn-primary btn-lg rounded-pill mt-3 px-5 shadow-sm">
+            <i class="bi bi-plus-lg me-2"></i> Jetzt anlegen
+        </a>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Exchange Modal -->
+<div class="modal fade" id="exchangeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content rounded-4 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Werkzeug austauschen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">Tauscht ein defektes/verlorenes Werkzeug gegen ein neues aus.
+                    <br>Bestand bleibt unverändert.
+                </p>
+
+                <form action="{{ ingress_path }}{{ url_for('main.exchange_tool') }}" method="POST" id="exchangeForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="azubi_id" id="exchangeAzubiId">
+                    <input type="hidden" name="signature_azubi_data" id="signatureAzubiData">
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Azubi</label>
+                        <input type="text" class="form-control-plaintext" id="exchangeAzubiName" readonly>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="exchangeToolId" class="form-label fw-bold">Betroffenes Werkzeug</label>
+                        <select class="form-select" name="tool_id" id="exchangeToolId" required>
+                            <option value="" selected disabled>Lade Werkzeuge...</option>
+                            <!-- Populated via AJAX -->
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Grund für den Austausch</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="reason" id="reasonDefekt" value="Defekt"
+                                checked>
+                            <label class="btn btn-outline-danger" for="reasonDefekt">Defekt</label>
+
+                            <input type="radio" class="btn-check" name="reason" id="reasonVerloren" value="Verloren">
+                            <label class="btn btn-outline-secondary" for="reasonVerloren">Verloren</label>
+
+                            <input type="radio" class="btn-check" name="reason" id="reasonVerschlissen"
+                                value="Verschlissen">
+                            <label class="btn btn-outline-warning" for="reasonVerschlissen">Verschlissen</label>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="isPayable"
+                                name="is_payable">
+                            <label class="form-check-label" for="isPayable">Kostenpflichtig (Azubi trägt Kosten)</label>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Unterschrift Azubi (Empfang)</label>
+                        <div class="border rounded bg-light" style="height: 200px; position: relative;">
+                            <canvas id="signaturePadAzubi" class="w-100 h-100"></canvas>
+                            <div class="position-absolute bottom-0 end-0 p-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary mb-1"
+                                    onclick="clearPad('azubi')">
+                                    <i class="bi bi-eraser"></i> Löschen
+                                </button>
+                            </div>
+                        </div>
+                        <small class="text-muted">Bestätigt den Empfang des Ersatzwerkzeugs.</small>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary rounded-pill">
+                            <i class="bi bi-arrow-repeat"></i> Werkzeug austauschen
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+<script>
+    let padAzubi = null;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const canvas = document.getElementById('signaturePadAzubi');
+        if (canvas) {
+            function resizeCanvas() {
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                canvas.getContext("2d").scale(ratio, ratio);
+                if (padAzubi) padAzubi.clear(); // Clear on resize to avoid artifacts
+            }
+            window.addEventListener("resize", resizeCanvas);
+            resizeCanvas();
+            padAzubi = new SignaturePad(canvas, {
+                backgroundColor: 'rgb(248, 249, 250)',
+                throttle: 16 // ~60fps for smoother lines on mobile
+            });
+        }
+
+        // Modal Logic
+        const exchangeModal = document.getElementById('exchangeModal');
+        if (exchangeModal) {
+            exchangeModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const azubiId = button.getAttribute('data-azubi-id');
+                const azubiName = button.getAttribute('data-azubi-name');
+
+                document.getElementById('exchangeAzubiId').value = azubiId;
+                document.getElementById('exchangeAzubiName').value = azubiName;
+
+                // Load Tools for this Azubi via AJAX (using existing Check Logic partial re-use?)
+                // Better: Simple API call. We need a new/existing API for assigned tools.
+                // For now, let's load ALL tools and maybe filtering happen server side? 
+                // Wait, we need "Assigned" tools only.
+                // Let's assume we fetch all tools and user selects one. 
+                // Improvement: Fetch only assigned tools.
+                loadAssignedTools(azubiId);
+
+                // Resize pad after modal is shown (visibility fix)
+                setTimeout(() => {
+                    const canvas = document.getElementById('signaturePadAzubi');
+                    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                    canvas.width = canvas.offsetWidth * ratio;
+                    canvas.height = canvas.offsetHeight * ratio;
+                    canvas.getContext("2d").scale(ratio, ratio);
+                    padAzubi.clear();
+                }, 200);
+            });
+        }
+
+        // Form Submit
+        const form = document.getElementById('exchangeForm');
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                if (padAzubi.isEmpty()) {
+                    e.preventDefault();
+                    alert("Bitte unterschreiben!");
+                    return;
+                }
+                const data = padAzubi.toDataURL('image/png');
+                document.getElementById('signatureAzubiData').value = data;
+            });
+        }
+    });
+
+    function clearPad(type) {
+        if (padAzubi) padAzubi.clear();
+    }
+
+    // Helper to load assigned tools
+    async function loadAssignedTools(azubiId) {
+        const select = document.getElementById('exchangeToolId');
+        select.innerHTML = '<option disabled selected>Lade...</option>';
+
+        // We reuse the new API endpoint or standard tools list?
+        // Actually, we don't have an API for "get_assigned_tools" yet.
+        // Let's create a quick one or use a workaround.
+        // Workaround: Use the general api/werkzeug list and filter? No.
+        // Let's implement a small helper in routes.py for this AJAX call. 
+        // For this step, I'll put a placeholder and implement the API next.
+
+        try {
+            const response = await fetch(`{{ ingress_path }}/api/assigned_tools/${azubiId}`);
+            if (!response.ok) throw new Error("Fehler beim Laden");
+            const tools = await response.json();
+
+            select.innerHTML = '<option disabled selected>Werkzeug wählen...</option>';
+            tools.forEach(tool => {
+                const opt = document.createElement('option');
+                opt.value = tool.id;
+                opt.textContent = tool.name;
+                select.appendChild(opt);
+            });
+
+            if (tools.length === 0) {
+                select.innerHTML = '<option disabled>Keine Werkzeuge zugewiesen</option>';
+            }
+        } catch (e) {
+            select.innerHTML = '<option disabled>Fehler beim Laden</option>';
+            console.error(e);
+        }
+    }
+</script>
+{% endblock %}

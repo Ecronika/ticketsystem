@@ -1,0 +1,171 @@
+/* Weicherer Hintergrund */
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Karten sollen leicht schweben */
+.card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Hover Effekt für Klickbare Karten */
+a .card:hover {
+    /* Note: This selector might be too specific depending on HTML structure, but keeping per requirements */
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Ensure cards inside anchors or wrapper divs also get hover if needed. 
+   The user's HTML has <a> around button, but card is separate. 
+   Wait, the user's index.html has:
+   <div class="col..."> <div class="card ..."> ... <a ...> ... </a> </div> </div>
+   The hover effect requested was 'a .card:hover', which implies the card is inside an anchor.
+   However, in the user's provided HTML for index.html, the card contains the link.
+   I will add a general card hover class or just apply to .card:hover for better UX if they want the whole card actionable.
+   But to strictly follow:
+*/
+
+.card:hover {
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    /* Default subtle hover */
+}
+
+/* Die Liste in der Checkbox etwas auflockern */
+.list-group-item {
+    border-left: none;
+    border-right: none;
+}
+
+/* Buttons auf dem Handy besser treffbar machen */
+.btn-group .btn {
+    padding-left: 1.2rem;
+    padding-right: 1.2rem;
+}
+
+/* Cursor pointer for labels */
+.cursor-pointer {
+    cursor: pointer;
+}
+
+/* --- Phase 4: Mobile Optimization (Thumb Zone) --- */
+@media (max-width: 768px) {
+
+    .btn,
+    .form-control,
+    .form-select {
+        min-height: 44px;
+        /* Apple Human Interface Guidelines for Touch */
+    }
+
+    /* Prevent iOS text zooming on inputs */
+    input,
+    select,
+    textarea {
+        font-size: 16px !important;
+    }
+
+    /* Stack sticky footer actions if needed or ensure enough padding */
+    body {
+        padding-bottom: 100px;
+    }
+}
+
+/* --- Phase 4: High Contrast Mode --- */
+body.high-contrast-mode {
+    background-color: #000000 !important;
+    color: #FFFF00 !important;
+}
+
+body.high-contrast-mode .bg-light,
+body.high-contrast-mode .card,
+body.high-contrast-mode .modal-content,
+body.high-contrast-mode .navbar-light,
+body.high-contrast-mode .bg-white {
+    background-color: #222222 !important;
+    color: #FFFFFF !important;
+    border: 1px solid #FFFF00 !important;
+}
+
+body.high-contrast-mode .card-header,
+body.high-contrast-mode .card-footer,
+body.high-contrast-mode .modal-header,
+body.high-contrast-mode .modal-footer {
+    background-color: #000000 !important;
+    border-bottom: 1px solid #FFFF00 !important;
+    border-top: 1px solid #FFFF00 !important;
+}
+
+body.high-contrast-mode .form-control,
+body.high-contrast-mode .form-select {
+    background-color: #000000 !important;
+    color: #FFFF00 !important;
+    border: 2px solid #FFFFFF !important;
+}
+
+body.high-contrast-mode .text-muted {
+    color: #DDDDDD !important;
+}
+
+body.high-contrast-mode a {
+    color: #FFFF00 !important;
+    text-decoration: underline !important;
+}
+
+body.high-contrast-mode .btn-primary {
+    background-color: #FFFF00 !important;
+    color: #000000 !important;
+    border: 2px solid #FFFFFF !important;
+    font-weight: bold;
+}
+
+body.high-contrast-mode .btn-secondary,
+body.high-contrast-mode .btn-light,
+body.high-contrast-mode .btn-outline-secondary {
+    background-color: #444444 !important;
+    color: #FFFFFF !important;
+    border: 2px solid #FFFFFF !important;
+}
+
+body.high-contrast-mode .table {
+    color: #FFFFFF !important;
+}
+
+body.high-contrast-mode .table thead th {
+    background-color: #444444 !important;
+    color: #FFFF00 !important;
+    border-color: #FFFF00 !important;
+}
+
+body.high-contrast-mode .table td,
+body.high-contrast-mode .table th {
+    border-color: #666666 !important;
+}
+
+/* Fix für Listen-Elemente im High Contrast Mode */
+body.high-contrast-mode .list-group-item {
+    background-color: #000000 !important;
+    /* Schwarz statt Weiß */
+    color: #FFFF00 !important;
+    /* Gelbe Schrift */
+    border: 1px solid #FFFF00 !important;
+    /* Gelber Rahmen zur Trennung */
+}
+
+/* Fix für die kleinen Zeitstempel-Texte */
+body.high-contrast-mode .list-group-item .text-muted {
+    color: #FFFF00 !important;
+    /* Auch Gelb erzwingen */
+    opacity: 0.8;
+    /* Leicht abgedunkelt zur Unterscheidung */
+}
+
+/* Fix für die runden Icon-Hintergründe (Grüner/Gelber Kreis) */
+body.high-contrast-mode .rounded-circle.bg-success-subtle,
+body.high-contrast-mode .rounded-circle.bg-warning-subtle,
+body.high-contrast-mode .rounded-circle.bg-danger-subtle,
+body.high-contrast-mode .rounded-circle.bg-info-subtle {
+    background-color: #222222 !important;
+    /* Dunkler Hintergrund für Icons */
+    border: 1px solid #FFFF00 !important;
+}

@@ -1,0 +1,13 @@
+2026-02-14 11:07:11,247 - app - INFO - Async logging initialized: File=C:\Users\tpaul\.gemini\antigravity\scratch\azubi_werkzeug\azubi_werkzeug_beta\app.log, Console=stdout, Queue=ENABLED
+2026-02-14 11:07:11,289 - app - INFO - Security: Flask-Talisman enabled (CSP + Security Headers)
+2026-02-14 11:07:28,883 - app - INFO - Async logging initialized: File=C:\Users\tpaul\.gemini\antigravity\scratch\azubi_werkzeug\azubi_werkzeug_beta\app.log, Console=stdout, Queue=ENABLED
+2026-02-14 11:07:28,901 - app - INFO - Security: Flask-Talisman enabled (CSP + Security Headers)
+2026-02-14 11:07:28,952 - app - INFO - SQLite pragmas set: busy_timeout=30s, WAL mode, cache=10MB, SD-optimized (mmap/mem-temp)
+2026-02-14 11:08:05,053 - app - INFO - Async logging initialized: File=C:\Users\tpaul\.gemini\antigravity\scratch\azubi_werkzeug\azubi_werkzeug_beta\app.log, Console=stdout, Queue=ENABLED
+2026-02-14 11:08:05,072 - app - INFO - Security: Flask-Talisman enabled (CSP + Security Headers)
+2026-02-14 11:08:30,189 - app - INFO - Async logging initialized: File=C:\Users\tpaul\.gemini\antigravity\scratch\azubi_werkzeug\azubi_werkzeug_beta\app.log, Console=stdout, Queue=ENABLED
+2026-02-14 11:08:30,206 - app - INFO - Security: Flask-Talisman enabled (CSP + Security Headers)
+2026-02-14 11:08:30,252 - app - INFO - SQLite pragmas set: busy_timeout=30s, WAL mode, cache=10MB, SD-optimized (mmap/mem-temp)
+2026-02-14 11:08:30,334 - app - INFO - CheckService: Processed 1 checks in 0.066s
+2026-02-14 11:08:30,349 - app - ERROR - PDF Generation failed: 'NoneType' object has no attribute 'encode'
+2026-02-14 11:08:30,349 - app - INFO - CheckService: Processed 1 checks in 0.004s

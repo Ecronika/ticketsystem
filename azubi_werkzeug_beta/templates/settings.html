@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h2>System-Einstellungen</h2>
+
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h5>Firmenlogo</h5>
+        </div>
+        <div class="card-body">
+            {% if logo_exists %}
+            <p class="text-muted mb-3">Aktuelles Logo (max. 2MB, PNG/JPG):</p>
+            <img src="{{ ingress_path }}{{ url_for('main.serve_logo') }}?v={{ logo_version }}" style="max-height: 150px"
+                class="img-thumbnail mb-3" alt="Aktuelles Logo"
+                onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            {% endif %}
+
+            <form action="{{ ingress_path }}{{ url_for('main.upload_logo') }}" method="POST"
+                enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <div class="mb-3">
+                    <label class="form-label">Logo hochladen (PNG)</label>
+                    <input type="file" name="logo" class="form-control" accept="image/png" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Hochladen</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Migration Mode Card -->
+    <div class="card shadow-sm mt-4">
+        <div class="card-header">
+            <h5>Migration Modus</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">Ermöglicht das Hinzufügen von Werkzeugen ohne Validierung (für Datenimport).</p>
+            <form action="{{ ingress_path }}{{ url_for('main.toggle_migration_mode') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <button type="submit"
+                    class="btn {{ 'btn-warning' if session.get('migration_mode') else 'btn-secondary' }}">
+                    {% if session.get('migration_mode') %}
+                    <i class="bi bi-toggle-on"></i> Migration Modus DEAKTIVIEREN
+                    {% else %}
+                    <i class="bi bi-toggle-off"></i> Migration Modus AKTIVIEREN
+                    {% endif %}
+                </button>
+                {% if session.get('migration_mode') %}
+                <span class="badge bg-warning ms-2">AKTIV</span>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

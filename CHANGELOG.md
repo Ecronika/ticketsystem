@@ -3,6 +3,16 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [2.6.0-beta1] - 2026-02-14
+
+### 🏗️ Refactoring (Stable Beta)
+- **CheckType Enum:** Replaced magic strings with a robust `CheckType` Enum across the entire application for better type safety and stability.
+- **Service Layer:** Extracted complex check submission logic from `routes.py` into a dedicated `CheckService`, improving maintainability and testability.
+- **Testing:** Added initial unit tests for core business logic (`CheckService`).
+
+### ✨ New Features
+- **API Stats:** Added `/api/stats` endpoint to provide data for future dashboard widgets.
+
 ## [2.5.5] - 2026-02-14
 
 ### 💄 UX Improvements
