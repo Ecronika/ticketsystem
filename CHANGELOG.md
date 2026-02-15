@@ -3,6 +3,11 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [2.6.2-beta3] - 2026-02-15
+
+### 🐛 Bug Fixes
+- **Hotfix:** Resolved `IndentationError` in `pdf_utils.py` caused by a merge error in beta2.
+
 ## [2.6.2-beta2] - 2026-02-15
 
 ### 💅 UI/UX Improvements

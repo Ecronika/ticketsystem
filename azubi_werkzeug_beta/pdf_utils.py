@@ -114,29 +114,6 @@ def generate_handover_pdf(azubi_name, examiner_name, tools, check_type, signatur
     # Inhalt
     pdf.set_font('Arial', '', 9)
     
-        if tool.get('incident_reason'):
-            status_text += f"\n({tool.get('incident_reason')})"
-            
-        pdf.cell(w_name, h_row, name, 1)
-        pdf.cell(w_cat, h_row, cat_text, 1)
-        # Use MultiCell for status to handle newlines
-        x = pdf.get_x()
-        y = pdf.get_y()
-        pdf.multi_cell(w_status, h_row if not tool.get('incident_reason') else h_row/2, status_text, 1, 'L')
-        # Reset position for next row (simple line height adjustment)
-        pdf.set_xy(x + w_status, y) # This logic is flawed for MultiCell, reverting to simple append
-        
-        # Better approach: Append to name or just simple append to status
-        # Since MultiCell breaks the flow in a simple table loop, we'll just append it to status text
-        # and hope it fits or use a simple hack.
-        # Actually, let's keep it simple: Append to Status Text and let it be one line if possible, or accept it might be cut off.
-        # But wait, the user said it is EXISTING critical info.
-        # Let's try to append it to the name column if it's missing/broken? No, status column is better.
-        
-        # RETRYING LOGIC:
-        # We will just append it to the status string.
-        # "Defekt (Verschleiß)"
-        
     for tool in tools:
         # Status Übersetzung
         status_map = {
