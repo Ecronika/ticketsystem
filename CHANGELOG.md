@@ -3,6 +3,11 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [2.6.2-beta6] - 2026-02-16
+
+### 💅 UI/UX Improvements
+- **PDF Styling:** Fixed visual regression where tool exchanges (e.g., "Rückgabe (Defekt)") were not highlighted in red. The system now checks for keywords like "Defekt" or "Verloren" instead of exact status matches.
+
 ## [2.6.2-beta5] - 2026-02-16
 
 ### 🛡️ Stability Improvements
