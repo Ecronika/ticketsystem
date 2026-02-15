@@ -334,6 +334,10 @@ def submit_check():
             flash(f'{check_type_str.capitalize()} erfolgreich gespeichert! PDF erstellt.', 'success')
         else:
             flash(f'{check_type_str.capitalize()} gespeichert. ACHTUNG: PDF konnte nicht erstellt werden. Bitte Administrator kontaktieren.', 'warning')
+            
+        # Invalidate Cache for this Azubi so the new state (issued/returned) is reflected immediately
+        _assigned_tools_cache.pop(f"assigned_{azubi_id}", None)
+            
         return redirect(f"{ingress}{url_for('main.index')}")
         
     except Exception as e:

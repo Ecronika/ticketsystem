@@ -3,6 +3,11 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [2.6.2-beta4] - 2026-02-15
+
+### 🐛 Bug Fixes
+- **Ghost Inventory:** Fixed an issue where issued tools wouldn't appear in the inventory list immediately. Added cache invalidation after every check submission to ensure real-time updates.
+
 ## [2.6.2-beta3] - 2026-02-15
 
 ### 🐛 Bug Fixes
