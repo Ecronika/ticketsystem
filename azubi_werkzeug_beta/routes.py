@@ -423,7 +423,7 @@ def exchange_tool():
         
         db.session.add(ret_entry)
         db.session.add(issue_entry)
-        db.session.commit()
+        # REMOVED intermediate commit here to ensure atomicity
         
         # 3. Generate PDF Report (Combined)
         # Fetch tool details for the PDF
@@ -451,6 +451,8 @@ def exchange_tool():
         # 4. Update Report Paths
         ret_entry.report_path = output_path
         issue_entry.report_path = output_path
+        
+        # 5. Final Commit (Atomicity: DB + PDF specific fields)
         db.session.commit()
         
         # 5. Invalidations

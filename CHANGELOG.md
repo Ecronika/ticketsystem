@@ -3,6 +3,11 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [2.6.2-beta5] - 2026-02-16
+
+### 🛡️ Stability Improvements
+- **Transaction Safety:** Refactored `exchange_tool` to ensure database changes (Issue/Return) are only committed AFTER successful PDF generation. This prevents broken/duplicate records if PDF generation fails.
+
 ## [2.6.2-beta4] - 2026-02-15
 
 ### 🐛 Bug Fixes
