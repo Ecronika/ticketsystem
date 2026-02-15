@@ -198,3 +198,106 @@ class CheckService:
             "count": len(reports_to_create),
             "pdf_path": pdf_path
         }
+
+class BackupService:
+    @staticmethod
+    def get_backup_dir():
+        """Returns the path to the backup directory."""
+        data_dir = current_app.config.get('DATA_DIR', os.path.dirname(__file__))
+        backup_dir = os.path.join(data_dir, 'backups')
+        if not os.path.exists(backup_dir):
+            os.makedirs(backup_dir)
+        return backup_dir
+
+    @staticmethod
+    def create_backup():
+        """Creates a zip backup of critical data."""
+        data_dir = current_app.config.get('DATA_DIR', os.path.dirname(__file__))
+        backup_dir = BackupService.get_backup_dir()
+        
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_filename = f"backup_{timestamp}.zip"
+        backup_path = os.path.join(backup_dir, backup_filename)
+        
+        current_app.logger.info(f"Starting backup: {backup_path}")
+        
+        items_to_backup = [
+            'werkzeug.db',
+            'config.yaml',
+            'signatures',
+            'reports'
+        ]
+        
+        try:
+            with zipfile.ZipFile(backup_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for item in items_to_backup:
+                    # Item path relative to DATA_DIR
+                    full_path = os.path.join(data_dir, item)
+                    
+                    # config.yaml exception: it might be in root, not data_dir in some setups
+                    if item == 'config.yaml' and not os.path.exists(full_path):
+                        # Try root dir (cwd)
+                        root_path = os.path.join(os.getcwd(), 'config.yaml')
+                        if os.path.exists(root_path):
+                            full_path = root_path
+                    
+                    if os.path.exists(full_path):
+                        if os.path.isdir(full_path):
+                            for root, dirs, files in os.walk(full_path):
+                                for file in files:
+                                    file_path = os.path.join(root, file)
+                                    # Archive name should be relative to data_dir usually
+                                    # ex: signatures/file.png
+                                    arcname = os.path.relpath(file_path, data_dir)
+                                    zipf.write(file_path, arcname)
+                        else:
+                            arcname = os.path.basename(full_path)
+                            zipf.write(full_path, arcname)
+                    else:
+                        current_app.logger.warning(f"Backup: Item not found {full_path}")
+            
+            # Rotation
+            BackupService.rotate_backups()
+            return backup_filename
+            
+        except Exception as e:
+            current_app.logger.error(f"Backup failed: {e}", exc_info=True)
+            if os.path.exists(backup_path):
+                os.remove(backup_path)
+            raise e
+
+    @staticmethod
+    def list_backups():
+        """Returns list of available backups."""
+        backup_dir = BackupService.get_backup_dir()
+        backups = []
+        if os.path.exists(backup_dir):
+            for f in os.listdir(backup_dir):
+                if f.endswith('.zip') and f.startswith('backup_'):
+                    path = os.path.join(backup_dir, f)
+                    stat = os.stat(path)
+                    backups.append({
+                        'filename': f,
+                        'size_mb': round(stat.st_size / (1024 * 1024), 2),
+                        'date': datetime.datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+                    })
+        # Sort by filename (timestamp) desc
+        return sorted(backups, key=lambda x: x['filename'], reverse=True)
+
+    @staticmethod
+    def rotate_backups(max_backups=10):
+        """Keeps only latest N backups."""
+        backup_dir = BackupService.get_backup_dir()
+        backups = sorted([
+            os.path.join(backup_dir, f) 
+            for f in os.listdir(backup_dir) 
+            if f.startswith('backup_') and f.endswith('.zip')
+        ])
+        
+        if len(backups) > max_backups:
+            for f in backups[:-max_backups]:
+                try:
+                    os.remove(f)
+                    current_app.logger.info(f"Rotated backup: {f}")
+                except Exception as e:
+                    current_app.logger.error(f"Error rotating backup {f}: {e}")

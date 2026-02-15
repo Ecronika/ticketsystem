@@ -3,6 +3,13 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [2.6.1-beta1] - 2026-02-15
+
+### 📦 Backup & Security
+- **Manual Backup:** Added "Backup Manager" to settings. Uses `BackupService` to verify database, config, reports, and signatures are safe.
+- **Download:** Admins can download backups directly from the UI.
+- **Refactor:** Migrated `backup.py` logic into the application for better integration.
+
 ## [2.6.0] - 2026-02-15
 
 ### 🚀 Stable Release

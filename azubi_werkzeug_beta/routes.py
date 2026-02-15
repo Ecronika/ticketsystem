@@ -10,7 +10,7 @@ import os
 import uuid
 import base64
 from pdf_utils import generate_handover_pdf, generate_qr_codes_pdf, generate_end_of_training_report
-from services import CheckService
+from services import CheckService, BackupService
 
 main_bp = Blueprint('main', __name__)
 
@@ -702,8 +702,38 @@ def settings():
     data_dir = get_data_dir()
     logo_path = os.path.join(data_dir, 'static', 'img', 'logo.png')
     logo_exists = os.path.exists(logo_path)
+    logo_version = int(os.path.getmtime(logo_path)) if logo_exists else 0
+    ingress = request.headers.get('X-Ingress-Path', '')
     
-    return render_template('settings.html', logo_exists=logo_exists)
+    # Fetch backups
+    backups = BackupService.list_backups()
+    
+    return render_template('settings.html', 
+                         logo_exists=logo_exists, 
+                         logo_version=logo_version,
+                         ingress_path=ingress,
+                         backups=backups)
+
+@main_bp.route('/settings/backup/create', methods=['POST'])
+def create_backup():
+    try:
+        filename = BackupService.create_backup()
+        flash(f'Backup erfolgreich erstellt: {filename}', 'success')
+    except Exception as e:
+        flash(f'Backup fehlgeschlagen: {e}', 'error')
+    
+    ingress = request.headers.get('X-Ingress-Path', '')
+    return redirect(f"{ingress}{url_for('main.settings')}")
+
+@main_bp.route('/settings/backup/download/<filename>')
+def download_backup(filename):
+    try:
+        backup_dir = BackupService.get_backup_dir()
+        return send_from_directory(backup_dir, filename, as_attachment=True)
+    except Exception as e:
+        flash(f'Download fehlgeschlagen: {e}', 'error')
+        ingress = request.headers.get('X-Ingress-Path', '')
+        return redirect(f"{ingress}{url_for('main.settings')}")
 
 @main_bp.route('/toggle_migration_mode', methods=['POST'])
 def toggle_migration_mode():

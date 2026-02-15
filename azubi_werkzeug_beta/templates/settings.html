@@ -51,5 +51,52 @@
             </form>
         </div>
     </div>
+    <!-- Backup Manager Card -->
+    <div class="card shadow-sm mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5>Backup & Wiederherstellung</h5>
+            <form action="{{ ingress_path }}{{ url_for('main.create_backup') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <button type="submit" class="btn btn-sm btn-success">
+                    <i class="bi bi-cloud-download"></i> Jetzt sichern
+                </button>
+            </form>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">Sichert Datenbank, Konfiguration, Unterschriften und Berichte.</p>
+
+            {% if backups %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>Dateiname</th>
+                            <th>Datum</th>
+                            <th>Größe</th>
+                            <th>Aktion</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for backup in backups %}
+                        <tr>
+                            <td>{{ backup.filename }}</td>
+                            <td>{{ backup.date }}</td>
+                            <td>{{ backup.size_mb }} MB</td>
+                            <td>
+                                <a href="{{ ingress_path }}{{ url_for('main.download_backup', filename=backup.filename) }}"
+                                    class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">Keine Backups vorhanden.</div>
+            {% endif %}
+        </div>
+    </div>
 </div>
 {% endblock %}
