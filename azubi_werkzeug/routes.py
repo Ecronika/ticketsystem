@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, select  # For optimized queries
 from sqlalchemy.exc import SQLAlchemyError  # Issue #4: Error handling
-from extensions import db, limiter
+from extensions import db, limiter, csrf
 from models import Azubi, Werkzeug, Examiner, Check, CheckType
 from forms import AzubiForm, ExaminerForm, WerkzeugForm
 from datetime import datetime, timedelta
@@ -10,6 +10,7 @@ import os
 import uuid
 import base64
 from pdf_utils import generate_handover_pdf, generate_qr_codes_pdf, generate_end_of_training_report
+from services import CheckService
 
 main_bp = Blueprint('main', __name__)
 
@@ -88,9 +89,9 @@ def get_assigned_tools(azubi_id):
     assigned = set()
     
     for c in checks:
-        if c.check_type == CheckType.ISSUE:
+        if c.check_type == CheckType.ISSUE.value:
             assigned.add(c.werkzeug_id)
-        elif c.check_type == CheckType.RETURN:
+        elif c.check_type == CheckType.RETURN.value:
             if c.werkzeug_id in assigned:
                 assigned.remove(c.werkzeug_id)
                 
@@ -281,8 +282,7 @@ def submit_check():
     start_time = time.time()
     
     azubi_id = request.form.get('azubi_id')
-    bemerkung_global = request.form.get('bemerkung')
-    check_type = request.form.get('check_type', 'check')
+    check_type_str = request.form.get('check_type', CheckType.CHECK.value)
     examiner = request.form.get('examiner')
     ingress = request.headers.get('X-Ingress-Path', '')
     
@@ -291,176 +291,50 @@ def submit_check():
         return redirect(f"{ingress}{url_for('main.index')}")
 
     try:
-        sig_azubi_data = request.form.get('signature_azubi_data')
-        sig_examiner_data = request.form.get('signature_examiner_data')
-        
-        data_dir = get_data_dir()
-        data_dir = get_data_dir()
-        session_id = generate_unique_session_id()
-        sig_azubi_path = None
-        sig_azubi_path = None
-        sig_examiner_path = None
-        
-        # --- Migration Mode Logic ---
+        # --- Migration Mode Logic (Date Parsing) ---
         is_migration = session.get('migration_mode', False)
         check_date = datetime.now()
-        skip_sig = False
-
+        
         if is_migration:
             c_date = request.form.get('custom_date')
             c_time = request.form.get('custom_time')
-            skip_sig = request.form.get('skip_signature') == 'yes'
-            
-            if c_date and c_time:
+            if c_date:
                 try:
-                    check_date = datetime.strptime(f"{c_date} {c_time}", "%Y-%m-%d %H:%M")
+                    time_str = c_time if c_time else "12:00"
+                    check_date = datetime.strptime(f"{c_date} {time_str}", "%Y-%m-%d %H:%M")
                 except ValueError:
-                    pass # Fallback to now
-            elif c_date:
-                 try:
-                    check_date = datetime.strptime(f"{c_date} 12:00", "%Y-%m-%d %H:%M")
-                 except ValueError:
                     pass
 
-        # Save Signatures (if not skipped and data present)
-        if not skip_sig:
-            if sig_azubi_data and ',' in sig_azubi_data:
-                header, encoded = sig_azubi_data.split(",", 1)
-                data = base64.b64decode(encoded)
-                path = os.path.join(data_dir, 'signatures', f"{session_id}_azubi.png")
-                with open(path, "wb") as f:
-                    f.write(data)
-                sig_azubi_path = path
-
-            if sig_examiner_data and ',' in sig_examiner_data:
-                header, encoded = sig_examiner_data.split(",", 1)
-                data = base64.b64decode(encoded)
-                path = os.path.join(data_dir, 'signatures', f"{session_id}_examiner.png")
-                with open(path, "wb") as f:
-                    f.write(data)
-                sig_examiner_path = path
-        
-        # OPTIMIZED: Parse form keys to get only selected tool IDs
+        # Parse Tool IDs
         tool_ids = []
         for key in request.form.keys():
             if key.startswith('tool_') and request.form.get(key):
                 try:
-                    tool_id = int(key.split('_')[1])
-                    tool_ids.append(tool_id)
+                    tool_ids.append(int(key.split('_')[1]))
                 except (IndexError, ValueError):
-                    current_app.logger.warning(f"Invalid tool form key: {key}")
                     continue
         
         if not tool_ids:
             flash('Keine Werkzeuge ausgewählt', 'warning')
             return redirect(f"{ingress}{url_for('main.index')}")
-        
-        current_app.logger.info(f"Processing check for {len(tool_ids)} selected tools (azubi_id={azubi_id})")
-        
-        # OPTIMIZED: Query only selected werkzeuge (not all 130!)
-        query_start = time.time()
-        werkzeuge = Werkzeug.query.filter(Werkzeug.id.in_(tool_ids)).all()
-        query_duration = time.time() - query_start
-        current_app.logger.info(f"Werkzeug query took {query_duration:.3f}s for {len(werkzeuge)} tools")
-        
-        # Create dict for fast lookup
-        werkzeug_dict = {w.id: w for w in werkzeuge}
-        
-        selected_tools = []
-        reports_to_create = []
 
-        # Process only selected tools
-        for tool_id in tool_ids:
-            werkzeug = werkzeug_dict.get(tool_id)
-            if not werkzeug:
-                current_app.logger.warning(f"Tool ID {tool_id} not found in database")
-                continue
-                
-            status = request.form.get(f'tool_{tool_id}')
-            tech_val = request.form.get(f'tech_param_{tool_id}')
-            incident_reason = request.form.get(f'incident_reason_{tool_id}') 
-            
-            full_bemerkung = f"Status: {status}"
-            if bemerkung_global:
-                full_bemerkung += f" | {bemerkung_global}"
-            
-            new_check = Check(
-                session_id=session_id,
-                azubi_id=azubi_id, 
-                werkzeug_id=werkzeug.id, 
-                bemerkung=full_bemerkung,
-                tech_param_value=tech_val,
-                incident_reason=incident_reason,
-                datum=check_date,
-                check_type=check_type,
-                examiner=examiner,
-                signature_azubi=sig_azubi_path,
-                signature_examiner=sig_examiner_path,
-                report_path=None  # Will be updated after PDF generation
-            )
-            db.session.add(new_check)
-            reports_to_create.append(new_check)
-            
-            selected_tools.append({
-                'id': werkzeug.id,
-                'name': werkzeug.name,
-                'category': werkzeug.material_category,
-                'status': status
-            })
-
-        # CRITICAL FIX: Commit IMMEDIATELY to release SQLite WRITE LOCK!
-        # This prevents blocking other users during PDF generation (1-2 seconds)
-        commit_start = time.time()
-        db.session.commit()
-        commit_duration = time.time() - commit_start
-        current_app.logger.info(f"Database commit took {commit_duration:.3f}s for {len(reports_to_create)} records")
+        # Call Service
+        result = CheckService.process_check_submission(
+            azubi_id=int(azubi_id),
+            examiner_name=examiner,
+            tool_ids=tool_ids,
+            form_data=request.form,
+            check_date=check_date,
+            check_type=CheckType(check_type_str)
+        )
         
-        # NOW generate PDF OUTSIDE of transaction (no lock held!)
-        pdf_path = None
-        if selected_tools:
-            azubi = Azubi.query.get(azubi_id)
-            pdf_filename = f"Protokoll_{check_type}_{azubi.name.replace(' ', '_')}_{check_date.strftime('%Y%m%d_%H%M')}.pdf"
-            pdf_path = os.path.join(data_dir, 'reports', pdf_filename)
-            
-            # Generate PDF (1-2 seconds, but NO DATABASE LOCK!)
-            pdf_start = time.time()
-            generate_handover_pdf(
-                azubi_name=azubi.name, 
-                examiner_name=examiner, 
-                tools=selected_tools, 
-                check_type=check_type, 
-                signature_paths={'azubi': sig_azubi_path, 'examiner': sig_examiner_path},
-                output_path=pdf_path
-            )
-            pdf_duration = time.time() - pdf_start
-            current_app.logger.info(f"PDF generation took {pdf_duration:.3f}s (outside transaction)")
-            
-            # Update PDF paths in SEPARATE transaction (fast update, minimal lock time)
-            update_start = time.time()
-            check_ids = [record.id for record in reports_to_create]
-            Check.query.filter(Check.id.in_(check_ids)).update(
-                {'report_path': pdf_path},
-                synchronize_session=False
-            )
-            db.session.commit()
-            update_duration = time.time() - update_start
-            current_app.logger.info(f"PDF path update took {update_duration:.3f}s (separate transaction)")
-        
-        total_duration = time.time() - start_time
-        current_app.logger.info(f"Check submission completed in {total_duration:.3f}s (query:{query_duration:.3f}s, pdf:{pdf_duration if selected_tools else 0:.3f}s, commit:{commit_duration:.3f}s)")
-        
-        flash(f'{check_type.capitalize()} erfolgreich gespeichert! PDF erstellt.', 'success')
+        if result.get('pdf_path'):
+            flash(f'{check_type_str.capitalize()} erfolgreich gespeichert! PDF erstellt.', 'success')
+        else:
+            flash(f'{check_type_str.capitalize()} gespeichert. ACHTUNG: PDF konnte nicht erstellt werden. Bitte Administrator kontaktieren.', 'warning')
         return redirect(f"{ingress}{url_for('main.index')}")
         
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        db.session.remove()  # Explicit cleanup to prevent connection leaks
-        current_app.logger.error(f"Database error in submit_check: {e}", exc_info=True)
-        flash('Datenbankfehler beim Speichern der Prüfung. Bitte erneut versuchen.', 'danger')
-        return redirect(f"{ingress}{url_for('main.index')}")
     except Exception as e:
-        db.session.rollback()
-        db.session.remove()  # Explicit cleanup to prevent connection leaks
         current_app.logger.error(f"Error in submit_check: {e}", exc_info=True)
         flash(f'Fehler beim Speichern: {str(e)}', 'danger')
         return redirect(f"{ingress}{url_for('main.index')}")
@@ -490,18 +364,27 @@ def exchange_tool():
         session_id = generate_unique_session_id()
         check_date = datetime.now()
         
-        # 1. Save Signature (Essential for liability!)
+        # 1. Validation (Security Fix)
+        azubi = Azubi.query.get(azubi_id)
+        if not azubi:
+            flash(f'Fehler: Azubi mit ID {azubi_id} nicht gefunden.', 'error')
+            return redirect(f"{ingress}{url_for('main.index')}")
+
+        tool = Werkzeug.query.get(tool_id)
+        if not tool:
+            flash(f'Fehler: Werkzeug mit ID {tool_id} nicht gefunden.', 'error')
+            return redirect(f"{ingress}{url_for('main.index')}")
+
+        # 2. Save Signature (Essential for liability!)
         sig_path = None
         if signature_data and ',' in signature_data:
             header, encoded = signature_data.split(",", 1)
             data = base64.b64decode(encoded)
+            # Use data_dir from scope
+            os.makedirs(os.path.join(data_dir, 'signatures'), exist_ok=True)
             sig_path = os.path.join(data_dir, 'signatures', f"{session_id}_azubi.png")
             with open(sig_path, "wb") as f:
                 f.write(data)
-            
-            # Clear Jinja2 cache to ensure logo update is visible
-            current_app.jinja_env.cache = {}
-            flash('Logo erfolgreich hochgeladen', 'success')
                 
         # 2. Database Records
         # Return Entry (Old Tool)
@@ -588,6 +471,25 @@ def api_get_assigned_tools(azubi_id):
     tools = Werkzeug.query.filter(Werkzeug.id.in_(tool_ids)).order_by(Werkzeug.name).all()
     
     return jsonify([{'id': t.id, 'name': t.name} for t in tools])
+
+@main_bp.route('/api/stats')
+@limiter.limit("30 per minute")
+@csrf.exempt
+def api_stats():
+    """Returns basic statistics for dashboard"""
+    total_tools = Werkzeug.query.count()
+    total_azubis = Azubi.query.filter_by(is_archived=False).count()
+    
+    # New metrics for v2.6.0-beta2
+    start_of_day = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    checks_today = Check.query.filter(Check.datum >= start_of_day).count()
+    
+    return jsonify({
+        'total_tools': total_tools,
+        'total_azubis': total_azubis,
+        'checks_today': checks_today,
+        'generated_at': datetime.now().isoformat()
+    })
 
 @main_bp.route('/history')
 def history():

@@ -1,7 +1,9 @@
 from extensions import db
 from datetime import datetime
 
-class CheckType:
+from enum import Enum
+
+class CheckType(str, Enum):
     CHECK = 'check'
     ISSUE = 'issue'
     RETURN = 'return'

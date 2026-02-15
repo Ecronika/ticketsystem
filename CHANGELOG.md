@@ -3,6 +3,14 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [2.6.0] - 2026-02-15
+
+### 🚀 Stable Release
+- **Feature Complete:** Includes all improvements from the beta phase (v2.6.0-beta1 to -rc2).
+- **Checks:** Implemented robust PDF generation and data validation.
+- **Security:** Added CSRF protection and rate limiting.
+- **Tools:** Added one-click exchange feature.
+
 ## [2.6.0-rc2] - 2026-02-15
 
 ### 🛡️ Final Polish
