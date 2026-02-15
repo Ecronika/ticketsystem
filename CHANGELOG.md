@@ -3,6 +3,13 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [2.6.0-rc1] - 2026-02-15
+
+### 🛡️ Stability & Security
+- **Exchange Tool Fixes:** fixed logic error (logo upload message) and added missing validation for `tool_id` in `exchange_tool` (#119, #120).
+- **PDF Reliability:** Hardened `pdf_utils.py` to safely handle `None` values from the database, preventing crashes during report generation (#121).
+- **Improved Feedback:** `submit_check` now correctly warns users if PDF generation fails even if the database save was successful (#122).
+
 ## [2.6.0-beta3] - 2026-02-14
 
 ### 🐛 Bug Fixes

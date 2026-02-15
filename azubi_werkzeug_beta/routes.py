@@ -319,7 +319,7 @@ def submit_check():
             return redirect(f"{ingress}{url_for('main.index')}")
 
         # Call Service
-        CheckService.process_check_submission(
+        result = CheckService.process_check_submission(
             azubi_id=int(azubi_id),
             examiner_name=examiner,
             tool_ids=tool_ids,
@@ -328,7 +328,10 @@ def submit_check():
             check_type=CheckType(check_type_str)
         )
         
-        flash(f'{check_type_str.capitalize()} erfolgreich gespeichert! PDF erstellt.', 'success')
+        if result.get('pdf_path'):
+            flash(f'{check_type_str.capitalize()} erfolgreich gespeichert! PDF erstellt.', 'success')
+        else:
+            flash(f'{check_type_str.capitalize()} gespeichert. ACHTUNG: PDF konnte nicht erstellt werden (siehe Logs).', 'warning')
         return redirect(f"{ingress}{url_for('main.index')}")
         
     except Exception as e:
@@ -361,18 +364,22 @@ def exchange_tool():
         session_id = generate_unique_session_id()
         check_date = datetime.now()
         
-        # 1. Save Signature (Essential for liability!)
+        # 1. Validation (Security Fix)
+        tool = Werkzeug.query.get(tool_id)
+        if not tool:
+            flash(f'Fehler: Werkzeug mit ID {tool_id} nicht gefunden.', 'error')
+            return redirect(f"{ingress}{url_for('main.index')}")
+
+        # 2. Save Signature (Essential for liability!)
         sig_path = None
         if signature_data and ',' in signature_data:
             header, encoded = signature_data.split(",", 1)
             data = base64.b64decode(encoded)
+            # Use data_dir from scope
+            os.makedirs(os.path.join(data_dir, 'signatures'), exist_ok=True)
             sig_path = os.path.join(data_dir, 'signatures', f"{session_id}_azubi.png")
             with open(sig_path, "wb") as f:
                 f.write(data)
-            
-            # Clear Jinja2 cache to ensure logo update is visible
-            current_app.jinja_env.cache = {}
-            flash('Logo erfolgreich hochgeladen', 'success')
                 
         # 2. Database Records
         # Return Entry (Old Tool)

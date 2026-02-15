@@ -122,7 +122,7 @@ def generate_handover_pdf(azubi_name, examiner_name, tools, check_type, signatur
             'broken': 'Defekt',
             'not_issued': 'Nicht ausgegeben'
         }
-        status_text = status_map.get(tool['status'], tool['status'])
+        status_text = status_map.get(tool.get('status'), tool.get('status')) or ""
         
         # Kategorie Übersetzung
         cat_map = {
@@ -131,10 +131,10 @@ def generate_handover_pdf(azubi_name, examiner_name, tools, check_type, signatur
             'vollisoliert': 'Vollisoliert (1000V)',
             'isolierend': 'Vollkunststoff'
         }
-        cat_text = cat_map.get(tool['category'], tool['category'])
+        cat_text = cat_map.get(tool.get('category'), tool.get('category')) or ""
 
         # Name kürzen falls zu lang für eine Zeile
-        name = tool['name'][:50] 
+        name = (tool.get('name') or "")[:50] 
         
         # Farbliche Hervorhebung bei Problemen
         if tool['status'] in ['missing', 'broken']:

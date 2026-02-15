@@ -75,3 +75,10 @@
 2026-02-14 11:22:17,633 - app - INFO - CheckService: Processed 1 checks in 0.004s
 2026-02-14 11:22:17,650 - app - ERROR - CheckService: Azubi 99999 not found
 2026-02-14 11:22:17,658 - app - INFO - CheckService: Processed 0 checks in 0.000s
+2026-02-15 01:31:15,938 - app - INFO - Async logging initialized: File=C:\Users\tpaul\.gemini\antigravity\scratch\azubi_werkzeug\azubi_werkzeug_beta\app.log, Console=stdout, Queue=ENABLED
+2026-02-15 01:31:15,977 - app - INFO - Security: Flask-Talisman enabled (CSP + Security Headers)
+2026-02-15 01:31:16,033 - app - INFO - SQLite pragmas set: busy_timeout=30s, WAL mode, cache=10MB, SD-optimized (mmap/mem-temp)
+2026-02-15 01:31:16,130 - app - INFO - CheckService: Processed 1 checks in 0.079s
+2026-02-15 01:31:16,150 - app - INFO - CheckService: Processed 1 checks in 0.008s
+2026-02-15 01:31:16,168 - app - ERROR - CheckService: Azubi 99999 not found
+2026-02-15 01:31:16,177 - app - INFO - CheckService: Processed 0 checks in 0.001s
