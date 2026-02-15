@@ -145,7 +145,8 @@ class CheckService:
                 'id': werkzeug.id,
                 'name': werkzeug.name,
                 'category': werkzeug.material_category,
-                'status': status
+                'status': status,
+                'incident_reason': incident_reason
             })
             
         # 5. Commit Check Data

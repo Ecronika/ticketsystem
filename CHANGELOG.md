@@ -3,6 +3,11 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [2.6.2-beta2] - 2026-02-15
+
+### 💅 UI/UX Improvements
+- **PDF Report:** Added `incident_reason` (e.g., "Defekt (Verschleiß)") to the status column in generated PDF reports.
+
 ## [2.6.2-beta1] - 2026-02-15
 
 ### 🐛 Bug Fixes
