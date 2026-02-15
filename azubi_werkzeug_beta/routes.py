@@ -366,101 +366,23 @@ def exchange_tool():
         return redirect(f"{ingress}{url_for('main.index')}")
         
     try:
-        data_dir = get_data_dir()
-        session_id = generate_unique_session_id()
-        check_date = datetime.now()
-        
-        # 1. Validation (Security Fix)
-        azubi = Azubi.query.get(azubi_id)
-        if not azubi:
-            flash(f'Fehler: Azubi mit ID {azubi_id} nicht gefunden.', 'error')
-            return redirect(f"{ingress}{url_for('main.index')}")
+        result = CheckService.process_tool_exchange(
+            azubi_id=int(azubi_id),
+            tool_id=int(tool_id),
+            reason=reason,
+            is_payable=is_payable,
+            signature_data=signature_data
+        )
 
-        tool = Werkzeug.query.get(tool_id)
-        if not tool:
-            flash(f'Fehler: Werkzeug mit ID {tool_id} nicht gefunden.', 'error')
-            return redirect(f"{ingress}{url_for('main.index')}")
-
-        # 2. Save Signature (Essential for liability!)
-        sig_path = None
-        if signature_data and ',' in signature_data:
-            header, encoded = signature_data.split(",", 1)
-            data = base64.b64decode(encoded)
-            # Use data_dir from scope
-            os.makedirs(os.path.join(data_dir, 'signatures'), exist_ok=True)
-            sig_path = os.path.join(data_dir, 'signatures', f"{session_id}_azubi.png")
-            with open(sig_path, "wb") as f:
-                f.write(data)
-                
-        # 2. Database Records
-        # Return Entry (Old Tool)
-        ret_entry = Check(
-            session_id=session_id,
-            azubi_id=azubi_id,
-            werkzeug_id=tool_id,
-            check_type=CheckType.RETURN,
-            bemerkung=f'Austausch (Altteil): {reason}' + (' (Kostenpflichtig)' if is_payable else ''),
-            incident_reason=reason,
-            datum=check_date,
-            tech_param_value='Austausch',
-            signature_azubi=None, # Returned item doesn't need receipt signature
-            report_path=None
-        )
-        
-        # Issue Entry (New Tool)
-        issue_entry = Check(
-            session_id=session_id,
-            azubi_id=azubi_id,
-            werkzeug_id=tool_id,
-            check_type=CheckType.ISSUE,
-            bemerkung='Austausch (Neuteil)' + (' (Kostenpflichtig)' if is_payable else ''),
-            incident_reason='Ersatzbeschaffung',
-            datum=check_date,
-            tech_param_value='Neu',
-            signature_azubi=sig_path, # Receipt signature on NEW item
-            report_path=None
-        )
-        
-        db.session.add(ret_entry)
-        db.session.add(issue_entry)
-        # REMOVED intermediate commit here to ensure atomicity
-        
-        # 3. Generate PDF Report (Combined)
-        # Fetch tool details for the PDF
-        tool = Werkzeug.query.get(tool_id)
-        azubi = Azubi.query.get(azubi_id)
-        
-        # For exchange, we show both actions
-        tools_list = [
-            {'name': tool.name, 'category': tool.material_category, 'status': f'Rückgabe ({reason})'},
-            {'name': tool.name, 'category': tool.material_category, 'status': 'Ausgabe (Neu)'}
-        ]
-        
-        pdf_filename = f"austausch_{session_id}.pdf"
-        output_path = os.path.join(data_dir, 'reports', pdf_filename)
-        
-        generate_handover_pdf(
-            azubi_name=azubi.name, 
-            examiner_name="System", 
-            tools=tools_list, 
-            check_type=CheckType.EXCHANGE, # Special type for title logic
-            signature_paths={'azubi': sig_path},
-            output_path=output_path
-        )
-        
-        # 4. Update Report Paths
-        ret_entry.report_path = output_path
-        issue_entry.report_path = output_path
-        
-        # 5. Final Commit (Atomicity: DB + PDF specific fields)
-        db.session.commit()
-        
-        # 5. Invalidations
-        # Clear cache for this azubi
+        # Invalidate Cache
         _assigned_tools_cache.pop(f"assigned_{azubi_id}", None)
 
-        current_app.logger.info(f"Tool Exchange completed for {azubi.name} (Tool {tool_id}) in {time.time()-start_time:.3f}s")
         flash('Werkzeug erfolgreich ausgetauscht.', 'success')
+        return redirect(f"{ingress}{url_for('main.index')}")
+        
+    except Exception as e:
+        current_app.logger.error(f"Exchange failed: {e}", exc_info=True)
+        flash(f'Fehler beim Austausch: {str(e)}', 'error')
         return redirect(f"{ingress}{url_for('main.index')}")
         
     except Exception as e:

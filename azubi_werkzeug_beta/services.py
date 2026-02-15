@@ -205,6 +205,110 @@ class CheckService:
             "pdf_path": pdf_path
         }
 
+    @staticmethod
+    def process_tool_exchange(
+        azubi_id: int,
+        tool_id: int,
+        reason: str,
+        is_payable: bool,
+        signature_data: str
+    ) -> dict:
+        """
+        Handles One-Click Tool Exchange (Return Old -> Issue New).
+        Atomically creates two records and one PDF.
+        """
+        start_time = time.time()
+        
+        # 1. Validation
+        azubi = Azubi.query.get(azubi_id)
+        if not azubi:
+            raise ValueError(f"Azubi mit ID {azubi_id} nicht gefunden")
+            
+        tool = Werkzeug.query.get(tool_id)
+        if not tool:
+            raise ValueError(f"Werkzeug mit ID {tool_id} nicht gefunden")
+            
+        data_dir = CheckService.get_data_dir()
+        session_id = CheckService.generate_unique_session_id()
+        check_date = datetime.now()
+        
+        # 2. Save Signature
+        sig_path = CheckService.save_signature(signature_data, session_id, 'azubi')
+        
+        # 3. Create Records (Memory)
+        # Return Entry
+        ret_entry = Check(
+            session_id=session_id,
+            azubi_id=azubi_id,
+            werkzeug_id=tool_id,
+            check_type=CheckType.RETURN.value,
+            bemerkung=f'Austausch (Altteil): {reason}' + (' (Kostenpflichtig)' if is_payable else ''),
+            incident_reason=reason,
+            datum=check_date,
+            tech_param_value='Austausch',
+            signature_azubi=None,
+            report_path=None
+        )
+        
+        # Issue Entry
+        issue_entry = Check(
+            session_id=session_id,
+            azubi_id=azubi_id,
+            werkzeug_id=tool_id,
+            check_type=CheckType.ISSUE.value,
+            bemerkung='Austausch (Neuteil)' + (' (Kostenpflichtig)' if is_payable else ''),
+            incident_reason='Ersatzbeschaffung',
+            datum=check_date,
+            tech_param_value='Neu',
+            signature_azubi=sig_path,
+            report_path=None
+        )
+        
+        db.session.add(ret_entry)
+        db.session.add(issue_entry)
+        
+        # 4. Generate PDF
+        pdf_path = None
+        try:
+            tools_list = [
+                {'name': tool.name, 'category': tool.material_category, 'status': f'Rückgabe ({reason})'},
+                {'name': tool.name, 'category': tool.material_category, 'status': 'Ausgabe (Neu)'}
+            ]
+            
+            pdf_filename = f"austausch_{session_id}.pdf"
+            pdf_path = os.path.join(data_dir, 'reports', pdf_filename)
+            
+            generate_handover_pdf(
+                azubi_name=azubi.name, 
+                examiner_name="System", 
+                tools=tools_list, 
+                check_type=CheckType.EXCHANGE, 
+                signature_paths={'azubi': sig_path},
+                output_path=pdf_path
+            )
+            
+            ret_entry.report_path = pdf_path
+            issue_entry.report_path = pdf_path
+            
+            # 5. Commit Atomically
+            db.session.commit()
+            
+        except Exception as e:
+            db.session.rollback()
+            # If PDF failed, we rollback DB. If DB failed, we rollback.
+            # Cleanup Signature? Not strictly necessary but clean.
+            current_app.logger.error(f"Exchange failed: {e}")
+            raise e
+            
+        duration = time.time() - start_time
+        current_app.logger.info(f"ExchangeService: Completed for {azubi.name} in {duration:.3f}s")
+        
+        return {
+            "success": True,
+            "session_id": session_id,
+            "pdf_path": pdf_path
+        }
+
 class BackupService:
     @staticmethod
     def get_backup_dir():

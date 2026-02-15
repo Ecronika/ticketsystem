@@ -3,6 +3,11 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [2.6.2-beta7] - 2026-02-16
+
+### ♻️ Refactoring
+- **Service Layer Pattern:** Moved `exchange_tool` logic from `routes.py` to `CheckService`, eliminating code duplication and ensuring consistent error handling across the application.
+
 ## [2.6.2-beta6] - 2026-02-16
 
 ### 💅 UI/UX Improvements
