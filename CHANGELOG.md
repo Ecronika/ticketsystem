@@ -3,6 +3,11 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [2.6.0-beta3] - 2026-02-14
+
+### 🐛 Bug Fixes
+- **Dashboard UX:** Fixed link on empty dashboard pointing to tools instead of personnel management (#118).
+
 ## [2.6.0-beta2] - 2026-02-14
 
 ### 🐛 Critical Bug Fixes
