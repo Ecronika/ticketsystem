@@ -215,7 +215,7 @@ class BackupService:
         data_dir = current_app.config.get('DATA_DIR', os.path.dirname(__file__))
         backup_dir = BackupService.get_backup_dir()
         
-        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         backup_filename = f"backup_{timestamp}.zip"
         backup_path = os.path.join(backup_dir, backup_filename)
         
@@ -279,7 +279,7 @@ class BackupService:
                     backups.append({
                         'filename': f,
                         'size_mb': round(stat.st_size / (1024 * 1024), 2),
-                        'date': datetime.datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+                        'date': datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
                     })
         # Sort by filename (timestamp) desc
         return sorted(backups, key=lambda x: x['filename'], reverse=True)

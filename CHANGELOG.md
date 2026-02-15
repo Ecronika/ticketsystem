@@ -3,6 +3,11 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [2.6.1-beta2] - 2026-02-15
+
+### 🐛 Bug Fixes
+- **Backup:** Fixed `datetime` import error in `BackupService` preventing backup creation.
+
 ## [2.6.1-beta1] - 2026-02-15
 
 ### 📦 Backup & Security
