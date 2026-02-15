@@ -1,6 +1,7 @@
 import os
 import time
 import base64
+import zipfile
 from datetime import datetime
 from flask import current_app
 from extensions import db
