@@ -3,6 +3,12 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [2.6.2-beta1] - 2026-02-15
+
+### 🐛 Bug Fixes
+- **PDF Download 404:** Fixed `DATA_DIR` resolution in `CheckService` to match `app.config`, ensuring reports are saved where the webserver expects them.
+- **Empty Inventory:** Made tool assignment logic case-insensitive to correctly handle 'Issue'/'issue' variations in database.
+
 ## [2.6.1-beta3] - 2026-02-15
 
 ### 🐛 Bug Fixes

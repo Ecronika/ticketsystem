@@ -89,9 +89,11 @@ def get_assigned_tools(azubi_id):
     assigned = set()
     
     for c in checks:
-        if c.check_type == CheckType.ISSUE.value:
+        # Case-insensitive comparison for robustness
+        c_type = (c.check_type or "").lower()
+        if c_type == CheckType.ISSUE.value.lower():
             assigned.add(c.werkzeug_id)
-        elif c.check_type == CheckType.RETURN.value:
+        elif c_type == CheckType.RETURN.value.lower():
             if c.werkzeug_id in assigned:
                 assigned.remove(c.werkzeug_id)
                 

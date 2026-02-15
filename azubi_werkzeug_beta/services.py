@@ -12,6 +12,10 @@ class CheckService:
     @staticmethod
     def get_data_dir():
         """Helper to get data directory"""
+        # Prioritize App Config (set by app.py from config.yaml or env)
+        if current_app and 'DATA_DIR' in current_app.config:
+            return current_app.config['DATA_DIR']
+            
         return os.environ.get('DATA_DIR', os.path.join(os.getcwd(), 'data'))
 
     @staticmethod
