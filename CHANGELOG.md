@@ -3,6 +3,13 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [2.6.0-rc2] - 2026-02-15
+
+### 🛡️ Final Polish
+- **Exchange Tool:** Added missing Azubi existence check to prevent errors.
+- **PDF Utils:** Added logging for missing tool data (name/category) to aid debugging.
+- **UX:** Improved error message when PDF generation fails.
+
 ## [2.6.0-rc1] - 2026-02-15
 
 ### 🛡️ Stability & Security

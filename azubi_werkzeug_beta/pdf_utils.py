@@ -132,7 +132,11 @@ def generate_handover_pdf(azubi_name, examiner_name, tools, check_type, signatur
             'isolierend': 'Vollkunststoff'
         }
         cat_text = cat_map.get(tool.get('category'), tool.get('category')) or ""
-
+        
+        # Logging for missing data
+        if not tool.get('name'):
+            current_app.logger.warning(f"PDF Gen: Tool name missing in {title}")
+        
         # Name kürzen falls zu lang für eine Zeile
         name = (tool.get('name') or "")[:50] 
         

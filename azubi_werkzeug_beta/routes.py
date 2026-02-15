@@ -331,7 +331,7 @@ def submit_check():
         if result.get('pdf_path'):
             flash(f'{check_type_str.capitalize()} erfolgreich gespeichert! PDF erstellt.', 'success')
         else:
-            flash(f'{check_type_str.capitalize()} gespeichert. ACHTUNG: PDF konnte nicht erstellt werden (siehe Logs).', 'warning')
+            flash(f'{check_type_str.capitalize()} gespeichert. ACHTUNG: PDF konnte nicht erstellt werden. Bitte Administrator kontaktieren.', 'warning')
         return redirect(f"{ingress}{url_for('main.index')}")
         
     except Exception as e:
@@ -365,6 +365,11 @@ def exchange_tool():
         check_date = datetime.now()
         
         # 1. Validation (Security Fix)
+        azubi = Azubi.query.get(azubi_id)
+        if not azubi:
+            flash(f'Fehler: Azubi mit ID {azubi_id} nicht gefunden.', 'error')
+            return redirect(f"{ingress}{url_for('main.index')}")
+
         tool = Werkzeug.query.get(tool_id)
         if not tool:
             flash(f'Fehler: Werkzeug mit ID {tool_id} nicht gefunden.', 'error')
