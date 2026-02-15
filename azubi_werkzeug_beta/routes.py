@@ -305,7 +305,9 @@ def submit_check():
                     time_str = c_time if c_time else "12:00"
                     check_date = datetime.strptime(f"{c_date} {time_str}", "%Y-%m-%d %H:%M")
                 except ValueError:
-                    pass
+                    flash('Fehler: Ungültiges Datumsformat im Migrations-Modus.', 'error')
+                    current_app.logger.warning(f"Invalid migration date format: {c_date} {c_time}")
+                    return redirect(f"{ingress}{url_for('main.index')}")
 
         # Parse Tool IDs
         tool_ids = []

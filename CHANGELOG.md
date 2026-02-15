@@ -3,6 +3,11 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [2.6.2-beta8] - 2026-02-16
+
+### 🛡️ Security
+- **Input Validation:** Strict validation for custom dates in Migration Mode. Invalid dates now trigger an error instead of silently falling back to the current timestamp, preventing data integrity issues.
+
 ## [2.6.2-beta7] - 2026-02-16
 
 ### ♻️ Refactoring
