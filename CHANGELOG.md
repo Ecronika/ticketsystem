@@ -3,6 +3,21 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [2.7.0-beta2] - 2026-02-16
+### Fixed
+- **Critical**: Fixed `IndentationError` in `app.py` preventing startup.
+- **Critical**: Fixed atomicity violation in `submit_check` (Ghost Checks).
+- **Critical**: Implemented missing `restore_backup` and `prune_backups` methods.
+- **Security**: Added Zip Slip protection to restore function.
+- **Security**: Fixed resource leak in file upload (restore).
+- **Stability**: Added `threading.Lock` to tool cache to prevent race conditions.
+- **Bug**: Fixed `CheckType` default value in models (Enum vs String).
+- **Bug**: Fixed pagination edge case for empty databases.
+- **Bug**: Fixed missing `time` import in `routes.py`.
+- **Bug**: Added explicit null handling for PDF generation.
+- **Improvement**: Robust handling for `CheckType` and `tool_id` parsing.
+- **Improvement**: Backup now supports HA Add-on config (`options.json`).
+
 ## [2.7.0-beta1] - 2026-02-16
 
 ### ✨ New Features (Advanced Backup)

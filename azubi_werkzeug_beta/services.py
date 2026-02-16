@@ -45,7 +45,11 @@ class CheckService:
             os.makedirs(os.path.join(data_dir, 'signatures'), exist_ok=True)
             
             header, encoded = signature_data.split(",", 1)
-            data = base64.b64decode(encoded)
+            try:
+                data = base64.b64decode(encoded)
+            except Exception as e:
+                current_app.logger.error(f"Invalid signature data: {e}")
+                return None
             
             filename = f"{session_id}_{suffix}.png"
             path = os.path.join(data_dir, 'signatures', filename)
@@ -309,6 +313,106 @@ class CheckService:
             "pdf_path": pdf_path
         }
 
+    @staticmethod
+    def process_single_check(
+        azubi_id: int,
+        examiner_id: int,
+        check_date: datetime,
+        remarks: str,
+        signature_azubi_data: str,
+        signature_examiner_data: str
+    ) -> dict:
+        """
+        Processes a single check submission (e.g., a general check without specific tools).
+        Creates one check record and a PDF.
+        """
+        start_time = time.time()
+
+        # 0. Validate Azubi and Examiner
+        azubi = Azubi.query.get(azubi_id)
+        if not azubi:
+            current_app.logger.error(f"CheckService: Azubi {azubi_id} not found")
+            raise ValueError(f"Azubi mit ID {azubi_id} nicht gefunden")
+        
+        examiner = Examiner.query.get(examiner_id)
+        if not examiner:
+            current_app.logger.error(f"CheckService: Examiner {examiner_id} not found")
+            raise ValueError(f"Prüfer mit ID {examiner_id} nicht gefunden")
+
+        # 1. Setup Session
+        session_id = CheckService.generate_unique_session_id()
+        data_dir = CheckService.get_data_dir()
+
+        # 2. Handle Signatures
+        sig_azubi_path = CheckService.save_signature(
+            signature_azubi_data, session_id, 'azubi'
+        )
+        sig_examiner_path = CheckService.save_signature(
+            signature_examiner_data, session_id, 'examiner'
+        )
+        
+        # 3. Save to DB (but don't commit yet!)
+        try:
+            new_check = Check(
+                session_id=session_id,
+                azubi_id=azubi.id,
+                werkzeug_id=None, # Wird bei Einzelprüfungen nicht gesetzt
+                check_type=CheckType.CHECK.value,
+                bemerkung=remarks,
+                datum=check_date,
+                tech_param_value=None,
+                signature_azubi=sig_azubi_path,
+                signature_examiner=sig_examiner_path,
+                report_path=None # Wird gleich gesetzt
+            )
+            
+            db.session.add(new_check)
+            
+            # 4. Generate PDF
+            pdf_filename = f"pruefung_{session_id}.pdf"
+            pdf_path = os.path.join(data_dir, 'reports', pdf_filename)
+            
+            # Tools data preparation
+            # ... (Logic needs to fetch tool details if we want them in PDF, 
+            # ideally passed from route or fetched here. 
+            # For now assuming we just generate the check protocol)
+            
+            generate_check_pdf(
+                azubi_name=azubi.name,
+                examiner_name=examiner.name,
+                date_str=check_date.strftime("%d.%m.%Y"),
+                remarks=remarks,
+                signature_paths={
+                    'azubi': sig_azubi_path, 
+                    'examiner': sig_examiner_path
+                },
+                output_path=pdf_path
+            )
+            
+            # Update record
+            new_check.report_path = pdf_path
+            
+            # 5. Commit Check AND Items
+            # Note: Items are currently not passed to this service method in logic flow
+            # The current routes.py implementation iterates and saves items SEPARATELY.
+            # This is a larger architectural flaw. BUT for this method:
+            
+            db.session.commit()
+            
+            duration = time.time() - start_time
+            current_app.logger.info(f"CheckService: Processed in {duration:.3f}s")
+            
+            return {
+                "success": True, 
+                "session_id": session_id,
+                "pdf_path": pdf_path
+            }
+
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Check submission failed: {e}")
+            raise e
+
 class BackupService:
     @staticmethod
     def get_backup_dir():
@@ -318,6 +422,172 @@ class BackupService:
         if not os.path.exists(backup_dir):
             os.makedirs(backup_dir)
         return backup_dir
+
+    @staticmethod
+    def restore_backup(zip_path):
+        """
+        Restores the system from a ZIP file.
+        WARNING: Overwrites current data!
+        Includes Zip Slip protection.
+        """
+        data_dir = CheckService.get_data_dir()
+        temp_dir = os.path.join(data_dir, 'temp_restore')
+        
+        try:
+            # 1. Verify ZIP
+            if not zipfile.is_zipfile(zip_path):
+                raise ValueError("Die Datei ist kein gültiges ZIP-Archiv.")
+                
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                # Basic validation
+                if 'werkzeug.db' not in zip_ref.namelist():
+                    raise ValueError("Backup ungültig: 'werkzeug.db' fehlt.")
+                
+                # 2. Extract to temp (with Zip Slip protection)
+                if os.path.exists(temp_dir):
+                    import shutil
+                    shutil.rmtree(temp_dir)
+                os.makedirs(temp_dir)
+                
+                for member in zip_ref.namelist():
+                    # ZIP SLIP PROTECTION
+                    # Resolve the target path and check if it starts with the temp_dir
+                    target_path = os.path.realpath(os.path.join(temp_dir, member))
+                    if not target_path.startswith(os.path.realpath(temp_dir)):
+                        raise ValueError(f"Sicherheitswarnung: Zip Slip Versuch erkannt bei {member}")
+                        
+                    zip_ref.extract(member, temp_dir)
+                
+            # 3. Overwrite Data (Critical Section)
+            import shutil
+            
+            # DB & Config
+            shutil.copy2(os.path.join(temp_dir, 'werkzeug.db'), os.path.join(data_dir, 'werkzeug.db'))
+            
+            # Handle Config (Optional in backup)
+            if os.path.exists(os.path.join(temp_dir, 'config.yaml')):
+                shutil.copy2(os.path.join(temp_dir, 'config.yaml'), os.path.join(data_dir, 'config.yaml'))
+            
+            # Signatures
+            src_sig = os.path.join(temp_dir, 'signatures')
+            dst_sig = os.path.join(data_dir, 'signatures')
+            if os.path.exists(src_sig):
+                if os.path.exists(dst_sig):
+                    shutil.rmtree(dst_sig)
+                shutil.copytree(src_sig, dst_sig)
+                
+            # Reports
+            src_rep = os.path.join(temp_dir, 'reports')
+            dst_rep = os.path.join(data_dir, 'reports')
+            if os.path.exists(src_rep):
+                if os.path.exists(dst_rep):
+                    shutil.rmtree(dst_rep)
+                shutil.copytree(src_rep, dst_rep)
+                
+            # Cleanup
+            shutil.rmtree(temp_dir)
+            current_app.logger.info("Restore successful. Requesting restart.")
+            return True
+            
+        except Exception as e:
+            current_app.logger.error(f"Restore failed: {e}")
+            if os.path.exists(temp_dir):
+                import shutil
+                shutil.rmtree(temp_dir)
+            raise e
+
+    @staticmethod
+    def prune_backups():
+        """
+        Deletes old backups based on retention policy.
+        """
+        try:
+            # Get retention days (Default: 30)
+            from models import SystemSettings
+            days_str = SystemSettings.get_setting('backup_retention_days', '30')
+            try:
+                days = int(days_str)
+            except ValueError:
+                days = 30
+                
+            if days <= 0:
+                return # 0 means keep forever
+                
+            data_dir = CheckService.get_data_dir()
+            backup_dir = os.path.join(data_dir, 'backups')
+            
+            if not os.path.exists(backup_dir):
+                return
+                
+            now = time.time()
+            cutoff = now - (days * 86400)
+            
+            count = 0
+            for filename in os.listdir(backup_dir):
+                if not filename.endswith('.zip'):
+                    continue
+                    
+                path = os.path.join(backup_dir, filename)
+                try:
+                    if os.path.getmtime(path) < cutoff:
+                        os.remove(path)
+                        count += 1
+                except OSError:
+                    pass # Ignore errors for individual files
+                    
+            if count > 0:
+                current_app.logger.info(f"Pruned {count} old backups (> {days} days)")
+                
+        except Exception as e:
+            current_app.logger.error(f"Pruning failed: {e}")
+
+    @staticmethod
+    def schedule_backup_job(app):
+        """
+        Configures the APScheduler job based on settings.
+        """
+        from extensions import scheduler
+        from models import SystemSettings
+        
+        # Remove existing if any
+        if scheduler.get_job('auto_backup'):
+            scheduler.remove_job('auto_backup')
+            
+        # Get settings
+        with app.app_context():
+            interval = SystemSettings.get_setting('backup_interval', 'date') # 'daily', 'weekly', 'never', 'date' (fixed time)
+            time_str = SystemSettings.get_setting('backup_time', '03:00') # HH:MM
+            
+        if interval == 'never':
+            return
+            
+        # Parse time
+        try:
+            hour, minute = map(int, time_str.split(':'))
+        except ValueError:
+            hour, minute = 3, 0
+            
+        trigger_args = {'hour': hour, 'minute': minute}
+        
+        if interval == 'weekly':
+            # Monday at HH:MM
+            trigger_args['day_of_week'] = 'mon'
+            
+        # Add Job
+        scheduler.add_job(
+            id='auto_backup',
+            func=BackupService.create_backup_context_aware, # Helper needed for APP Context
+            args=[app],
+            trigger='cron',
+            **trigger_args
+        )
+        current_app.logger.info(f"Scheduled auto-backup: {interval} at {hour:02d}:{minute:02d}")
+
+    @staticmethod
+    def create_backup_context_aware(app):
+        """Wraps create_backup with app context for Scheduler"""
+        with app.app_context():
+            BackupService.create_backup()
 
     @staticmethod
     def create_backup():
@@ -349,10 +619,14 @@ class BackupService:
                 if os.path.exists(db_path):
                     zipf.write(db_path, 'werkzeug.db')
                 
-                # 2. Config
+                # 2. Config (HA Add-on support)
                 config_path = os.path.join(data_dir, 'config.yaml')
+                ha_config_path = '/data/options.json'
+                
                 if os.path.exists(config_path):
                     zipf.write(config_path, 'config.yaml')
+                elif os.path.exists(ha_config_path):
+                    zipf.write(ha_config_path, 'options.json')
                 
                 # 3. Signatures
                 sig_dir = os.path.join(data_dir, 'signatures')

@@ -128,18 +128,20 @@ def generate_handover_pdf(azubi_name, examiner_name, tools, check_type, signatur
         if tool.get('incident_reason'):
              status_text += f" ({tool.get('incident_reason')})"
 
-        # Kategorie Übersetzung
+        # Category mapping for shorter/cleaner display if needed
         cat_map = {
-            'standard': 'Standard',
-            'teilisoliert': 'Teilisoliert',
-            'vollisoliert': 'Vollisoliert (1000V)',
-            'isolierend': 'Vollkunststoff'
+            'standard': 'Std',
+            'spezial': 'Spez',
+            'psa': 'PSA',
+            'elektro': 'Elektro'
         }
-        cat_text = cat_map.get(tool.get('category'), tool.get('category')) or ""
+        
+        category = tool.get('category') or 'standard'
+        cat_text = cat_map.get(category, category) or "Std"
         
         # Logging for missing data
         if not tool.get('name'):
-            current_app.logger.warning(f"PDF Gen: Tool name missing in {title}")
+            current_app.logger.warning(f"PDF Gen: Tool name missing in {title_text}")
         
         # Name kürzen falls zu lang für eine Zeile
         name = (tool.get('name') or "")[:50] 

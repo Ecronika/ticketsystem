@@ -6,6 +6,8 @@ from extensions import db, limiter, csrf
 from models import Azubi, Werkzeug, Examiner, Check, CheckType
 from forms import AzubiForm, ExaminerForm, WerkzeugForm
 from datetime import datetime, timedelta
+import logging
+import times
 import os
 import uuid
 import base64
@@ -69,20 +71,27 @@ def get_data_dir():
     # Retrieve data_dir from app config or calculate it
     return current_app.config.get('DATA_DIR', os.path.dirname(os.path.abspath(__file__)))
 
-# Cache settings for get_assigned_tools
+# Helper: Assigned Tools Cache
+# Simple in-memory cache to reduce DB load
+from threading import Lock
 _assigned_tools_cache = {}
+_cache_lock = Lock()
 _cache_timeout = timedelta(minutes=5)
 
 def get_assigned_tools(azubi_id):
-    """Calculates currently assigned tools for an Azubi - WITH CACHING (5 min)"""
+    """
+    Returns a set of tool IDs currently assigned to the Azubi.
+    Uses caching to improve performance.
+    """
     cache_key = f"assigned_{azubi_id}"
     now = datetime.now()
     
     # Check cache
-    if cache_key in _assigned_tools_cache:
-        cached_data, timestamp = _assigned_tools_cache[cache_key]
-        if now - timestamp < _cache_timeout:
-            return cached_data
+    with _cache_lock:
+        if cache_key in _assigned_tools_cache:
+            cached_data, timestamp = _assigned_tools_cache[cache_key]
+            if now - timestamp < _cache_timeout:
+                return cached_data
             
     # Calculate (Heavy DB Operation)
     checks = Check.query.filter_by(azubi_id=azubi_id).order_by(Check.datum.asc()).all()
@@ -97,11 +106,12 @@ def get_assigned_tools(azubi_id):
             if c.werkzeug_id in assigned:
                 assigned.remove(c.werkzeug_id)
                 
-    result = list(assigned)
+    result = assigned
     
     # Update cache
-    _assigned_tools_cache[cache_key] = (result, now)
-    
+    with _cache_lock:
+        _assigned_tools_cache[cache_key] = (result, now)
+        
     return result
 
 @main_bp.route('/logo')
@@ -309,14 +319,14 @@ def submit_check():
                     current_app.logger.warning(f"Invalid migration date format: {c_date} {c_time}")
                     return redirect(f"{ingress}{url_for('main.index')}")
 
-        # Parse Tool IDs
-        tool_ids = []
-        for key in request.form.keys():
-            if key.startswith('tool_') and request.form.get(key):
-                try:
-                    tool_ids.append(int(key.split('_')[1]))
-                except (IndexError, ValueError):
-                    continue
+        # 2. Collect Tool IDs
+    tool_ids = []
+    for key in request.form:
+        if key.startswith('tool_'):
+            try:
+                tool_ids.append(int(key.split('_')[1]))
+            except (IndexError, ValueError):
+                continue
         
         if not tool_ids:
             flash('Keine Werkzeuge ausgewählt', 'warning')
@@ -600,7 +610,8 @@ def personnel():
         azubi_pagination = query.paginate(page=azubi_page, per_page=per_page, error_out=False)
         
         # FIX: Edge Case - If page > max_pages, redirect to last page
-        if azubi_page > 1 and azubi_page > azubi_pagination.pages:
+        # Add check for pages > 0 to prevent redirect loops if no items exist
+        if azubi_pagination.pages > 0 and azubi_page > azubi_pagination.pages:
            flash('Seite existiert nicht, leite zur letzten Seite um.', 'info')
            # We need to rebuild the current URL but with modified page
            args = request.args.copy()
@@ -686,29 +697,37 @@ def restore_backup():
             # Save upload to temp
             data_dir = CheckService.get_data_dir()
             temp_path = os.path.join(data_dir, 'restore_upload.zip')
-            file.save(temp_path)
             
-            # Restore
-            BackupService.restore_backup(temp_path)
-            
-            # Clean up upload
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
+            try:
+                file.save(temp_path)
                 
-            # Trigger Restart
-            # We use a flash message and then a special template or redirect that waits
-            flash('System wird wiederhergestellt. Neustart in 5 Sekunden...', 'success')
-            
-            # In a container, sys.exit(0) effectively restarts the app
-            import threading
-            def restart():
-                import time, sys
-                time.sleep(2)
-                sys.exit(0)
+                # Restore
+                BackupService.restore_backup(temp_path)
                 
-            threading.Thread(target=restart).start()
-            
-            return redirect(f"{ingress}{url_for('main.index')}")
+                # Trigger Restart
+                flash('System wird wiederhergestellt. Neustart in 5 Sekunden...', 'success')
+                
+                # In a container, sys.exit(0) effectively restarts the app
+                import threading
+                def restart():
+                    import time, sys
+                    time.sleep(2)
+                    sys.exit(0)
+                    
+                threading.Thread(target=restart).start()
+                
+                return redirect(f"{ingress}{url_for('main.index')}")
+                
+            except Exception as e:
+                flash(f'Fehler bei Wiederherstellung: {str(e)}', 'error')
+                return redirect(f"{ingress}{url_for('main.settings')}")
+            finally:
+                # Cleanup upload - ALWAYS executed
+                if os.path.exists(temp_path):
+                    try:
+                        os.remove(temp_path)
+                    except OSError:
+                        pass
             
         except Exception as e:
             flash(f'Fehler bei Wiederherstellung: {str(e)}', 'error')

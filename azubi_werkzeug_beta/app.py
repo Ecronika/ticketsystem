@@ -109,7 +109,7 @@ else:
     except OSError:
         pass
 
-#    # Init Extensions
+# Init Extensions
     db.init_app(app)
     csrf.init_app(app)
     limiter.init_app(app)
