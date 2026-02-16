@@ -4,6 +4,12 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.7.0-beta6] - 2026-02-16
+### Improved
+- **Code Quality**: Achieved Pylint score > 8.0 (from 5.6) across all Python modules.
+- **Refactor**: Fixed indentation, whitespace, line lengths, and import sorting.
+- **Docs**: Added module and class docstrings to `extensions.py`, `forms.py`, `routes.py`, `models.py`, `app.py`, `services.py`.
+
 ## [2.7.0-beta5] - 2026-02-16
 ### Fixed
 - **Lint**: Fixed IndentationError and SyntaxError issues in `app.py`, `routes.py`, and `services.py`.

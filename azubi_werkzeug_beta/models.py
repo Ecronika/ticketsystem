@@ -1,7 +1,11 @@
-from extensions import db
-from datetime import datetime
+"""
+Models module.
 
+Defines SQLAlchemy database models for Apprentice, Tool, Check, etc.
+"""
+from datetime import datetime
 from enum import Enum
+from extensions import db
 
 
 class SystemSettings(db.Model):
@@ -56,7 +60,7 @@ class Werkzeug(db.Model):
 class Examiner(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    
+
     def __repr__(self):
         return f'<Examiner {self.name}>'
 
@@ -69,7 +73,7 @@ class Check(db.Model):
     bemerkung = db.Column(db.String(200), nullable=True)
     tech_param_value = db.Column(db.String(50), nullable=True)
     incident_reason = db.Column(db.String(50), nullable=True)
-    
+
     # Audit Trail
     check_type = db.Column(db.String(20), default=CheckType.CHECK.value)
     examiner = db.Column(db.String(100), nullable=True)

@@ -1,4 +1,9 @@
 
+"""
+Main Application Entry Point.
+
+Configures and initializes the Flask application.
+"""
 from flask import Flask, render_template, request, send_from_directory
 from werkzeug.exceptions import NotFound
 from extensions import db, limiter, csrf, scheduler, Config
@@ -126,32 +131,32 @@ import sqlite3
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_conn, connection_record):
     """Set SQLite pragmas for better performance and concurrency.
-    
+
     This fixes worker timeout issues caused by database locks.
     CRITICAL for multi-user concurrent access.
     """
     if isinstance(dbapi_conn, sqlite3.Connection):
         cursor = dbapi_conn.cursor()
-        
+
         # CRITICAL: Set busy timeout to 30 seconds
         # SQLite waits up to 30s for lock release instead of failing immediately
         cursor.execute("PRAGMA busy_timeout = 30000")
-        
+
         # WAL mode for better concurrent read/write
         # Allows simultaneous reads during writes - GAME CHANGER for concurrency!
         cursor.execute("PRAGMA journal_mode = WAL")
-        
+
         # Increase cache size for better performance
         cursor.execute("PRAGMA cache_size = -10000")  # 10MB cache
-        
+
         # Synchronous = NORMAL for better performance (safe with WAL mode)
         cursor.execute("PRAGMA synchronous = NORMAL")
-        
+
         # NEW: Optimize for SD card (User Request)
         cursor.execute("PRAGMA temp_store = MEMORY")  # Temp data in RAM
         cursor.execute("PRAGMA mmap_size = 268435456")  # 256MB memory-mapped I/O
         cursor.execute("PRAGMA wal_autocheckpoint = 1000")  # Less frequent WAL checkpoints
-        
+
         cursor.close()
         app.logger.info("SQLite pragmas set: busy_timeout=30s, WAL mode, cache=10MB, SD-optimized (mmap/mem-temp)")
 
@@ -162,7 +167,7 @@ IS_HOMEASSISTANT = os.environ.get('SUPERVISOR_TOKEN') is not None
 if not IS_HOMEASSISTANT:
     # Standalone deployment: Use Flask-Talisman
     from flask_talisman import Talisman
-    Talisman(app, 
+    Talisman(app,
         force_https=False,  # External proxy (nginx/traefik) handles SSL
         content_security_policy={
             'default-src': "'self'",
@@ -200,12 +205,12 @@ app.register_blueprint(main_bp)
 @app.teardown_appcontext
 def remove_session(exception=None):
     """Ensure database session is properly cleaned up after each request.
-    
+
     This prevents connection leaking, especially important when:
     - Multiple commits happen in single request
     - Exceptions occur during transactions
     - PDF generation fails after first commit
-    
+
     Critical for SQLite connection pool management.
     """
     db.session.remove()
@@ -214,12 +219,12 @@ def remove_session(exception=None):
 def setup_database():
     with app.app_context():
         db.create_all()
-        
+
         import sqlite3
         try:
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            
+
             # --- Check 'tech_param_value' in 'check' table ---
             cursor.execute('PRAGMA table_info("check")')
             check_columns = [info[1] for info in cursor.fetchall()]
@@ -241,11 +246,11 @@ def setup_database():
                 app.logger.info("Migrating DB: Adding 'tech_param_label' column to werkzeug table.")
                 cursor.execute("ALTER TABLE werkzeug ADD COLUMN tech_param_label VARCHAR(50)")
                 conn.commit()
-                
+
             # --- Phase 3: Audit Trail Columns in 'Check' ---
             cursor.execute('PRAGMA table_info("check")')
             check_columns_audit = [info[1] for info in cursor.fetchall()]
-            
+
             if 'check_type' not in check_columns_audit:
                 app.logger.info("Migrating DB: Phase 3 Columns...")
                 cursor.execute("ALTER TABLE \"check\" ADD COLUMN check_type VARCHAR(20) DEFAULT 'check'")
@@ -254,12 +259,12 @@ def setup_database():
                 cursor.execute("ALTER TABLE \"check\" ADD COLUMN signature_examiner VARCHAR(200)")
                 cursor.execute("ALTER TABLE \"check\" ADD COLUMN report_path VARCHAR(200)")
                 conn.commit()
-            
+
             # --- Phase 3.5: Examiner Table ---
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='examiner'")
             if not cursor.fetchone():
-                pass 
-            
+                pass
+
             # --- Phase 6: is_archived in 'Azubi' ---
             cursor.execute("PRAGMA table_info(azubi)")
             azubi_columns = [info[1] for info in cursor.fetchall()]
@@ -272,7 +277,7 @@ def setup_database():
             cursor.execute("PRAGMA index_list('check')")
             # index_list returns (seq, name, unique)
             indexes = [row[1] for row in cursor.fetchall()]
-            
+
             if 'idx_check_session_id' not in indexes:
                 app.logger.info("Migrating DB: Creating Index idx_check_session_id")
                 cursor.execute("CREATE INDEX idx_check_session_id ON \"check\" (session_id)")
@@ -316,7 +321,7 @@ def handle_exception(e):
     # Pass through HTTP errors
     if isinstance(e, int):
         return e
-    
+
     # Handle 404 separately to avoid issues with request.endpoint being None
     if isinstance(e, NotFound):
         return """
@@ -327,7 +332,7 @@ def handle_exception(e):
             <p><a href="/">Zurück zur Startseite</a></p>
         </body></html>
         """, 404
-        
+
     app.logger.error(f"Unhandled Exception: {e}", exc_info=True)
     return render_template('base.html', content=f"<h1>Ein unerwarteter Fehler ist aufgetreten</h1><p>{e}</p>"), 500
 

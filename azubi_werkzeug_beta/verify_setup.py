@@ -8,7 +8,7 @@ def verify_setup():
         setup_database()
 
     client = app.test_client()
-    
+
     # 1. Routes
     print("1. Checking Routes...")
     try:
@@ -21,7 +21,7 @@ def verify_setup():
              # Print first 500 chars of response to see error
              print(f"Response: {resp.data[:500]}")
              sys.exit(1)
-             
+
         # Check CSRF
         if b'csrf_token' in resp.data:
             print("OK: CSRF Token present in /manage forms.")

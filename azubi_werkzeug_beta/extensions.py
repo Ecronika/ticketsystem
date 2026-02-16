@@ -1,3 +1,9 @@
+"""
+Extensions module.
+
+Initializes Flask extensions (SQLAlchemy, Limiter, CSRF, Scheduler).
+"""
+import os
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
@@ -12,11 +18,9 @@ limiter = Limiter(
     storage_uri="memory://"  # Explizit für Single-Worker-Setup
 )
 
-import os
-
 class Config:
     """Central Configuration Logic"""
-    
+
     @staticmethod
     def get_base_dir():
         """Returns the application root directory."""
@@ -32,11 +36,11 @@ class Config:
         3. Default: Application Root
         """
         if os.environ.get('DATA_DIR'):
-             return os.path.abspath(os.environ.get('DATA_DIR'))
-        
+            return os.path.abspath(os.environ.get('DATA_DIR'))
+
         if os.environ.get('DB_PATH'):
-             return os.path.dirname(os.path.abspath(os.environ.get('DB_PATH')))
-             
+            return os.path.dirname(os.path.abspath(os.environ.get('DB_PATH')))
+
         return Config.get_base_dir()
 
     @staticmethod
@@ -50,4 +54,3 @@ class Config:
     def get_ha_options_path():
         """Returns path to Home Assistant options (configurable)."""
         return os.environ.get('HA_OPTIONS_PATH', '/data/options.json')
-
