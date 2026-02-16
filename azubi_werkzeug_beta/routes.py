@@ -649,15 +649,15 @@ def settings():
     ingress = request.headers.get('X-Ingress-Path', '')
     
     # Fetch backups
-        backups = BackupService.list_backups()
-        
-        # Get System Settings
-        from models import SystemSettings
-        backup_interval = SystemSettings.get_setting('backup_interval', 'daily')
-        backup_time = SystemSettings.get_setting('backup_time', '03:00')
-        retention_days = SystemSettings.get_setting('backup_retention_days', '30')
-        
-        return render_template('settings.html', 
+    backups = BackupService.list_backups()
+    
+    # Get System Settings
+    from models import SystemSettings
+    backup_interval = SystemSettings.get_setting('backup_interval', 'daily')
+    backup_time = SystemSettings.get_setting('backup_time', '03:00')
+    retention_days = SystemSettings.get_setting('backup_retention_days', '30')
+    
+    return render_template('settings.html', 
                              logo_exists=logo_exists, 
                              logo_version=time.time(),
                              backups=backups,
