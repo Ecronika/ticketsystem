@@ -1,4 +1,4 @@
-```python
+
 from flask import Flask, render_template, request, send_from_directory
 from werkzeug.exceptions import NotFound
 from extensions import db, limiter, csrf, scheduler, Config
