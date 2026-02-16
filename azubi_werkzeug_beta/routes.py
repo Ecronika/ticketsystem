@@ -329,13 +329,13 @@ def submit_check():
                     return redirect(f"{ingress}{url_for('main.index')}")
 
         # 2. Collect Tool IDs
-    tool_ids = []
-    for key in request.form:
-        if key.startswith('tool_'):
-            try:
-                tool_ids.append(int(key.split('_')[1]))
-            except (IndexError, ValueError):
-                continue
+        tool_ids = []
+        for key in request.form:
+            if key.startswith('tool_'):
+                try:
+                    tool_ids.append(int(key.split('_')[1]))
+                except (IndexError, ValueError):
+                    continue
         
         if not tool_ids:
             flash('Keine Werkzeuge ausgewählt', 'warning')
@@ -351,11 +351,8 @@ def submit_check():
             check_type=CheckType(check_type_str)
         )
         
-        if result.get('pdf_path'):
-            flash(f'{check_type_str.capitalize()} erfolgreich gespeichert! PDF erstellt.', 'success')
-        else:
-            flash(f'{check_type_str.capitalize()} gespeichert. ACHTUNG: PDF konnte nicht erstellt werden. Bitte Administrator kontaktieren.', 'warning')
-            
+        flash(f'{check_type_str.capitalize()} erfolgreich gespeichert! (Session: {result["session_id"]})', 'success')
+        
         # Invalidate Cache for this Azubi so the new state (issued/returned) is reflected immediately
         _assigned_tools_cache.pop(f"assigned_{azubi_id}", None)
             
