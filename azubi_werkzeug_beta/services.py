@@ -12,14 +12,12 @@ import uuid
 from datetime import datetime
 
 from flask import current_app
-from extensions import db, Config
-from models import Check, CheckType, Werkzeug, Azubi
+from extensions import db, Config, scheduler
+from models import Check, CheckType, Werkzeug, Azubi, SystemSettings
 from pdf_utils import generate_handover_pdf
-# Delayed imports to avoid circular dependencies (handled in methods if strictly necessary, but prefer top-level if possible)
-# from extensions import scheduler  <-- Circular with app?
-# from models import SystemSettings <-- Circular with app?
 
 class CheckService:
+    """Service for handling Checks and Tool Exchanges."""
     @staticmethod
     def get_data_dir():
         """Helper to get data directory"""
@@ -87,7 +85,6 @@ class CheckService:
                 - session_id: str
                 - pdf_path: str (optional)
         """
-        # pylint: disable=too-many-locals, too-many-statements, too-many-branches
         start_time = time.time()
 
         if not check_date:
@@ -96,12 +93,11 @@ class CheckService:
         # 0. Validate Azubi
         azubi = Azubi.query.get(azubi_id)
         if not azubi:
-             current_app.logger.error(f"CheckService: Azubi {azubi_id} not found")
-             raise ValueError(f"Azubi mit ID {azubi_id} nicht gefunden")
+            current_app.logger.error(f"CheckService: Azubi {azubi_id} not found")
+            raise ValueError(f"Azubi mit ID {azubi_id} nicht gefunden")
 
         # 1. Setup Session
         session_id = CheckService.generate_unique_session_id()
-        data_dir = CheckService.get_data_dir()
 
         # 2. Handle Signatures
         sig_azubi_path = CheckService.save_signature(
@@ -164,45 +160,26 @@ class CheckService:
         pdf_path = None
         if selected_tools:
             try:
-                pdf_filename = f"Protokoll_{check_type.value}_{azubi.name.replace(' ', '_')}_{check_date.strftime('%Y%m%d_%H%M')}.pdf"
-                pdf_path = os.path.join(data_dir, 'reports', pdf_filename)
-
-                generate_handover_pdf(
-                    azubi_name=azubi.name,
-                    examiner_name=examiner_name,
-                    tools=selected_tools,
-                    check_type=check_type,
-                    signature_paths={'azubi': sig_azubi_path, 'examiner': sig_examiner_path},
-                    output_path=pdf_path
+                pdf_path = CheckService._generate_and_link_pdf(
+                    azubi, examiner_name, selected_tools, check_type,
+                    check_date, sig_azubi_path, sig_examiner_path,
+                    reports_to_create
                 )
-
-                # Update records with PDF path
-                for r in reports_to_create:
-                    r.report_path = pdf_path
-
             except Exception as e:
-                current_app.logger.error(f"PDF Generation failed: {e}")
-                # We decide here: Fail the whole submission or continue without PDF?
-                # User requirement: Transaction risk was high.
-                # If PDF fails, we should probably abort to allow retry.
-                if pdf_path and os.path.exists(pdf_path):
-                     try:
-                         os.remove(pdf_path)
-                     except OSError:
-                         pass
+                current_app.logger.error(f"PDF Gen failed: {e}")
                 raise e
 
         # 6. Commit to DB (Fast Transaction)
         try:
             for check in reports_to_create:
                 db.session.add(check)
-            
+
             db.session.commit()
 
         except Exception as e:
             current_app.logger.error(f"DB Commit failed: {e}")
             db.session.rollback()
-            
+
             # Cleanup PDF if DB failed
             if pdf_path and os.path.exists(pdf_path):
                 try:
@@ -211,6 +188,7 @@ class CheckService:
                     pass
             raise e
 
+        # pylint: disable=line-too-long
         duration = time.time() - start_time
         current_app.logger.info(f"CheckService: Processed {len(reports_to_create)} checks in {duration:.3f}s")
 
@@ -220,6 +198,32 @@ class CheckService:
             "count": len(reports_to_create),
             "pdf_path": pdf_path
         }
+
+    @staticmethod
+    def _generate_and_link_pdf(
+        azubi, examiner_name, selected_tools, check_type, check_date,
+        sig_azubi_path, sig_examiner_path, reports_to_create
+    ):
+        """Helper to generate PDF and link it to checks."""
+        data_dir = CheckService.get_data_dir()
+        # pylint: disable=line-too-long
+        pdf_filename = f"Protokoll_{check_type.value}_{azubi.name.replace(' ', '_')}_{check_date.strftime('%Y%m%d_%H%M')}.pdf"
+        pdf_path = os.path.join(data_dir, 'reports', pdf_filename)
+
+        generate_handover_pdf(
+            azubi_name=azubi.name,
+            examiner_name=examiner_name,
+            tools=selected_tools,
+            check_type=check_type,
+            signature_paths={'azubi': sig_azubi_path, 'examiner': sig_examiner_path},
+            output_path=pdf_path
+        )
+
+        # Update records with PDF path
+        for r in reports_to_create:
+            r.report_path = pdf_path
+
+        return pdf_path
 
     @staticmethod
     def process_tool_exchange(
@@ -258,6 +262,7 @@ class CheckService:
             azubi_id=azubi_id,
             werkzeug_id=tool_id,
             check_type=CheckType.RETURN.value,
+            # pylint: disable=line-too-long
             bemerkung=f'Austausch (Altteil): {reason}' + (' (Kostenpflichtig)' if is_payable else ''),
             incident_reason=reason,
             datum=check_date,
@@ -311,8 +316,6 @@ class CheckService:
 
         except Exception as e:
             db.session.rollback()
-            # If PDF failed, we rollback DB. If DB failed, we rollback.
-            # Cleanup Signature? Not strictly necessary but clean.
             current_app.logger.error(f"Exchange failed: {e}")
             raise e
 
@@ -324,7 +327,6 @@ class CheckService:
             "session_id": session_id,
             "pdf_path": pdf_path
         }
-
 
 
 class BackupService:
@@ -384,30 +386,7 @@ class BackupService:
                     zip_ref.extract(member, temp_dir)
 
             # 3. Overwrite Data (Critical Section)
-            # import shutil (Moved to top)
-
-            # DB & Config
-            shutil.copy2(os.path.join(temp_dir, 'werkzeug.db'), os.path.join(data_dir, 'werkzeug.db'))
-
-            # Handle Config (Optional in backup)
-            if os.path.exists(os.path.join(temp_dir, 'config.yaml')):
-                shutil.copy2(os.path.join(temp_dir, 'config.yaml'), os.path.join(data_dir, 'config.yaml'))
-
-            # Signatures
-            src_sig = os.path.join(temp_dir, 'signatures')
-            dst_sig = os.path.join(data_dir, 'signatures')
-            if os.path.exists(src_sig):
-                if os.path.exists(dst_sig):
-                    shutil.rmtree(dst_sig)
-                shutil.copytree(src_sig, dst_sig)
-
-            # Reports
-            src_rep = os.path.join(temp_dir, 'reports')
-            dst_rep = os.path.join(data_dir, 'reports')
-            if os.path.exists(src_rep):
-                if os.path.exists(dst_rep):
-                    shutil.rmtree(dst_rep)
-                shutil.copytree(src_rep, dst_rep)
+            BackupService._perform_restore_overwrite(data_dir, temp_dir)
 
             # Cleanup
             shutil.rmtree(temp_dir)
@@ -421,6 +400,32 @@ class BackupService:
             raise e
 
     @staticmethod
+    def _perform_restore_overwrite(data_dir, temp_dir):
+        """Helper to overwrite current data with restored data."""
+        # DB & Config
+        shutil.copy2(os.path.join(temp_dir, 'werkzeug.db'), os.path.join(data_dir, 'werkzeug.db'))
+
+        # Handle Config (Optional in backup)
+        if os.path.exists(os.path.join(temp_dir, 'config.yaml')):
+            shutil.copy2(os.path.join(temp_dir, 'config.yaml'), os.path.join(data_dir, 'config.yaml'))
+
+        # Signatures
+        src_sig = os.path.join(temp_dir, 'signatures')
+        dst_sig = os.path.join(data_dir, 'signatures')
+        if os.path.exists(src_sig):
+            if os.path.exists(dst_sig):
+                shutil.rmtree(dst_sig)
+            shutil.copytree(src_sig, dst_sig)
+
+        # Reports
+        src_rep = os.path.join(temp_dir, 'reports')
+        dst_rep = os.path.join(data_dir, 'reports')
+        if os.path.exists(src_rep):
+            if os.path.exists(dst_rep):
+                shutil.rmtree(dst_rep)
+            shutil.copytree(src_rep, dst_rep)
+
+    @staticmethod
     def prune_backups():
         """
         Prunes old backup files based on the configured retention policy.
@@ -430,7 +435,6 @@ class BackupService:
         """
         try:
             # Get retention days (Default: 30)
-            from models import SystemSettings
             days_str = SystemSettings.get_setting('backup_retention_days', '30')
             try:
                 days = int(days_str)
@@ -479,17 +483,14 @@ class BackupService:
         Args:
              app: The Flask application instance (needed for context).
         """
-        # pylint: disable=import-outside-toplevel
-        from extensions import scheduler
-        from models import SystemSettings
-
         # Remove existing if any
         if scheduler.get_job('auto_backup'):
             scheduler.remove_job('auto_backup')
 
         # Get settings
         with app.app_context():
-            interval = SystemSettings.get_setting('backup_interval', 'date') # 'daily', 'weekly', 'never', 'date' (fixed time)
+            # 'daily', 'weekly', 'never', 'date' (fixed time)
+            interval = SystemSettings.get_setting('backup_interval', 'date')
             time_str = SystemSettings.get_setting('backup_time', '03:00') # HH:MM
 
         if interval == 'never':
@@ -520,7 +521,6 @@ class BackupService:
     @staticmethod
     def create_backup_context_aware(app):
         """Wraps create_backup with app context for Scheduler"""
-        # pylint: disable=import-outside-toplevel
         with app.app_context():
             BackupService.create_backup()
 
@@ -533,7 +533,6 @@ class BackupService:
             dict: {success, filename, path, size_mb}
         """
         data_dir = current_app.config.get('DATA_DIR', os.path.dirname(__file__))
-        backup_dir = BackupService.get_backup_dir()
         data_dir = CheckService.get_data_dir()
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_filename = f"backup_azubi_werkzeug_{timestamp}.zip"

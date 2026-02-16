@@ -3,26 +3,31 @@ Routes module.
 
 Defines the URL routes and view functions for the application.
 """
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session, Response, jsonify, make_response, send_from_directory
-from sqlalchemy.orm import joinedload
-from sqlalchemy import func, select  # For optimized queries
-from sqlalchemy.exc import SQLAlchemyError  # Issue #4: Error handling
-from extensions import db, limiter, csrf, Config
-from models import Azubi, Werkzeug, Examiner, Check, CheckType
-from forms import AzubiForm, ExaminerForm, WerkzeugForm
-from datetime import datetime, timedelta
-import logging
-import time
 import os
+import time
 import uuid
-import base64
-from pdf_utils import generate_handover_pdf, generate_qr_codes_pdf, generate_end_of_training_report
+import sys
+import threading
+from datetime import datetime, timedelta
+from threading import Lock
+
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session, Response, jsonify, make_response, send_from_directory
+from werkzeug.utils import secure_filename
+from sqlalchemy import func
+from sqlalchemy.orm import joinedload
+from sqlalchemy.exc import SQLAlchemyError
+
+from extensions import db, limiter, csrf, Config
+from models import Azubi, Werkzeug, Examiner, Check, CheckType, SystemSettings
+from forms import AzubiForm, ExaminerForm, WerkzeugForm
 from services import CheckService, BackupService
+from pdf_utils import generate_qr_codes_pdf, generate_end_of_training_report
 
 main_bp = Blueprint('main', __name__)
 
 @main_bp.context_processor
 def inject_ingress_path():
+    """Inject ingress path and logo version into templates."""
     ingress = request.headers.get('X-Ingress-Path', '')
 
     # Add logo version for cache busting
@@ -34,7 +39,7 @@ def inject_ingress_path():
     if os.path.exists(logo_path):
         try:
             logo_version = int(os.path.getmtime(logo_path))
-        except:
+        except OSError:
             pass
 
     return {'ingress_path': ingress, 'logo_version': logo_version}
@@ -67,18 +72,17 @@ def handle_db_error(error, operation_name, redirect_route='main.index', custom_m
 def generate_unique_session_id():
     """Generates a unique session ID, preventing collision."""
     # Combine timestamp and UUID for better uniqueness/ordering
-    import time
     timestamp = int(time.time() * 1000)
-    uid = str(uuid.uuid4()).split('-')[0] # Shorten UUID part
+    uid = str(uuid.uuid4()).split('-', maxsplit=1)[0] # Shorten UUID part
     return f"{timestamp}-{uid}"
 
 def get_data_dir():
+    """Retrieve data directory from config."""
     # Retrieve data_dir from app config or calculate it
     return Config.get_data_dir()
 
 # Helper: Assigned Tools Cache
 # Simple in-memory cache to reduce DB load
-from threading import Lock
 _assigned_tools_cache = {}
 _cache_lock = Lock()
 _cache_timeout = timedelta(minutes=5)
@@ -142,7 +146,6 @@ def serve_logo():
         with open(logo_path, 'rb') as f:
             logo_data = f.read()
 
-        from datetime import datetime
         return Response(
             logo_data,
             mimetype='image/png',
@@ -152,14 +155,13 @@ def serve_logo():
                 'Last-Modified': datetime.fromtimestamp(mtime).strftime('%a, %d %b %Y %H:%M:%S GMT')
             }
         )
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exception-caught
         current_app.logger.error(f"Error reading logo: {e}")
         return "Error reading logo", 500
 
 @main_bp.route('/debug/paths')
 def debug_paths():
     """Debug endpoint to check paths"""
-    import os
     data_dir = get_data_dir()
     logo_path = os.path.join(data_dir, 'static', 'img', 'logo.png')
 
@@ -180,13 +182,13 @@ def health_check():
         # Simple DB connection check
         db.session.execute(db.text('SELECT 1')).fetchone()
         return 'OK', 200
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exception-caught
         current_app.logger.error(f"Healthcheck failed: {e}")
         return 'FAIL', 503
 
 @main_bp.route('/')
 def index():
-    import time
+    """Dashboard view."""
     start_time = time.time()
 
     # OPTIMIERT: Single query with subquery for last check date (Fixes N+1 problem)
@@ -204,7 +206,7 @@ def index():
     azubis_with_checks = (
         db.session.query(Azubi, subq.c.last_datum)
         .outerjoin(subq, Azubi.id == subq.c.azubi_id)
-        .filter(Azubi.is_archived == False)
+        .filter(Azubi.is_archived.is_(False)) # Active azubis only
         .order_by(Azubi.name)
         .all()
     )
@@ -213,7 +215,7 @@ def index():
     now = datetime.now()
 
     for azubi, last_datum in azubis_with_checks:
-        start_loop = time.time()
+
 
         # Calculate status
         if last_datum:
@@ -255,6 +257,7 @@ def index():
 
 @main_bp.route('/check/<int:azubi_id>', methods=['GET'])
 def check_azubi(azubi_id):
+    """Page to perform a new check."""
     azubi = Azubi.query.get_or_404(azubi_id)
     werkzeuge = Werkzeug.query.all()
     examiners = Examiner.query.all()
@@ -295,8 +298,7 @@ def check_azubi(azubi_id):
 
 @main_bp.route('/submit_check', methods=['POST'])
 def submit_check():
-    import time
-    start_time = time.time()
+    """Handle check submission."""
 
     azubi_id = request.form.get('azubi_id')
     check_type_str = request.form.get('check_type', CheckType.CHECK.value)
@@ -363,7 +365,7 @@ def submit_check():
 
         return redirect(f"{ingress}{url_for('main.index')}")
 
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exception-caught
         current_app.logger.error(f"Error in submit_check: {e}", exc_info=True)
         flash(f'Fehler beim Speichern: {str(e)}', 'danger')
         return redirect(f"{ingress}{url_for('main.index')}")
@@ -374,8 +376,6 @@ def exchange_tool():
     Handles One-Click Tool Exchange (Defective -> New).
     Creates two records (Return + Issue) with shared session_id.
     """
-    import time
-    start_time = time.time()
 
     azubi_id = request.form.get('azubi_id')
     tool_id = request.form.get('tool_id')
@@ -389,7 +389,7 @@ def exchange_tool():
         return redirect(f"{ingress}{url_for('main.index')}")
 
     try:
-        result = CheckService.process_tool_exchange(
+        CheckService.process_tool_exchange(
             azubi_id=int(azubi_id),
             tool_id=int(tool_id),
             reason=reason,
@@ -403,7 +403,7 @@ def exchange_tool():
         flash('Werkzeug erfolgreich ausgetauscht.', 'success')
         return redirect(f"{ingress}{url_for('main.index')}")
 
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exception-caught
         current_app.logger.error(f"Exchange failed: {e}", exc_info=True)
         flash(f'Fehler beim Austausch: {str(e)}', 'error')
         return redirect(f"{ingress}{url_for('main.index')}")
@@ -415,9 +415,9 @@ def api_get_assigned_tools(azubi_id):
     tool_ids = get_assigned_tools(azubi_id)
 
     # Fetch names
-    tools = Werkzeug.query.filter(Werkzeug.id.in_(tool_ids)).order_by(Werkzeug.name).all()
+    found_tools = Werkzeug.query.filter(Werkzeug.id.in_(tool_ids)).order_by(Werkzeug.name).all()
 
-    return jsonify([{'id': t.id, 'name': t.name} for t in tools])
+    return jsonify([{'id': t.id, 'name': t.name} for t in found_tools])
 
 @main_bp.route('/api/stats')
 @limiter.limit("30 per minute")
@@ -440,7 +440,7 @@ def api_stats():
 
 @main_bp.route('/history')
 def history():
-    import time
+    """Show check history."""
     start_time = time.time()
 
     azubi_id = request.args.get('azubi_id')
@@ -510,13 +510,14 @@ def history():
         current_app.logger.error(f"Database error in history: {e}", exc_info=True)
         flash('Fehler beim Laden der Historie', 'danger')
         return redirect(url_for('main.index'))
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exception-caught
         current_app.logger.error(f"Error in history: {e}", exc_info=True)
         flash(f'Fehler: {str(e)}', 'danger')
         return redirect(url_for('main.index'))
 
 @main_bp.route('/history_details/<path:session_id>')
 def history_details(session_id):
+    """Show details of a specific check session."""
     if session_id.startswith("LEGACY_"):
         _, azubi_id_str, timestamp_str = session_id.split('_')
         target_time = datetime.fromtimestamp(float(timestamp_str))
@@ -560,7 +561,7 @@ def history_details(session_id):
                 status_code = p.replace("Status:", "").strip()
             elif not p.startswith("Status:"):
                 if p and not global_bemerkung:
-                     global_bemerkung = p
+                    global_bemerkung = p
 
         parsed_checks.append({
             'werkzeug': c.werkzeug.name,
@@ -582,6 +583,7 @@ def history_details(session_id):
 
 @main_bp.route('/download_report/<path:filename>')
 def download_report(filename):
+    """Download a PDF report."""
     data_dir = get_data_dir()
     reports_dir = os.path.join(data_dir, 'reports')
     return send_from_directory(reports_dir, filename, as_attachment=True)
@@ -623,13 +625,13 @@ def personnel():
         # FIX: Edge Case - If page > max_pages, redirect to last page
         # Add check for pages > 0 to prevent redirect loops if no items exist
         if azubi_pagination.pages > 0 and azubi_page > azubi_pagination.pages:
-           flash('Seite existiert nicht, leite zur letzten Seite um.', 'info')
-           # We need to rebuild the current URL but with modified page
-           args = request.args.copy()
-           args['azubi_page'] = azubi_pagination.pages
-           return redirect(url_for(request.endpoint, **args))
+            flash('Seite existiert nicht, leite zur letzten Seite um.', 'info')
+            # We need to rebuild the current URL but with modified page
+            args = request.args.copy()
+            args['azubi_page'] = azubi_pagination.pages
+            return redirect(url_for(request.endpoint, **args))
 
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exception-caught
         current_app.logger.error(f"Pagination failed: {e}")
         azubi_pagination = None # Handle pagination error gracefully
 
@@ -650,14 +652,11 @@ def settings():
     data_dir = get_data_dir()
     logo_path = os.path.join(data_dir, 'static', 'img', 'logo.png')
     logo_exists = os.path.exists(logo_path)
-    logo_version = int(os.path.getmtime(logo_path)) if logo_exists else 0
-    ingress = request.headers.get('X-Ingress-Path', '')
 
     # Fetch backups
     backups = BackupService.list_backups()
 
     # Get System Settings
-    from models import SystemSettings
     backup_interval = SystemSettings.get_setting('backup_interval', 'daily')
     backup_time = SystemSettings.get_setting('backup_time', '03:00')
     retention_days = SystemSettings.get_setting('backup_retention_days', '30')
@@ -673,7 +672,7 @@ def settings():
 @main_bp.route('/settings/backup/config', methods=['POST'])
 def save_backup_config():
     """Saves backup schedule settings"""
-    from models import SystemSettings
+
 
     interval = request.form.get('interval')
     time_str = request.form.get('time')
@@ -685,6 +684,7 @@ def save_backup_config():
     SystemSettings.set_setting('backup_retention_days', retention)
 
     # Update Job
+    # pylint: disable=protected-access
     BackupService.schedule_backup_job(current_app._get_current_object())
 
     flash('Backup-Einstellungen gespeichert.', 'success')
@@ -719,9 +719,7 @@ def restore_backup():
                 flash('System wird wiederhergestellt. Neustart in 5 Sekunden...', 'success')
 
                 # In a container, sys.exit(0) effectively restarts the app
-                import threading
                 def restart():
-                    import time, sys
                     time.sleep(2)
                     sys.exit(0)
 
@@ -729,7 +727,7 @@ def restore_backup():
 
                 return redirect(f"{ingress}{url_for('main.index')}")
 
-            except Exception as e:
+            except Exception as e: # pylint: disable=broad-exception-caught
                 flash(f'Fehler bei Wiederherstellung: {str(e)}', 'error')
                 return redirect(f"{ingress}{url_for('main.settings')}")
             finally:
@@ -740,7 +738,7 @@ def restore_backup():
                     except OSError:
                         pass
 
-        except Exception as e:
+        except Exception as e: # pylint: disable=broad-exception-caught
             flash(f'Fehler bei Wiederherstellung: {str(e)}', 'error')
             return redirect(f"{ingress}{url_for('main.settings')}")
 
@@ -749,10 +747,11 @@ def restore_backup():
 
 @main_bp.route('/settings/backup/create', methods=['POST'])
 def create_backup():
+    """Create a new backup."""
     try:
         filename = BackupService.create_backup()
         flash(f'Backup erfolgreich erstellt: {filename}', 'success')
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exception-caught
         flash(f'Backup fehlgeschlagen: {e}', 'error')
 
     ingress = request.headers.get('X-Ingress-Path', '')
@@ -760,16 +759,18 @@ def create_backup():
 
 @main_bp.route('/settings/backup/download/<filename>')
 def download_backup(filename):
+    """Download a backup file."""
     try:
         backup_dir = BackupService.get_backup_dir()
         return send_from_directory(backup_dir, filename, as_attachment=True)
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exception-caught
         flash(f'Download fehlgeschlagen: {e}', 'error')
         ingress = request.headers.get('X-Ingress-Path', '')
         return redirect(f"{ingress}{url_for('main.settings')}")
 
 @main_bp.route('/toggle_migration_mode', methods=['POST'])
 def toggle_migration_mode():
+    """Toggle migration mode."""
     current_mode = session.get('migration_mode', False)
     session['migration_mode'] = not current_mode
     status = "aktiviert" if session['migration_mode'] else "deaktiviert"
@@ -787,22 +788,24 @@ def delete_session(session_id):
     - Deletes all associated files (PDF, signatures)
     - Comprehensive audit logging
     """
-    import time
-    start_time = time.time()
 
     ingress = request.headers.get('X-Ingress-Path', '')
 
     # SAFETY CHECK: Only allow deletion in migration mode
     if not session.get('migration_mode', False):
-        current_app.logger.warning(f"Delete session attempted WITHOUT migration mode: session_id={session_id}")
+        current_app.logger.warning(
+            f"Delete session attempted WITHOUT migration mode: session_id={session_id}")
         flash('⚠️ Session-Löschung nur im Migration-Modus erlaubt!', 'danger')
         return redirect(f"{ingress}{url_for('main.history')}")
 
     try:
         # Check for legacy sessions (can't delete without real session_id)
-        if session_id.startswith('LEGACY_'):
-            current_app.logger.warning(f"Attempted to delete legacy session: {session_id}")
-            flash('Legacy-Sessions ohne UUID können nicht gelöscht werden.', 'warning')
+        if session_id.startswith("LEGACY_"):
+            flash(
+                'Legacy-Sessions (nur Datum/Azubi) können noch nicht gelöscht werden. '
+                'Bitte DB-Bereinigung nutzen.',
+                'warning'
+            )
             return redirect(f"{ingress}{url_for('main.history')}")
 
         # Find all checks in this session
@@ -821,7 +824,6 @@ def delete_session(session_id):
         check_count = len(checks)
 
         # File cleanup
-        data_dir = get_data_dir()
         files_deleted = []
 
         # Delete PDF report
@@ -857,20 +859,17 @@ def delete_session(session_id):
 
         db.session.commit()
 
-        duration = time.time() - start_time
-
         # CRITICAL AUDIT LOG
         current_app.logger.warning(
             f"🗑️ SESSION DELETED | session_id={session_id} | "
             f"azubi={azubi_name}(id:{azubi_id}) | datum={datum.strftime('%Y-%m-%d %H:%M')} | "
             f"examiner={examiner} | checks_deleted={check_count} | "
             f"files={', '.join(files_deleted) if files_deleted else 'none'} | "
-            f"duration={duration:.3f}s | migration_mode=True"
+            f"migration_mode=True"
         )
 
         flash(
-            f'✅ Session erfolgreich gelöscht: {azubi_name} - {datum.strftime("%d.%m.%Y %H:%M")} '
-            f'({check_count} Checks, {len(files_deleted)} Dateien)',
+            f'Session gelöscht. {check_count} Einträge entfernt. {len(files_deleted)} Dateien bereinigt.',
             'success'
         )
         return redirect(f"{ingress}{url_for('main.history')}")
@@ -881,7 +880,7 @@ def delete_session(session_id):
         current_app.logger.error(f"Database error deleting session {session_id}: {e}", exc_info=True)
         flash('❌ Datenbankfehler beim Löschen der Session.', 'danger')
         return redirect(f"{ingress}{url_for('main.history_details', session_id=session_id)}")
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exception-caught
         db.session.rollback()
         db.session.remove()  # Explicit cleanup to prevent connection leaks
         current_app.logger.error(f"Unexpected error deleting session {session_id}: {e}", exc_info=True)
@@ -890,6 +889,7 @@ def delete_session(session_id):
 
 @main_bp.route('/add_examiner', methods=['POST'])
 def add_examiner():
+    """Add a new examiner."""
     form = ExaminerForm(request.form)
     ingress = request.headers.get('X-Ingress-Path', '')
     if form.validate():
@@ -903,9 +903,10 @@ def add_examiner():
                 flash(f"Fehler bei {field}: {error}", 'error')
     return redirect(f"{ingress}{url_for('main.personnel')}")
 
-@main_bp.route('/delete_examiner/<int:id>', methods=['POST'])
-def delete_examiner(id):
-    examiner = Examiner.query.get_or_404(id)
+@main_bp.route('/delete_examiner/<int:examiner_id>', methods=['POST'])
+def delete_examiner(examiner_id):
+    """Delete an examiner."""
+    examiner = Examiner.query.get_or_404(examiner_id)
     db.session.delete(examiner)
     db.session.commit()
     flash(f'Prüfer {examiner.name} gelöscht.', 'success')
@@ -914,6 +915,7 @@ def delete_examiner(id):
 
 @main_bp.route('/add_azubi', methods=['POST'])
 def add_azubi():
+    """Add a new azubi."""
     form = AzubiForm(request.form)
     ingress = request.headers.get('X-Ingress-Path', '')
     if form.validate():
@@ -927,9 +929,10 @@ def add_azubi():
                 flash(f"Fehler bei {field}: {error}", 'error')
     return redirect(f"{ingress}{url_for('main.personnel')}")
 
-@main_bp.route('/edit_azubi/<int:id>', methods=['POST'])
-def edit_azubi(id):
-    azubi = Azubi.query.get_or_404(id)
+@main_bp.route('/edit_azubi/<int:azubi_id>', methods=['POST'])
+def edit_azubi(azubi_id):
+    """Edit an azubi."""
+    azubi = Azubi.query.get_or_404(azubi_id)
     form = AzubiForm(request.form)
     ingress = request.headers.get('X-Ingress-Path', '')
     if form.validate():
@@ -943,11 +946,15 @@ def edit_azubi(id):
                 flash(f"Fehler bei {field}: {error}", 'error')
     return redirect(f"{ingress}{url_for('main.personnel')}")
 
-@main_bp.route('/delete_azubi/<int:id>', methods=['POST'])
-def delete_azubi(id):
-    azubi = Azubi.query.get_or_404(id)
+@main_bp.route('/delete_azubi/<int:azubi_id>', methods=['POST'])
+def delete_azubi(azubi_id):
+    """Delete an azubi."""
+    azubi = Azubi.query.get_or_404(azubi_id)
     if azubi.checks:
-        flash(f'Fehler: Azubi "{azubi.name}" hat Historie und kann nicht gelöscht werden.', 'error')
+        flash(
+            f'Fehler: Azubi "{azubi.name}" hat Historie und kann nicht gelöscht werden.',
+            'error'
+        )
         ingress = request.headers.get('X-Ingress-Path', '')
         return redirect(f"{ingress}{url_for('main.personnel')}")
 
@@ -959,6 +966,7 @@ def delete_azubi(id):
 
 @main_bp.route('/add_werkzeug', methods=['POST'])
 def add_werkzeug():
+    """Add a new tool."""
     form = WerkzeugForm(request.form)
     ingress = request.headers.get('X-Ingress-Path', '')
     if form.validate():
@@ -1005,7 +1013,7 @@ def api_add_werkzeug():
         db.session.rollback()
         current_app.logger.error(f"API add werkzeug error: {e}")
         return jsonify({'success': False, 'error': 'Datenbankfehler beim Hinzufügen des Werkzeugs'}), 500
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exception-caught
         db.session.rollback()
         current_app.logger.error(f"API add werkzeug unexpected error: {e}")
         return jsonify({'success': False, 'error': 'Ein unbekannter Fehler ist aufgetreten.'}), 500
@@ -1038,7 +1046,7 @@ def api_add_azubi():
         db.session.rollback()
         current_app.logger.error(f"API add azubi error: {e}")
         return jsonify({'success': False, 'error': 'Datenbankfehler beim Hinzufügen des Azubis'}), 500
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exception-caught
         db.session.rollback()
         current_app.logger.error(f"API add azubi unexpected error: {e}")
         return jsonify({'success': False, 'error': 'Ein unbekannter Fehler ist aufgetreten.'}), 500
@@ -1068,15 +1076,16 @@ def api_add_examiner():
         db.session.rollback()
         current_app.logger.error(f"API add examiner error: {e}")
         return jsonify({'success': False, 'error': 'Datenbankfehler beim Hinzufügen des Prüfers'}), 500
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exception-caught
         db.session.rollback()
         current_app.logger.error(f"API add examiner unexpected error: {e}")
         return jsonify({'success': False, 'error': 'Ein unbekannter Fehler ist aufgetreten.'}), 500
 
 
-@main_bp.route('/edit_werkzeug/<int:id>', methods=['POST'])
-def edit_werkzeug(id):
-    werkzeug = Werkzeug.query.get_or_404(id)
+@main_bp.route('/edit_werkzeug/<int:werkzeug_id>', methods=['POST'])
+def edit_werkzeug(werkzeug_id):
+    """Edit a tool."""
+    werkzeug = Werkzeug.query.get_or_404(werkzeug_id)
     form = WerkzeugForm(request.form)
     ingress = request.headers.get('X-Ingress-Path', '')
     if form.validate():
@@ -1091,9 +1100,10 @@ def edit_werkzeug(id):
                 flash(f"Fehler bei {field}: {error}", 'error')
     return redirect(f"{ingress}{url_for('main.tools')}")
 
-@main_bp.route('/delete_werkzeug/<int:id>', methods=['POST'])
-def delete_werkzeug(id):
-    werkzeug = Werkzeug.query.get_or_404(id)
+@main_bp.route('/delete_werkzeug/<int:werkzeug_id>', methods=['POST'])
+def delete_werkzeug(werkzeug_id):
+    """Delete a tool."""
+    werkzeug = Werkzeug.query.get_or_404(werkzeug_id)
     if werkzeug.checks:
         flash(f'Fehler: Werkzeug "{werkzeug.name}" wird in Protokollen verwendet und kann nicht gelöscht werden.', 'error')
         ingress = request.headers.get('X-Ingress-Path', '')
@@ -1108,6 +1118,7 @@ def delete_werkzeug(id):
 @main_bp.route('/upload_logo', methods=['POST'])
 @limiter.limit("5 per minute")
 def upload_logo():
+    """Upload a custom request logo."""
     ingress = request.headers.get('X-Ingress-Path', '')
     if 'logo' not in request.files:
         flash('Keine Datei ausgewählt', 'danger')
@@ -1121,8 +1132,8 @@ def upload_logo():
     if file:
         filename_ext = file.filename.rsplit('.', 1)[-1].lower()
         if filename_ext not in ['png', 'jpg', 'jpeg']:
-             flash('Ungültige Dateiendung (Nur .png, .jpg, .jpeg).', 'error')
-             return redirect(f"{ingress}{url_for('main.settings')}")
+            flash('Ungültige Dateiendung (Nur .png, .jpg, .jpeg).', 'error')
+            return redirect(f"{ingress}{url_for('main.settings')}")
 
         header = file.read(1024)
         file.seek(0)
@@ -1137,16 +1148,16 @@ def upload_logo():
         size = file.tell()
         file.seek(0)
         if size > 2 * 1024 * 1024:
-             flash('Datei zu groß (max. 2MB).', 'error')
-             return redirect(f"{ingress}{url_for('main.settings')}")
+            flash('Datei zu groß (max. 2MB).', 'error')
+            return redirect(f"{ingress}{url_for('main.settings')}")
 
         # SECURITY FIX #2: Use secure_filename() to prevent path traversal
-        from werkzeug.utils import secure_filename
+        # from werkzeug.utils import secure_filename
 
         # Always save as 'logo.png' but sanitize for safety
         filename = secure_filename('logo.png')
 
-        # Use get_data_dir() for consistency with logo display check
+        # File cleanup
         data_dir = get_data_dir()
         img_folder = os.path.join(data_dir, 'static', 'img')
         os.makedirs(img_folder, exist_ok=True)
@@ -1159,27 +1170,29 @@ def upload_logo():
 
 @main_bp.route('/generate_qr_codes')
 def generate_qr_codes():
-    tools = Werkzeug.query.order_by(Werkzeug.name).all()
-    if not tools:
+    """Generate PDF with QR codes for all tools."""
+    all_tools = Werkzeug.query.order_by(Werkzeug.name).all()
+    if not all_tools:
         flash('Keine Werkzeuge vorhanden.', 'warning')
         ingress = request.headers.get('X-Ingress-Path', '')
         return redirect(f"{ingress}{url_for('main.settings')}")
 
     try:
-        pdf = generate_qr_codes_pdf(tools)
-        response = make_response(bytes(pdf.output(dest='S')))
+        pdf = generate_qr_codes_pdf(all_tools)
+        response = make_response(bytes(pdf.output(dest='S'))) # pylint: disable=unexpected-keyword-arg
         response.headers['Content-Type'] = 'application/pdf'
         response.headers['Content-Disposition'] = 'attachment; filename=Werkzeug_QRCodes.pdf'
         return response
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exception-caught
         current_app.logger.error(f"Error generating QR Codes: {e}")
         flash(f'Fehler beim Erstellen der QR-Codes: {e}', 'danger')
         ingress = request.headers.get('X-Ingress-Path', '')
         return redirect(f"{ingress}{url_for('main.settings')}")
 
-@main_bp.route('/archive_azubi/<int:id>', methods=['POST'])
-def archive_azubi(id):
-    azubi = Azubi.query.get_or_404(id)
+@main_bp.route('/archive_azubi/<int:azubi_id>', methods=['POST'])
+def archive_azubi(azubi_id):
+    """Archive an azubi."""
+    azubi = Azubi.query.get_or_404(azubi_id)
     assigned_cards = get_assigned_tools(azubi.id)
     if assigned_cards:
         flash(f'Warnung: {azubi.name} hat noch {len(assigned_cards)} Werkzeuge im Besitz! Bitte erst zurückgeben.', 'danger')
@@ -1192,29 +1205,31 @@ def archive_azubi(id):
     ingress = request.headers.get('X-Ingress-Path', '')
     return redirect(f"{ingress}{url_for('main.personnel')}")
 
-@main_bp.route('/unarchive_azubi/<int:id>', methods=['POST'])
-def unarchive_azubi(id):
-    azubi = Azubi.query.get_or_404(id)
+@main_bp.route('/unarchive_azubi/<int:azubi_id>', methods=['POST'])
+def unarchive_azubi(azubi_id):
+    """Unarchive an azubi."""
+    azubi = Azubi.query.get_or_404(azubi_id)
     azubi.is_archived = False
     db.session.commit()
     flash(f'{azubi.name} wurde wiederhergestellt.', 'success')
     ingress = request.headers.get('X-Ingress-Path', '')
     return redirect(f"{ingress}{url_for('main.personnel')}")
 
-@main_bp.route('/report/end_of_training/<int:id>')
-def end_of_training_report(id):
-    azubi = Azubi.query.get_or_404(id)
+@main_bp.route('/report/end_of_training/<int:azubi_id>')
+def end_of_training_report(azubi_id):
+    """Generate end of training report."""
+    azubi = Azubi.query.get_or_404(azubi_id)
     assigned = get_assigned_tools(azubi.id)
-    is_clear = (len(assigned) == 0)
-    history = Check.query.filter_by(azubi_id=id).order_by(Check.datum.desc()).all()
+    is_clear = len(assigned) == 0
+    check_history = Check.query.filter_by(azubi_id=azubi_id).order_by(Check.datum.desc()).all()
 
     try:
-        pdf = generate_end_of_training_report(azubi, history, is_clear)
-        response = make_response(bytes(pdf.output(dest='S')))
+        pdf = generate_end_of_training_report(azubi, check_history, is_clear)
+        response = make_response(bytes(pdf.output(dest='S'))) # pylint: disable=unexpected-keyword-arg
         response.headers['Content-Type'] = 'application/pdf'
         response.headers['Content-Disposition'] = f'attachment; filename=Ausbildungsende_{azubi.name}.pdf'
         return response
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exception-caught
         current_app.logger.error(f"Error generating Report: {e}")
         flash(f'Fehler beim Erstellen des Berichts: {e}', 'danger')
         ingress = request.headers.get('X-Ingress-Path', '')

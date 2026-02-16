@@ -4,6 +4,12 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.7.0-rc2] - 2026-02-16
+### Fixed
+- **Critical**: Restored `routes.py` from truncation and verified integrity.
+- **Refactor**: Completed comprehensive Pylint refactoring for `routes.py` (Score: 9.51), ensuring all core modules now meet the > 9.5 quality standard.
+- **Cleanup**: Removed unused imports, fixed indentation, and resolved variable shadowing across the codebase.
+
 ## [2.7.0-rc1] - 2026-02-16
 ### Fixed
 - **Critical**: Restored scheduler persistence (backups now survive restarts).
