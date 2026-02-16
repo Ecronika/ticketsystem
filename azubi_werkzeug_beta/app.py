@@ -109,14 +109,14 @@ else:
         pass
 
 # Init Extensions
-    db.init_app(app)
-    csrf.init_app(app)
-    limiter.init_app(app)
-    
-    from extensions import scheduler
-    if not scheduler.running:
-        scheduler.init_app(app)
-        scheduler.start()
+db.init_app(app)
+csrf.init_app(app)
+limiter.init_app(app)
+
+from extensions import scheduler
+if not scheduler.running:
+    scheduler.init_app(app)
+    scheduler.start()
 
 # SQLite Connection Optimization (Fix for Worker Timeouts)
 from sqlalchemy import event
