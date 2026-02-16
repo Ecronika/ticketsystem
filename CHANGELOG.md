@@ -4,6 +4,12 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.7.0-beta5] - 2026-02-16
+### Fixed
+- **Lint**: Fixed IndentationError and SyntaxError issues in `app.py`, `routes.py`, and `services.py`.
+- **Refactor**: Improved `pdf_utils.py` code quality (Imports, Docstrings, Exception Handling).
+- **Fix**: Corrected initialization order of flask extensions in `app.py` (SQLAlchemy Context Error).
+
 ## [2.7.0-beta4] - 2026-02-16
 ### Fixed
 - **Security**: Generic error messages for API endpoints (prevent info leakage).

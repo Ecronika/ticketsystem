@@ -1,6 +1,8 @@
-from fpdf import FPDF
 import os
+import tempfile
 from datetime import datetime
+import qrcode
+from fpdf import FPDF
 from flask import current_app
 from models import CheckType
 
@@ -15,6 +17,9 @@ def get_logo_path():
     return os.path.join(data_dir, 'static', 'img', 'logo.png')
 
 class HandoverReport(FPDF):
+    """
+    Custom FPDF class for Werkzeug reports with consistent Header/Footer.
+    """
     def __init__(self, title="Werkzeug-Protokoll"):
         super().__init__()
         self.report_title = title
@@ -48,6 +53,7 @@ class HandoverReport(FPDF):
         self.cell(0, 10, f'Seite {self.page_no()}/{{nb}}', 0, 0, 'C')
 
     def chapter_title(self, label):
+        """Adds a standardized chapter title to the PDF."""
         self.set_font('Arial', 'B', 11)
         self.set_fill_color(240, 240, 240) # Hellgrau
         self.set_text_color(0)
@@ -55,6 +61,20 @@ class HandoverReport(FPDF):
         self.ln(2) # Kleiner Abstand
 
 def generate_handover_pdf(azubi_name, examiner_name, tools, check_type, signature_paths, output_path):
+    """
+    Generates a PDF report for tool handover/check/exchange.
+    
+    Args:
+        azubi_name (str): Name of the apprentice.
+        examiner_name (str): Name of the examiner.
+        tools (list): List of tool dictionaries.
+        check_type (CheckType): generic or specific check type.
+        signature_paths (dict): Paths to signature images {'azubi': path, 'examiner': path}.
+        output_path (str): Destination path for the PDF.
+        
+    Returns:
+        str: The output path of the generated PDF.
+    """
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
     # Titel Logik
@@ -201,8 +221,15 @@ def generate_handover_pdf(azubi_name, examiner_name, tools, check_type, signatur
     return output_path
 
 def generate_qr_codes_pdf(tools):
-    import qrcode
-    import tempfile
+    """
+    Generates a PDF containing QR codes for the provided tools.
+    
+    Args:
+        tools (list): List of tool objects (id, name).
+        
+    Returns:
+        FPDF: The generated PDF object (not saved to disk).
+    """
     
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
@@ -255,7 +282,7 @@ def generate_qr_codes_pdf(tools):
             pdf.image(temp_qr_path, x=x+5, y=y+12, w=35, h=35)
             try:
                 os.remove(temp_qr_path) # Clean up
-            except:
+            except OSError:
                 pass
             
         # ID text
@@ -278,6 +305,11 @@ def generate_qr_codes_pdf(tools):
     return pdf
 
 def generate_end_of_training_report(azubi, history_entries, is_inventory_clear):
+    """
+    Generates a final report at the end of training.
+    
+    Summarizes the tool history and confirms inventory status.
+    """
     pdf = HandoverReport(title="Ausbildungs-Ende Protokoll")
     pdf.alias_nb_pages()
     
@@ -375,6 +407,7 @@ def generate_end_of_training_report(azubi, history_entries, is_inventory_clear):
         # Name kürzen falls nötig
         details = details[:55]
         
+        # Conditional Color
         # Conditional Color
         if status in ['missing', 'broken']:
             pdf.set_text_color(200, 0, 0)
