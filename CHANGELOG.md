@@ -3,6 +3,11 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [2.6.2-beta9] - 2026-02-16
+
+### 🐛 Bug Fixes
+- **Merge Cleanup:** Removed a duplicate `except` block in `exchange_tool` that was left over from previous refactoring.
+
 ## [2.6.2-beta8] - 2026-02-16
 
 ### 🛡️ Security

@@ -386,12 +386,6 @@ def exchange_tool():
         current_app.logger.error(f"Exchange failed: {e}", exc_info=True)
         flash(f'Fehler beim Austausch: {str(e)}', 'error')
         return redirect(f"{ingress}{url_for('main.index')}")
-        
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Exchange failed: {e}", exc_info=True)
-        flash(f'Fehler beim Austausch: {str(e)}', 'error')
-        return redirect(f"{ingress}{url_for('main.index')}")
 
 @main_bp.route('/api/assigned_tools/<int:azubi_id>')
 def api_get_assigned_tools(azubi_id):
