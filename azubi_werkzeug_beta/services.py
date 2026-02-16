@@ -7,11 +7,17 @@ import os
 import time
 import base64
 import zipfile
+import shutil
+import uuid
 from datetime import datetime
+
 from flask import current_app
 from extensions import db, Config
 from models import Check, CheckType, Werkzeug, Azubi
 from pdf_utils import generate_handover_pdf
+# Delayed imports to avoid circular dependencies (handled in methods if strictly necessary, but prefer top-level if possible)
+# from extensions import scheduler  <-- Circular with app?
+# from models import SystemSettings <-- Circular with app?
 
 class CheckService:
     @staticmethod
@@ -22,7 +28,6 @@ class CheckService:
     @staticmethod
     def generate_unique_session_id():
         """Generate a unique session ID for grouping checks"""
-        import uuid
         return str(uuid.uuid4())
 
     @staticmethod
@@ -45,7 +50,7 @@ class CheckService:
             data_dir = CheckService.get_data_dir()
             os.makedirs(os.path.join(data_dir, 'signatures'), exist_ok=True)
 
-            header, encoded = signature_data.split(",", 1)
+            _, encoded = signature_data.split(",", 1)
             try:
                 data = base64.b64decode(encoded)
             except Exception as e:
@@ -113,7 +118,7 @@ class CheckService:
         selected_tools = []
         global_bemerkung = form_data.get('bemerkung')
 
-        # 4. Create Database Records
+        # 4. Prepare Data for DB and PDF
         for tool_id in tool_ids:
             werkzeug = werkzeug_dict.get(tool_id)
             if not werkzeug:
@@ -128,6 +133,7 @@ class CheckService:
             if global_bemerkung:
                 full_bemerkung += f" | {global_bemerkung}"
 
+            # Create Check object (not added to session yet)
             new_check = Check(
                 session_id=session_id,
                 azubi_id=azubi_id,
@@ -140,10 +146,9 @@ class CheckService:
                 examiner=examiner_name,
                 signature_azubi=sig_azubi_path,
                 signature_examiner=sig_examiner_path,
-                report_path=None # Will update later
+                report_path=None # Will update if PDF generated
             )
 
-            db.session.add(new_check)
             reports_to_create.append(new_check)
 
             selected_tools.append({
@@ -154,19 +159,8 @@ class CheckService:
                 'incident_reason': incident_reason
             })
 
-        # 5. Commit Check Data
-        # 5. Flush Check Data (Optimistic)
-        try:
-            db.session.flush()
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f"DB Error preparation checks: {e}")
-            raise e
-
-        # 6. Generate PDF (If tools selected)
+        # 5. Generate PDF (BEFORE DB Transaction)
         pdf_path = None
-
-
         if selected_tools:
             try:
                 pdf_filename = f"Protokoll_{check_type.value}_{azubi.name.replace(' ', '_')}_{check_date.strftime('%Y%m%d_%H%M')}.pdf"
@@ -181,32 +175,40 @@ class CheckService:
                     output_path=pdf_path
                 )
 
-                # 7. Update Records with PDF Path (In-Memory)
+                # Update records with PDF path
                 for r in reports_to_create:
                     r.report_path = pdf_path
 
-                # 8. Commit Everything (All-or-Nothing)
-                db.session.commit()
-
             except Exception as e:
-                db.session.rollback()
-                current_app.logger.error(f"Submission failed (PDF Error): {e}")
-
-                # Cleanup: Delete PDF if it was created
+                current_app.logger.error(f"PDF Generation failed: {e}")
+                # We decide here: Fail the whole submission or continue without PDF?
+                # User requirement: Transaction risk was high.
+                # If PDF fails, we should probably abort to allow retry.
                 if pdf_path and os.path.exists(pdf_path):
-                    try:
-                        os.remove(pdf_path)
-                    except:
-                        pass
-
-                raise e # Re-raise to alert caller
-        else:
-             # No tools selected, but we still commit the session
-             try:
-                db.session.commit()
-             except Exception as e:
-                db.session.rollback()
+                     try:
+                         os.remove(pdf_path)
+                     except OSError:
+                         pass
                 raise e
+
+        # 6. Commit to DB (Fast Transaction)
+        try:
+            for check in reports_to_create:
+                db.session.add(check)
+            
+            db.session.commit()
+
+        except Exception as e:
+            current_app.logger.error(f"DB Commit failed: {e}")
+            db.session.rollback()
+            
+            # Cleanup PDF if DB failed
+            if pdf_path and os.path.exists(pdf_path):
+                try:
+                    os.remove(pdf_path)
+                except OSError:
+                    pass
+            raise e
 
         duration = time.time() - start_time
         current_app.logger.info(f"CheckService: Processed {len(reports_to_create)} checks in {duration:.3f}s")
@@ -322,107 +324,10 @@ class CheckService:
             "pdf_path": pdf_path
         }
 
-    @staticmethod
-    def process_single_check(
-        azubi_id: int,
-        examiner_id: int,
-        check_date: datetime,
-        remarks: str,
-        signature_azubi_data: str,
-        signature_examiner_data: str
-    ) -> dict:
-        """
-        Processes a single check submission (e.g., a general check without specific tools).
-        Creates one check record and a PDF.
-        """
-        start_time = time.time()
 
-        # 0. Validate Azubi and Examiner
-        azubi = Azubi.query.get(azubi_id)
-        if not azubi:
-            current_app.logger.error(f"CheckService: Azubi {azubi_id} not found")
-            raise ValueError(f"Azubi mit ID {azubi_id} nicht gefunden")
-
-        examiner = Examiner.query.get(examiner_id)
-        if not examiner:
-            current_app.logger.error(f"CheckService: Examiner {examiner_id} not found")
-            raise ValueError(f"Prüfer mit ID {examiner_id} nicht gefunden")
-
-        # 1. Setup Session
-        session_id = CheckService.generate_unique_session_id()
-        data_dir = CheckService.get_data_dir()
-
-        # 2. Handle Signatures
-        sig_azubi_path = CheckService.save_signature(
-            signature_azubi_data, session_id, 'azubi'
-        )
-        sig_examiner_path = CheckService.save_signature(
-            signature_examiner_data, session_id, 'examiner'
-        )
-
-        # 3. Save to DB (but don't commit yet!)
-        try:
-            new_check = Check(
-                session_id=session_id,
-                azubi_id=azubi.id,
-                werkzeug_id=None, # Wird bei Einzelprüfungen nicht gesetzt
-                check_type=CheckType.CHECK.value,
-                bemerkung=remarks,
-                datum=check_date,
-                tech_param_value=None,
-                signature_azubi=sig_azubi_path,
-                signature_examiner=sig_examiner_path,
-                report_path=None # Wird gleich gesetzt
-            )
-
-            db.session.add(new_check)
-
-            # 4. Generate PDF
-            pdf_filename = f"pruefung_{session_id}.pdf"
-            pdf_path = os.path.join(data_dir, 'reports', pdf_filename)
-
-            # Tools data preparation
-            # ... (Logic needs to fetch tool details if we want them in PDF,
-            # ideally passed from route or fetched here.
-            # For now assuming we just generate the check protocol)
-
-            generate_check_pdf(
-                azubi_name=azubi.name,
-                examiner_name=examiner.name,
-                date_str=check_date.strftime("%d.%m.%Y"),
-                remarks=remarks,
-                signature_paths={
-                    'azubi': sig_azubi_path,
-                    'examiner': sig_examiner_path
-                },
-                output_path=pdf_path
-            )
-
-            # Update record
-            new_check.report_path = pdf_path
-
-            # 5. Commit Check AND Items
-            # Note: Items are currently not passed to this service method in logic flow
-            # The current routes.py implementation iterates and saves items SEPARATELY.
-            # This is a larger architectural flaw. BUT for this method:
-
-            db.session.commit()
-
-            duration = time.time() - start_time
-            current_app.logger.info(f"CheckService: Processed in {duration:.3f}s")
-
-            return {
-                "success": True,
-                "session_id": session_id,
-                "pdf_path": pdf_path
-            }
-
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f"Check submission failed: {e}")
-            raise e
 
 class BackupService:
+    """Service for handling system backups and restores."""
     @staticmethod
     def get_backup_dir():
         """Returns the path to the backup directory."""
@@ -465,7 +370,6 @@ class BackupService:
 
                 # 2. Extract to temp (with Zip Slip protection)
                 if os.path.exists(temp_dir):
-                    import shutil
                     shutil.rmtree(temp_dir)
                 os.makedirs(temp_dir)
 
@@ -479,7 +383,7 @@ class BackupService:
                     zip_ref.extract(member, temp_dir)
 
             # 3. Overwrite Data (Critical Section)
-            import shutil
+            # import shutil (Moved to top)
 
             # DB & Config
             shutil.copy2(os.path.join(temp_dir, 'werkzeug.db'), os.path.join(data_dir, 'werkzeug.db'))
@@ -512,7 +416,6 @@ class BackupService:
         except Exception as e:
             current_app.logger.error(f"Restore failed: {e}")
             if os.path.exists(temp_dir):
-                import shutil
                 shutil.rmtree(temp_dir)
             raise e
 
@@ -620,19 +523,14 @@ class BackupService:
 
     @staticmethod
     def create_backup():
-        """Creates a zip backup of critical data."""
-        data_dir = current_app.config.get('DATA_DIR', os.path.dirname(__file__))
-        backup_dir = BackupService.get_backup_dir()
         """
-        Creates a ZIP backup of:
-        - werkzeug.db
-        - config.yaml
-        - signatures/
-        - reports/
+        Creates a zip backup of critical data (DB, Config, Signatures, Reports).
 
         Returns:
             dict: {success, filename, path, size_mb}
         """
+        data_dir = current_app.config.get('DATA_DIR', os.path.dirname(__file__))
+        backup_dir = BackupService.get_backup_dir()
         data_dir = CheckService.get_data_dir()
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_filename = f"backup_azubi_werkzeug_{timestamp}.zip"
@@ -660,16 +558,15 @@ class BackupService:
                 # 3. Signatures
                 sig_dir = os.path.join(data_dir, 'signatures')
                 if os.path.exists(sig_dir):
-                    for root, dirs, files in os.walk(sig_dir):
+                    for root, _, files in os.walk(sig_dir):
                         for file in files:
                             file_path = os.path.join(root, file)
                             arcname = os.path.relpath(file_path, data_dir)
                             zipf.write(file_path, arcname)
 
-                # 4. Reports (PDFs) - NEW in v2.7.0
                 reports_dir = os.path.join(data_dir, 'reports')
                 if os.path.exists(reports_dir):
-                    for root, dirs, files in os.walk(reports_dir):
+                    for root, _, files in os.walk(reports_dir):
                         for file in files:
                             file_path = os.path.join(root, file)
                             arcname = os.path.relpath(file_path, data_dir)

@@ -4,15 +4,22 @@ Main Application Entry Point.
 
 Configures and initializes the Flask application.
 """
-from flask import Flask, render_template, request, send_from_directory
-from werkzeug.exceptions import NotFound
-from extensions import db, limiter, csrf, scheduler, Config
-from routes import main_bp
-from models import Azubi, Werkzeug, Examiner, Check
+from logging.handlers import RotatingFileHandler, QueueHandler, QueueListener
 import os
-import secrets
-import logging
 import sys
+import logging
+import secrets
+import queue
+import atexit
+import sqlite3
+
+from flask import Flask, render_template, request, flash, redirect, url_for
+from werkzeug.exceptions import NotFound
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+
+from extensions import db, limiter, csrf, scheduler, Config
+from services import BackupService, CheckService
 
 app = Flask(__name__)
 
@@ -20,6 +27,7 @@ app = Flask(__name__)
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
+    MAX_CONTENT_LENGTH=16 * 1024 * 1024  # 16MB Upload Limit
     # SESSION_COOKIE_SECURE=True # Disabled for Ingress (SSL terminated by HA Proxy)
 )
 
@@ -30,14 +38,11 @@ if not os.environ.get('SECRET_KEY') and not os.path.exists(os.path.join(Config.g
     logging.warning("No SECRET_KEY set and no secret.key file found. A new key will be generated (sessions invalid on restart).")
 
 if not os.environ.get('DATA_DIR'):
-     logging.info(f"DATA_DIR not set. Using default: {Config.get_data_dir()}")
+    logging.info(f"DATA_DIR not set. Using default: {Config.get_data_dir()}")
 
 # Logging Configuration - ASYNC (Non-blocking)
 # Issue: Synchronous file I/O was blocking request threads during heavy logging
 # Solution: QueueHandler writes to memory queue (instant), background thread handles disk I/O
-from logging.handlers import RotatingFileHandler, QueueHandler, QueueListener
-import queue
-import atexit
 
 # Determine log file location based on DATA_DIR
 # Note: We need to get DATA_DIR early for logging setup
@@ -101,14 +106,14 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 secret_file = os.path.join(data_dir, 'secret.key')
 if os.path.exists(secret_file):
     try:
-        with open(secret_file, 'r') as f:
+        with open(secret_file, 'r', encoding='utf-8') as f:
             app.secret_key = f.read().strip()
     except Exception:
         app.secret_key = secrets.token_hex(32)
 else:
     app.secret_key = secrets.token_hex(32)
     try:
-        with open(secret_file, 'w') as f:
+        with open(secret_file, 'w', encoding='utf-8') as f:
             f.write(app.secret_key)
     except OSError:
         pass
@@ -118,15 +123,18 @@ db.init_app(app)
 csrf.init_app(app)
 limiter.init_app(app)
 
-from extensions import scheduler
 if not scheduler.running:
     scheduler.init_app(app)
     scheduler.start()
+    
+    # Restore Backup Schedule from DB
+    try:
+        BackupService.schedule_backup_job(app)
+    except Exception as e:
+        app.logger.error(f"Failed to restore backup schedule: {e}")
 
 # SQLite Connection Optimization (Fix for Worker Timeouts)
-from sqlalchemy import event
-from sqlalchemy.engine import Engine
-import sqlite3
+# SQLite Connection Optimization (Fix for Worker Timeouts)
 
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_conn, connection_record):
@@ -217,10 +225,10 @@ def remove_session(exception=None):
 
 # --- Helper to create DB and Seed Data ---
 def setup_database():
+    """Create database tables and perform migrations (schema updates)."""
     with app.app_context():
         db.create_all()
 
-        import sqlite3
         try:
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
@@ -235,9 +243,9 @@ def setup_database():
 
             # --- Check 'incident_reason' in 'check' table (Phase 2) ---
             if 'incident_reason' not in check_columns:
-                 app.logger.info("Migrating DB: Adding 'incident_reason' column to check table.")
-                 cursor.execute('ALTER TABLE "check" ADD COLUMN incident_reason VARCHAR(50)')
-                 conn.commit()
+                app.logger.info("Migrating DB: Adding 'incident_reason' column to check table.")
+                cursor.execute('ALTER TABLE "check" ADD COLUMN incident_reason VARCHAR(50)')
+                conn.commit()
 
             # --- Check 'tech_param_label' in 'werkzeug' table ---
             cursor.execute("PRAGMA table_info(werkzeug)")
@@ -312,12 +320,15 @@ def setup_database():
 # --- Global Error Handlers ---
 @app.errorhandler(413) # Payload Too Large
 def request_entity_too_large(e):
-    app.logger.warning(f"File upload too large: {request.content_length}")
+    """Handle 413 Payload Too Large error."""
+    app.logger.warning("File upload too large: %s", request.content_length)
     flash('Datei zu groß (max. 2MB).', 'error')
-    return redirect(url_for('main.manage'))
+    # fallback to index if manage is not available or context is unclear
+    return redirect(url_for('main.index'))
 
 @app.errorhandler(Exception)
 def handle_exception(e):
+    """Handle standard exceptions."""
     # Pass through HTTP errors
     if isinstance(e, int):
         return e
@@ -333,7 +344,7 @@ def handle_exception(e):
         </body></html>
         """, 404
 
-    app.logger.error(f"Unhandled Exception: {e}", exc_info=True)
+    app.logger.error("Unhandled Exception: %s", e, exc_info=True)
     return render_template('base.html', content=f"<h1>Ein unerwarteter Fehler ist aufgetreten</h1><p>{e}</p>"), 500
 
 if __name__ == '__main__':

@@ -4,6 +4,13 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.7.0-rc1] - 2026-02-16
+### Fixed
+- **Critical**: Restored scheduler persistence (backups now survive restarts).
+- **High**: Fixed database transaction risk during PDF generation (PDFs now generated before DB lock).
+- **High**: Unified configuration logic for `DATA_DIR` across application.
+- **Security**: Added `MAX_CONTENT_LENGTH` (16MB) to prevent DoS via large uploads.
+
 ## [2.7.0-beta7] - 2026-02-16
 ### Improved
 - **Code Quality**: Achieved Pylint score > 9.0 across all core modules (Aggregate: 9.53/10).
