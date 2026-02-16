@@ -1,7 +1,7 @@
 ```python
 from flask import Flask, render_template, request, send_from_directory
 from werkzeug.exceptions import NotFound
-from extensions import db, limiter, csrf, scheduler
+from extensions import db, limiter, csrf, scheduler, Config
 from routes import main_bp
 from models import Azubi, Werkzeug, Examiner, Check
 import os
@@ -21,11 +21,11 @@ app.config.update(
 # --- Environment Validation ---
 # Ensure critical variables are set (or fallback is known)
 # Note: SECRET_KEY and DATA_DIR are handled below, but we log warnings for clarity.
-if not os.environ.get('SECRET_KEY') and not os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'secret.key')):
+if not os.environ.get('SECRET_KEY') and not os.path.exists(os.path.join(Config.get_base_dir(), 'secret.key')):
     logging.warning("No SECRET_KEY set and no secret.key file found. A new key will be generated (sessions invalid on restart).")
 
 if not os.environ.get('DATA_DIR'):
-     logging.info(f"DATA_DIR not set. Using default: {os.path.dirname(os.path.abspath(__file__))}")
+     logging.info(f"DATA_DIR not set. Using default: {Config.get_data_dir()}")
 
 # Logging Configuration - ASYNC (Non-blocking)
 # Issue: Synchronous file I/O was blocking request threads during heavy logging
@@ -36,9 +36,8 @@ import atexit
 
 # Determine log file location based on DATA_DIR
 # Note: We need to get DATA_DIR early for logging setup
-default_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'werkzeug.db')
-db_path = os.environ.get('DB_PATH', default_db_path)
-data_dir = os.path.dirname(db_path)
+data_dir = Config.get_data_dir()
+db_path = Config.get_db_path()
 log_file = os.path.join(data_dir, 'app.log')
 
 # Create log queue for async processing

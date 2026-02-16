@@ -4,6 +4,14 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.7.0-beta4] - 2026-02-16
+### Fixed
+- **Security**: Generic error messages for API endpoints (prevent info leakage).
+- **Refactor**: Centralized `DATA_DIR` and `DB_PATH` logic in `Config` class.
+- **Refactor**: Removed dead code/comments in `services.py`.
+- **Improvement**: Added Google-style docstrings to `BackupService`.
+- **Improvement**: Configurable Home Assistant options path via `HA_OPTIONS_PATH`.
+
 ## [2.7.0-beta3] - 2026-02-16
 ### Fixed
 - **Bug**: Fixed `CheckType` parsing vulnerability (Unhandled Exception).

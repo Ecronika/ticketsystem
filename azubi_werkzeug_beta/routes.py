@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, select  # For optimized queries
 from sqlalchemy.exc import SQLAlchemyError  # Issue #4: Error handling
-from extensions import db, limiter, csrf
+from extensions import db, limiter, csrf, Config
 from models import Azubi, Werkzeug, Examiner, Check, CheckType
 from forms import AzubiForm, ExaminerForm, WerkzeugForm
 from datetime import datetime, timedelta
@@ -21,7 +21,7 @@ def inject_ingress_path():
     ingress = request.headers.get('X-Ingress-Path', '')
     
     # Add logo version for cache busting
-    data_dir = current_app.config.get('DATA_DIR', os.path.dirname(os.path.abspath(__file__)))
+    data_dir = Config.get_data_dir()
     logo_path = os.path.join(data_dir, 'static', 'img', 'logo.png')
     
     # Use file modification time as version (cache buster)
@@ -69,7 +69,7 @@ def generate_unique_session_id():
 
 def get_data_dir():
     # Retrieve data_dir from app config or calculate it
-    return current_app.config.get('DATA_DIR', os.path.dirname(os.path.abspath(__file__)))
+    return Config.get_data_dir()
 
 # Helper: Assigned Tools Cache
 # Simple in-memory cache to reduce DB load
@@ -1005,7 +1005,8 @@ def api_add_werkzeug():
         return jsonify({'success': False, 'error': 'Datenbankfehler beim Hinzufügen des Werkzeugs'}), 500
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        current_app.logger.error(f"API add werkzeug unexpected error: {e}")
+        return jsonify({'success': False, 'error': 'Ein unbekannter Fehler ist aufgetreten.'}), 500
 
 @main_bp.route('/api/azubi', methods=['POST'])
 def api_add_azubi():
@@ -1037,7 +1038,8 @@ def api_add_azubi():
         return jsonify({'success': False, 'error': 'Datenbankfehler beim Hinzufügen des Azubis'}), 500
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        current_app.logger.error(f"API add azubi unexpected error: {e}")
+        return jsonify({'success': False, 'error': 'Ein unbekannter Fehler ist aufgetreten.'}), 500
 
 @main_bp.route('/api/examiner', methods=['POST'])
 def api_add_examiner():
@@ -1066,7 +1068,8 @@ def api_add_examiner():
         return jsonify({'success': False, 'error': 'Datenbankfehler beim Hinzufügen des Prüfers'}), 500
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        current_app.logger.error(f"API add examiner unexpected error: {e}")
+        return jsonify({'success': False, 'error': 'Ein unbekannter Fehler ist aufgetreten.'}), 500
 
 
 @main_bp.route('/edit_werkzeug/<int:id>', methods=['POST'])

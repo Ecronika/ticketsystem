@@ -4,7 +4,7 @@ import base64
 import zipfile
 from datetime import datetime
 from flask import current_app
-from extensions import db
+from extensions import db, Config
 from models import Check, CheckType, Werkzeug, Azubi
 from pdf_utils import generate_handover_pdf
 
@@ -12,11 +12,7 @@ class CheckService:
     @staticmethod
     def get_data_dir():
         """Helper to get data directory"""
-        # Prioritize App Config (set by app.py from config.yaml or env)
-        if current_app and 'DATA_DIR' in current_app.config:
-            return current_app.config['DATA_DIR']
-            
-        return os.environ.get('DATA_DIR', os.path.join(os.getcwd(), 'data'))
+        return Config.get_data_dir()
 
     @staticmethod
     def generate_unique_session_id():
@@ -164,17 +160,7 @@ class CheckService:
             
         # 6. Generate PDF (If tools selected)
         pdf_path = None
-        # 6. Generate PDF (If tools selected)
-        pdf_path = None
-        if selected_tools:
-            try:
-                # Azubi already validated at start
-                # azubi object needs to be re-fetched? No, we can use the one from start if we keep it.
-                # But typically better to stick to ID lookup or ensure object is attached to session.
-                # Since we committed, the session might be clean. Safe to re-fetch or use if bound.
-                # simpler to just re-fetch or rely on previous variable if scope allows.
-                # The 'azubi' variable from start IS in scope!
-                pass 
+ 
 
                 pdf_filename = f"Protokoll_{check_type.value}_{azubi.name.replace(' ', '_')}_{check_date.strftime('%Y%m%d_%H%M')}.pdf"
                 pdf_path = os.path.join(data_dir, 'reports', pdf_filename)
@@ -442,9 +428,20 @@ class BackupService:
     @staticmethod
     def restore_backup(zip_path):
         """
-        Restores the system from a ZIP file.
-        WARNING: Overwrites current data!
-        Includes Zip Slip protection.
+        Restores the system state from a ZIP backup.
+        
+        This method safely extracts the backup, validating against Zip Slip attacks,
+        and restores the database, configuration, signatures, and reports.
+        
+        Args:
+            zip_path (str): Absolute path to the backup ZIP file.
+            
+        Returns:
+            bool: True if restore was successful.
+            
+        Raises:
+            ValueError: If the backup is invalid or security checks fail.
+            Exception: For any other restore failures.
         """
         data_dir = CheckService.get_data_dir()
         temp_dir = os.path.join(data_dir, 'temp_restore')
@@ -515,7 +512,10 @@ class BackupService:
     @staticmethod
     def prune_backups():
         """
-        Deletes old backups based on retention policy.
+        Prunes old backup files based on the configured retention policy.
+        
+        Reads 'backup_retention_days' from SystemSettings.
+        Deletes ZIP files in the backup directory older than the cutoff.
         """
         try:
             # Get retention days (Default: 30)
@@ -560,7 +560,13 @@ class BackupService:
     @staticmethod
     def schedule_backup_job(app):
         """
-        Configures the APScheduler job based on settings.
+        Configures the Auto-Backup Scheduler Job.
+        
+        Reads settings (interval, time) from SystemSettings and adds/updates
+        the 'auto_backup' job in Flask-APScheduler.
+        
+        Args:
+             app: The Flask application instance (needed for context).
         """
         from extensions import scheduler
         from models import SystemSettings
@@ -637,7 +643,7 @@ class BackupService:
                 
                 # 2. Config (HA Add-on support)
                 config_path = os.path.join(data_dir, 'config.yaml')
-                ha_config_path = '/data/options.json'
+                ha_config_path = Config.get_ha_options_path()
                 
                 if os.path.exists(config_path):
                     zipf.write(config_path, 'config.yaml')
