@@ -324,54 +324,69 @@ class BackupService:
         """Creates a zip backup of critical data."""
         data_dir = current_app.config.get('DATA_DIR', os.path.dirname(__file__))
         backup_dir = BackupService.get_backup_dir()
+        """
+        Creates a ZIP backup of:
+        - werkzeug.db
+        - config.yaml
+        - signatures/
+        - reports/
         
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        backup_filename = f"backup_{timestamp}.zip"
+        Returns:
+            dict: {success, filename, path, size_mb}
+        """
+        data_dir = CheckService.get_data_dir()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_filename = f"backup_azubi_werkzeug_{timestamp}.zip"
+        backup_dir = os.path.join(data_dir, 'backups')
         backup_path = os.path.join(backup_dir, backup_filename)
         
-        current_app.logger.info(f"Starting backup: {backup_path}")
-        
-        items_to_backup = [
-            'werkzeug.db',
-            'config.yaml',
-            'signatures',
-            'reports'
-        ]
+        os.makedirs(backup_dir, exist_ok=True)
         
         try:
             with zipfile.ZipFile(backup_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                for item in items_to_backup:
-                    # Item path relative to DATA_DIR
-                    full_path = os.path.join(data_dir, item)
-                    
-                    # config.yaml exception: it might be in root, not data_dir in some setups
-                    if item == 'config.yaml' and not os.path.exists(full_path):
-                        # Try root dir (cwd)
-                        root_path = os.path.join(os.getcwd(), 'config.yaml')
-                        if os.path.exists(root_path):
-                            full_path = root_path
-                    
-                    if os.path.exists(full_path):
-                        if os.path.isdir(full_path):
-                            for root, dirs, files in os.walk(full_path):
-                                for file in files:
-                                    file_path = os.path.join(root, file)
-                                    # Archive name should be relative to data_dir usually
-                                    # ex: signatures/file.png
-                                    arcname = os.path.relpath(file_path, data_dir)
-                                    zipf.write(file_path, arcname)
-                        else:
-                            arcname = os.path.basename(full_path)
-                            zipf.write(full_path, arcname)
-                    else:
-                        current_app.logger.warning(f"Backup: Item not found {full_path}")
+                # 1. Database
+                db_path = os.path.join(data_dir, 'werkzeug.db')
+                if os.path.exists(db_path):
+                    zipf.write(db_path, 'werkzeug.db')
+                
+                # 2. Config
+                config_path = os.path.join(data_dir, 'config.yaml')
+                if os.path.exists(config_path):
+                    zipf.write(config_path, 'config.yaml')
+                
+                # 3. Signatures
+                sig_dir = os.path.join(data_dir, 'signatures')
+                if os.path.exists(sig_dir):
+                    for root, dirs, files in os.walk(sig_dir):
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            arcname = os.path.relpath(file_path, data_dir)
+                            zipf.write(file_path, arcname)
+
+                # 4. Reports (PDFs) - NEW in v2.7.0
+                reports_dir = os.path.join(data_dir, 'reports')
+                if os.path.exists(reports_dir):
+                    for root, dirs, files in os.walk(reports_dir):
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            arcname = os.path.relpath(file_path, data_dir)
+                            zipf.write(file_path, arcname)
+                            
+            size_mb = round(os.path.getsize(backup_path) / (1024 * 1024), 2)
+            current_app.logger.info(f"Backup created: {backup_filename} ({size_mb} MB)")
             
-            # Rotation
-            BackupService.rotate_backups()
-            return backup_filename
+            # Auto-Prune after successful creation
+            BackupService.prune_backups()
+            
+            return {
+                "success": True,
+                "filename": backup_filename,
+                "path": backup_path,
+                "size_mb": size_mb
+            }
             
         except Exception as e:
-            current_app.logger.error(f"Backup failed: {e}", exc_info=True)
+            current_app.logger.error(f"Backup creation failed: {e}")
             if os.path.exists(backup_path):
                 os.remove(backup_path)
             raise e

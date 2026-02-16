@@ -3,6 +3,14 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+## [2.7.0-beta1] - 2026-02-16
+
+### ✨ New Features (Advanced Backup)
+- **Auto-Backup Scheduler:** Backups can now be scheduled directly from the UI (Daily/Weekly at specific times).
+- **Disaster Recovery (Restore):** Added "Restore" functionality. Admins can upload a backup ZIP to restore the entire system (Database, Config, Signatures, Reports). **Note:** Triggering a restore will restart the application.
+- **Retention Policy:** Added automatic deletion of old backups (configurable, default: 30 days).
+- **Reports Backup:** Backups now include the `reports/` directory (PDFs), ensuring full compliance history is preserved.
+
 ## [2.6.2] - 2026-02-16
 
 ### 🚀 New Features

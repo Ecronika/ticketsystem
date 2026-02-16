@@ -632,13 +632,90 @@ def settings():
     ingress = request.headers.get('X-Ingress-Path', '')
     
     # Fetch backups
-    backups = BackupService.list_backups()
+        backups = BackupService.list_backups()
+        
+        # Get System Settings
+        from models import SystemSettings
+        backup_interval = SystemSettings.get_setting('backup_interval', 'daily')
+        backup_time = SystemSettings.get_setting('backup_time', '03:00')
+        retention_days = SystemSettings.get_setting('backup_retention_days', '30')
+        
+        return render_template('settings.html', 
+                             logo_exists=logo_exists, 
+                             logo_version=time.time(),
+                             backups=backups,
+                             backup_interval=backup_interval,
+                             backup_time=backup_time,
+                             retention_days=retention_days)
+
+@main_bp.route('/settings/backup/config', methods=['POST'])
+def save_backup_config():
+    """Saves backup schedule settings"""
+    from models import SystemSettings
     
-    return render_template('settings.html', 
-                         logo_exists=logo_exists, 
-                         logo_version=logo_version,
-                         ingress_path=ingress,
-                         backups=backups)
+    interval = request.form.get('interval')
+    time_str = request.form.get('time')
+    retention = request.form.get('retention')
+    
+    # Save settings
+    SystemSettings.set_setting('backup_interval', interval)
+    SystemSettings.set_setting('backup_time', time_str)
+    SystemSettings.set_setting('backup_retention_days', retention)
+    
+    # Update Job
+    BackupService.schedule_backup_job(current_app._get_current_object())
+    
+    flash('Backup-Einstellungen gespeichert.', 'success')
+    return redirect(f"{request.headers.get('X-Ingress-Path', '')}{url_for('main.settings')}")
+
+@main_bp.route('/settings/restore', methods=['POST'])
+def restore_backup():
+    """Handles backup restore from upload"""
+    if 'backup_file' not in request.files:
+        flash('Keine Datei ausgewählt.', 'error')
+        return redirect(f"{request.headers.get('X-Ingress-Path', '')}{url_for('main.settings')}")
+        
+    file = request.files['backup_file']
+    if file.filename == '':
+        flash('Keine Datei ausgewählt.', 'error')
+        return redirect(f"{request.headers.get('X-Ingress-Path', '')}{url_for('main.settings')}")
+        
+    if file and file.filename.endswith('.zip'):
+        ingress = request.headers.get('X-Ingress-Path', '')
+        try:
+            # Save upload to temp
+            data_dir = CheckService.get_data_dir()
+            temp_path = os.path.join(data_dir, 'restore_upload.zip')
+            file.save(temp_path)
+            
+            # Restore
+            BackupService.restore_backup(temp_path)
+            
+            # Clean up upload
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+                
+            # Trigger Restart
+            # We use a flash message and then a special template or redirect that waits
+            flash('System wird wiederhergestellt. Neustart in 5 Sekunden...', 'success')
+            
+            # In a container, sys.exit(0) effectively restarts the app
+            import threading
+            def restart():
+                import time, sys
+                time.sleep(2)
+                sys.exit(0)
+                
+            threading.Thread(target=restart).start()
+            
+            return redirect(f"{ingress}{url_for('main.index')}")
+            
+        except Exception as e:
+            flash(f'Fehler bei Wiederherstellung: {str(e)}', 'error')
+            return redirect(f"{ingress}{url_for('main.settings')}")
+            
+    flash('Ungültiges Dateiformat. Nur .zip erlaubt.', 'error')
+    return redirect(f"{request.headers.get('X-Ingress-Path', '')}{url_for('main.settings')}")
 
 @main_bp.route('/settings/backup/create', methods=['POST'])
 def create_backup():

@@ -3,7 +3,31 @@ from datetime import datetime
 
 from enum import Enum
 
-class CheckType(str, Enum):
+
+class SystemSettings(db.Model):
+    """
+    Key-Value store for system-wide configuration
+    Used for: Backup Schedules, Retention Policy, Feature Flags
+    """
+    key = db.Column(db.String(50), primary_key=True)
+    value = db.Column(db.String(200), nullable=True)
+
+    @staticmethod
+    def get_setting(key, default=None):
+        setting = SystemSettings.query.get(key)
+        return setting.value if setting else default
+
+    @staticmethod
+    def set_setting(key, value):
+        setting = SystemSettings.query.get(key)
+        if not setting:
+            setting = SystemSettings(key=key, value=str(value))
+            db.session.add(setting)
+        else:
+            setting.value = str(value)
+        db.session.commit()
+
+class CheckType(Enum):
     CHECK = 'check'
     ISSUE = 'issue'
     RETURN = 'return'

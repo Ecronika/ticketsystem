@@ -1,6 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+```python
+from flask import Flask, render_template, request, send_from_directory
 from werkzeug.exceptions import NotFound
-from extensions import db, csrf, limiter
+from extensions import db, limiter, csrf, scheduler
 from routes import main_bp
 from models import Azubi, Werkzeug, Examiner, Check
 import os
@@ -108,10 +109,15 @@ else:
     except OSError:
         pass
 
-# Initialize Extensions
-csrf.init_app(app)
-db.init_app(app)
-limiter.init_app(app)
+#    # Init Extensions
+    db.init_app(app)
+    csrf.init_app(app)
+    limiter.init_app(app)
+    
+    from extensions import scheduler
+    if not scheduler.running:
+        scheduler.init_app(app)
+        scheduler.start()
 
 # SQLite Connection Optimization (Fix for Worker Timeouts)
 from sqlalchemy import event
