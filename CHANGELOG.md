@@ -3,68 +3,24 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
-## [2.6.2-beta9] - 2026-02-16
+## [2.6.2] - 2026-02-16
+
+### 🚀 New Features
+- **Backup Manager:** Added a manual backup system in Settings. Users can now create, list, and download backups of the database + signatures directly from the UI.
+
+### 🛡️ Security & Stability
+- **Transaction Safety:** Rewrote the tool exchange logic (`exchange_tool`) to ensure "All-or-Nothing" transactions. Database records are now only committed *after* the PDF report is successfully generated, preventing corrupt data states.
+- **Input Validation:** Added strict validation for custom dates in Migration Mode to prevent data corruption from invalid formats.
+- **Cache Invalidation:** Fixed "Ghost Inventory" bug where issued tools didn't appear immediately. The inventory cache is now properly cleared after every transaction.
 
 ### 🐛 Bug Fixes
-- **Merge Cleanup:** Removed a duplicate `except` block in `exchange_tool` that was left over from previous refactoring.
-
-## [2.6.2-beta8] - 2026-02-16
-
-### 🛡️ Security
-- **Input Validation:** Strict validation for custom dates in Migration Mode. Invalid dates now trigger an error instead of silently falling back to the current timestamp, preventing data integrity issues.
-
-## [2.6.2-beta7] - 2026-02-16
+- **PDF Download:** Fixed `404 Not Found` error when downloading reports by correcting the file path resolution logic.
+- **PDF Styling:** Fixed visual regression where defective tools in exchange reports were not highlighted in red.
+- **Inventory List:** Fixed an issue where the tool list was empty due to case-sensitivity mismatches in `CheckType` checks.
+- **Merge Cleanup:** Removed duplicate error handling code in the exchange route.
 
 ### ♻️ Refactoring
-- **Service Layer Pattern:** Moved `exchange_tool` logic from `routes.py` to `CheckService`, eliminating code duplication and ensuring consistent error handling across the application.
-
-## [2.6.2-beta6] - 2026-02-16
-
-### 💅 UI/UX Improvements
-- **PDF Styling:** Fixed visual regression where tool exchanges (e.g., "Rückgabe (Defekt)") were not highlighted in red. The system now checks for keywords like "Defekt" or "Verloren" instead of exact status matches.
-
-## [2.6.2-beta5] - 2026-02-16
-
-### 🛡️ Stability Improvements
-- **Transaction Safety:** Refactored `exchange_tool` to ensure database changes (Issue/Return) are only committed AFTER successful PDF generation. This prevents broken/duplicate records if PDF generation fails.
-
-## [2.6.2-beta4] - 2026-02-15
-
-### 🐛 Bug Fixes
-- **Ghost Inventory:** Fixed an issue where issued tools wouldn't appear in the inventory list immediately. Added cache invalidation after every check submission to ensure real-time updates.
-
-## [2.6.2-beta3] - 2026-02-15
-
-### 🐛 Bug Fixes
-- **Hotfix:** Resolved `IndentationError` in `pdf_utils.py` caused by a merge error in beta2.
-
-## [2.6.2-beta2] - 2026-02-15
-
-### 💅 UI/UX Improvements
-- **PDF Report:** Added `incident_reason` (e.g., "Defekt (Verschleiß)") to the status column in generated PDF reports.
-
-## [2.6.2-beta1] - 2026-02-15
-
-### 🐛 Bug Fixes
-- **PDF Download 404:** Fixed `DATA_DIR` resolution in `CheckService` to match `app.config`, ensuring reports are saved where the webserver expects them.
-- **Empty Inventory:** Made tool assignment logic case-insensitive to correctly handle 'Issue'/'issue' variations in database.
-
-## [2.6.1-beta3] - 2026-02-15
-
-### 🐛 Bug Fixes
-- **Backup:** Added missing `zipfile` import to `BackupService`.
-
-## [2.6.1-beta2] - 2026-02-15
-
-### 🐛 Bug Fixes
-- **Backup:** Fixed `datetime` import error in `BackupService` preventing backup creation.
-
-## [2.6.1-beta1] - 2026-02-15
-
-### 📦 Backup & Security
-- **Manual Backup:** Added "Backup Manager" to settings. Uses `BackupService` to verify database, config, reports, and signatures are safe.
-- **Download:** Admins can download backups directly from the UI.
-- **Refactor:** Migrated `backup.py` logic into the application for better integration.
+- **Service Layer:** Moved complex exchange logic from `routes.py` to `CheckService` for better maintainability and testing.
 
 ## [2.6.0] - 2026-02-15
 
