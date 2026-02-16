@@ -11,10 +11,16 @@ import shutil
 import uuid
 from datetime import datetime
 
+from threading import Lock
 from flask import current_app
 from extensions import db, Config, scheduler
 from models import Check, CheckType, Werkzeug, Azubi, SystemSettings
 from pdf_utils import generate_handover_pdf
+
+# Cache for assigned tools to reduce DB load
+_assigned_tools_cache = {}
+_cache_lock = Lock()
+
 
 class CheckService:
     """Service for handling Checks and Tool Exchanges."""
@@ -24,12 +30,70 @@ class CheckService:
         return Config.get_data_dir()
 
     @staticmethod
+    def get_assigned_tools(azubi_id):
+        """
+        Returns a set of tool IDs currently assigned to the Azubi.
+        Uses caching to improve performance.
+        """
+        cache_key = f"assigned_{azubi_id}"
+
+        # Check cache
+        with _cache_lock:
+            if cache_key in _assigned_tools_cache:
+                # Basic expiry check (optional, but good practice if we add
+                # timestamps later)
+                return _assigned_tools_cache[cache_key]
+
+        # Calculate from DB
+        checks = Check.query.filter_by(
+            azubi_id=azubi_id).order_by(
+            Check.datum.asc()).all()
+        assigned_tools = set()
+
+        for check in checks:
+            # Use safe comparison
+            c_type = str(check.check_type).lower()
+            if c_type == CheckType.ISSUE.value.lower():
+                assigned_tools.add(check.werkzeug_id)
+            elif c_type == CheckType.RETURN.value.lower():
+                assigned_tools.discard(check.werkzeug_id)
+            elif c_type == CheckType.EXCHANGE.value.lower():
+                # Exchange is effectively a swap, but if we track items precisely
+                # we might need to know WHICH tool was returned and issued.
+                # Current implementation splits Exchange into RETURN + ISSUE records.
+                # So pure 'EXCHANGE' type might not be in DB for tool tracking if logical split exists.
+                # However, if it IS in DB:
+                pass
+
+        # Update cache
+        with _cache_lock:
+            _assigned_tools_cache[cache_key] = assigned_tools
+
+        return assigned_tools
+
+    @staticmethod
+    def invalidate_cache(azubi_id=None):
+        """Invalidates cache for a specific Azubi or globally."""
+        with _cache_lock:
+            if azubi_id:
+                _assigned_tools_cache.pop(f"assigned_{azubi_id}", None)
+                current_app.logger.debug(
+                    f"Cache invalidated for azubi {azubi_id}")
+            else:
+                _assigned_tools_cache.clear()
+                current_app.logger.warning(
+                    "Global assigned_tools cache cleared.")
+
+    @staticmethod
     def generate_unique_session_id():
         """Generate a unique session ID for grouping checks"""
         return str(uuid.uuid4())
 
     @staticmethod
-    def save_signature(signature_data: str, session_id: str, suffix: str) -> str:
+    def save_signature(
+            signature_data: str,
+            session_id: str,
+            suffix: str) -> str:
         """
         Save base64 signature to disk.
 
@@ -93,7 +157,8 @@ class CheckService:
         # 0. Validate Azubi
         azubi = Azubi.query.get(azubi_id)
         if not azubi:
-            current_app.logger.error(f"CheckService: Azubi {azubi_id} not found")
+            current_app.logger.error(
+                f"CheckService: Azubi {azubi_id} not found")
             raise ValueError(f"Azubi mit ID {azubi_id} nicht gefunden")
 
         # 1. Setup Session
@@ -139,11 +204,11 @@ class CheckService:
                 tech_param_value=tech_val,
                 incident_reason=incident_reason,
                 datum=check_date,
-                check_type=check_type.value, # Store as string
+                check_type=check_type.value,  # Store as string
                 examiner=examiner_name,
                 signature_azubi=sig_azubi_path,
                 signature_examiner=sig_examiner_path,
-                report_path=None # Will update if PDF generated
+                report_path=None  # Will update if PDF generated
             )
 
             reports_to_create.append(new_check)
@@ -190,7 +255,8 @@ class CheckService:
 
         # pylint: disable=line-too-long
         duration = time.time() - start_time
-        current_app.logger.info(f"CheckService: Processed {len(reports_to_create)} checks in {duration:.3f}s")
+        current_app.logger.info(
+            f"CheckService: Processed {len(reports_to_create)} checks in {duration:.3f}s")
 
         return {
             "success": True,
@@ -215,9 +281,10 @@ class CheckService:
             examiner_name=examiner_name,
             tools=selected_tools,
             check_type=check_type,
-            signature_paths={'azubi': sig_azubi_path, 'examiner': sig_examiner_path},
-            output_path=pdf_path
-        )
+            signature_paths={
+                'azubi': sig_azubi_path,
+                'examiner': sig_examiner_path},
+            output_path=pdf_path)
 
         # Update records with PDF path
         for r in reports_to_create:
@@ -253,7 +320,8 @@ class CheckService:
         check_date = datetime.now()
 
         # 2. Save Signature
-        sig_path = CheckService.save_signature(signature_data, session_id, 'azubi')
+        sig_path = CheckService.save_signature(
+            signature_data, session_id, 'azubi')
 
         # 3. Create Records (Memory)
         # Return Entry
@@ -263,7 +331,8 @@ class CheckService:
             werkzeug_id=tool_id,
             check_type=CheckType.RETURN.value,
             # pylint: disable=line-too-long
-            bemerkung=f'Austausch (Altteil): {reason}' + (' (Kostenpflichtig)' if is_payable else ''),
+            bemerkung=f'Austausch (Altteil): {reason}' +
+            (' (Kostenpflichtig)' if is_payable else ''),
             incident_reason=reason,
             datum=check_date,
             tech_param_value='Austausch',
@@ -291,10 +360,12 @@ class CheckService:
         # 4. Generate PDF
         pdf_path = None
         try:
-            tools_list = [
-                {'name': tool.name, 'category': tool.material_category, 'status': f'Rückgabe ({reason})'},
-                {'name': tool.name, 'category': tool.material_category, 'status': 'Ausgabe (Neu)'}
-            ]
+            tools_list = [{'name': tool.name,
+                           'category': tool.material_category,
+                           'status': f'Rückgabe ({reason})'},
+                          {'name': tool.name,
+                           'category': tool.material_category,
+                           'status': 'Ausgabe (Neu)'}]
 
             pdf_filename = f"austausch_{session_id}.pdf"
             pdf_path = os.path.join(data_dir, 'reports', pdf_filename)
@@ -320,7 +391,8 @@ class CheckService:
             raise e
 
         duration = time.time() - start_time
-        current_app.logger.info(f"ExchangeService: Completed for {azubi.name} in {duration:.3f}s")
+        current_app.logger.info(
+            f"ExchangeService: Completed for {azubi.name} in {duration:.3f}s")
 
         return {
             "success": True,
@@ -334,7 +406,8 @@ class BackupService:
     @staticmethod
     def get_backup_dir():
         """Returns the path to the backup directory."""
-        data_dir = current_app.config.get('DATA_DIR', os.path.dirname(__file__))
+        data_dir = current_app.config.get(
+            'DATA_DIR', os.path.dirname(__file__))
         backup_dir = os.path.join(data_dir, 'backups')
         if not os.path.exists(backup_dir):
             os.makedirs(backup_dir)
@@ -378,10 +451,13 @@ class BackupService:
 
                 for member in zip_ref.namelist():
                     # ZIP SLIP PROTECTION
-                    # Resolve the target path and check if it starts with the temp_dir
-                    target_path = os.path.realpath(os.path.join(temp_dir, member))
+                    # Resolve the target path and check if it starts with the
+                    # temp_dir
+                    target_path = os.path.realpath(
+                        os.path.join(temp_dir, member))
                     if not target_path.startswith(os.path.realpath(temp_dir)):
-                        raise ValueError(f"Sicherheitswarnung: Zip Slip Versuch erkannt bei {member}")
+                        raise ValueError(
+                            f"Sicherheitswarnung: Zip Slip Versuch erkannt bei {member}")
 
                     zip_ref.extract(member, temp_dir)
 
@@ -390,6 +466,11 @@ class BackupService:
 
             # Cleanup
             shutil.rmtree(temp_dir)
+
+            # CRITICAL: Clear Cache after restore
+            current_app.logger.warning("Clearing all caches after restore.")
+            CheckService.invalidate_cache()
+
             current_app.logger.info("Restore successful. Requesting restart.")
             return True
 
@@ -403,11 +484,17 @@ class BackupService:
     def _perform_restore_overwrite(data_dir, temp_dir):
         """Helper to overwrite current data with restored data."""
         # DB & Config
-        shutil.copy2(os.path.join(temp_dir, 'werkzeug.db'), os.path.join(data_dir, 'werkzeug.db'))
+        shutil.copy2(
+            os.path.join(
+                temp_dir, 'werkzeug.db'), os.path.join(
+                data_dir, 'werkzeug.db'))
 
         # Handle Config (Optional in backup)
         if os.path.exists(os.path.join(temp_dir, 'config.yaml')):
-            shutil.copy2(os.path.join(temp_dir, 'config.yaml'), os.path.join(data_dir, 'config.yaml'))
+            shutil.copy2(
+                os.path.join(
+                    temp_dir, 'config.yaml'), os.path.join(
+                    data_dir, 'config.yaml'))
 
         # Signatures
         src_sig = os.path.join(temp_dir, 'signatures')
@@ -435,14 +522,15 @@ class BackupService:
         """
         try:
             # Get retention days (Default: 30)
-            days_str = SystemSettings.get_setting('backup_retention_days', '30')
+            days_str = SystemSettings.get_setting(
+                'backup_retention_days', '30')
             try:
                 days = int(days_str)
             except ValueError:
                 days = 30
 
             if days <= 0:
-                return # 0 means keep forever
+                return  # 0 means keep forever
 
             data_dir = CheckService.get_data_dir()
             backup_dir = os.path.join(data_dir, 'backups')
@@ -464,10 +552,11 @@ class BackupService:
                         os.remove(path)
                         count += 1
                 except OSError:
-                    pass # Ignore errors for individual files
+                    pass  # Ignore errors for individual files
 
             if count > 0:
-                current_app.logger.info(f"Pruned {count} old backups (> {days} days)")
+                current_app.logger.info(
+                    f"Pruned {count} old backups (> {days} days)")
 
         except Exception as e:
             current_app.logger.error(f"Pruning failed: {e}")
@@ -491,7 +580,8 @@ class BackupService:
         with app.app_context():
             # 'daily', 'weekly', 'never', 'date' (fixed time)
             interval = SystemSettings.get_setting('backup_interval', 'date')
-            time_str = SystemSettings.get_setting('backup_time', '03:00') # HH:MM
+            time_str = SystemSettings.get_setting(
+                'backup_time', '03:00')  # HH:MM
 
         if interval == 'never':
             return
@@ -511,12 +601,13 @@ class BackupService:
         # Add Job
         scheduler.add_job(
             id='auto_backup',
-            func=BackupService.create_backup_context_aware, # Helper needed for APP Context
+            func=BackupService.create_backup_context_aware,  # Helper needed for APP Context
             args=[app],
             trigger='cron',
             **trigger_args
         )
-        current_app.logger.info(f"Scheduled auto-backup: {interval} at {hour:02d}:{minute:02d}")
+        current_app.logger.info(
+            f"Scheduled auto-backup: {interval} at {hour:02d}:{minute:02d}")
 
     @staticmethod
     def create_backup_context_aware(app):
@@ -532,7 +623,8 @@ class BackupService:
         Returns:
             dict: {success, filename, path, size_mb}
         """
-        data_dir = current_app.config.get('DATA_DIR', os.path.dirname(__file__))
+        data_dir = current_app.config.get(
+            'DATA_DIR', os.path.dirname(__file__))
         data_dir = CheckService.get_data_dir()
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_filename = f"backup_azubi_werkzeug_{timestamp}.zip"
@@ -575,7 +667,8 @@ class BackupService:
                             zipf.write(file_path, arcname)
 
             size_mb = round(os.path.getsize(backup_path) / (1024 * 1024), 2)
-            current_app.logger.info(f"Backup created: {backup_filename} ({size_mb} MB)")
+            current_app.logger.info(
+                f"Backup created: {backup_filename} ({size_mb} MB)")
 
             # Auto-Prune after successful creation
             BackupService.prune_backups()

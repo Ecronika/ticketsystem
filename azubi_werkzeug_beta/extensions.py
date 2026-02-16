@@ -8,7 +8,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_apscheduler import APScheduler # pylint: disable=import-error
+from flask_apscheduler import APScheduler  # pylint: disable=import-error
 
 db = SQLAlchemy()
 csrf = CSRFProtect()
@@ -17,6 +17,7 @@ limiter = Limiter(
     key_func=get_remote_address,
     storage_uri="memory://"  # Explizit für Single-Worker-Setup
 )
+
 
 class Config:
     """Central Configuration Logic"""

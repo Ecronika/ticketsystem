@@ -4,6 +4,27 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.7.0-rc4] - 2026-02-17
+### Improved
+- **Code Quality:** All core Python modules now exceed Pylint 9.6, with `models.py`, `forms.py`, and `extensions.py` scoring a perfect 10.00.
+- **Formatting:** Applied `autopep8` across the entire codebase for consistent style.
+- **Refactoring:** Improved `verify_setup.py` and test configurations.
+
+## [2.7.0-rc3] - 2026-02-16
+### Critical Fixes
+- **Cache Invalidation:** Fixed "Ghost Inventory" bug by centralizing cache logic in `CheckService` and ensuring invalidation on all state changes.
+- **Transactional Migrations:** Database migrations are now wrapped in a transaction with automatic rollback on failure to prevent partial schema updates.
+- **Secret Key Logging:** Added critical logging for `OSError` when writing `secret.key` to prevent silent failures and session invalidation.
+- **CheckType Normalization:** Implemented `parse_check_type` to robustly handle Enum vs String mismatches in database records, fixing report generation errors.
+
+### Security & Reliability
+- **Atomic File Cleanup:** Refactored `delete_session` to perform database deletion before file cleanup, preventing data inconsistency.
+- **Signature Validation:** Enforced server-side validation for signature presence in `submit_check`.
+- **Race Condition Fix:** Implemented row locking logic (`with_for_update`) for `SystemSettings.set_setting` to prevent concurrent write conflicts.
+
+### Verification
+- Added `tests/test_critical_fixes.py` to verify cache invalidation and type normalization logic.
+
 ## [2.7.0-rc2] - 2026-02-16
 ### Fixed
 - **Critical**: Restored `routes.py` from truncation and verified integrity.

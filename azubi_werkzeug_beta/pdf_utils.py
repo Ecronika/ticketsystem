@@ -15,19 +15,50 @@ from flask import current_app
 from models import CheckType
 
 # Logo path wird dynamisch über current_app.config geholt
+
+
 def get_logo_path():
     """Get logo path from Flask app config (DATA_DIR)"""
     try:
-        data_dir = current_app.config.get('DATA_DIR', os.path.dirname(__file__))
+        data_dir = current_app.config.get(
+            'DATA_DIR', os.path.dirname(__file__))
     except RuntimeError:
         # Fallback wenn außerhalb des App-Kontexts
         data_dir = os.environ.get('DATA_DIR', os.path.dirname(__file__))
     return os.path.join(data_dir, 'static', 'img', 'logo.png')
 
+
+def parse_check_type(value):
+    """
+    Safely parses a check type from string or Enum.
+    Returns the CheckType enum member or None.
+    """
+    if isinstance(value, CheckType):
+        return value
+
+    if not value:
+        return CheckType.CHECK  # Default
+
+    try:
+        # Try exact match (e.g. 'issue' -> CheckType.ISSUE)
+        return CheckType(value)
+    except ValueError:
+        # Try case-insensitive lookup
+        val_lower = str(value).lower()
+        for member in CheckType:
+            if member.value.lower() == val_lower:
+                return member
+
+        current_app.logger.warning(
+            f"Unknown CheckType: {value}, defaulting to CHECK")
+        return CheckType.CHECK
+
+
 class HandoverReport(FPDF):
     """
     Custom FPDF class for Werkzeug reports with consistent Header/Footer.
     """
+
     def __init__(self, title="Werkzeug-Protokoll"):
         super().__init__()
         self.report_title = title
@@ -51,7 +82,7 @@ class HandoverReport(FPDF):
         # Linie unter dem Header
         self.set_draw_color(200, 200, 200)
         self.line(10, 25, 200, 25)
-        self.ln(20) # Abstand zum Inhalt (angepasst an Logo-Höhe)
+        self.ln(20)  # Abstand zum Inhalt (angepasst an Logo-Höhe)
 
     def footer(self):
         self.set_y(-15)
@@ -63,10 +94,11 @@ class HandoverReport(FPDF):
     def chapter_title(self, label):
         """Adds a standardized chapter title to the PDF."""
         self.set_font('Arial', 'B', 11)
-        self.set_fill_color(240, 240, 240) # Hellgrau
+        self.set_fill_color(240, 240, 240)  # Hellgrau
         self.set_text_color(0)
-        self.cell(0, 8, label, 0, 1, 'L', 1) # Höhe reduziert auf 8
-        self.ln(2) # Kleiner Abstand
+        self.cell(0, 8, label, 0, 1, 'L', 1)  # Höhe reduziert auf 8
+        self.ln(2)  # Kleiner Abstand
+
 
 def generate_handover_pdf(
     azubi_name, examiner_name, tools, check_type, signature_paths, output_path
@@ -88,20 +120,22 @@ def generate_handover_pdf(
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     # Titel Logik
-    # Titel Logik
+    # Normalize CheckType using helper
+    c_type_enum = parse_check_type(check_type)
+
     type_map = {
         CheckType.ISSUE: 'Ausgabeprotokoll',
         CheckType.RETURN: 'Rückgabeprotokoll',
         CheckType.CHECK: 'Prüfprotokoll',
         CheckType.EXCHANGE: 'Austauschprotokoll'
     }
-    title_text = type_map.get(check_type, 'Werkzeug-Protokoll')
+    title_text = type_map.get(c_type_enum, 'Werkzeug-Protokoll')
 
     pdf = HandoverReport(title=title_text)
     pdf.alias_nb_pages()
 
     # --- KOMPAKTE METADATEN (NEBENEINANDER) ---
-    pdf.set_y(30) # Startposition nach Header fixieren
+    pdf.set_y(30)  # Startposition nach Header fixieren
     pdf.set_font('Arial', '', 10)
 
     # Zeilenhöhe 6mm statt 10mm
@@ -121,9 +155,9 @@ def generate_handover_pdf(
     pdf.set_font('Arial', 'B', 10)
     pdf.cell(15, h, "Prüfer:", 0, 0)
     pdf.set_font('Arial', '', 10)
-    pdf.cell(0, h, examiner_name, 0, 1) # ln=1 für Zeilenumbruch am Ende
+    pdf.cell(0, h, examiner_name, 0, 1)  # ln=1 für Zeilenumbruch am Ende
 
-    pdf.ln(5) # Kleiner Abstand zur Tabelle
+    pdf.ln(5)  # Kleiner Abstand zur Tabelle
 
     # --- TABELLE ---
     pdf.chapter_title(f"Betroffene Werkzeuge ({len(tools)} Stück)")
@@ -135,7 +169,7 @@ def generate_handover_pdf(
     w_name = 90
     w_cat = 50
     w_status = 50
-    h_row = 7 # Reduzierte Zeilenhöhe (war 10)
+    h_row = 7  # Reduzierte Zeilenhöhe (war 10)
 
     pdf.cell(w_name, h_row, "Werkzeugbezeichnung", 1, 0, 'L', True)
     pdf.cell(w_cat, h_row, "Kategorie", 1, 0, 'L', True)
@@ -152,7 +186,8 @@ def generate_handover_pdf(
             'broken': 'Defekt',
             'not_issued': 'Nicht ausgegeben'
         }
-        status_text = status_map.get(tool.get('status'), tool.get('status')) or ""
+        status_text = status_map.get(
+            tool.get('status'), tool.get('status')) or ""
 
         # Add Incident Reason if present
         if tool.get('incident_reason'):
@@ -171,7 +206,8 @@ def generate_handover_pdf(
 
         # Logging for missing data
         if not tool.get('name'):
-            current_app.logger.warning(f"PDF Gen: Tool name missing in {title_text}")
+            current_app.logger.warning(
+                f"PDF Gen: Tool name missing in {title_text}")
 
         # Name kürzen falls zu lang für eine Zeile
         name = (tool.get('name') or "")[:50]
@@ -179,8 +215,14 @@ def generate_handover_pdf(
         # Farbliche Hervorhebung bei Problemen
         # Farbliche Hervorhebung bei Problemen (Robust check for substrings)
         s_check = str(tool['status']).lower()
-        if any(x in s_check for x in ['missing', 'broken', 'defekt', 'fehlt', 'verloren']):
-            pdf.set_text_color(200, 0, 0) # Rot
+        if any(
+            x in s_check for x in [
+                'missing',
+                'broken',
+                'defekt',
+                'fehlt',
+                'verloren']):
+            pdf.set_text_color(200, 0, 0)  # Rot
             pdf.set_font('Arial', 'B', 9)
         else:
             pdf.set_text_color(0)
@@ -191,44 +233,56 @@ def generate_handover_pdf(
         pdf.cell(w_status, h_row, status_text, 1)
         pdf.ln()
 
-    pdf.set_text_color(0) # Reset Farbe
+    pdf.set_text_color(0)  # Reset Farbe
     pdf.ln(10)
 
     # --- UNTERSCHRIFTEN ---
-    # Prüfen, ob noch genug Platz auf der Seite ist (ca 50mm nötig), sonst neue Seite
+    # Prüfen, ob noch genug Platz auf der Seite ist (ca 50mm nötig), sonst
+    # neue Seite
     if pdf.get_y() > 230:
         pdf.add_page()
 
     pdf.chapter_title("Unterschriften")
 
     start_y = pdf.get_y()
-    box_height = 35 # Etwas kompakter (war 40)
+    box_height = 35  # Etwas kompakter (war 40)
 
     # Box Azubi
     pdf.set_xy(10, start_y)
-    pdf.rect(10, start_y, 90, box_height) # Rahmen zeichnen
+    pdf.rect(10, start_y, 90, box_height)  # Rahmen zeichnen
     pdf.set_font('Arial', '', 8)
     pdf.text(12, start_y + 4, "Unterschrift Azubi")
 
-    if signature_paths.get('azubi') and os.path.exists(signature_paths['azubi']):
+    if signature_paths.get('azubi') and os.path.exists(
+            signature_paths['azubi']):
         # Bild einpassen
-        pdf.image(signature_paths['azubi'], x=15, y=start_y+5, w=60, h=25)
+        pdf.image(signature_paths['azubi'], x=15, y=start_y + 5, w=60, h=25)
 
     # Box Prüfer
     pdf.set_xy(110, start_y)
     pdf.rect(110, start_y, 80, box_height)
     pdf.text(112, start_y + 4, "Unterschrift Prüfer")
 
-    if signature_paths.get('examiner') and os.path.exists(signature_paths['examiner']):
-        pdf.image(signature_paths['examiner'], x=115, y=start_y+5, w=60, h=25)
+    if signature_paths.get('examiner') and os.path.exists(
+            signature_paths['examiner']):
+        pdf.image(
+            signature_paths['examiner'],
+            x=115,
+            y=start_y + 5,
+            w=60,
+            h=25)
 
     # Rechtlicher Hinweis unten drunter (optional, aber professionell)
     pdf.set_xy(10, start_y + box_height + 2)
     pdf.set_font('Arial', 'I', 7)
-    pdf.multi_cell(0, 3, "Mit der Unterschrift wird die Vollständigkeit (bei Ausgabe) bzw. der oben genannte Zustand (bei Prüfung/Rückgabe) bestätigt.")
+    pdf.multi_cell(
+        0,
+        3,
+        "Mit der Unterschrift wird die Vollständigkeit (bei Ausgabe) bzw. der oben genannte Zustand (bei Prüfung/Rückgabe) bestätigt.")
 
     pdf.output(output_path)
     return output_path
+
 
 def generate_qr_codes_pdf(tools):
     """
@@ -289,9 +343,9 @@ def generate_qr_codes_pdf(tools):
         # QR Image
         # Center image: (45 - 35) / 2 = 5 padding
         if os.path.exists(temp_qr_path):
-            pdf.image(temp_qr_path, x=x+5, y=y+12, w=35, h=35)
+            pdf.image(temp_qr_path, x=x + 5, y=y + 12, w=35, h=35)
             try:
-                os.remove(temp_qr_path) # Clean up
+                os.remove(temp_qr_path)  # Clean up
             except OSError:
                 pass
 
@@ -314,7 +368,11 @@ def generate_qr_codes_pdf(tools):
     # Return PDF object (to be outputted by caller)
     return pdf
 
-def generate_end_of_training_report(azubi, history_entries, is_inventory_clear):
+
+def generate_end_of_training_report(
+        azubi,
+        history_entries,
+        is_inventory_clear):
     """
     Generates a final report at the end of training.
 
@@ -346,12 +404,17 @@ def generate_end_of_training_report(azubi, history_entries, is_inventory_clear):
     pdf.set_font('Arial', '', 10)
 
     if is_inventory_clear:
-        pdf.set_text_color(0, 100, 0) # Dunkelgrün
+        pdf.set_text_color(0, 100, 0)  # Dunkelgrün
         pdf.cell(0, 8, "[OK] Alle Werkzeuge wurden zurückgegeben.", 0, 1)
     else:
-        pdf.set_text_color(200, 0, 0) # Rot
+        pdf.set_text_color(200, 0, 0)  # Rot
         pdf.set_font('Arial', 'B', 10)
-        pdf.cell(0, 8, "[ACHTUNG] Es befinden sich noch Werkzeuge im Besitz!", 0, 1)
+        pdf.cell(
+            0,
+            8,
+            "[ACHTUNG] Es befinden sich noch Werkzeuge im Besitz!",
+            0,
+            1)
 
     pdf.set_text_color(0)
     pdf.set_font('Arial', '', 10)
@@ -382,9 +445,9 @@ def generate_end_of_training_report(azubi, history_entries, is_inventory_clear):
 
     for entry in history_entries:
         date_str = entry.datum.strftime('%d.%m.%Y')
-        # Translate Link
-        raw_type = entry.check_type or CheckType.CHECK
-        type_str = type_map.get(raw_type, raw_type.capitalize())
+        # Translate Link - Clean CheckType Parsing
+        c_type_enum = parse_check_type(entry.check_type)
+        type_str = type_map.get(c_type_enum, 'Prüfung')
 
         examiner = entry.examiner or "-"
 
