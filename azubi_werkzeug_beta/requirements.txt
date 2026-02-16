@@ -7,3 +7,4 @@ qrcode
 Flask-Limiter
 flask-talisman
 pytest
+Flask-APScheduler==1.13.1

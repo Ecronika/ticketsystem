@@ -154,11 +154,12 @@ class CheckService:
             })
             
         # 5. Commit Check Data
+        # 5. Flush Check Data (Optimistic)
         try:
-            db.session.commit()
+            db.session.flush()
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"DB Error fetching/saving checks: {e}")
+            current_app.logger.error(f"DB Error preparation checks: {e}")
             raise e
             
         # 6. Generate PDF (If tools selected)
@@ -187,17 +188,32 @@ class CheckService:
                     output_path=pdf_path
                 )
                 
-                # 7. Update Records with PDF Path
-                check_ids = [r.id for r in reports_to_create]
-                Check.query.filter(Check.id.in_(check_ids)).update(
-                    {'report_path': pdf_path},
-                    synchronize_session=False
-                )
+                # 7. Update Records with PDF Path (In-Memory)
+                for r in reports_to_create:
+                    r.report_path = pdf_path
+                
+                # 8. Commit Everything (All-or-Nothing)
                 db.session.commit()
                 
             except Exception as e:
-                current_app.logger.error(f"PDF Generation failed: {e}")
-                # Don't rollback DB, just log error. PDF is secondary.
+                db.session.rollback()
+                current_app.logger.error(f"Submission failed (PDF Error): {e}")
+                
+                # Cleanup: Delete PDF if it was created
+                if pdf_path and os.path.exists(pdf_path):
+                    try:
+                        os.remove(pdf_path)
+                    except:
+                        pass
+                        
+                raise e # Re-raise to alert caller
+        else:
+             # No tools selected, but we still commit the session
+             try:
+                db.session.commit()
+             except Exception as e:
+                db.session.rollback()
+                raise e
         
         duration = time.time() - start_time
         current_app.logger.info(f"CheckService: Processed {len(reports_to_create)} checks in {duration:.3f}s")

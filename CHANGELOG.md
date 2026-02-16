@@ -3,6 +3,14 @@
 All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+
+## [2.7.0-beta3] - 2026-02-16
+### Fixed
+- **Bug**: Fixed `CheckType` parsing vulnerability (Unhandled Exception).
+- **Refactor**: Aligned atomicity in `submit_check` (All-or-Nothing to prevent Ghost Checks).
+- **Bug**: Fixed typo in `routes.py` (`import time`).
+- **Dependency**: Added `Flask-APScheduler` to `requirements.txt`.
+
 ## [2.7.0-beta2] - 2026-02-16
 ### Fixed
 - **Critical**: Fixed `IndentationError` in `app.py` preventing startup.

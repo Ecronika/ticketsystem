@@ -7,7 +7,7 @@ from models import Azubi, Werkzeug, Examiner, Check, CheckType
 from forms import AzubiForm, ExaminerForm, WerkzeugForm
 from datetime import datetime, timedelta
 import logging
-import times
+import time
 import os
 import uuid
 import base64
@@ -295,8 +295,17 @@ def submit_check():
     
     azubi_id = request.form.get('azubi_id')
     check_type_str = request.form.get('check_type', CheckType.CHECK.value)
-    examiner = request.form.get('examiner')
     ingress = request.headers.get('X-Ingress-Path', '')
+
+    # Validate CheckType
+    try:
+        CheckType(check_type_str)
+    except ValueError:
+        current_app.logger.warning(f"Invalid CheckType submitted: {check_type_str}")
+        flash('Fehler: Ungültiger Prüfungstyp.', 'error')
+        return redirect(f"{ingress}{url_for('main.index')}")
+    
+    examiner = request.form.get('examiner')
     
     if not azubi_id or not examiner:
         flash('Fehler: Azubi und Prüfer müssen angegeben werden.', 'error')
