@@ -124,6 +124,10 @@ def generate_handover_pdf(azubi_name, examiner_name, tools, check_type, signatur
         }
         status_text = status_map.get(tool.get('status'), tool.get('status')) or ""
         
+        # Add Incident Reason if present
+        if tool.get('incident_reason'):
+             status_text += f" ({tool.get('incident_reason')})"
+
         # Kategorie Übersetzung
         cat_map = {
             'standard': 'Standard',
@@ -141,7 +145,9 @@ def generate_handover_pdf(azubi_name, examiner_name, tools, check_type, signatur
         name = (tool.get('name') or "")[:50] 
         
         # Farbliche Hervorhebung bei Problemen
-        if tool['status'] in ['missing', 'broken']:
+        # Farbliche Hervorhebung bei Problemen (Robust check for substrings)
+        s_check = str(tool['status']).lower()
+        if any(x in s_check for x in ['missing', 'broken', 'defekt', 'fehlt', 'verloren']):
             pdf.set_text_color(200, 0, 0) # Rot
             pdf.set_font('Arial', 'B', 9)
         else:
