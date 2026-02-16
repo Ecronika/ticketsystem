@@ -19,7 +19,8 @@ from sqlalchemy import event
 from sqlalchemy.engine import Engine
 
 from extensions import db, limiter, csrf, scheduler, Config
-from services import BackupService, CheckService
+from services import BackupService
+from routes import main_bp
 
 app = Flask(__name__)
 
@@ -129,7 +130,8 @@ if not scheduler.running:
     
     # Restore Backup Schedule from DB
     try:
-        BackupService.schedule_backup_job(app)
+        with app.app_context():
+            BackupService.schedule_backup_job(app)
     except Exception as e:
         app.logger.error(f"Failed to restore backup schedule: {e}")
 
@@ -321,6 +323,7 @@ def setup_database():
 @app.errorhandler(413) # Payload Too Large
 def request_entity_too_large(e):
     """Handle 413 Payload Too Large error."""
+    # pylint: disable=unused-argument
     app.logger.warning("File upload too large: %s", request.content_length)
     flash('Datei zu groß (max. 2MB).', 'error')
     # fallback to index if manage is not available or context is unclear

@@ -87,6 +87,7 @@ class CheckService:
                 - session_id: str
                 - pdf_path: str (optional)
         """
+        # pylint: disable=too-many-locals, too-many-statements, too-many-branches
         start_time = time.time()
 
         if not check_date:
@@ -478,6 +479,7 @@ class BackupService:
         Args:
              app: The Flask application instance (needed for context).
         """
+        # pylint: disable=import-outside-toplevel
         from extensions import scheduler
         from models import SystemSettings
 
@@ -518,6 +520,7 @@ class BackupService:
     @staticmethod
     def create_backup_context_aware(app):
         """Wraps create_backup with app context for Scheduler"""
+        # pylint: disable=import-outside-toplevel
         with app.app_context():
             BackupService.create_backup()
 
