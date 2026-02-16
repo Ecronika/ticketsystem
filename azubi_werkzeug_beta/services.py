@@ -162,6 +162,8 @@ class CheckService:
         pdf_path = None
  
 
+        if selected_tools:
+            try:
                 pdf_filename = f"Protokoll_{check_type.value}_{azubi.name.replace(' ', '_')}_{check_date.strftime('%Y%m%d_%H%M')}.pdf"
                 pdf_path = os.path.join(data_dir, 'reports', pdf_filename)
                 
