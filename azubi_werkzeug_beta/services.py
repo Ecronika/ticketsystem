@@ -561,6 +561,12 @@ class BackupService:
             # Cleanup
             shutil.rmtree(temp_dir)
 
+            # CRITICAL: Close SQLAlchemy connection to old DB file
+            # shutil.copy2 replaced the file on disk, but the connection
+            # pool still holds handles to the old data.
+            db.session.remove()
+            db.engine.dispose()
+
             # CRITICAL: Clear Cache after restore
             current_app.logger.warning("Clearing all caches after restore.")
             CheckService.invalidate_cache()

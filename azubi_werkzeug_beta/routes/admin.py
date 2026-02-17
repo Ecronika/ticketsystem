@@ -5,9 +5,6 @@ Handles personnel management, tool management, settings,
 backups, migration mode, logo upload, QR codes, and reports.
 """
 import os
-import sys
-import time
-import threading
 
 from flask import (
     render_template, request, redirect, url_for,
@@ -166,16 +163,9 @@ def register_routes(bp):
                     file.save(temp_path)
                     BackupService.restore_backup(temp_path)
                     flash(
-                        'System wird wiederhergestellt. '
-                        'Neustart in 5 Sekunden...',
+                        'Backup erfolgreich '
+                        'wiederhergestellt.',
                         'success')
-
-                    def restart():
-                        time.sleep(2)
-                        sys.exit(0)
-
-                    threading.Thread(
-                        target=restart).start()
                     return redirect(
                         f"{ingress}"
                         f"{url_for('main.index')}")
