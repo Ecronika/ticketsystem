@@ -51,7 +51,7 @@ def main():
     files = glob.glob("*.py") + glob.glob("tests/*.py")
 
     # Exclude scripts that are not part of the app logic if desired
-    files = [f for f in files if f != "final_polish.py" and f != "score_check.py"]
+    files = [f for f in files if f not in ("final_polish.py", "score_check.py")]
 
     print("| File | Pre-Fix Score | Post-Fix Score | Delta | Status |")
     print("| :--- | :--- | :--- | :--- | :--- |")

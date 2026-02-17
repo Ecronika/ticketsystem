@@ -496,11 +496,13 @@ def upload_logo():
         # Enhanced Security: Check Magic Bytes AND EOF (prevent polyglots)
         file.seek(0)
         content = file.read()
-        file.seek(0) # Reset pointer
-        
-        is_png = content.startswith(b'\x89PNG\r\n\x1a\n') and content.endswith(b'\x00\x00\x00\x00IEND\xae\x42\x60\x82')
-        is_jpeg = content.startswith(b'\xff\xd8\xff') and content.endswith(b'\xff\xd9')
-        
+        file.seek(0)  # Reset pointer
+
+        is_png = content.startswith(b'\x89PNG\r\n\x1a\n') and content.endswith(
+            b'\x00\x00\x00\x00IEND\xae\x42\x60\x82')
+        is_jpeg = content.startswith(
+            b'\xff\xd8\xff') and content.endswith(b'\xff\xd9')
+
         if not (is_png or is_jpeg):
             flash(
                 'Ungültiges Format oder beschädigte Datei '

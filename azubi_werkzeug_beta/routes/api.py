@@ -1,8 +1,8 @@
 """
 API routes.
 
-JSON endpoints for AJAX operations and dashboard statistics.
 """
+# pylint: disable=duplicate-code
 from datetime import datetime
 
 from flask import request, jsonify, current_app
