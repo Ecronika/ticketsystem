@@ -119,6 +119,8 @@ _TYPE_MAP = {
 }
 
 
+
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def _render_tool_row(pdf, tool, w_name, w_cat, w_status, h_row):
     """Render a single tool row in a PDF table."""
     status_text = _STATUS_MAP.get(
@@ -174,11 +176,34 @@ def _render_signature_boxes(pdf, signature_paths):
     return start_y, box_height
 
 
+
+def _render_handover_table(pdf, tools, title_text):
+    """Render the tool table for handover reports."""
+    pdf.chapter_title(f"Betroffene Werkzeuge ({len(tools)} Stück)")
+    pdf.set_font('Arial', 'B', 9)
+    pdf.set_fill_color(220, 220, 220)
+    w_name, w_cat, w_status, h_row = 90, 50, 50, 7
+    pdf.cell(w_name, h_row, "Werkzeugbezeichnung", 1, 0, 'L', True)
+    pdf.cell(w_cat, h_row, "Kategorie", 1, 0, 'L', True)
+    pdf.cell(w_status, h_row, "Zustand / Status", 1, 1, 'L', True)
+
+    for tool in tools:
+        if not tool.get('name'):
+            current_app.logger.warning(
+                f"PDF Gen: Tool name missing in {title_text}")
+        _render_tool_row(pdf, tool, w_name, w_cat, w_status, h_row)
+
+    pdf.set_text_color(0)
+    pdf.ln(10)
+
+
 def generate_handover_pdf(
     azubi_name, examiner_name, tools, check_type, signature_paths, output_path
 ):
     """
     Generates a PDF report for tool handover/check/exchange.
+    # pylint: disable=too-many-arguments,too-many-positional-arguments
+
 
     Args:
         azubi_name (str): Name of the apprentice.
@@ -216,23 +241,10 @@ def generate_handover_pdf(
     pdf.cell(0, h, examiner_name, 0, 1)
     pdf.ln(5)
 
+    pdf.ln(5)
+
     # --- Tool Table ---
-    pdf.chapter_title(f"Betroffene Werkzeuge ({len(tools)} Stück)")
-    pdf.set_font('Arial', 'B', 9)
-    pdf.set_fill_color(220, 220, 220)
-    w_name, w_cat, w_status, h_row = 90, 50, 50, 7
-    pdf.cell(w_name, h_row, "Werkzeugbezeichnung", 1, 0, 'L', True)
-    pdf.cell(w_cat, h_row, "Kategorie", 1, 0, 'L', True)
-    pdf.cell(w_status, h_row, "Zustand / Status", 1, 1, 'L', True)
-
-    for tool in tools:
-        if not tool.get('name'):
-            current_app.logger.warning(
-                f"PDF Gen: Tool name missing in {title_text}")
-        _render_tool_row(pdf, tool, w_name, w_cat, w_status, h_row)
-
-    pdf.set_text_color(0)
-    pdf.ln(10)
+    _render_handover_table(pdf, tools, title_text)
 
     # --- Signatures ---
     start_y, box_height = _render_signature_boxes(pdf, signature_paths)
@@ -378,21 +390,48 @@ def _render_history_row(pdf, entry, type_map, h_row):
 def generate_end_of_training_report(
         azubi,
         history_entries,
-        is_inventory_clear):
+        is_inventory_clear,
+        output_path=None):
     """
     Generates a final report at the end of training.
 
     Summarizes the tool history and confirms inventory status.
+    Args:
+        azubi: The apprentice object.
+        history_entries: A list of history entries.
+        is_inventory_clear: Boolean indicating if inventory is clear.
+        output_path: Path to save the PDF (optional).
     """
+    if output_path:
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
     pdf = HandoverReport(title="Ausbildungs-Ende Protokoll")
     pdf.alias_nb_pages()
 
     # --- Kopfdaten ---
+    _render_eot_header(pdf, azubi)
+
+    # --- Status Werkzeugrückgabe ---
+    _render_eot_status(pdf, is_inventory_clear)
+
+    # --- Historie Zusammenfassung ---
+    _render_eot_history(pdf, history_entries)
+
+    # --- Signatures ---
+    _render_eot_signatures(pdf)
+
+    if output_path:
+        pdf.output(output_path)
+        return output_path
+
+    return pdf
+
+
+def _render_eot_header(pdf, azubi):
+    """Render report header."""
     pdf.set_y(30)
     pdf.set_font('Arial', '', 10)
     h = 6
 
-    # Matched Layout with HandoverReport
     pdf.set_font('Arial', 'B', 10)
     pdf.cell(20, h, "Datum:", 0, 0)
     pdf.set_font('Arial', '', 10)
@@ -405,7 +444,9 @@ def generate_end_of_training_report(
 
     pdf.ln(5)
 
-    # --- Status Werkzeugrückgabe ---
+
+def _render_eot_status(pdf, is_inventory_clear):
+    """Render inventory status section."""
     pdf.chapter_title("Status Werkzeugrückgabe")
     pdf.set_font('Arial', '', 10)
 
@@ -426,7 +467,9 @@ def generate_end_of_training_report(
     pdf.set_font('Arial', '', 10)
     pdf.ln(5)
 
-    # --- Historie Zusammenfassung ---
+
+def _render_eot_history(pdf, history_entries):
+    """Render check history table."""
     pdf.chapter_title("Historie Zusammenfassung")
 
     # Tabellenkopf
@@ -434,7 +477,6 @@ def generate_end_of_training_report(
     pdf.set_fill_color(220, 220, 220)
     h_row = 7
 
-    # Breiten optimieren: Datum(25), Typ(25), Ausbilder(40), Werkzeug(100)
     pdf.cell(25, h_row, "Datum", 1, 0, 'L', True)
     pdf.cell(25, h_row, "Vorgang", 1, 0, 'L', True)
     pdf.cell(40, h_row, "Ausbilder", 1, 0, 'L', True)
@@ -442,7 +484,6 @@ def generate_end_of_training_report(
 
     pdf.set_font('Arial', '', 9)
 
-    # Type Mapping
     _hist_type_map = {
         CheckType.ISSUE: 'Ausgabe',
         CheckType.RETURN: 'Rückgabe',
@@ -452,12 +493,12 @@ def generate_end_of_training_report(
     for entry in history_entries:
         _render_history_row(pdf, entry, _hist_type_map, h_row)
 
-    # Reset Color
     pdf.set_text_color(0)
     pdf.set_font('Arial', '', 10)
 
-    # --- Signatures ---
-    # Check page break
+
+def _render_eot_signatures(pdf):
+    """Render end-of-training signatures."""
     if pdf.get_y() > 230:
         pdf.add_page()
 
@@ -485,5 +526,3 @@ def generate_end_of_training_report(
     pdf.set_xy(110, start_y)
     pdf.rect(110, start_y, 80, box_height)
     pdf.text(112, start_y + 4, "Unterschrift Ausbilder / Verantwortlicher")
-
-    return pdf

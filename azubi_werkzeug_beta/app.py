@@ -130,7 +130,7 @@ else:
     except OSError as e:
         # CRITICAL: If this fails, sessions are invalid after every restart
         app.logger.critical(
-            f"Could not persist secret key to {secret_file}: {e}")
+            "Could not persist secret key to %s: %s", secret_file, e)
 
 # Init Extensions
 db.init_app(app)
@@ -344,7 +344,7 @@ def setup_database():
         except Exception as e:  # pylint: disable=broad-exception-caught
             conn.rollback()
             app.logger.critical(
-                f"Migration Failed! Rolled back changes. Error: {e}")
+                "Migration Failed! Rolled back changes. Error: %s", e)
             # We might want to exit here, but for now we just log critical
         finally:
             if conn:

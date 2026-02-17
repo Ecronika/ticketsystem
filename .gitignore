@@ -1,14 +1,53 @@
+# Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+
+# Database
 *.db
 *.sqlite3
-azubi_werkzeug/reports/
-azubi_werkzeug/signatures/
+
+# Logs
+*.log
+logs/
+
+# Windows
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+
+# MacOS
 .DS_Store
+
+# IDE
 .idea/
 .vscode/
+*.swp
+
+# Environment
 venv/
 env/
+.env
+.venv
+
+# Secrets
+secret.key
+instance/
+
+# Legacy App Data
+azubi_werkzeug/reports/
+azubi_werkzeug/signatures/
 azubi_werkzeug/secret.key
+
+# Azubi Werkzeug Beta (Active)
+# Ignore generated content but keep directory structure
+azubi_werkzeug_beta/reports/*
+!azubi_werkzeug_beta/reports/.gitkeep
+
+azubi_werkzeug_beta/signatures/*
+!azubi_werkzeug_beta/signatures/.gitkeep
+
+azubi_werkzeug_beta/backups/*
+!azubi_werkzeug_beta/backups/.gitkeep
+
+azubi_werkzeug_beta/secret.key
