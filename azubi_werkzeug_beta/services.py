@@ -567,6 +567,9 @@ class BackupService:
             db.session.remove()
             db.engine.dispose()
 
+            # Ensure all tables exist (older backups may lack newer tables)
+            db.create_all()
+
             # CRITICAL: Clear Cache after restore
             current_app.logger.warning("Clearing all caches after restore.")
             CheckService.invalidate_cache()

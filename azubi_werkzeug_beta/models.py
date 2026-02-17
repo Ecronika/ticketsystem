@@ -21,8 +21,11 @@ class SystemSettings(db.Model):
     @staticmethod
     def get_setting(key, default=None):
         """Retrieve a setting value."""
-        setting = SystemSettings.query.get(key)
-        return setting.value if setting else default
+        try:
+            setting = SystemSettings.query.get(key)
+            return setting.value if setting else default
+        except Exception:  # pylint: disable=broad-exception-caught
+            return default
 
     @staticmethod
     def set_setting(key, value):
