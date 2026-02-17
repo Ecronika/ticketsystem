@@ -15,7 +15,7 @@ from threading import Lock
 from flask import current_app
 from extensions import db, Config, scheduler
 from models import Check, CheckType, Werkzeug, Azubi, SystemSettings
-from pdf_utils import generate_handover_pdf
+from pdf_utils import generate_handover_pdf, parse_check_type
 
 # Cache for assigned tools to reduce DB load
 _assigned_tools_cache = {}
@@ -52,12 +52,13 @@ class CheckService:
 
         for check in checks:
             # Use safe comparison
-            c_type = str(check.check_type).lower()
-            if c_type == CheckType.ISSUE.value.lower():
+            # Use safe comparison via helper (handles Enum/String mismatch)
+            c_type = parse_check_type(check.check_type)
+            if c_type == CheckType.ISSUE:
                 assigned_tools.add(check.werkzeug_id)
-            elif c_type == CheckType.RETURN.value.lower():
+            elif c_type == CheckType.RETURN:
                 assigned_tools.discard(check.werkzeug_id)
-            elif c_type == CheckType.EXCHANGE.value.lower():
+            elif c_type == CheckType.EXCHANGE:
                 # Exchange is effectively a swap, but if we track items
                 # precisely we might need to know WHICH tool was returned
                 # and issued. Current implementation splits Exchange into
@@ -276,6 +277,18 @@ class CheckService:
                     os.remove(pdf_path)
                 except OSError:
                     pass
+            
+            # Cleanup Signatures (prevent leak)
+            # Since all checks in this batch share the same signatures (per session),
+            # we can extract paths from the first check.
+            if checks:
+                first_check = checks[0]
+                for sig_path in [first_check.signature_azubi, first_check.signature_examiner]:
+                    if sig_path and os.path.exists(sig_path):
+                        try:
+                            os.remove(sig_path)
+                        except OSError:
+                            pass
             raise e
 
     @staticmethod
@@ -286,8 +299,19 @@ class CheckService:
         session_id = CheckService.generate_unique_session_id()
         sig_azubi_path = CheckService.save_signature(
             form_data.get('signature_azubi_data'), session_id, 'azubi')
+        if not sig_azubi_path:
+             raise ValueError("Fehler beim Speichern der Azubi-Signatur")
+             
         sig_examiner_path = CheckService.save_signature(
             form_data.get('signature_examiner_data'), session_id, 'examiner')
+        if not sig_examiner_path:
+             # Cleanup Azubi sig if Examiner sig fails
+             if os.path.exists(sig_azubi_path):
+                 try:
+                    os.remove(sig_azubi_path)
+                 except OSError:
+                    pass
+             raise ValueError("Fehler beim Speichern der Ausbilder-Signatur")
 
         return {
             'session_id': session_id,
@@ -311,17 +335,14 @@ class CheckService:
         examiner_name: str,
         tool_ids: list[int],
         form_data: dict,
-        **kwargs
+        check_date: datetime = None,
+        check_type: CheckType = CheckType.CHECK
     ) -> dict:
         """
         Process a full check submission.
-        kwargs: check_date, check_type
         """
-        check_date = kwargs.get('check_date', datetime.now())
-        check_type = kwargs.get('check_type', CheckType.CHECK)
         if not check_date:
             check_date = datetime.now()
-
         if not check_date:
             check_date = datetime.now()
         azubi = Azubi.query.get(azubi_id)
@@ -541,8 +562,7 @@ class BackupService:
     @staticmethod
     def get_backup_dir():
         """Returns the path to the backup directory."""
-        data_dir = current_app.config.get(
-            'DATA_DIR', os.path.dirname(__file__))
+        data_dir = Config.get_data_dir()
         backup_dir = os.path.join(data_dir, 'backups')
         if not os.path.exists(backup_dir):
             os.makedirs(backup_dir)

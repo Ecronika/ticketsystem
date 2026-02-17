@@ -4,7 +4,28 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [2.7.0-rc4] - 2026-02-17
+## [2.7.0-rc9] - 2026-02-17
+### Security
+- **Zip Slip Protection:** Hardened `rollback.py` and `services.py` against path traversal attacks during zip extraction.
+- **DoS Protection:** Limited `session_id` length to 64 chars in `checks.py` and implemented `WTF_CSRF_TIME_LIMIT` (7 days) to prevent session expiry DoS.
+- **Image Validation:** Implemented strict Magic Bytes AND EOF checks in `routes/admin.py` to prevent Polyglot file attacks.
+- **Input Validation:** Enforced explicit arguments in `process_check_submission` to prevent injection of unexpected kwargs.
+
+### Stability & Robustness
+- **Startup Crash:** Added automatic creation of `DATA_DIR` in `app.py` to prevent `FileNotFoundError` on fresh installs.
+- **Gunicorn Compatibility:** Ensured `setup_database()` runs on application import (guarded) to support Gunicorn workers.
+- **Concurrency:** Implemented double-check locking in `services.py` to prevent race conditions in cache population.
+- **Race Condition:** Moved `invalidate_cache()` after DB commit in `routes/admin.py` to ensure fresh data is fetched.
+- **Context Safety:** Refactored `get_backup_dir` to use `Config` instead of `current_app`, fixing `RuntimeError` in scheduler context.
+
+### Data Integrity
+- **File Leaks:** Implemented reliable cleanup of signature files and PDFs if database commit fails in `services.py`.
+- **Logic Fixes:** Replaced fragile string comparisons with robust `CheckType` enum handling in `services.py` and tests.
+- **Tests:** Fixed broken Enum assertions in `test_check_service.py`.
+
+### Fixes
+- **Imports:** Corrected missing exports in `app.py` causing `ImportError` in `verify_setup.py`.
+- **Refactoring:** Removed dead code (`check_date` checks) and improved code clarity in `services.py`.
 ### Improved
 - **Code Quality:** All core Python modules now exceed Pylint 9.6, with `models.py`, `forms.py`, and `extensions.py` scoring a perfect 10.00.
 - **Formatting:** Applied `autopep8` across the entire codebase for consistent style.

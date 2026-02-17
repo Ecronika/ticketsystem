@@ -28,7 +28,8 @@ app = Flask(__name__)
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
-    MAX_CONTENT_LENGTH=16 * 1024 * 1024  # 16MB Upload Limit
+    MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB Upload Limit
+    WTF_CSRF_TIME_LIMIT=604800  # 7 Days Validity (Prevent expiry in long sessions)
     # SESSION_COOKIE_SECURE=True # Disabled for Ingress (SSL terminated by HA
     # Proxy)
 )
@@ -55,6 +56,8 @@ if not os.environ.get('DATA_DIR'):
 # Determine log file location based on DATA_DIR
 # Note: We need to get DATA_DIR early for logging setup
 data_dir = Config.get_data_dir()
+if not os.path.exists(data_dir):
+    os.makedirs(data_dir)
 db_path = Config.get_db_path()
 log_file = os.path.join(data_dir, 'app.log')
 

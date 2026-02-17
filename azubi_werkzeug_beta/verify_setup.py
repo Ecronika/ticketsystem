@@ -1,4 +1,6 @@
-from app import app, db, Azubi, Werkzeug, setup_database
+from app import app, setup_database
+from extensions import db
+from models import Azubi, Werkzeug
 import sys
 
 

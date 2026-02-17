@@ -58,9 +58,9 @@ def test_check_date_override(test_app):
 
 def test_exchange_enum_handling(test_app):
     """Verify CheckType Enum works correctly"""
-    assert CheckType.ISSUE == 'issue'
-    assert CheckType.RETURN == 'return'
-    assert CheckType.EXCHANGE == 'exchange'
+    assert CheckType.ISSUE.value == 'issue'
+    assert CheckType.RETURN.value == 'return'
+    assert CheckType.EXCHANGE.value == 'exchange'
 
 
 def test_check_submission_missing_azubi(test_app):

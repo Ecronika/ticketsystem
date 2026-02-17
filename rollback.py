@@ -29,7 +29,15 @@ def rollback(backup_filename):
                 print("FAILED: Invalid backup: Missing core files (db or config).")
                 return False
                 
-            zipf.extractall('.')
+            # Secure Extraction (Zip Slip Protection)
+            target_dir = os.path.abspath('.')
+            for member in zipf.namelist():
+                dest_path = os.path.join(target_dir, member)
+                # Ensure the path is within the target directory by checking normalized abspath prefix
+                if not os.path.abspath(dest_path).startswith(os.path.join(target_dir, '')):
+                    print(f"SECURITY ALERT: Skipping suspicious file path: {member}")
+                    continue
+                zipf.extract(member, target_dir)
             print(f"SUCCESS: Restore completed successfully.")
             return True
     except Exception as e:
