@@ -347,7 +347,6 @@ class CheckService:
         """
         if not check_date:
             check_date = datetime.now()
-            check_date = datetime.now()
         azubi = Azubi.query.get(azubi_id)
         if not azubi:
             current_app.logger.error(
