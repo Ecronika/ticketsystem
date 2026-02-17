@@ -5,6 +5,7 @@ Handles personnel management, tool management, settings,
 backups, migration mode, logo upload, QR codes, and reports.
 """
 import os
+import time
 
 from flask import (
     render_template, request, redirect, url_for,
