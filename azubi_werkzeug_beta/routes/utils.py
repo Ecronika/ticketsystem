@@ -39,7 +39,7 @@ def handle_db_error(
 
 def get_data_dir():
     """Retrieve data directory from config."""
-    from extensions import Config
+    from extensions import Config  # pylint: disable=import-outside-toplevel
     return Config.get_data_dir()
 
 
@@ -50,7 +50,7 @@ def parse_migration_date(form_data, ingress):
         tuple: (check_date, error_redirect) — error_redirect is None
                on success.
     """
-    from datetime import datetime
+    from datetime import datetime  # pylint: disable=import-outside-toplevel
 
     c_date = form_data.get('custom_date')
     c_time = form_data.get('custom_time')

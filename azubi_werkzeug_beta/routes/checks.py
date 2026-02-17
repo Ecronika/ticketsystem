@@ -10,7 +10,7 @@ from datetime import datetime
 
 from flask import (
     render_template, request, redirect, url_for,
-    flash, current_app, session, send_from_directory
+    flash, current_app, session, send_from_directory, abort
 )
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError
@@ -260,6 +260,10 @@ def history():
 
 def history_details(session_id):
     """Show details of a specific check session."""
+    # DoS Protection: Limit session_id length
+    if len(session_id) > 64:
+        abort(400, "Session ID too long")
+
     if session_id.startswith("LEGACY_"):
         _, azubi_id_str, timestamp_str = (
             session_id.split('_'))

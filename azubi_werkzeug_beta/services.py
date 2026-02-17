@@ -70,7 +70,8 @@ class CheckService:
 
         # Update cache (Double-Check)
         # Avoid overwriting if another thread already populated it
-        # This helps slightly with race conditions, though strict generation tracking would be better
+        # This helps slightly with race conditions, though strict generation
+        # tracking would be better
         with _cache_lock:
             if cache_key not in _assigned_tools_cache:
                 _assigned_tools_cache[cache_key] = assigned_tools
@@ -263,6 +264,25 @@ class CheckService:
         return records, selected_tools
 
     @staticmethod
+    def _cleanup_on_error(checks, pdf_path):
+        """Cleanup files if DB commit fails."""
+        if pdf_path and os.path.exists(pdf_path):
+            try:
+                os.remove(pdf_path)
+            except OSError:
+                pass
+
+        if checks:
+            first_check = checks[0]
+            for sig_path in [first_check.signature_azubi,
+                             first_check.signature_examiner]:
+                if sig_path and os.path.exists(sig_path):
+                    try:
+                        os.remove(sig_path)
+                    except OSError:
+                        pass
+
+    @staticmethod
     def _commit_checks_or_cleanup(checks, pdf_path):
         """Commit check records to DB; clean up PDF on failure."""
         try:
@@ -272,23 +292,7 @@ class CheckService:
         except Exception as e:
             current_app.logger.error(f"DB Commit failed: {e}")
             db.session.rollback()
-            if pdf_path and os.path.exists(pdf_path):
-                try:
-                    os.remove(pdf_path)
-                except OSError:
-                    pass
-            
-            # Cleanup Signatures (prevent leak)
-            # Since all checks in this batch share the same signatures (per session),
-            # we can extract paths from the first check.
-            if checks:
-                first_check = checks[0]
-                for sig_path in [first_check.signature_azubi, first_check.signature_examiner]:
-                    if sig_path and os.path.exists(sig_path):
-                        try:
-                            os.remove(sig_path)
-                        except OSError:
-                            pass
+            CheckService._cleanup_on_error(checks, pdf_path)
             raise e
 
     @staticmethod
@@ -300,18 +304,18 @@ class CheckService:
         sig_azubi_path = CheckService.save_signature(
             form_data.get('signature_azubi_data'), session_id, 'azubi')
         if not sig_azubi_path:
-             raise ValueError("Fehler beim Speichern der Azubi-Signatur")
-             
+            raise ValueError("Fehler beim Speichern der Azubi-Signatur")
+
         sig_examiner_path = CheckService.save_signature(
             form_data.get('signature_examiner_data'), session_id, 'examiner')
         if not sig_examiner_path:
-             # Cleanup Azubi sig if Examiner sig fails
-             if os.path.exists(sig_azubi_path):
-                 try:
+            # Cleanup Azubi sig if Examiner sig fails
+            if os.path.exists(sig_azubi_path):
+                try:
                     os.remove(sig_azubi_path)
-                 except OSError:
+                except OSError:
                     pass
-             raise ValueError("Fehler beim Speichern der Ausbilder-Signatur")
+            raise ValueError("Fehler beim Speichern der Ausbilder-Signatur")
 
         return {
             'session_id': session_id,
@@ -330,7 +334,7 @@ class CheckService:
         return {w.id: w for w in werkzeuge}
 
     @staticmethod
-    def process_check_submission(
+    def process_check_submission(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         azubi_id: int,
         examiner_name: str,
         tool_ids: list[int],
@@ -343,7 +347,6 @@ class CheckService:
         """
         if not check_date:
             check_date = datetime.now()
-        if not check_date:
             check_date = datetime.now()
         azubi = Azubi.query.get(azubi_id)
         if not azubi:
@@ -359,8 +362,7 @@ class CheckService:
 
         # 4. Prepare Data for DB and PDF
         reports_to_create, selected_tools = CheckService._prepare_check_records(
-            tool_ids, werkzeug_dict, form_data, check_context
-        )
+            tool_ids, werkzeug_dict, form_data, check_context)
 
         # 5. Generate PDF (BEFORE DB Transaction)
         pdf_path = None
@@ -446,7 +448,8 @@ class CheckService:
             werkzeug_id=tool_id,
             check_type=CheckType.ISSUE.value,
             # pylint: disable=line-too-long
-            bemerkung='Austausch (Neuteil)' + (' (Kostenpflichtig)' if is_payable else ''),
+            bemerkung='Austausch (Neuteil)' +
+            (' (Kostenpflichtig)' if is_payable else ''),
             incident_reason='Ersatzbeschaffung',
             datum=check_date,
             tech_param_value='Neu',
@@ -531,20 +534,20 @@ class CheckService:
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Exchange failed: {e}")
-            
+
             # Cleanup files on error (prevent leak)
             if sig_path and os.path.exists(sig_path):
                 try:
                     os.remove(sig_path)
                 except OSError:
                     pass
-            
+
             if pdf_path and os.path.exists(pdf_path):
                 try:
                     os.remove(pdf_path)
                 except OSError:
                     pass
-            
+
             raise e
 
         current_app.logger.info(
@@ -609,11 +612,13 @@ class BackupService:
                     # Resolve the target path and check if it starts with the
                     # temp_dir
                     target_path = os.path.join(temp_dir, member)
-                    # Use abspath to normalize, but don't resolve symlinks yet (realpath requires existence)
+                    # Use abspath to normalize, but don't resolve symlinks yet
+                    # (realpath requires existence)
                     abs_target = os.path.abspath(target_path)
                     abs_root = os.path.abspath(temp_dir)
-                    
-                    # Must ensure commonprefix is exactly the root directory (trailing slash check)
+
+                    # Must ensure commonprefix is exactly the root directory
+                    # (trailing slash check)
                     if not abs_target.startswith(os.path.join(abs_root, '')):
                         raise ValueError(
                             f"Sicherheitswarnung: Zip Slip Versuch erkannt bei {member}")

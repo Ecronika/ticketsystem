@@ -1,10 +1,14 @@
-from app import app, setup_database
-from extensions import db
-from models import Azubi, Werkzeug
+"""
+Verify setup script.
+
+Checks if the application environment and database are correctly configured.
+"""
 import sys
+from app import app, setup_database
 
 
 def verify_setup():
+    """Run verification checks on the setup."""
     print("Verifying Setup...")
     # Ensure DB is created
     with app.app_context():
@@ -31,7 +35,7 @@ def verify_setup():
         else:
             print("WARN: CSRF Token MISSING in /manage forms.")
 
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"ERROR: Exception checking routes: {e}")
         sys.exit(1)
 
