@@ -58,6 +58,24 @@ class Azubi(db.Model):
     is_archived = db.Column(db.Boolean, default=False)
     checks = db.relationship('Check', backref='azubi', lazy=True)
 
+    def get_dashboard_status(self, last_datum):
+        """Compute dashboard status, CSS class, display text, sort order."""
+        if not last_datum:
+            return "Neu / Leer", "info", "Noch nie", 4
+        now = datetime.now()
+        days_since = (now - last_datum).days
+        if days_since >= 90:
+            return (
+                "Überfällig (> 3 Mon.)", "danger",
+                f"Vor {days_since} Tagen", 1)
+        if days_since >= 62:
+            return (
+                "Prüfung fällig (< 4 Wochen)", "warning",
+                f"Vor {days_since} Tagen", 2)
+        return (
+            "Geprüft", "success",
+            last_datum.strftime("%d. %b %Y"), 3)
+
     def __repr__(self):
         """String representation."""
         return f'<Azubi {self.name}>'

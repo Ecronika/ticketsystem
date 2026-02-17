@@ -58,10 +58,12 @@ class CheckService:
             elif c_type == CheckType.RETURN.value.lower():
                 assigned_tools.discard(check.werkzeug_id)
             elif c_type == CheckType.EXCHANGE.value.lower():
-                # Exchange is effectively a swap, but if we track items precisely
-                # we might need to know WHICH tool was returned and issued.
-                # Current implementation splits Exchange into RETURN + ISSUE records.
-                # So pure 'EXCHANGE' type might not be in DB for tool tracking if logical split exists.
+                # Exchange is effectively a swap, but if we track items
+                # precisely we might need to know WHICH tool was returned
+                # and issued. Current implementation splits Exchange into
+                # RETURN + ISSUE records.
+                # So pure 'EXCHANGE' type might not be in DB for tool
+                # tracking if logical split exists.
                 # However, if it IS in DB:
                 pass
 
@@ -88,6 +90,90 @@ class CheckService:
     def generate_unique_session_id():
         """Generate a unique session ID for grouping checks"""
         return str(uuid.uuid4())
+
+    @staticmethod
+    def detect_exchange_type(checks):
+        """Detect if a session is an exchange based on check types."""
+        has_return = any(
+            c.check_type == CheckType.RETURN for c in checks)
+        has_issue = any(
+            c.check_type == CheckType.ISSUE for c in checks)
+        if has_return and has_issue and len(checks) >= 2:
+            return 'exchange'
+        if any('Austausch' in (c.bemerkung or '') for c in checks):
+            return 'exchange'
+        return None
+
+    @staticmethod
+    def parse_check_bemerkung(bemerkung):
+        """Parse status and comment from a check's bemerkung field."""
+        status_code = "ok"
+        comment = ""
+        parts = (bemerkung or "").split('|')
+        for p in parts:
+            p = p.strip()
+            if p.startswith("Status:"):
+                status_code = p.replace("Status:", "").strip()
+            elif p:
+                comment = p
+        return status_code, comment
+
+    @staticmethod
+    def group_checks_into_sessions(all_checks):
+        """Group flat check list into session dicts."""
+        sessions_dict = {}
+        for check in all_checks:
+            sid = check.session_id if check.session_id else (
+                f"LEGACY_{check.azubi_id}_"
+                f"{int(check.datum.timestamp())}")
+            if sid not in sessions_dict:
+                sessions_dict[sid] = {
+                    'session_id': (
+                        check.session_id if check.session_id else sid),
+                    'datum': check.datum,
+                    'azubi_name': check.azubi.name,
+                    'checks': [],
+                    'is_ok': True}
+            sessions_dict[sid]['checks'].append(check)
+            if "Status: missing" in (check.bemerkung or "") or \
+               "Status: broken" in (check.bemerkung or ""):
+                sessions_dict[sid]['is_ok'] = False
+        return [
+            {
+                'session_id': sd['session_id'],
+                'datum': sd['datum'],
+                'azubi_name': sd['azubi_name'],
+                'is_ok': sd['is_ok'],
+                'count': len(sd['checks'])
+            }
+            for sd in sessions_dict.values()
+        ]
+
+    @staticmethod
+    def cleanup_session_files(files_to_delete):
+        """Delete a list of file paths, return count of deleted."""
+        deleted_count = 0
+        for f_path in files_to_delete:
+            if f_path and os.path.exists(f_path):
+                try:
+                    os.remove(f_path)
+                    deleted_count += 1
+                except OSError as e:
+                    current_app.logger.warning(
+                        f"Failed to delete file {f_path}: {e}")
+        return deleted_count
+
+    @staticmethod
+    def collect_tool_ids(form_data):
+        """Extract tool IDs from form keys matching 'tool_<id>'."""
+        tool_ids = []
+        for key in form_data:
+            if key.startswith('tool_'):
+                try:
+                    tool_ids.append(int(key.split('_')[1]))
+                except (IndexError, ValueError):
+                    continue
+        return tool_ids
 
     @staticmethod
     def save_signature(
@@ -129,6 +215,67 @@ class CheckService:
         except Exception as e:
             current_app.logger.error(f"Error saving signature: {e}")
             return None
+
+    @staticmethod
+    def _prepare_check_records(
+        tool_ids, werkzeug_dict, form_data, session_id,
+        azubi_id, check_date, check_type, examiner_name,
+        sig_azubi_path, sig_examiner_path
+    ):
+        """Prepare Check DB records and tool data for PDF generation."""
+        records = []
+        selected_tools = []
+        global_bemerkung = form_data.get('bemerkung')
+
+        for tool_id in tool_ids:
+            werkzeug = werkzeug_dict.get(tool_id)
+            if not werkzeug:
+                continue
+            status = form_data.get(f'tool_{tool_id}')
+            tech_val = form_data.get(f'tech_param_{tool_id}')
+            incident_reason = form_data.get(f'incident_reason_{tool_id}')
+            full_bemerkung = f"Status: {status}"
+            if global_bemerkung:
+                full_bemerkung += f" | {global_bemerkung}"
+            records.append(Check(
+                session_id=session_id,
+                azubi_id=azubi_id,
+                werkzeug_id=werkzeug.id,
+                bemerkung=full_bemerkung,
+                tech_param_value=tech_val,
+                incident_reason=incident_reason,
+                datum=check_date,
+                check_type=check_type.value,
+                examiner=examiner_name,
+                signature_azubi=sig_azubi_path,
+                signature_examiner=sig_examiner_path,
+                report_path=None
+            ))
+            selected_tools.append({
+                'id': werkzeug.id,
+                'name': werkzeug.name,
+                'category': werkzeug.material_category,
+                'status': status,
+                'incident_reason': incident_reason
+            })
+        return records, selected_tools
+
+    @staticmethod
+    def _commit_checks_or_cleanup(checks, pdf_path):
+        """Commit check records to DB; clean up PDF on failure."""
+        try:
+            for check in checks:
+                db.session.add(check)
+            db.session.commit()
+        except Exception as e:
+            current_app.logger.error(f"DB Commit failed: {e}")
+            db.session.rollback()
+            if pdf_path and os.path.exists(pdf_path):
+                try:
+                    os.remove(pdf_path)
+                except OSError:
+                    pass
+            raise e
 
     @staticmethod
     def process_check_submission(
@@ -176,50 +323,12 @@ class CheckService:
         werkzeuge = Werkzeug.query.filter(Werkzeug.id.in_(tool_ids)).all()
         werkzeug_dict = {w.id: w for w in werkzeuge}
 
-        reports_to_create = []
-        selected_tools = []
-        global_bemerkung = form_data.get('bemerkung')
-
         # 4. Prepare Data for DB and PDF
-        for tool_id in tool_ids:
-            werkzeug = werkzeug_dict.get(tool_id)
-            if not werkzeug:
-                continue
-
-            # Extract per-tool form data
-            status = form_data.get(f'tool_{tool_id}')
-            tech_val = form_data.get(f'tech_param_{tool_id}')
-            incident_reason = form_data.get(f'incident_reason_{tool_id}')
-
-            full_bemerkung = f"Status: {status}"
-            if global_bemerkung:
-                full_bemerkung += f" | {global_bemerkung}"
-
-            # Create Check object (not added to session yet)
-            new_check = Check(
-                session_id=session_id,
-                azubi_id=azubi_id,
-                werkzeug_id=werkzeug.id,
-                bemerkung=full_bemerkung,
-                tech_param_value=tech_val,
-                incident_reason=incident_reason,
-                datum=check_date,
-                check_type=check_type.value,  # Store as string
-                examiner=examiner_name,
-                signature_azubi=sig_azubi_path,
-                signature_examiner=sig_examiner_path,
-                report_path=None  # Will update if PDF generated
-            )
-
-            reports_to_create.append(new_check)
-
-            selected_tools.append({
-                'id': werkzeug.id,
-                'name': werkzeug.name,
-                'category': werkzeug.material_category,
-                'status': status,
-                'incident_reason': incident_reason
-            })
+        reports_to_create, selected_tools = CheckService._prepare_check_records(
+            tool_ids, werkzeug_dict, form_data, session_id,
+            azubi_id, check_date, check_type, examiner_name,
+            sig_azubi_path, sig_examiner_path
+        )
 
         # 5. Generate PDF (BEFORE DB Transaction)
         pdf_path = None
@@ -235,28 +344,12 @@ class CheckService:
                 raise e
 
         # 6. Commit to DB (Fast Transaction)
-        try:
-            for check in reports_to_create:
-                db.session.add(check)
+        CheckService._commit_checks_or_cleanup(reports_to_create, pdf_path)
 
-            db.session.commit()
-
-        except Exception as e:
-            current_app.logger.error(f"DB Commit failed: {e}")
-            db.session.rollback()
-
-            # Cleanup PDF if DB failed
-            if pdf_path and os.path.exists(pdf_path):
-                try:
-                    os.remove(pdf_path)
-                except OSError:
-                    pass
-            raise e
-
-        # pylint: disable=line-too-long
         duration = time.time() - start_time
         current_app.logger.info(
-            f"CheckService: Processed {len(reports_to_create)} checks in {duration:.3f}s")
+            f"CheckService: Processed {len(reports_to_create)} "
+            f"checks in {duration:.3f}s")
 
         return {
             "success": True,
@@ -272,8 +365,9 @@ class CheckService:
     ):
         """Helper to generate PDF and link it to checks."""
         data_dir = CheckService.get_data_dir()
-        # pylint: disable=line-too-long
-        pdf_filename = f"Protokoll_{check_type.value}_{azubi.name.replace(' ', '_')}_{check_date.strftime('%Y%m%d_%H%M')}.pdf"
+        name_clean = azubi.name.replace(' ', '_')
+        date_str = check_date.strftime('%Y%m%d_%H%M')
+        pdf_filename = f"Protokoll_{check_type.value}_{name_clean}_{date_str}.pdf"
         pdf_path = os.path.join(data_dir, 'reports', pdf_filename)
 
         generate_handover_pdf(
@@ -616,6 +710,17 @@ class BackupService:
             BackupService.create_backup()
 
     @staticmethod
+    def _add_directory_to_zip(zipf, dir_path, data_dir):
+        """Add all files from a directory to a zip archive."""
+        if not os.path.exists(dir_path):
+            return
+        for root, _, files in os.walk(dir_path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                arcname = os.path.relpath(file_path, data_dir)
+                zipf.write(file_path, arcname)
+
+    @staticmethod
     def create_backup():
         """
         Creates a zip backup of critical data (DB, Config, Signatures, Reports).
@@ -623,8 +728,6 @@ class BackupService:
         Returns:
             dict: {success, filename, path, size_mb}
         """
-        data_dir = current_app.config.get(
-            'DATA_DIR', os.path.dirname(__file__))
         data_dir = CheckService.get_data_dir()
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_filename = f"backup_azubi_werkzeug_{timestamp}.zip"
@@ -643,34 +746,22 @@ class BackupService:
                 # 2. Config (HA Add-on support)
                 config_path = os.path.join(data_dir, 'config.yaml')
                 ha_config_path = Config.get_ha_options_path()
-
                 if os.path.exists(config_path):
                     zipf.write(config_path, 'config.yaml')
                 elif os.path.exists(ha_config_path):
                     zipf.write(ha_config_path, 'options.json')
 
-                # 3. Signatures
-                sig_dir = os.path.join(data_dir, 'signatures')
-                if os.path.exists(sig_dir):
-                    for root, _, files in os.walk(sig_dir):
-                        for file in files:
-                            file_path = os.path.join(root, file)
-                            arcname = os.path.relpath(file_path, data_dir)
-                            zipf.write(file_path, arcname)
+                # 3. Signatures + Reports
+                BackupService._add_directory_to_zip(
+                    zipf, os.path.join(data_dir, 'signatures'), data_dir)
+                BackupService._add_directory_to_zip(
+                    zipf, os.path.join(data_dir, 'reports'), data_dir)
 
-                reports_dir = os.path.join(data_dir, 'reports')
-                if os.path.exists(reports_dir):
-                    for root, _, files in os.walk(reports_dir):
-                        for file in files:
-                            file_path = os.path.join(root, file)
-                            arcname = os.path.relpath(file_path, data_dir)
-                            zipf.write(file_path, arcname)
-
-            size_mb = round(os.path.getsize(backup_path) / (1024 * 1024), 2)
+            size_mb = round(
+                os.path.getsize(backup_path) / (1024 * 1024), 2)
             current_app.logger.info(
                 f"Backup created: {backup_filename} ({size_mb} MB)")
 
-            # Auto-Prune after successful creation
             BackupService.prune_backups()
 
             return {
