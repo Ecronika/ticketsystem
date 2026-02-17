@@ -279,12 +279,12 @@ def register_routes(bp):
             f"{ingress}{url_for('main.personnel')}")
 
     @bp.route(
-        '/delete_examiner/<int:examiner_id>',
+        '/delete_examiner/<int:id>',
         methods=['POST'])
-    def delete_examiner(examiner_id):
+    def delete_examiner(id):  # pylint: disable=redefined-builtin
         """Delete an examiner."""
         examiner = Examiner.query.get_or_404(
-            examiner_id)
+            id)
         db.session.delete(examiner)
         db.session.commit()
         flash(
@@ -322,11 +322,11 @@ def register_routes(bp):
             f"{ingress}{url_for('main.personnel')}")
 
     @bp.route(
-        '/edit_azubi/<int:azubi_id>',
+        '/edit_azubi/<int:id>',
         methods=['POST'])
-    def edit_azubi(azubi_id):
+    def edit_azubi(id):  # pylint: disable=redefined-builtin
         """Edit an azubi."""
-        azubi = Azubi.query.get_or_404(azubi_id)
+        azubi = Azubi.query.get_or_404(id)
         form = AzubiForm(request.form)
         ingress = request.headers.get(
             'X-Ingress-Path', '')
@@ -347,11 +347,11 @@ def register_routes(bp):
             f"{ingress}{url_for('main.personnel')}")
 
     @bp.route(
-        '/delete_azubi/<int:azubi_id>',
+        '/delete_azubi/<int:id>',
         methods=['POST'])
-    def delete_azubi(azubi_id):
+    def delete_azubi(id):  # pylint: disable=redefined-builtin
         """Delete an azubi."""
-        azubi = Azubi.query.get_or_404(azubi_id)
+        azubi = Azubi.query.get_or_404(id)
         if azubi.checks:
             flash(
                 f'Fehler: Azubi "{azubi.name}" hat '
@@ -371,11 +371,11 @@ def register_routes(bp):
             f"{ingress}{url_for('main.personnel')}")
 
     @bp.route(
-        '/archive_azubi/<int:azubi_id>',
+        '/archive_azubi/<int:id>',
         methods=['POST'])
-    def archive_azubi(azubi_id):
+    def archive_azubi(id):  # pylint: disable=redefined-builtin
         """Archive an azubi."""
-        azubi = Azubi.query.get_or_404(azubi_id)
+        azubi = Azubi.query.get_or_404(id)
         assigned = CheckService.get_assigned_tools(
             azubi.id)
         if assigned:
@@ -398,11 +398,11 @@ def register_routes(bp):
             f"{ingress}{url_for('main.personnel')}")
 
     @bp.route(
-        '/unarchive_azubi/<int:azubi_id>',
+        '/unarchive_azubi/<int:id>',
         methods=['POST'])
-    def unarchive_azubi(azubi_id):
+    def unarchive_azubi(id):  # pylint: disable=redefined-builtin
         """Unarchive an azubi."""
-        azubi = Azubi.query.get_or_404(azubi_id)
+        azubi = Azubi.query.get_or_404(id)
         azubi.is_archived = False
         db.session.commit()
         flash(
@@ -443,12 +443,12 @@ def register_routes(bp):
             f"{ingress}{url_for('main.tools')}")
 
     @bp.route(
-        '/edit_werkzeug/<int:werkzeug_id>',
+        '/edit_werkzeug/<int:id>',
         methods=['POST'])
-    def edit_werkzeug(werkzeug_id):
+    def edit_werkzeug(id):  # pylint: disable=redefined-builtin
         """Edit a tool."""
         werkzeug = Werkzeug.query.get_or_404(
-            werkzeug_id)
+            id)
         form = WerkzeugForm(request.form)
         ingress = request.headers.get(
             'X-Ingress-Path', '')
@@ -472,12 +472,12 @@ def register_routes(bp):
             f"{ingress}{url_for('main.tools')}")
 
     @bp.route(
-        '/delete_werkzeug/<int:werkzeug_id>',
+        '/delete_werkzeug/<int:id>',
         methods=['POST'])
-    def delete_werkzeug(werkzeug_id):
+    def delete_werkzeug(id):  # pylint: disable=redefined-builtin
         """Delete a tool."""
         werkzeug = Werkzeug.query.get_or_404(
-            werkzeug_id)
+            id)
         if werkzeug.checks:
             flash(
                 f'Fehler: Werkzeug "{werkzeug.name}" '
@@ -603,15 +603,15 @@ def register_routes(bp):
                 f"{ingress}{url_for('main.settings')}")
 
     @bp.route(
-        '/report/end_of_training/<int:azubi_id>')
-    def end_of_training_report(azubi_id):
+        '/report/end_of_training/<int:id>')
+    def end_of_training_report(id):  # pylint: disable=redefined-builtin
         """Generate end of training report."""
-        azubi = Azubi.query.get_or_404(azubi_id)
+        azubi = Azubi.query.get_or_404(id)
         assigned = CheckService.get_assigned_tools(
             azubi.id)
         is_clear = len(assigned) == 0
         check_history = Check.query.filter_by(
-            azubi_id=azubi_id).order_by(
+            azubi_id=id).order_by(
             Check.datum.desc()).all()
 
         try:
