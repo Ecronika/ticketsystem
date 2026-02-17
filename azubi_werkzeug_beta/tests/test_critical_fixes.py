@@ -1,4 +1,3 @@
-import pytest
 from extensions import db
 from models import Azubi, Werkzeug, Check, CheckType
 from services import CheckService

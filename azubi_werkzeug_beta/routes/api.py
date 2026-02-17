@@ -1,7 +1,4 @@
-"""
-API routes.
-
-"""
+"""API routes."""
 # pylint: disable=duplicate-code
 from datetime import datetime
 
@@ -39,7 +36,7 @@ def register_routes(bp):
 
     @bp.route('/api/assigned_tools/<int:azubi_id>')
     def api_get_assigned_tools(azubi_id):
-        """API to get assigned tools for dropdown."""
+        """Get assigned tools for dropdown."""
         tool_ids = CheckService.get_assigned_tools(
             azubi_id)
         found_tools = Werkzeug.query.filter(

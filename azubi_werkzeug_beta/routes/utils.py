@@ -3,6 +3,7 @@ Route utilities module.
 
 Shared helpers used across route sub-modules.
 """
+from datetime import datetime
 from flask import current_app, flash, redirect, url_for
 from extensions import db
 
@@ -50,8 +51,6 @@ def parse_migration_date(form_data, ingress):
         tuple: (check_date, error_redirect) — error_redirect is None
                on success.
     """
-    from datetime import datetime  # pylint: disable=import-outside-toplevel
-
     c_date = form_data.get('custom_date')
     c_time = form_data.get('custom_time')
     if not c_date:

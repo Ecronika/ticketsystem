@@ -18,7 +18,7 @@ from models import CheckType
 
 
 def get_logo_path():
-    """Get logo path from Flask app config (DATA_DIR)"""
+    """Get logo path from Flask app config (DATA_DIR)."""
     try:
         data_dir = current_app.config.get(
             'DATA_DIR', os.path.dirname(__file__))
@@ -31,6 +31,7 @@ def get_logo_path():
 def parse_check_type(value):
     """
     Safely parses a check type from string or Enum.
+
     Returns the CheckType enum member or None.
     """
     if isinstance(value, CheckType):
@@ -55,17 +56,17 @@ def parse_check_type(value):
 
 
 class HandoverReport(FPDF):
-    """
-    Custom FPDF class for Werkzeug reports with consistent Header/Footer.
-    """
+    """Custom FPDF class for Werkzeug reports with consistent Header/Footer."""
 
     def __init__(self, title="Werkzeug-Protokoll"):
+        """Initialize the report."""
         super().__init__()
         self.report_title = title
         self.set_auto_page_break(auto=True, margin=15)
         self.add_page()
 
     def header(self):
+        """Header of the report."""
         # 1. Logo Einbindung (wenn vorhanden)
         logo_path = get_logo_path()
         if os.path.exists(logo_path):
@@ -85,6 +86,7 @@ class HandoverReport(FPDF):
         self.ln(20)  # Abstand zum Inhalt (angepasst an Logo-Höhe)
 
     def footer(self):
+        """Footer of the report."""
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
         self.set_text_color(128)
@@ -92,7 +94,7 @@ class HandoverReport(FPDF):
         self.cell(0, 10, f'Seite {self.page_no()}/{{nb}}', 0, 0, 'C')
 
     def chapter_title(self, label):
-        """Adds a standardized chapter title to the PDF."""
+        """Add a standardized chapter title to the PDF."""
         self.set_font('Arial', 'B', 11)
         self.set_fill_color(240, 240, 240)  # Hellgrau
         self.set_text_color(0)
@@ -117,7 +119,6 @@ _TYPE_MAP = {
     CheckType.CHECK: 'Prüfprotokoll',
     CheckType.EXCHANGE: 'Austauschprotokoll'
 }
-
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -176,7 +177,6 @@ def _render_signature_boxes(pdf, signature_paths):
     return start_y, box_height
 
 
-
 def _render_handover_table(pdf, tools, title_text):
     """Render the tool table for handover reports."""
     pdf.chapter_title(f"Betroffene Werkzeuge ({len(tools)} Stück)")
@@ -201,7 +201,8 @@ def generate_handover_pdf(
     azubi_name, examiner_name, tools, check_type, signature_paths, output_path
 ):
     """
-    Generates a PDF report for tool handover/check/exchange.
+    Generate a PDF report for tool handover/check/exchange.
+
     # pylint: disable=too-many-arguments,too-many-positional-arguments
 
 
@@ -263,7 +264,7 @@ def generate_handover_pdf(
 
 def generate_qr_codes_pdf(tools):
     """
-    Generates a PDF containing QR codes for the provided tools.
+    Generate a PDF containing QR codes for the provided tools.
 
     Args:
         tools (list): List of tool objects (id, name).
@@ -393,7 +394,7 @@ def generate_end_of_training_report(
         is_inventory_clear,
         output_path=None):
     """
-    Generates a final report at the end of training.
+    Generate a final report at the end of training.
 
     Summarizes the tool history and confirms inventory status.
     Args:

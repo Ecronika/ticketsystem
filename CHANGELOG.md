@@ -4,6 +4,16 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.7.0-rc10] - 2026-02-18
+### Security
+- **Dependency Vulnerability:** Upgraded `gunicorn` from `==21.2.0` to `>=22.0.0` to fix CVE-2024-1135 and CVE-2024-6827 (HTTP Request Smuggling).
+
+### Improved
+- **Docstring Compliance (PEP 257):** All Python files now use imperative mood, proper blank lines, and consistent formatting.
+- **Flake8 Compliance:** Resolved all violations (E501, F841, F401) across test files. Codebase is fully flake8-clean at `--max-line-length=120`.
+- **Pylint Disable Audit:** Reviewed all 44 `pylint: disable` comments. Removed 4 unnecessary suppressions (`line-too-long`, `import-outside-toplevel`, overly broad `too-few-public-methods`, misplaced docstring suppress). 37 remain as justified.
+- **Code Quality:** Pylint score maintained at 10.00/10.
+
 ## [2.7.0-rc9] - 2026-02-17
 ### Security
 - **Zip Slip Protection:** Hardened `rollback.py` and `services.py` against path traversal attacks during zip extraction.

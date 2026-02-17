@@ -120,8 +120,6 @@ def register_routes(bp):
             current_app.logger.error(f"Error reading logo: {e}")
             return "Error reading logo", 500
 
-
-
     @bp.route('/health')
     def health_check():
         """Lightweight healthcheck endpoint."""

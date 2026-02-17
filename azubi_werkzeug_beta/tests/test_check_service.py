@@ -11,10 +11,15 @@ def test_check_submission_success(test_app):
         azubi = Azubi.query.first()
         tool = Werkzeug.query.first()
 
+        sig = (
+            "data:image/png;base64,iVBORw0KGgoAAAANSUh"
+            "EUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
+            "+A8AAQUBAScY42YAAAAASUVORK5CYII="
+        )
         form_data = {
             f'tool_{tool.id}': 'ok',
-            'signature_azubi_data': "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
-            'signature_examiner_data': "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="}
+            'signature_azubi_data': sig,
+            'signature_examiner_data': sig}
 
         result = CheckService.process_check_submission(
             azubi_id=azubi.id,
@@ -51,6 +56,7 @@ def test_check_date_override(test_app):
             form_data={},
             check_date=custom_date
         )
+        assert result['success'] is True
 
         check = Check.query.first()
         assert check.datum == custom_date

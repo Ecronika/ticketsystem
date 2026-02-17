@@ -10,6 +10,7 @@ from wtforms.validators import DataRequired, Length, Regexp, Optional, NumberRan
 
 class AzubiForm(FlaskForm):
     """Form to add or edit an apprentice."""
+
     name = StringField(
         'Name',
         validators=[
@@ -33,6 +34,7 @@ class AzubiForm(FlaskForm):
 
 class ExaminerForm(FlaskForm):
     """Form to add or edit an examiner."""
+
     name = StringField(
         'Name',
         validators=[
@@ -48,6 +50,7 @@ class ExaminerForm(FlaskForm):
 
 class WerkzeugForm(FlaskForm):
     """Form to add or edit a tool."""
+
     name = StringField(
         'Bezeichnung',
         validators=[

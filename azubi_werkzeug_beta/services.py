@@ -23,16 +23,22 @@ _cache_lock = Lock()
 
 
 class CheckService:
-    """Service for handling Checks and Tool Exchanges."""
+    """
+    Service for handling Check and Tool Exchange logic.
+
+    Encapsulates business logic for checks, backups, and tool transactions.
+    """
+
     @staticmethod
     def get_data_dir():
-        """Helper to get data directory"""
+        """Return the data directory from config."""
         return Config.get_data_dir()
 
     @staticmethod
     def get_assigned_tools(azubi_id):
         """
-        Returns a set of tool IDs currently assigned to the Azubi.
+        Return a set of tool IDs currently assigned to the Azubi.
+
         Uses caching to improve performance.
         """
         cache_key = f"assigned_{azubi_id}"
@@ -93,7 +99,7 @@ class CheckService:
 
     @staticmethod
     def generate_unique_session_id():
-        """Generate a unique session ID for grouping checks"""
+        """Generate a unique session ID for grouping checks."""
         return str(uuid.uuid4())
 
     @staticmethod
@@ -299,7 +305,7 @@ class CheckService:
     def _build_check_context(
         azubi, examiner_name, form_data, check_date, check_type
     ):
-        """Helper to build context dict."""
+        """Build context dict for check processing."""
         session_id = CheckService.generate_unique_session_id()
         sig_azubi_path = CheckService.save_signature(
             form_data.get('signature_azubi_data'), session_id, 'azubi')
@@ -329,7 +335,7 @@ class CheckService:
 
     @staticmethod
     def _fetch_tools_dict(tool_ids):
-        """Helper to fetch tools and return dict."""
+        """Fetch tools and return as dict."""
         werkzeuge = Werkzeug.query.filter(Werkzeug.id.in_(tool_ids)).all()
         return {w.id: w for w in werkzeuge}
 
@@ -342,9 +348,7 @@ class CheckService:
         check_date: datetime = None,
         check_type: CheckType = CheckType.CHECK
     ) -> dict:
-        """
-        Process a full check submission.
-        """
+        """Process a full check submission."""
         if not check_date:
             check_date = datetime.now()
         azubi = Azubi.query.get(azubi_id)
@@ -391,7 +395,7 @@ class CheckService:
     def _generate_and_link_pdf(
         check_context, selected_tools, reports_to_create
     ):
-        """Helper to generate PDF and link it to checks."""
+        """Generate PDF and link it to checks."""
         data_dir = CheckService.get_data_dir()
         azubi = check_context['azubi']
         name_clean = azubi.name.replace(' ', '_')
@@ -422,7 +426,7 @@ class CheckService:
     def _create_exchange_records(
         session_id, azubi_id, tool_id, reason, is_payable, check_date, sig_path
     ):
-        """Helper to create exchange records."""
+        """Create exchange records."""
         # pylint: disable=too-many-arguments,too-many-positional-arguments
         # Return Entry
         ret_entry = Check(
@@ -430,7 +434,6 @@ class CheckService:
             azubi_id=azubi_id,
             werkzeug_id=tool_id,
             check_type=CheckType.RETURN.value,
-            # pylint: disable=line-too-long
             bemerkung=f'Austausch (Altteil): {reason}' +
             (' (Kostenpflichtig)' if is_payable else ''),
             incident_reason=reason,
@@ -446,7 +449,6 @@ class CheckService:
             azubi_id=azubi_id,
             werkzeug_id=tool_id,
             check_type=CheckType.ISSUE.value,
-            # pylint: disable=line-too-long
             bemerkung='Austausch (Neuteil)' +
             (' (Kostenpflichtig)' if is_payable else ''),
             incident_reason='Ersatzbeschaffung',
@@ -461,7 +463,7 @@ class CheckService:
     def _generate_exchange_pdf(
         azubi, tool, reason, session_id, sig_path
     ):
-        """Helper to generate exchange PDF."""
+        """Generate exchange PDF."""
         tools_list = [{'name': tool.name,
                        'category': tool.material_category,
                        'status': f'Rückgabe ({reason})'},
@@ -492,7 +494,8 @@ class CheckService:
         signature_data: str
     ) -> dict:
         """
-        Handles One-Click Tool Exchange (Return Old -> Issue New).
+        Handle One-Click Tool Exchange (Return Old -> Issue New).
+
         Atomically creates two records and one PDF.
         """
         # 1. Validation
@@ -560,10 +563,15 @@ class CheckService:
 
 
 class BackupService:
-    """Service for handling system backups and restores."""
+    """
+    Service for handling system backups and restores.
+
+    Manages backup creation, validation, and restoration.
+    """
+
     @staticmethod
     def get_backup_dir():
-        """Returns the path to the backup directory."""
+        """Return the path to the backup directory."""
         data_dir = Config.get_data_dir()
         backup_dir = os.path.join(data_dir, 'backups')
         if not os.path.exists(backup_dir):
@@ -573,7 +581,7 @@ class BackupService:
     @staticmethod
     def restore_backup(zip_path):
         """
-        Restores the system state from a ZIP backup.
+        Restore the system state from a ZIP backup.
 
         This method safely extracts the backup, validating against Zip Slip attacks,
         and restores the database, configuration, signatures, and reports.
@@ -654,7 +662,7 @@ class BackupService:
 
     @staticmethod
     def _perform_restore_overwrite(data_dir, temp_dir):
-        """Helper to overwrite current data with restored data."""
+        """Overwrite current data with restored data."""
         # DB & Config
         shutil.copy2(
             os.path.join(
@@ -687,7 +695,7 @@ class BackupService:
     @staticmethod
     def prune_backups():
         """
-        Prunes old backup files based on the configured retention policy.
+        Prune old backup files based on the configured retention policy.
 
         Reads 'backup_retention_days' from SystemSettings.
         Deletes ZIP files in the backup directory older than the cutoff.
@@ -736,7 +744,7 @@ class BackupService:
     @staticmethod
     def schedule_backup_job(app):
         """
-        Configures the Auto-Backup Scheduler Job.
+        Configure the Auto-Backup Scheduler Job.
 
         Reads settings (interval, time) from SystemSettings and adds/updates
         the 'auto_backup' job in Flask-APScheduler.
@@ -783,7 +791,7 @@ class BackupService:
 
     @staticmethod
     def create_backup_context_aware(app):
-        """Wraps create_backup with app context for Scheduler"""
+        """Wrap create_backup with app context for Scheduler."""
         with app.app_context():
             BackupService.create_backup()
 
@@ -801,7 +809,7 @@ class BackupService:
     @staticmethod
     def create_backup():
         """
-        Creates a zip backup of critical data (DB, Config, Signatures, Reports).
+        Create a zip backup of critical data (DB, Config, Signatures, Reports).
 
         Returns:
             dict: {success, filename, path, size_mb}
@@ -857,7 +865,7 @@ class BackupService:
 
     @staticmethod
     def list_backups():
-        """Returns list of available backups."""
+        """Return list of available backups."""
         backup_dir = BackupService.get_backup_dir()
         backups = []
         if os.path.exists(backup_dir):
@@ -875,7 +883,7 @@ class BackupService:
 
     @staticmethod
     def rotate_backups(max_backups=10):
-        """Keeps only latest N backups."""
+        """Keep only latest N backups."""
         backup_dir = BackupService.get_backup_dir()
         backups = sorted([
             os.path.join(backup_dir, f)

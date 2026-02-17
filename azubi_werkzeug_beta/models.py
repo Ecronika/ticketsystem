@@ -7,8 +7,6 @@ from datetime import datetime
 from enum import Enum
 from extensions import db
 
-# pylint: disable=too-few-public-methods
-
 
 class SystemSettings(db.Model):
     """
@@ -45,7 +43,7 @@ class SystemSettings(db.Model):
             raise
 
 
-class CheckType(Enum):
+class CheckType(Enum):  # pylint: disable=too-few-public-methods
     """Enumeration of check types."""
     CHECK = 'check'
     ISSUE = 'issue'
@@ -80,12 +78,17 @@ class Azubi(db.Model):
             last_datum.strftime("%d. %b %Y"), 3)
 
     def __repr__(self):
-        """String representation."""
+        """Return string representation."""
         return f'<Azubi {self.name}>'
 
 
-class Werkzeug(db.Model):
-    """Model representing a tool."""
+class Werkzeug(db.Model):  # pylint: disable=too-few-public-methods
+    """
+    Werkzeug model.
+
+    Represents a tool in the inventory.
+    """
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     material_category = db.Column(db.String(20), default="standard")
@@ -97,22 +100,31 @@ class Werkzeug(db.Model):
         cascade="all, delete-orphan")
 
     def __repr__(self):
-        """String representation."""
+        """Return string representation."""
         return f'<Werkzeug {self.name}>'
 
 
-class Examiner(db.Model):
-    """Model representing an examiner."""
+class Examiner(db.Model):  # pylint: disable=too-few-public-methods
+    """
+    Examiner model.
+
+    Represents an examiner/instructor.
+    """
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
 
     def __repr__(self):
-        """String representation."""
+        """Return string representation."""
         return f'<Examiner {self.name}>'
 
 
-class Check(db.Model):
-    """Model representing a check/transaction."""
+class Check(db.Model):  # pylint: disable=too-few-public-methods
+    """
+    Check model.
+
+    Represents a tool check/transaction.
+    """
     id = db.Column(db.Integer, primary_key=True)
     session_id = db.Column(db.String(36), nullable=True, index=True)
     datum = db.Column(db.DateTime, default=datetime.now, index=True)

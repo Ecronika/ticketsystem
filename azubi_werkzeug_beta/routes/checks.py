@@ -22,7 +22,7 @@ from routes.utils import get_data_dir, parse_migration_date
 
 
 def _build_tool_status_list(azubi, werkzeuge, assigned_ids):
-    """Helper to build status list for tools."""
+    """Build status list for tools."""
     mapped_werkzeuge = []
     for w in werkzeuge:
         last_entry = Check.query.filter_by(

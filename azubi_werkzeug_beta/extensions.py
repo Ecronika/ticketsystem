@@ -20,17 +20,18 @@ limiter = Limiter(
 
 
 class Config:
-    """Central Configuration Logic"""
+    """Central Configuration Logic."""
 
     @staticmethod
     def get_base_dir():
-        """Returns the application root directory."""
+        """Return the application root directory."""
         return os.path.abspath(os.path.dirname(__file__))
 
     @staticmethod
     def get_data_dir():
         """
-        Determines the data directory.
+        Determine the data directory.
+
         Priority:
         1. ENV 'DATA_DIR'
         2. Parent of ENV 'DB_PATH'
@@ -46,12 +47,12 @@ class Config:
 
     @staticmethod
     def get_db_path():
-        """Returns the absolute path to the SQLite database."""
+        """Return the absolute path to the SQLite database."""
         if os.environ.get('DB_PATH'):
             return os.environ.get('DB_PATH')
         return os.path.join(Config.get_data_dir(), 'werkzeug.db')
 
     @staticmethod
     def get_ha_options_path():
-        """Returns path to Home Assistant options (configurable)."""
+        """Return path to Home Assistant options (configurable)."""
         return os.environ.get('HA_OPTIONS_PATH', '/data/options.json')

@@ -29,7 +29,8 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
     MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB Upload Limit
-    WTF_CSRF_TIME_LIMIT=604800  # 7 Days Validity (Prevent expiry in long sessions)
+    # 7 Days Validity (Prevent expiry in long sessions)
+    WTF_CSRF_TIME_LIMIT=604800
     # SESSION_COOKIE_SECURE=True # Disabled for Ingress (SSL terminated by HA
     # Proxy)
 )
@@ -392,6 +393,7 @@ if 'pytest' not in sys.modules:
 
 
 if __name__ == '__main__':
-    # setup_database() # Already called above (unless pytest, but main implies not pytest)
+    # setup_database() # Already called above (unless pytest, but main implies
+    # not pytest)
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     app.run(host='0.0.0.0', port=5000, debug=debug_mode)
