@@ -20,7 +20,7 @@ COPY app.py .
 COPY pdf_utils.py .
 COPY extensions.py .
 COPY models.py .
-COPY routes.py .
+COPY routes/ routes/
 COPY services.py .
 COPY forms.py .
 COPY templates templates/
