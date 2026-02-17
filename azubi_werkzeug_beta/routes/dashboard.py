@@ -120,27 +120,7 @@ def register_routes(bp):
             current_app.logger.error(f"Error reading logo: {e}")
             return "Error reading logo", 500
 
-    @bp.route('/debug/paths')
-    def debug_paths():
-        """Debug endpoint to check paths."""
-        data_dir = Config.get_data_dir()
-        logo_path = os.path.join(
-            data_dir, 'static', 'img', 'logo.png')
-        img_dir = os.path.join(data_dir, 'static', 'img')
 
-        return {
-            'DATA_DIR_env': os.environ.get('DATA_DIR', 'NOT SET'),
-            'data_dir': data_dir,
-            'logo_path': logo_path,
-            'logo_exists': os.path.exists(logo_path),
-            'logo_size': (
-                os.path.getsize(logo_path)
-                if os.path.exists(logo_path) else 0),
-            'cwd': os.getcwd(),
-            'files_in_data_static_img': (
-                os.listdir(img_dir)
-                if os.path.exists(img_dir) else [])
-        }
 
     @bp.route('/health')
     def health_check():
