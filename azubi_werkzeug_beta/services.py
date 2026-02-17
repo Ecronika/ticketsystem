@@ -555,19 +555,19 @@ class BackupService:
 
                     zip_ref.extract(member, temp_dir)
 
+            # CRITICAL: Close SQLAlchemy connection to old DB file BEFORE overwriting check
+            # This ensures file locks are released on Windows
+            db.session.remove()
+            db.engine.dispose()
+
             # 3. Overwrite Data (Critical Section)
             BackupService._perform_restore_overwrite(data_dir, temp_dir)
 
             # Cleanup
             shutil.rmtree(temp_dir)
 
-            # CRITICAL: Close SQLAlchemy connection to old DB file
-            # shutil.copy2 replaced the file on disk, but the connection
-            # pool still holds handles to the old data.
-            db.session.remove()
-            db.engine.dispose()
-
             # Ensure all tables exist (older backups may lack newer tables)
+            # This implicitly re-creates the connection
             db.create_all()
 
             # CRITICAL: Clear Cache after restore
