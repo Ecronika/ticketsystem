@@ -453,8 +453,10 @@ def delete_werkzeug(werkzeug_id):
         return redirect(
             f"{ingress}{url_for('main.tools')}")
     db.session.delete(werkzeug)
-    CheckService.invalidate_cache()
     db.session.commit()
+    # Invalidate cache AFTER commit to prevent race where cache is repopulated
+    # with stale data by another request before commit finishes
+    CheckService.invalidate_cache()
     flash(
         f'Werkzeug {werkzeug.name} gelöscht.',
         'success')
@@ -491,16 +493,18 @@ def upload_logo():
                 f"{ingress}"
                 f"{url_for('main.settings')}")
 
-        header = file.read(1024)
+        # Enhanced Security: Check Magic Bytes AND EOF (prevent polyglots)
         file.seek(0)
-        is_png = header.startswith(
-            b'\x89PNG\r\n\x1a\n')
-        is_jpeg = header.startswith(b'\xff\xd8\xff')
-
+        content = file.read()
+        file.seek(0) # Reset pointer
+        
+        is_png = content.startswith(b'\x89PNG\r\n\x1a\n') and content.endswith(b'\x00\x00\x00\x00IEND\xae\x42\x60\x82')
+        is_jpeg = content.startswith(b'\xff\xd8\xff') and content.endswith(b'\xff\xd9')
+        
         if not (is_png or is_jpeg):
             flash(
-                'Ungültiges Format '
-                '(Nur PNG/JPG erlaubt).', 'error')
+                'Ungültiges Format oder beschädigte Datei '
+                '(Nur valide PNG/JPG erlaubt).', 'error')
             return redirect(
                 f"{ingress}"
                 f"{url_for('main.settings')}")

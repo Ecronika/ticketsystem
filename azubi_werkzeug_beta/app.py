@@ -377,7 +377,18 @@ def handle_exception(e):
     return render_template('500.html'), 500
 
 
+# Perform Database Setup & Migrations on Import
+# This ensures tables/migrations exist when running via Gunicorn
+# (which imports 'app' but skips 'if __name__ == "__main__"')
+# Use a guard to prevent running during tests (when pytest imports app)
+if 'pytest' not in sys.modules:
+    with app.app_context():
+        # Only run if not in a special context (like alembic, though we use manual migrations)
+        # Checks are idempotent (safe to run multiple times)
+        setup_database()
+
+
 if __name__ == '__main__':
-    setup_database()
+    # setup_database() # Already called above (unless pytest, but main implies not pytest)
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     app.run(host='0.0.0.0', port=5000, debug=debug_mode)

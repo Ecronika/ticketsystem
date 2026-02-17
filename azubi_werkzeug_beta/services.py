@@ -67,9 +67,12 @@ class CheckService:
                 # However, if it IS in DB:
                 pass
 
-        # Update cache
+        # Update cache (Double-Check)
+        # Avoid overwriting if another thread already populated it
+        # This helps slightly with race conditions, though strict generation tracking would be better
         with _cache_lock:
-            _assigned_tools_cache[cache_key] = assigned_tools
+            if cache_key not in _assigned_tools_cache:
+                _assigned_tools_cache[cache_key] = assigned_tools
 
         return assigned_tools
 
@@ -352,9 +355,6 @@ class CheckService:
         # 6. Commit to DB (Fast Transaction)
         CheckService._commit_checks_or_cleanup(reports_to_create, pdf_path)
 
-        # 6. Commit to DB (Fast Transaction)
-        CheckService._commit_checks_or_cleanup(reports_to_create, pdf_path)
-
         current_app.logger.info(
             f"CheckService: Processed {len(reports_to_create)} checks")
 
@@ -510,6 +510,20 @@ class CheckService:
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Exchange failed: {e}")
+            
+            # Cleanup files on error (prevent leak)
+            if sig_path and os.path.exists(sig_path):
+                try:
+                    os.remove(sig_path)
+                except OSError:
+                    pass
+            
+            if pdf_path and os.path.exists(pdf_path):
+                try:
+                    os.remove(pdf_path)
+                except OSError:
+                    pass
+            
             raise e
 
         current_app.logger.info(
@@ -574,9 +588,13 @@ class BackupService:
                     # ZIP SLIP PROTECTION
                     # Resolve the target path and check if it starts with the
                     # temp_dir
-                    target_path = os.path.realpath(
-                        os.path.join(temp_dir, member))
-                    if not target_path.startswith(os.path.realpath(temp_dir)):
+                    target_path = os.path.join(temp_dir, member)
+                    # Use abspath to normalize, but don't resolve symlinks yet (realpath requires existence)
+                    abs_target = os.path.abspath(target_path)
+                    abs_root = os.path.abspath(temp_dir)
+                    
+                    # Must ensure commonprefix is exactly the root directory (trailing slash check)
+                    if not abs_target.startswith(os.path.join(abs_root, '')):
                         raise ValueError(
                             f"Sicherheitswarnung: Zip Slip Versuch erkannt bei {member}")
 
