@@ -5,30 +5,66 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [2.7.0] - 2026-02-18
-### Security
+
+> Stable release consolidating all changes from v2.7.0-beta1 through v2.7.0-rc10.
+
+### ✨ New Features
+- **Auto-Backup Scheduler:** Backups can be scheduled directly from the UI (Daily/Weekly at configurable times).
+- **Disaster Recovery (Restore):** Admins can upload a backup ZIP to restore the entire system (Database, Config, Signatures, Reports). Triggers an automatic application restart.
+- **Retention Policy:** Automatic deletion of old backups (configurable, default: 30 days).
+- **Reports in Backups:** Backups now include the `reports/` directory (PDFs), preserving full compliance history.
+
+### 🔒 Security
 - **Zip Slip Protection:** Hardened `rollback.py` and `services.py` against path traversal attacks during zip extraction.
-- **DoS Protection:** Limited `session_id` length to 64 chars and implemented `WTF_CSRF_TIME_LIMIT` (7 days).
-- **Image Validation:** Strict Magic Bytes AND EOF checks in `routes/admin.py` to prevent Polyglot file attacks.
-- **Input Validation:** Enforced explicit arguments in `process_check_submission`.
-- **Dependency Vulnerability:** Upgraded `gunicorn` from `==21.2.0` to `>=22.0.0` (CVE-2024-1135, CVE-2024-6827).
+- **DoS Protection:** Limited `session_id` length to 64 characters; implemented `WTF_CSRF_TIME_LIMIT` (7 days); added `MAX_CONTENT_LENGTH` (16 MB).
+- **Image Validation:** Strict Magic Bytes AND EOF checks in logo upload (`routes/admin.py`) to prevent Polyglot file attacks.
+- **Input Validation:** Enforced explicit arguments in `process_check_submission` to prevent unexpected kwargs injection.
+- **Dependency Vulnerability:** Upgraded `gunicorn` from `==21.2.0` to `>=22.0.0` to fix CVE-2024-1135 and CVE-2024-6827 (HTTP Request Smuggling).
+- **Signature Validation:** Enforced server-side validation for signature presence in `submit_check`.
+- **Generic API Errors:** API endpoints now return generic error messages to prevent information leakage.
+- **Atomic File Cleanup:** `delete_session` performs database deletion before file cleanup, preventing data inconsistency.
+- **Row Locking:** Implemented `with_for_update()` in `SystemSettings.set_setting` to prevent concurrent write conflicts.
 
-### Stability & Robustness
+### 🛡️ Stability & Robustness
 - **Startup Crash:** Automatic `DATA_DIR` creation in `app.py` to prevent `FileNotFoundError` on fresh installs.
-- **Gunicorn Compatibility:** `setup_database()` runs on application import.
-- **Concurrency:** Double-check locking in `services.py` to prevent cache population race conditions.
-- **Race Condition:** Moved `invalidate_cache()` after DB commit in `routes/admin.py`.
-- **Context Safety:** `get_backup_dir` uses `Config` instead of `current_app` for scheduler context.
+- **Gunicorn Compatibility:** `setup_database()` runs on application import (guarded), ensuring migrations complete on all Gunicorn workers.
+- **Concurrency:** Double-check locking in `services.py` to prevent race conditions during cache population.
+- **Race Condition:** Moved `invalidate_cache()` after DB commit in `routes/admin.py` to ensure fresh data.
+- **Context Safety:** `get_backup_dir` uses `Config` instead of `current_app`, fixing `RuntimeError` in APScheduler context.
+- **Scheduler Persistence:** Backup schedules now survive application restarts.
+- **Transactional Migrations:** Database migrations are wrapped in a transaction with automatic rollback on failure.
+- **Secret Key Logging:** Added critical logging for `OSError` when writing `secret.key` to prevent silent session invalidation.
 
-### Data Integrity
-- **File Leaks:** Reliable cleanup of signature files and PDFs if database commit fails.
-- **Logic Fixes:** Robust `CheckType` enum handling replacing fragile string comparisons.
+### 📊 Data Integrity
+- **File Leaks:** Reliable cleanup of signature files and PDFs if database commit fails in `services.py`.
+- **CheckType Normalization:** Implemented `parse_check_type` to robustly handle Enum vs. String mismatches in database records, fixing report generation errors.
+- **Logic Fixes:** Replaced fragile string comparisons with robust `CheckType` enum handling across the entire application.
+- **Transaction Safety:** PDF is now generated *before* DB lock in tool exchange to prevent partial data states.
+- **Atomicity:** `submit_check` is fully atomic — all-or-nothing to prevent Ghost Checks.
 
-### Improved
-- **Code Quality:** Pylint 10.00/10 across all modules. Flake8 fully clean (`--max-line-length=120`).
-- **Docstring Compliance (PEP 257):** Imperative mood, proper formatting in all Python files.
-- **Pylint Disable Audit:** Reviewed all suppressions — kept 37 justified, removed 4 unnecessary.
+### 🐛 Bug Fixes
+- **Import Fixes:** Corrected missing exports in `app.py` causing `ImportError` in `verify_setup.py`.
+- **Dead Code:** Removed obsolete `check_date` guards and redundant debug endpoints.
+- **Pagination:** Fixed edge case where accessing a page beyond total pages caused errors.
+- **CheckType Default:** Fixed Enum vs. String mismatch in `models.py` default values.
+- **Extension Init Order:** Fixed initialization order of Flask extensions preventing `SQLAlchemy` context errors.
+
+### 🏗️ Architecture
+- **Blueprint Split:** Monolithic `routes.py` (1200+ lines) split into modular sub-modules: `routes/dashboard.py`, `routes/checks.py`, `routes/admin.py`, `routes/api.py`, `routes/utils.py`.
+- **Service Layer:** Complex exchange logic fully extracted from routes into `CheckService`.
+- **Centralized Config:** `DATA_DIR` and `DB_PATH` logic unified in `Config` class. Configurable `HA_OPTIONS_PATH` via environment variable.
+
+### ✅ Code Quality
+- **Pylint:** 10.00/10 across all core modules.
+- **Flake8:** Fully clean at `--max-line-length=120`.
+- **Docstrings (PEP 257):** Imperative mood, proper blank lines, and consistent formatting in all Python files.
+- **Pylint Disable Audit:** Reviewed all 44 `pylint: disable` comments — removed 4 unnecessary suppressions, 37 remain as justified.
 - **Formatting:** `autopep8` applied across the entire codebase.
-- **Architecture:** Monolithic `routes.py` split into modular Blueprint sub-modules (`dashboard`, `checks`, `admin`, `api`).
+
+### 🧪 Tests
+- Added `tests/test_critical_fixes.py` to verify cache invalidation, type normalization, and CheckType parsing.
+- Fixed broken Enum assertions in `test_check_service.py`.
+- Improved `conftest.py` and test configurations.
 
 ## [2.7.0-rc10] - 2026-02-18
 ### Security
