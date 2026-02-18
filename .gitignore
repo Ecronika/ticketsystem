@@ -34,9 +34,13 @@ env/
 secret.key
 instance/
 
-# Legacy App Data
-azubi_werkzeug/reports/
-azubi_werkzeug/signatures/
+# Stable App Data
+azubi_werkzeug/reports/*
+!azubi_werkzeug/reports/.gitkeep
+azubi_werkzeug/signatures/*
+!azubi_werkzeug/signatures/.gitkeep
+azubi_werkzeug/backups/*
+!azubi_werkzeug/backups/.gitkeep
 azubi_werkzeug/secret.key
 
 # Azubi Werkzeug Beta (Active)

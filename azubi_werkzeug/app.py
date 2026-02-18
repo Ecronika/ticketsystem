@@ -1,12 +1,26 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
-from werkzeug.exceptions import NotFound
-from extensions import db, csrf, limiter
-from routes import main_bp
-from models import Azubi, Werkzeug, Examiner, Check
+
+"""
+Main Application Entry Point.
+
+Configures and initializes the Flask application.
+"""
+from logging.handlers import RotatingFileHandler, QueueHandler, QueueListener
 import os
-import secrets
-import logging
 import sys
+import logging
+import secrets
+import queue
+import atexit
+import sqlite3
+
+from flask import Flask, render_template, request, flash, redirect, url_for
+from werkzeug.exceptions import NotFound
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+
+from extensions import db, limiter, csrf, scheduler, Config
+from services import BackupService
+from routes import main_bp
 
 app = Flask(__name__)
 
@@ -14,30 +28,38 @@ app = Flask(__name__)
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
-    # SESSION_COOKIE_SECURE=True # Disabled for Ingress (SSL terminated by HA Proxy)
+    MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB Upload Limit
+    # 7 Days Validity (Prevent expiry in long sessions)
+    WTF_CSRF_TIME_LIMIT=604800
+    # SESSION_COOKIE_SECURE=True # Disabled for Ingress (SSL terminated by HA
+    # Proxy)
 )
 
 # --- Environment Validation ---
 # Ensure critical variables are set (or fallback is known)
-# Note: SECRET_KEY and DATA_DIR are handled below, but we log warnings for clarity.
-if not os.environ.get('SECRET_KEY') and not os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'secret.key')):
-    logging.warning("No SECRET_KEY set and no secret.key file found. A new key will be generated (sessions invalid on restart).")
+# Note: SECRET_KEY and DATA_DIR are handled below, but we log warnings for
+# clarity.
+if not os.environ.get('SECRET_KEY') and \
+   not os.path.exists(os.path.join(Config.get_base_dir(), 'secret.key')):
+    logging.warning(
+        "No SECRET_KEY set and no secret.key file found. "
+        "A new key will be generated (sessions invalid on restart)."
+    )
 
 if not os.environ.get('DATA_DIR'):
-     logging.info(f"DATA_DIR not set. Using default: {os.path.dirname(os.path.abspath(__file__))}")
+    logging.info("DATA_DIR not set. Using default: %s", Config.get_data_dir())
 
 # Logging Configuration - ASYNC (Non-blocking)
 # Issue: Synchronous file I/O was blocking request threads during heavy logging
-# Solution: QueueHandler writes to memory queue (instant), background thread handles disk I/O
-from logging.handlers import RotatingFileHandler, QueueHandler, QueueListener
-import queue
-import atexit
+# Solution: QueueHandler writes to memory queue (instant), background
+# thread handles disk I/O
 
 # Determine log file location based on DATA_DIR
 # Note: We need to get DATA_DIR early for logging setup
-default_db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'werkzeug.db')
-db_path = os.environ.get('DB_PATH', default_db_path)
-data_dir = os.path.dirname(db_path)
+data_dir = Config.get_data_dir()
+if not os.path.exists(data_dir):
+    os.makedirs(data_dir)
+db_path = Config.get_db_path()
 log_file = os.path.join(data_dir, 'app.log')
 
 # Create log queue for async processing
@@ -64,7 +86,9 @@ console_formatter = logging.Formatter(
 console_handler.setFormatter(console_formatter)
 
 # Queue listener - processes log queue in background thread
-queue_listener = QueueListener(log_queue, file_handler, console_handler, respect_handler_level=True)
+queue_listener = QueueListener(
+    log_queue, file_handler, console_handler, respect_handler_level=True
+)
 queue_listener.start()
 
 # Queue handler - writes to queue (NON-BLOCKING, instant!)
@@ -77,7 +101,9 @@ app.logger.setLevel(logging.INFO)
 # Ensure listener stops cleanly on shutdown
 atexit.register(queue_listener.stop)
 
-app.logger.info(f"Async logging initialized: File={log_file}, Console=stdout, Queue=ENABLED")
+app.logger.info(
+    "Async logging initialized: File=%s, Console=stdout, Queue=ENABLED",
+    log_file)
 
 # Database configuration (using data_dir from logging setup above)
 # data_dir, db_path already defined during logging init
@@ -96,59 +122,62 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 secret_file = os.path.join(data_dir, 'secret.key')
 if os.path.exists(secret_file):
     try:
-        with open(secret_file, 'r') as f:
+        with open(secret_file, 'r', encoding='utf-8') as f:
             app.secret_key = f.read().strip()
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         app.secret_key = secrets.token_hex(32)
 else:
     app.secret_key = secrets.token_hex(32)
     try:
-        with open(secret_file, 'w') as f:
+        with open(secret_file, 'w', encoding='utf-8') as f:
             f.write(app.secret_key)
-    except OSError:
-        pass
+    except OSError as e:
+        # CRITICAL: If this fails, sessions are invalid after every restart
+        app.logger.critical(
+            "Could not persist secret key to %s: %s", secret_file, e)
 
-# Initialize Extensions
-csrf.init_app(app)
+# Init Extensions
 db.init_app(app)
+csrf.init_app(app)
 limiter.init_app(app)
 
+if not scheduler.running:
+    scheduler.init_app(app)
+    scheduler.start()
+
+    # Restore Backup Schedule from DB
+    try:
+        with app.app_context():
+            BackupService.schedule_backup_job(app)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        app.logger.error("Failed to restore backup schedule: %s", e)
+
 # SQLite Connection Optimization (Fix for Worker Timeouts)
-from sqlalchemy import event
-from sqlalchemy.engine import Engine
-import sqlite3
+
 
 @event.listens_for(Engine, "connect")
-def set_sqlite_pragma(dbapi_conn, connection_record):
+def set_sqlite_pragma(dbapi_conn, _connection_record):
     """Set SQLite pragmas for better performance and concurrency.
-    
+
     This fixes worker timeout issues caused by database locks.
     CRITICAL for multi-user concurrent access.
     """
     if isinstance(dbapi_conn, sqlite3.Connection):
         cursor = dbapi_conn.cursor()
-        
-        # CRITICAL: Set busy timeout to 30 seconds
-        # SQLite waits up to 30s for lock release instead of failing immediately
         cursor.execute("PRAGMA busy_timeout = 30000")
-        
-        # WAL mode for better concurrent read/write
-        # Allows simultaneous reads during writes - GAME CHANGER for concurrency!
         cursor.execute("PRAGMA journal_mode = WAL")
-        
-        # Increase cache size for better performance
         cursor.execute("PRAGMA cache_size = -10000")  # 10MB cache
-        
-        # Synchronous = NORMAL for better performance (safe with WAL mode)
         cursor.execute("PRAGMA synchronous = NORMAL")
-        
-        # NEW: Optimize for SD card (User Request)
         cursor.execute("PRAGMA temp_store = MEMORY")  # Temp data in RAM
-        cursor.execute("PRAGMA mmap_size = 268435456")  # 256MB memory-mapped I/O
-        cursor.execute("PRAGMA wal_autocheckpoint = 1000")  # Less frequent WAL checkpoints
-        
+        # 256MB memory-mapped I/O
+        cursor.execute("PRAGMA mmap_size = 268435456")
+        # Less frequent WAL checkpoints
+        cursor.execute("PRAGMA wal_autocheckpoint = 1000")
         cursor.close()
-        app.logger.info("SQLite pragmas set: busy_timeout=30s, WAL mode, cache=10MB, SD-optimized (mmap/mem-temp)")
+        app.logger.info(
+            "SQLite pragmas set: busy_timeout=30s, WAL mode, cache=10MB, SD-optimized"
+        )
+
 
 # Security: Content-Security-Policy (Issue #3)
 # CONDITIONAL: Use Talisman for standalone, manual headers for Home Assistant
@@ -157,22 +186,25 @@ IS_HOMEASSISTANT = os.environ.get('SUPERVISOR_TOKEN') is not None
 if not IS_HOMEASSISTANT:
     # Standalone deployment: Use Flask-Talisman
     from flask_talisman import Talisman
-    Talisman(app, 
-        force_https=False,  # External proxy (nginx/traefik) handles SSL
-        content_security_policy={
-            'default-src': "'self'",
-            'script-src': ["'self'", 'cdn.jsdelivr.net', "'unsafe-inline'"],  # Inline scripts in templates
-            'style-src': ["'self'", 'cdn.jsdelivr.net', "'unsafe-inline'"],  # Bootstrap inline styles
-            'img-src': ["'self'", 'data:'],  # data: for inline images/QR codes
-            'font-src': ["'self'", 'cdn.jsdelivr.net'],
-            'connect-src': ["'self'", 'cdn.jsdelivr.net']  # For source maps
-        }
-    )
-    app.logger.info("Security: Flask-Talisman enabled (CSP + Security Headers)")
+    Talisman(app,
+             force_https=False,  # External proxy (nginx/traefik) handles SSL
+             content_security_policy={
+                 'default-src': "'self'",
+                 'script-src': ["'self'", 'cdn.jsdelivr.net', "'unsafe-inline'"],
+                 'style-src': ["'self'", 'cdn.jsdelivr.net', "'unsafe-inline'"],
+                 'img-src': ["'self'", 'data:'],
+                 'font-src': ["'self'", 'cdn.jsdelivr.net'],
+                 'connect-src': ["'self'", 'cdn.jsdelivr.net']
+             }
+             )
+    app.logger.info(
+        "Security: Flask-Talisman enabled (CSP + Security Headers)")
 else:
-    # Home Assistant Ingress: Talisman breaks X-Ingress-Path, use manual headers
+    # Home Assistant Ingress: Talisman breaks X-Ingress-Path, use manual
+    # headers
     @app.after_request
     def add_security_headers(response):
+        """Add manual Context Security Policy headers."""
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
         response.headers['X-XSS-Protection'] = '1; mode=block'
@@ -186,147 +218,182 @@ else:
             "connect-src 'self' cdn.jsdelivr.net"
         )
         return response
-    app.logger.info("Security: Manual CSP headers enabled (Home Assistant Ingress mode)")
+    app.logger.info(
+        "Security: Manual CSP headers enabled (Home Assistant Ingress mode)")
 
 # Register Blueprints
 app.register_blueprint(main_bp)
 
 # Database Session Cleanup (Prevent Connection Leaks)
+
+
 @app.teardown_appcontext
-def remove_session(exception=None):
+def remove_session(_exception=None):
     """Ensure database session is properly cleaned up after each request.
-    
+
     This prevents connection leaking, especially important when:
     - Multiple commits happen in single request
     - Exceptions occur during transactions
     - PDF generation fails after first commit
-    
+
     Critical for SQLite connection pool management.
     """
     db.session.remove()
 
 # --- Helper to create DB and Seed Data ---
+
+
+def _apply_migrations(cursor):
+    """Apply schema migrations to the database."""
+    # --- Check 'tech_param_value' in 'check' table ---
+    cursor.execute('PRAGMA table_info("check")')
+    check_columns = [info[1] for info in cursor.fetchall()]
+    if 'tech_param_value' not in check_columns:
+        app.logger.info(
+            "Migrating DB: Adding 'tech_param_value' column to check table.")
+        cursor.execute(
+            'ALTER TABLE "check" ADD COLUMN tech_param_value VARCHAR(50)')
+
+    # --- Check 'incident_reason' in 'check' table (Phase 2) ---
+    if 'incident_reason' not in check_columns:
+        app.logger.info(
+            "Migrating DB: Adding 'incident_reason' column to check table.")
+        cursor.execute(
+            'ALTER TABLE "check" ADD COLUMN incident_reason VARCHAR(50)')
+
+    # --- Check 'tech_param_label' in 'werkzeug' table ---
+    cursor.execute("PRAGMA table_info(werkzeug)")
+    werkzeug_columns = [info[1] for info in cursor.fetchall()]
+    if 'tech_param_label' not in werkzeug_columns:
+        app.logger.info(
+            "Migrating DB: Adding 'tech_param_label' column to werkzeug table.")
+        cursor.execute(
+            "ALTER TABLE werkzeug ADD COLUMN tech_param_label VARCHAR(50)")
+
+    # --- Phase 3: Audit Trail Columns in 'Check' ---
+    cursor.execute('PRAGMA table_info("check")')
+    check_columns_audit = [info[1] for info in cursor.fetchall()]
+
+    if 'check_type' not in check_columns_audit:
+        app.logger.info("Migrating DB: Phase 3 Columns...")
+        cursor.execute(
+            "ALTER TABLE \"check\" ADD COLUMN check_type VARCHAR(20) DEFAULT 'check'")
+        cursor.execute(
+            "ALTER TABLE \"check\" ADD COLUMN examiner VARCHAR(100)")
+        cursor.execute(
+            "ALTER TABLE \"check\" ADD COLUMN signature_azubi VARCHAR(200)")
+        cursor.execute(
+            "ALTER TABLE \"check\" ADD COLUMN signature_examiner VARCHAR(200)")
+        cursor.execute(
+            "ALTER TABLE \"check\" ADD COLUMN report_path VARCHAR(200)")
+
+    # --- Phase 6: is_archived in 'Azubi' ---
+    cursor.execute("PRAGMA table_info(azubi)")
+    azubi_columns = [info[1] for info in cursor.fetchall()]
+    if 'is_archived' not in azubi_columns:
+        app.logger.info(
+            "Migrating DB: Adding 'is_archived' column to azubi table.")
+        cursor.execute(
+            "ALTER TABLE azubi ADD COLUMN is_archived BOOLEAN DEFAULT 0")
+
+    _apply_indexes(cursor)
+
+
+def _apply_indexes(cursor):
+    """Apply database indexes."""
+    # --- Phase 8: Performance Indexes ---
+    cursor.execute("PRAGMA index_list('check')")
+    indexes = [row[1] for row in cursor.fetchall()]
+
+    if 'idx_check_session_id' not in indexes:
+        app.logger.info("Migrating DB: Creating Index idx_check_session_id")
+        cursor.execute(
+            "CREATE INDEX idx_check_session_id ON \"check\" (session_id)")
+
+    if 'idx_check_datum' not in indexes:
+        app.logger.info("Migrating DB: Creating Index idx_check_datum")
+        cursor.execute("CREATE INDEX idx_check_datum ON \"check\" (datum)")
+
+    # --- Phase 9: UI Sorting Indexes (Performance Fix) ---
+    cursor.execute("PRAGMA index_list('azubi')")
+    azubi_indexes = [row[1] for row in cursor.fetchall()]
+    if 'idx_azubi_name' not in azubi_indexes:
+        app.logger.info("Migrating DB: Creating Index idx_azubi_name")
+        cursor.execute("CREATE INDEX idx_azubi_name ON azubi (name)")
+
+    cursor.execute("PRAGMA index_list('werkzeug')")
+    werkzeug_indexes = [row[1] for row in cursor.fetchall()]
+    if 'idx_werkzeug_name' not in werkzeug_indexes:
+        app.logger.info("Migrating DB: Creating Index idx_werkzeug_name")
+        cursor.execute("CREATE INDEX idx_werkzeug_name ON werkzeug (name)")
+
+
 def setup_database():
+    """Create database tables and perform migrations (schema updates)."""
     with app.app_context():
         db.create_all()
-        
-        import sqlite3
+
         try:
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            
-            # --- Check 'tech_param_value' in 'check' table ---
-            cursor.execute('PRAGMA table_info("check")')
-            check_columns = [info[1] for info in cursor.fetchall()]
-            if 'tech_param_value' not in check_columns:
-                app.logger.info("Migrating DB: Adding 'tech_param_value' column to check table.")
-                cursor.execute('ALTER TABLE "check" ADD COLUMN tech_param_value VARCHAR(50)')
-                conn.commit()
 
-            # --- Check 'incident_reason' in 'check' table (Phase 2) ---
-            if 'incident_reason' not in check_columns:
-                 app.logger.info("Migrating DB: Adding 'incident_reason' column to check table.")
-                 cursor.execute('ALTER TABLE "check" ADD COLUMN incident_reason VARCHAR(50)')
-                 conn.commit()
+            # Explicit transaction for safety
+            cursor.execute("BEGIN TRANSACTION")
 
-            # --- Check 'tech_param_label' in 'werkzeug' table ---
-            cursor.execute("PRAGMA table_info(werkzeug)")
-            werkzeug_columns = [info[1] for info in cursor.fetchall()]
-            if 'tech_param_label' not in werkzeug_columns:
-                app.logger.info("Migrating DB: Adding 'tech_param_label' column to werkzeug table.")
-                cursor.execute("ALTER TABLE werkzeug ADD COLUMN tech_param_label VARCHAR(50)")
-                conn.commit()
-                
-            # --- Phase 3: Audit Trail Columns in 'Check' ---
-            cursor.execute('PRAGMA table_info("check")')
-            check_columns_audit = [info[1] for info in cursor.fetchall()]
-            
-            if 'check_type' not in check_columns_audit:
-                app.logger.info("Migrating DB: Phase 3 Columns...")
-                cursor.execute("ALTER TABLE \"check\" ADD COLUMN check_type VARCHAR(20) DEFAULT 'check'")
-                cursor.execute("ALTER TABLE \"check\" ADD COLUMN examiner VARCHAR(100)")
-                cursor.execute("ALTER TABLE \"check\" ADD COLUMN signature_azubi VARCHAR(200)")
-                cursor.execute("ALTER TABLE \"check\" ADD COLUMN signature_examiner VARCHAR(200)")
-                cursor.execute("ALTER TABLE \"check\" ADD COLUMN report_path VARCHAR(200)")
-                conn.commit()
-            
-            # --- Phase 3.5: Examiner Table ---
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='examiner'")
-            if not cursor.fetchone():
-                pass 
-            
-            # --- Phase 6: is_archived in 'Azubi' ---
-            cursor.execute("PRAGMA table_info(azubi)")
-            azubi_columns = [info[1] for info in cursor.fetchall()]
-            if 'is_archived' not in azubi_columns:
-                app.logger.info("Migrating DB: Adding 'is_archived' column to azubi table.")
-                cursor.execute("ALTER TABLE azubi ADD COLUMN is_archived BOOLEAN DEFAULT 0")
-                conn.commit()
+            _apply_migrations(cursor)
 
-            # --- Phase 8: Performance Indexes ---
-            cursor.execute("PRAGMA index_list('check')")
-            # index_list returns (seq, name, unique)
-            indexes = [row[1] for row in cursor.fetchall()]
-            
-            if 'idx_check_session_id' not in indexes:
-                app.logger.info("Migrating DB: Creating Index idx_check_session_id")
-                cursor.execute("CREATE INDEX idx_check_session_id ON \"check\" (session_id)")
-                conn.commit()
-
-            if 'idx_check_datum' not in indexes:
-                app.logger.info("Migrating DB: Creating Index idx_check_datum")
-                cursor.execute("CREATE INDEX idx_check_datum ON \"check\" (datum)")
-                conn.commit()
-
-            # --- Phase 9: UI Sorting Indexes (Performance Fix) ---
-            cursor.execute("PRAGMA index_list('azubi')")
-            azubi_indexes = [row[1] for row in cursor.fetchall()]
-            if 'idx_azubi_name' not in azubi_indexes:
-                app.logger.info("Migrating DB: Creating Index idx_azubi_name")
-                cursor.execute("CREATE INDEX idx_azubi_name ON azubi (name)")
-                conn.commit()
-
-            cursor.execute("PRAGMA index_list('werkzeug')")
-            werkzeug_indexes = [row[1] for row in cursor.fetchall()]
-            if 'idx_werkzeug_name' not in werkzeug_indexes:
-                app.logger.info("Migrating DB: Creating Index idx_werkzeug_name")
-                cursor.execute("CREATE INDEX idx_werkzeug_name ON werkzeug (name)")
-                conn.commit()
-
-            conn.close()
-        except Exception as e:
-            app.logger.error(f"Migration Info: {e}")
-
+            conn.commit()
+            app.logger.info(
+                "Database setup and migrations completed successfully.")
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            conn.rollback()
+            app.logger.critical(
+                "Migration Failed! Rolled back changes. Error: %s", e)
+            # We might want to exit here, but for now we just log critical
+        finally:
+            if conn:
+                conn.close()
 
 
 # --- Global Error Handlers ---
-@app.errorhandler(413) # Payload Too Large
+@app.errorhandler(413)  # Payload Too Large
 def request_entity_too_large(e):
-    app.logger.warning(f"File upload too large: {request.content_length}")
+    """Handle 413 Payload Too Large error."""
+    # pylint: disable=unused-argument
+    app.logger.warning("File upload too large: %s", request.content_length)
     flash('Datei zu groß (max. 2MB).', 'error')
-    return redirect(url_for('main.manage'))
+    # fallback to index if manage is not available or context is unclear
+    return redirect(url_for('main.index'))
+
+
+@app.errorhandler(NotFound)
+def page_not_found(e):
+    """Handle 404 Not Found error."""
+    # pylint: disable=unused-argument
+    return render_template('404.html'), 404
+
 
 @app.errorhandler(Exception)
 def handle_exception(e):
-    # Pass through HTTP errors
-    if isinstance(e, int):
-        return e
-    
-    # Handle 404 separately to avoid issues with request.endpoint being None
-    if isinstance(e, NotFound):
-        return """
-        <!DOCTYPE html>
-        <html><head><title>404 - Nicht gefunden</title></head>
-        <body style="font-family: Arial; text-align: center; padding: 50px;">
-            <h1>404 - Seite nicht gefunden</h1>
-            <p><a href="/">Zurück zur Startseite</a></p>
-        </body></html>
-        """, 404
-        
-    app.logger.error(f"Unhandled Exception: {e}", exc_info=True)
-    return render_template('base.html', content=f"<h1>Ein unerwarteter Fehler ist aufgetreten</h1><p>{e}</p>"), 500
+    """Handle standard exceptions."""
+    # pylint: disable=unused-argument
+    app.logger.error("Unhandled Exception: %s", e, exc_info=True)
+    return render_template('500.html'), 500
+
+
+# Perform Database Setup & Migrations on Import
+# This ensures tables/migrations exist when running via Gunicorn
+# (which imports 'app' but skips 'if __name__ == "__main__"')
+# Use a guard to prevent running during tests (when pytest imports app)
+if 'pytest' not in sys.modules:
+    with app.app_context():
+        # Only run if not in a special context (like alembic, though we use manual migrations)
+        # Checks are idempotent (safe to run multiple times)
+        setup_database()
+
 
 if __name__ == '__main__':
-    setup_database()
+    # setup_database() # Already called above (unless pytest, but main implies
+    # not pytest)
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     app.run(host='0.0.0.0', port=5000, debug=debug_mode)

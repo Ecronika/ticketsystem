@@ -83,7 +83,7 @@
                                     </td>
                                     <td class="text-end">
                                         <form
-                                            action="{{ ingress_path }}{{ url_for('main.delete_werkzeug', id=werkzeug.id) }}"
+                                            action="{{ ingress_path }}{{ url_for('main.delete_werkzeug', werkzeug_id=werkzeug.id) }}"
                                             method="POST" onsubmit="return confirm('Wirklich löschen?');"
                                             class="d-inline">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />

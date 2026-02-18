@@ -4,6 +4,32 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.7.0] - 2026-02-18
+### Security
+- **Zip Slip Protection:** Hardened `rollback.py` and `services.py` against path traversal attacks during zip extraction.
+- **DoS Protection:** Limited `session_id` length to 64 chars and implemented `WTF_CSRF_TIME_LIMIT` (7 days).
+- **Image Validation:** Strict Magic Bytes AND EOF checks in `routes/admin.py` to prevent Polyglot file attacks.
+- **Input Validation:** Enforced explicit arguments in `process_check_submission`.
+- **Dependency Vulnerability:** Upgraded `gunicorn` from `==21.2.0` to `>=22.0.0` (CVE-2024-1135, CVE-2024-6827).
+
+### Stability & Robustness
+- **Startup Crash:** Automatic `DATA_DIR` creation in `app.py` to prevent `FileNotFoundError` on fresh installs.
+- **Gunicorn Compatibility:** `setup_database()` runs on application import.
+- **Concurrency:** Double-check locking in `services.py` to prevent cache population race conditions.
+- **Race Condition:** Moved `invalidate_cache()` after DB commit in `routes/admin.py`.
+- **Context Safety:** `get_backup_dir` uses `Config` instead of `current_app` for scheduler context.
+
+### Data Integrity
+- **File Leaks:** Reliable cleanup of signature files and PDFs if database commit fails.
+- **Logic Fixes:** Robust `CheckType` enum handling replacing fragile string comparisons.
+
+### Improved
+- **Code Quality:** Pylint 10.00/10 across all modules. Flake8 fully clean (`--max-line-length=120`).
+- **Docstring Compliance (PEP 257):** Imperative mood, proper formatting in all Python files.
+- **Pylint Disable Audit:** Reviewed all suppressions — kept 37 justified, removed 4 unnecessary.
+- **Formatting:** `autopep8` applied across the entire codebase.
+- **Architecture:** Monolithic `routes.py` split into modular Blueprint sub-modules (`dashboard`, `checks`, `admin`, `api`).
+
 ## [2.7.0-rc10] - 2026-02-18
 ### Security
 - **Dependency Vulnerability:** Upgraded `gunicorn` from `==21.2.0` to `>=22.0.0` to fix CVE-2024-1135 and CVE-2024-6827 (HTTP Request Smuggling).
