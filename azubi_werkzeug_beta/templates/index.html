@@ -167,6 +167,36 @@
     </div>
 </div>
 
+<!-- Add Azubi Modal -->
+<div class="modal fade" id="addAzubiModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Neuen Azubi hinzufügen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ ingress_path }}{{ url_for('main.add_azubi') }}" method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label for="azubiName" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="azubiName" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="azubiLehrjahr" class="form-label">Lehrjahr</label>
+                        <input type="number" class="form-control" id="azubiLehrjahr" name="lehrjahr" min="1" max="4"
+                            required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Hinzufügen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
 <script>
     let padAzubi = null;

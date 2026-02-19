@@ -54,7 +54,9 @@ def personnel():
     per_page = 20
     query = Azubi.query.order_by(Azubi.name)
 
-    if not show_archived:
+    if show_archived:
+        query = query.filter_by(is_archived=True)
+    else:
         query = query.filter_by(is_archived=False)
 
     try:

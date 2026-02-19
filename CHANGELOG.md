@@ -4,6 +4,12 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.0-beta3] - 2026-02-19
+### Fixed
+- Fixed `404` page crashing with `BuildError` (referenced wrong endpoint).
+- Fixed "Archiv" filter in Admin/Personnel view to correctly show *only* archived users.
+- Fixed "Neuer Azubi" button on Dashboard (added missing `addAzubiModal`).
+
 ## [2.8.0-beta2] - 2026-02-19
 ### 🐛 Hotfixes
 - **Crash Fix:** Added missing `404.html` template to prevent 500 Internal Server Error on invalid routes.
