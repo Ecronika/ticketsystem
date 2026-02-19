@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [2.8.0-beta2] - 2026-02-19
 ### 🐛 Hotfixes
 - **Crash Fix:** Added missing `404.html` template to prevent 500 Internal Server Error on invalid routes.
-- **Session Stability:** Added `secret.key` to Docker image to prevent session invalidation on container restarts.
+- **Session Stability:** Implemented persistent `secret.key` generation in `DATA_DIR` to ensure sessions survive restarts without breaking Docker builds.
 
 ## [2.8.0-beta1] - 2026-02-19
 

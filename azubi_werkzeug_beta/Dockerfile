@@ -23,7 +23,6 @@ COPY extensions.py .
 COPY models.py .
 COPY routes/ routes/
 COPY services.py .
-COPY secret.key .
 COPY forms.py .
 COPY templates templates/
 COPY static static/

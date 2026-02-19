@@ -40,14 +40,8 @@ app.config.update(
 
 # --- Environment Validation ---
 # Ensure critical variables are set (or fallback is known)
-# Note: SECRET_KEY and DATA_DIR are handled below, but we log warnings for
-# clarity.
-if not os.environ.get('SECRET_KEY') and \
-   not os.path.exists(os.path.join(Config.get_base_dir(), 'secret.key')):
-    logging.warning(
-        "No SECRET_KEY set and no secret.key file found. "
-        "A new key will be generated (sessions invalid on restart)."
-    )
+# Note: SECRET_KEY is handled securely in the 'Security: Dynamic Secret Key' section below.
+# We check DATA_DIR next to ensure the persistent storage location exists.
 
 if not os.environ.get('DATA_DIR'):
     logging.info("DATA_DIR not set. Using default: %s", Config.get_data_dir())
