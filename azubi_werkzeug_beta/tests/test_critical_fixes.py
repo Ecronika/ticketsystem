@@ -1,3 +1,6 @@
+"""
+Tests for critical bug fixes.
+"""
 from extensions import db
 from models import Azubi, Werkzeug, Check, CheckType
 from services import CheckService
@@ -32,7 +35,8 @@ def test_cache_invalidation(test_app):
         assigned = CheckService.get_assigned_tools(azubi.id)
         assert tool.id not in assigned
 
-        # 2. Add Issue Check directly to DB (Simulating a background process or direct DB manipulation)
+        # 2. Add Issue Check directly to DB (Simulating a background process or
+        # direct DB manipulation)
         # This bypasses the Service's automatic invalidation to prove we rely
         # on cache
         check = Check(
@@ -66,8 +70,8 @@ def test_global_cache_invalidation(test_app):
         # Invalidate ALL
         CheckService.invalidate_cache()
 
-        # We can't easily inspect the private cache dict from here without accessing private member,
-        # but we can assume if the function runs without error it's likely working.
-        # To be sure, we could check if a new fetch triggers logic, but for now
-        # we trust unit test logic above.
-        pass
+        # We can't easily inspect the private cache dict from here without
+        # accessing private member, but we can assume if the function runs
+        # without error it's likely working. To be sure, we could check if a
+        # new fetch triggers logic, but for now we trust unit test logic above.
+        # new fetch triggers logic, but for now we trust unit test logic above.

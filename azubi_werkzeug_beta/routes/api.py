@@ -9,6 +9,65 @@ from extensions import db, limiter, csrf
 from models import Azubi, Werkzeug, Examiner, Check
 from forms import AzubiForm, ExaminerForm, WerkzeugForm
 from services import CheckService
+from routes.auth import admin_required
+
+
+@admin_required
+def get_assigned_tools(azubi_id):
+    """Get assigned tools for azubi, sorted by status."""
+    try:
+        assigned_ids = CheckService.get_assigned_tools(azubi_id)
+        if not assigned_ids:
+            return jsonify([])
+
+        tools = Werkzeug.query.filter(Werkzeug.id.in_(assigned_ids)).all()
+        result = []
+
+        for tool in tools:
+            # Determine status
+            last_entry = Check.query.filter_by(
+                azubi_id=azubi_id,
+                werkzeug_id=tool.id).order_by(
+                Check.datum.desc()).first()
+            # Determine status
+            last_entry = Check.query.filter_by(
+                azubi_id=azubi_id,
+                werkzeug_id=tool.id).order_by(
+                Check.datum.desc()).first()
+
+            status = 'ok'
+            if last_entry and last_entry.bemerkung:
+                parts = last_entry.bemerkung.split('|')
+                for p in parts:
+                    if p.strip().startswith("Status:"):
+                        status = p.replace("Status:", "").strip()
+                        break
+
+            # Sort weights
+            weight = 2  # OK
+            status_label = ""
+            if status == 'missing':
+                weight = 0
+                status_label = " (FEHLT)"
+            elif status == 'broken':
+                weight = 1
+                status_label = " (DEFEKT)"
+
+            result.append({
+                'id': tool.id,
+                'name': tool.name + status_label,
+                'sort_weight': weight,
+                'raw_name': tool.name
+            })
+
+        # Sort: Weight asc (Missing=0, Broken=1, OK=2), then Name asc
+        result.sort(key=lambda x: (x['sort_weight'], x['raw_name']))
+
+        return jsonify(result)
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        current_app.logger.error(f"API Error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 def register_routes(bp):
@@ -34,17 +93,11 @@ def register_routes(bp):
             'generated_at': datetime.now().isoformat()
         })
 
-    @bp.route('/api/assigned_tools/<int:azubi_id>')
-    def api_get_assigned_tools(azubi_id):
-        """Get assigned tools for dropdown."""
-        tool_ids = CheckService.get_assigned_tools(
-            azubi_id)
-        found_tools = Werkzeug.query.filter(
-            Werkzeug.id.in_(tool_ids)).order_by(
-            Werkzeug.name).all()
-        return jsonify(
-            [{'id': t.id, 'name': t.name}
-             for t in found_tools])
+    # Register new handler
+    bp.add_url_rule(
+        '/api/assigned_tools/<int:azubi_id>',
+        view_func=get_assigned_tools
+    )
 
     @bp.route('/api/werkzeug', methods=['POST'])
     def api_add_werkzeug():

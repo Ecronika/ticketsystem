@@ -51,6 +51,56 @@
             </form>
         </div>
     </div>
+    <!-- Security Card -->
+    <div class="card shadow-sm mt-4">
+        <div class="card-header bg-danger text-white">
+            <h5>Admin-Sicherheit</h5>
+        </div>
+        <div class="card-body">
+            <h6 class="card-subtitle mb-3 text-muted">PIN ändern</h6>
+            <form action="{{ ingress_path }}{{ url_for('main.change_pin') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label">Neuer PIN</label>
+                        <input type="password" name="new_pin" class="form-control" pattern="[0-9]*" inputmode="numeric"
+                            minlength="4" maxlength="10" placeholder="4-10 Ziffern" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Bestätigung</label>
+                        <input type="password" name="confirm_pin" class="form-control" pattern="[0-9]*"
+                            inputmode="numeric" minlength="4" maxlength="10" placeholder="Wiederholung" required>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-danger w-100">
+                            <i class="bi bi-key"></i> PIN ändern
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Manufacturer Settings Card -->
+    <div class="card shadow-sm mt-4">
+        <div class="card-header">
+            <h5>Werkzeug-Hersteller</h5>
+        </div>
+        <div class="card-body">
+            <h6 class="card-subtitle mb-3 text-muted">Vordefinierte Liste</h6>
+            <form action="{{ ingress_path }}{{ url_for('main.save_manufacturer_config') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <div class="mb-3">
+                    <label class="form-label">Hersteller (Kommagetrennt)</label>
+                    <textarea class="form-control" name="presets" rows="3"
+                        placeholder="Wera, Wiha, Knipex...">{{ manufacturer_presets }}</textarea>
+                    <div class="form-text">Diese Werte erscheinen im Dropdown bei der Prüfung.</div>
+                </div>
+                <button type="submit" class="btn btn-primary">Speichern</button>
+            </form>
+        </div>
+    </div>
+
     <!-- Backup Manager Card -->
     <div class="card shadow-sm mt-4">
         <div class="card-header d-flex justify-content-between align-items-center">

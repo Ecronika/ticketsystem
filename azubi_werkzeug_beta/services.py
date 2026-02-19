@@ -303,26 +303,11 @@ class CheckService:
 
     @staticmethod
     def _build_check_context(
-        azubi, examiner_name, form_data, check_date, check_type
+        azubi, examiner_name, check_date, check_type,
+        session_id, sig_azubi_path, sig_examiner_path
     ):
         """Build context dict for check processing."""
-        session_id = CheckService.generate_unique_session_id()
-        sig_azubi_path = CheckService.save_signature(
-            form_data.get('signature_azubi_data'), session_id, 'azubi')
-        if not sig_azubi_path:
-            raise ValueError("Fehler beim Speichern der Azubi-Signatur")
-
-        sig_examiner_path = CheckService.save_signature(
-            form_data.get('signature_examiner_data'), session_id, 'examiner')
-        if not sig_examiner_path:
-            # Cleanup Azubi sig if Examiner sig fails
-            if os.path.exists(sig_azubi_path):
-                try:
-                    os.remove(sig_azubi_path)
-                except OSError:
-                    pass
-            raise ValueError("Fehler beim Speichern der Ausbilder-Signatur")
-
+        # pylint: disable=too-many-arguments,too-many-positional-arguments
         return {
             'session_id': session_id,
             'azubi': azubi,
@@ -349,8 +334,26 @@ class CheckService:
         check_type: CheckType = CheckType.CHECK
     ) -> dict:
         """Process a full check submission."""
+        # pylint: disable=too-many-locals
         if not check_date:
             check_date = datetime.now()
+
+        session_id = CheckService.generate_unique_session_id()
+        sig_azubi_path = CheckService.save_signature(
+            form_data.get('signature_azubi_data'), session_id, 'azubi')
+        if not sig_azubi_path:
+            raise ValueError("Fehler beim Speichern der Azubi-Signatur")
+
+        sig_examiner_path = CheckService.save_signature(
+            form_data.get('signature_examiner_data'), session_id, 'examiner')
+        if not sig_examiner_path:
+            if os.path.exists(sig_azubi_path):
+                try:
+                    os.remove(sig_azubi_path)
+                except OSError:
+                    pass
+            raise ValueError("Fehler beim Speichern der Ausbilder-Signatur")
+
         azubi = Azubi.query.get(azubi_id)
         if not azubi:
             current_app.logger.error(
@@ -358,7 +361,8 @@ class CheckService:
             raise ValueError(f"Azubi mit ID {azubi_id} nicht gefunden")
 
         check_context = CheckService._build_check_context(
-            azubi, examiner_name, form_data, check_date, check_type)
+            azubi, examiner_name, check_date, check_type,
+            session_id, sig_azubi_path, sig_examiner_path)
 
         # 3. Fetch Data Efficiently
         werkzeug_dict = CheckService._fetch_tools_dict(tool_ids)
@@ -461,9 +465,10 @@ class CheckService:
 
     @staticmethod
     def _generate_exchange_pdf(
-        azubi, tool, reason, session_id, sig_path
+        azubi, tool, reason, session_id, sig_path, price=0.0
     ):
         """Generate exchange PDF."""
+        # pylint: disable=too-many-arguments,too-many-positional-arguments
         tools_list = [{'name': tool.name,
                        'category': tool.material_category,
                        'status': f'Rückgabe ({reason})'},
@@ -475,15 +480,35 @@ class CheckService:
         pdf_filename = f"austausch_{session_id}.pdf"
         pdf_path = os.path.join(data_dir, 'reports', pdf_filename)
 
+        extra_lines = []
+        if price > 0:
+            extra_lines.append(f"Geschätzter Ersatzwert: {price:.2f} €")
+
         generate_handover_pdf(
             azubi_name=azubi.name,
             examiner_name="System",
             tools=tools_list,
             check_type=CheckType.EXCHANGE,
             signature_paths={'azubi': sig_path},
-            output_path=pdf_path
+            output_path=pdf_path,
+            extra_lines=extra_lines
         )
         return pdf_path
+
+    @staticmethod
+    def _cleanup_exchange_files(sig_path, pdf_path):
+        """Cleanup files on error."""
+        if sig_path and os.path.exists(sig_path):
+            try:
+                os.remove(sig_path)
+            except OSError:
+                pass
+
+        if pdf_path and os.path.exists(pdf_path):
+            try:
+                os.remove(pdf_path)
+            except OSError:
+                pass
 
     @staticmethod
     def process_tool_exchange(
@@ -510,22 +535,27 @@ class CheckService:
         session_id = CheckService.generate_unique_session_id()
         check_date = datetime.now()
 
+        # Calculate Price (Estimate)
+        price = 0.0
+        if is_payable and tool.price:
+            price = tool.price
+
         # 2. Save Signature
         sig_path = CheckService.save_signature(
             signature_data, session_id, 'azubi')
 
-        # 3. Create Records (Memory)
-        ret_entry, issue_entry = CheckService._create_exchange_records(
-            session_id, azubi_id, tool_id, reason, is_payable, check_date, sig_path)
-
-        db.session.add(ret_entry)
-        db.session.add(issue_entry)
-
-        # 4. Generate PDF
         pdf_path = None
         try:
+            # 3. Create Records (Memory)
+            ret_entry, issue_entry = CheckService._create_exchange_records(
+                session_id, azubi_id, tool_id, reason, is_payable, check_date, sig_path)
+
+            db.session.add(ret_entry)
+            db.session.add(issue_entry)
+
+            # 4. Generate PDF
             pdf_path = CheckService._generate_exchange_pdf(
-                azubi, tool, reason, session_id, sig_path)
+                azubi, tool, reason, session_id, sig_path, price)
 
             ret_entry.report_path = pdf_path
             issue_entry.report_path = pdf_path
@@ -536,20 +566,7 @@ class CheckService:
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Exchange failed: {e}")
-
-            # Cleanup files on error (prevent leak)
-            if sig_path and os.path.exists(sig_path):
-                try:
-                    os.remove(sig_path)
-                except OSError:
-                    pass
-
-            if pdf_path and os.path.exists(pdf_path):
-                try:
-                    os.remove(pdf_path)
-                except OSError:
-                    pass
-
+            CheckService._cleanup_exchange_files(sig_path, pdf_path)
             raise e
 
         current_app.logger.info(
@@ -558,7 +575,8 @@ class CheckService:
         return {
             "success": True,
             "session_id": session_id,
-            "pdf_path": pdf_path
+            "pdf_path": pdf_path,
+            "price": price
         }
 
 

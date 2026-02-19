@@ -131,3 +131,8 @@ def register_routes(bp):
             current_app.logger.error(
                 f"Healthcheck failed: {e}")
             return 'FAIL', 503
+
+    @bp.route('/scanner')
+    def scanner():
+        """QR Code Scanner page."""
+        return render_template('scanner.html')

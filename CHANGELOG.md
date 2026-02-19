@@ -4,6 +4,31 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.0] - 2026-02-19
+
+### 🛡️ Quality & Security (Phase 5)
+- **Code Quality:** Achieved **10/10 Pylint score** across all core modules. passed Flake8, pydocstyle, Xenon (Complexity), and Radon (Maintainability) gates.
+- **Dependency Hardening:** Pinned all dependencies in `requirements.txt` and hardened `Dockerfile` with explicit pip upgrades.
+- **Security:** Fixed `gunicorn` vulnerability (PVE-2024-72809) by upgrading to v23.0.0.
+- **Refactoring:** significantly reduced complexity in `app.py` and `services.py`.
+- **Price Monitoring:** Added `price` field to tools. Exchange transactions now calculate and display estimated replacement costs for "Payable" exchanges.
+- **Manufacturer Tracking:** Added `manufacturer` field to checks. Includes smart presets (Wera, Wiha, etc.) and custom input, configurable via settings.
+- **Admin Authentication:** Secure PIN-based login (default: `0000`) for all admin routes. PIN can be changed in settings.
+- **QR Code System:**
+  - **Generator:** Creates PDF with Azubi QR codes (`AZUBI:<id>`) in Avery B5274-50 layout.
+  - **Scanner:** Integrated camera scanner (`/scanner`) using `html5-qrcode` to quickly find Azubi check pages.
+- **Dashboard Enhancements:** Added "QR Scan" and "New Azubi" buttons to the main header for quicker access.
+
+### 🛡️ Security
+- **Admin Protection:** All management routes now require session-based authentication via `@admin_required` decorator.
+- **Secure PIN:** PINs are stored as SHA-256 hashes (pbkdf2) in the database.
+
+### 🐛 Fixes
+- **Exchange Modal:** Fixed sorting of assigned tools (Missing > Broken > Ok) to prioritize critical items.
+- **Code Quality:** Comprehensive refactoring of `routes.py`, `pdf_utils.py`, and `services.py` to meet strict Pylint (10/10) standards.
+
+---
+
 ## [2.7.0] - 2026-02-18
 
 > Stable release consolidating all changes from v2.7.0-beta1 through v2.7.0-rc10.

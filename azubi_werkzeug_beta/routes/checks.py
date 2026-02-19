@@ -16,9 +16,10 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError
 
 from extensions import db
-from models import Azubi, Werkzeug, Examiner, Check, CheckType
+from models import Azubi, Werkzeug, Examiner, Check, CheckType, SystemSettings
 from services import CheckService
 from routes.utils import get_data_dir, parse_migration_date
+from routes.auth import admin_required
 
 
 def _build_tool_status_list(azubi, werkzeuge, assigned_ids):
@@ -31,8 +32,10 @@ def _build_tool_status_list(azubi, werkzeuge, assigned_ids):
             Check.datum.desc()).first()
         status = 'ok'
         tech_val = ""
+        manufacturer = ""
 
         if last_entry:
+            manufacturer = last_entry.manufacturer or ""
             if last_entry.bemerkung:
                 parts = last_entry.bemerkung.split('|')
                 for p in parts:
@@ -46,7 +49,8 @@ def _build_tool_status_list(azubi, werkzeuge, assigned_ids):
             'obj': w,
             'is_assigned': w.id in assigned_ids,
             'last_status': status,
-            'last_tech_val': tech_val
+            'last_tech_val': tech_val,
+            'last_manufacturer': manufacturer
         })
     return mapped_werkzeuge
 
@@ -69,6 +73,14 @@ def check_azubi(azubi_id):
     ).days if last_check_global else 999
     is_overdue = days_since_global > 90
 
+    is_overdue = days_since_global > 90
+
+    presets_str = SystemSettings.get_setting(
+        'manufacturer_presets',
+        'Wera,Wiha,Knipex,Hazet,Stahlwille,Gedore,NWS')
+    manufacturer_presets = [
+        p.strip() for p in presets_str.split(',') if p.strip()]
+
     mapped_werkzeuge = _build_tool_status_list(azubi, werkzeuge, assigned_ids)
 
     return render_template(
@@ -77,7 +89,8 @@ def check_azubi(azubi_id):
         werkzeuge=mapped_werkzeuge,
         examiners=examiners,
         current_date=current_date,
-        is_overdue=is_overdue)
+        is_overdue=is_overdue,
+        manufacturer_presets=manufacturer_presets)
 
 
 def submit_check():
@@ -178,7 +191,7 @@ def exchange_tool():
             f"{ingress}{url_for('main.index')}")
 
     try:
-        CheckService.process_tool_exchange(
+        result = CheckService.process_tool_exchange(
             azubi_id=int(azubi_id),
             tool_id=int(tool_id),
             reason=reason,
@@ -186,9 +199,12 @@ def exchange_tool():
             signature_data=signature_data
         )
         CheckService.invalidate_cache(int(azubi_id))
-        flash(
-            'Werkzeug erfolgreich ausgetauscht.',
-            'success')
+
+        msg = 'Werkzeug erfolgreich ausgetauscht.'
+        if result.get('price'):
+            msg += f" (Geschätzte Kosten: {result['price']:.2f} €)"
+
+        flash(msg, 'success')
         return redirect(
             f"{ingress}{url_for('main.index')}")
 
@@ -329,6 +345,7 @@ def download_report(filename):
         reports_dir, filename, as_attachment=True)
 
 
+@admin_required
 def delete_session(session_id):
     """Delete a check session (migration mode only)."""
     ingress = request.headers.get('X-Ingress-Path', '')

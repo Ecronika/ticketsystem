@@ -4,7 +4,7 @@ Forms module.
 Defines WTForms for the application.
 """
 from flask_wtf import FlaskForm
-from wtforms import StringField, IntegerField, SelectField
+from wtforms import StringField, IntegerField, SelectField, FloatField
 from wtforms.validators import DataRequired, Length, Regexp, Optional, NumberRange
 
 
@@ -65,9 +65,13 @@ class WerkzeugForm(FlaskForm):
         ('vollisoliert', 'Vollisoliert (1000V)'),
         ('isolierend', 'Vollkunststoff')
     ])
-    tech_param_label = StringField('Tech. Parameter (Name)', validators=[
-        Optional(), Length(max=50)
+    tech_param_label = StringField('Zusatzinfo Label (Optional)', [
+        Length(max=50),
+        Optional()
     ])
+    price = FloatField('Preis (€)', [
+        Optional()
+    ], default=0.0)
     tech_param_value = StringField('Tech. Parameter (Wert)', validators=[
         Optional(), Length(max=50)
     ])

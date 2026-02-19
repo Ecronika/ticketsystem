@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-qr-code-scan me-2"></i>Azubi-Karte scannen</h5>
+            </div>
+            <div class="card-body text-center">
+
+                <div id="reader" style="width: 100%; min-height: 300px; background: #000;"></div>
+
+                <div class="mt-3">
+                    <p class="text-muted small">
+                        Halten Sie den QR-Code der Azubi-Karte in die Kamera.<br>
+                        Der Scan erfolgt automatisch.
+                    </p>
+                    <div id="scan-result" class="alert alert-info d-none">
+                        Scanne...
+                    </div>
+                </div>
+
+                <a href="{{ url_for('main.index') }}" class="btn btn-secondary mt-3">
+                    <i class="bi bi-arrow-left me-1"></i>Zurück zum Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Load html5-qrcode library from CDN #}
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const readerElement = "reader";
+        const resultElement = document.getElementById('scan-result');
+        let isScanning = true;
+
+        function onScanSuccess(decodedText, decodedResult) {
+            if (!isScanning) return;
+
+            console.log(`Code matched = ${decodedText}`, decodedResult);
+
+            // Parse content: Expected format "AZUBI:<id>"
+            if (decodedText.startsWith("AZUBI:")) {
+                isScanning = false; // Stop further scans
+
+                const azubiId = decodedText.split(":")[1];
+
+                resultElement.classList.remove('d-none', 'alert-info', 'alert-danger');
+                resultElement.classList.add('alert-success');
+                resultElement.innerHTML = `<i class="bi bi-check-circle me-1"></i>Karte erkannt! Leite weiter...`;
+                resultElement.classList.remove('d-none');
+
+                // Play success sound (optional, browser policy might block it)
+                // beep(); 
+
+                // Redirect
+                setTimeout(() => {
+                    // Construct URL. Use base path from X-Ingress-Path if needed, 
+                    // but usually relative path works or we use Flask generator in JS variable.
+                    // Here we construct naive path. Ideally inject `url_for` pattern.
+                    window.location.href = "{{ url_for('main.check_azubi', azubi_id=0) }}".replace('0', azubiId);
+                }, 500);
+
+                html5QrcodeScanner.clear();
+            } else {
+                // Invalid code format
+                // resultElement.innerText = "Ungültiger Code: " + decodedText;
+            }
+        }
+
+        function onScanFailure(error) {
+            // handle scan failure, usually better to ignore and keep scanning.
+            // console.warn(`Code scan error = ${error}`);
+        }
+
+        // Config
+        // audo=false to prevent mic permission request
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+            experimentalFeatures: {
+                useBarCodeDetectorIfSupported: true
+            }
+        };
+
+        // Initialize
+        const html5QrcodeScanner = new Html5QrcodeScanner(
+            readerElement, config, /* verbose= */ false);
+
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+
+        // Style adjustments for the library's inserted elements
+        // The lib injects some inline styles/buttons we might want to tweak via CSS if needed.
+    });
+</script>
+{% endblock %}

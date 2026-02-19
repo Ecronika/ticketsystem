@@ -13,15 +13,17 @@ from flask import (
     send_from_directory
 )
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash
 
 from extensions import db, limiter
 from models import Azubi, Werkzeug, Examiner, Check, SystemSettings
 from forms import AzubiForm, ExaminerForm, WerkzeugForm
 from services import CheckService, BackupService
-from routes.utils import get_data_dir
 from pdf_utils import (
     generate_qr_codes_pdf, generate_end_of_training_report
 )
+from routes.auth import admin_required
+from routes.utils import get_data_dir
 
 
 def manage():
@@ -89,6 +91,7 @@ def personnel():
         show_archived=show_archived)
 
 
+@admin_required
 def settings():
     """System settings page."""
     data_dir = get_data_dir()
@@ -102,6 +105,9 @@ def settings():
         'backup_time', '03:00')
     retention_days = SystemSettings.get_setting(
         'backup_retention_days', '30')
+    manufacturer_presets = SystemSettings.get_setting(
+        'manufacturer_presets',
+        'Wera,Wiha,Knipex,Hazet,Stahlwille,Gedore,NWS')
 
     return render_template(
         'settings.html',
@@ -110,9 +116,38 @@ def settings():
         backups=backups,
         backup_interval=backup_interval,
         backup_time=backup_time,
-        retention_days=retention_days)
+        retention_days=retention_days,
+        manufacturer_presets=manufacturer_presets)
 
 
+@admin_required
+def change_pin():
+    """Change admin PIN."""
+    new_pin = request.form.get('new_pin')
+    confirm_pin = request.form.get('confirm_pin')
+    ingress = request.headers.get('X-Ingress-Path', '')
+
+    if not new_pin or not confirm_pin:
+        flash('Bitte beide Felder ausfüllen.', 'error')
+        return redirect(f"{ingress}{url_for('main.settings')}")
+
+    if new_pin != confirm_pin:
+        flash('PINs stimmen nicht überein.', 'error')
+        return redirect(f"{ingress}{url_for('main.settings')}")
+
+    if len(new_pin) < 4 or len(new_pin) > 10 or not new_pin.isdigit():
+        flash('PIN muss 4-10 Ziffern enthalten.', 'error')
+        return redirect(f"{ingress}{url_for('main.settings')}")
+
+    # Save hash
+    pin_hash = generate_password_hash(new_pin)
+    SystemSettings.set_setting('admin_pin_hash', pin_hash)
+
+    flash('PIN erfolgreich geändert.', 'success')
+    return redirect(f"{ingress}{url_for('main.settings')}")
+
+
+@admin_required
 def save_backup_config():
     """Save backup schedule settings."""
     interval = request.form.get('interval')
@@ -134,6 +169,28 @@ def save_backup_config():
         f"{ingress}{url_for('main.settings')}")
 
 
+@admin_required
+def save_manufacturer_config():
+    """Save manufacturer presets."""
+    presets = request.form.get('presets')
+    ingress = request.headers.get('X-Ingress-Path', '')
+
+    if presets:
+        # Clean up list
+        clean_list = [p.strip() for p in presets.split(',') if p.strip()]
+        clean_str = ','.join(clean_list)
+        SystemSettings.set_setting('manufacturer_presets', clean_str)
+        flash('Hersteller-Liste gespeichert.', 'success')
+    else:
+        # Fallback to default if empty? Or allow empty.
+        # SystemSettings.set_setting('manufacturer_presets', '')
+        flash('Liste gespeichert (leer).', 'success')
+        SystemSettings.set_setting('manufacturer_presets', '')
+
+    return redirect(f"{ingress}{url_for('main.settings')}")
+
+
+@admin_required
 def restore_backup():
     """Handle backup restore from upload."""
     ingress = request.headers.get(
@@ -192,6 +249,7 @@ def restore_backup():
         f"{ingress}{url_for('main.settings')}")
 
 
+@admin_required
 def create_backup():
     """Create a new backup."""
     try:
@@ -207,6 +265,7 @@ def create_backup():
         f"{ingress}{url_for('main.settings')}")
 
 
+@admin_required
 def download_backup(filename):
     """Download a backup file."""
     try:
@@ -223,6 +282,7 @@ def download_backup(filename):
             f"{ingress}{url_for('main.settings')}")
 
 
+@admin_required
 def toggle_migration_mode():
     """Toggle migration mode."""
     current_mode = session.get(
@@ -262,6 +322,7 @@ def add_examiner():
         f"{ingress}{url_for('main.personnel')}")
 
 
+@admin_required
 def delete_examiner(examiner_id):
     """Delete an examiner."""
     examiner = Examiner.query.get_or_404(
@@ -324,6 +385,7 @@ def edit_azubi(azubi_id):
         f"{ingress}{url_for('main.personnel')}")
 
 
+@admin_required
 def delete_azubi(azubi_id):
     """Delete an azubi."""
     azubi = Azubi.query.get_or_404(azubi_id)
@@ -346,6 +408,7 @@ def delete_azubi(azubi_id):
         f"{ingress}{url_for('main.personnel')}")
 
 
+@admin_required
 def archive_azubi(azubi_id):
     """Archive an azubi."""
     azubi = Azubi.query.get_or_404(azubi_id)
@@ -371,6 +434,7 @@ def archive_azubi(azubi_id):
         f"{ingress}{url_for('main.personnel')}")
 
 
+@admin_required
 def unarchive_azubi(azubi_id):
     """Unarchive an azubi."""
     azubi = Azubi.query.get_or_404(azubi_id)
@@ -396,7 +460,8 @@ def add_werkzeug():
             material_category=(
                 form.material_category.data),
             tech_param_label=(
-                form.tech_param_label.data))
+                form.tech_param_label.data),
+            price=form.price.data)
         db.session.add(new_werkzeug)
         db.session.commit()
         flash(
@@ -425,6 +490,7 @@ def edit_werkzeug(werkzeug_id):
             form.material_category.data)
         werkzeug.tech_param_label = (
             form.tech_param_label.data)
+        werkzeug.price = form.price.data
         db.session.commit()
         flash(
             f'Werkzeug {werkzeug.name} aktualisiert.',
@@ -439,6 +505,7 @@ def edit_werkzeug(werkzeug_id):
         f"{ingress}{url_for('main.tools')}")
 
 
+@admin_required
 def delete_werkzeug(werkzeug_id):
     """Delete a tool."""
     werkzeug = Werkzeug.query.get_or_404(
@@ -537,11 +604,11 @@ def upload_logo():
 
 
 def generate_qr_codes():
-    """Generate PDF with QR codes for all tools."""
-    all_tools = Werkzeug.query.order_by(
-        Werkzeug.name).all()
-    if not all_tools:
-        flash('Keine Werkzeuge vorhanden.',
+    """Generate PDF with QR codes for all Azubis."""
+    all_azubis = Azubi.query.filter_by(is_archived=False).order_by(
+        Azubi.lehrjahr, Azubi.name).all()
+    if not all_azubis:
+        flash('Keine Azubis vorhanden.',
               'warning')
         ingress = request.headers.get(
             'X-Ingress-Path', '')
@@ -549,7 +616,7 @@ def generate_qr_codes():
             f"{ingress}{url_for('main.settings')}")
 
     try:
-        pdf = generate_qr_codes_pdf(all_tools)
+        pdf = generate_qr_codes_pdf(all_azubis)
         # pylint: disable=unexpected-keyword-arg
         pdf_bytes = bytes(pdf.output(dest='S'))
         response = make_response(pdf_bytes)
@@ -558,7 +625,7 @@ def generate_qr_codes():
         response.headers[
             'Content-Disposition'] = (
             'attachment; '
-            'filename=Werkzeug_QRCodes.pdf')
+            'filename=Azubi_QRCodes.pdf')
         return response
     except Exception as e:  # pylint: disable=broad-exception-caught
         current_app.logger.error(
@@ -615,8 +682,14 @@ def register_routes(bp):
     bp.add_url_rule('/personnel', view_func=personnel)
     bp.add_url_rule('/settings', view_func=settings)
     bp.add_url_rule(
+        '/settings/security/pin',
+        view_func=change_pin, methods=['POST'])
+    bp.add_url_rule(
         '/settings/backup/config',
         view_func=save_backup_config, methods=['POST'])
+    bp.add_url_rule(
+        '/settings/manufacturer/config',
+        view_func=save_manufacturer_config, methods=['POST'])
     bp.add_url_rule(
         '/settings/restore',
         view_func=restore_backup, methods=['POST'])

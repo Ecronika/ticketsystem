@@ -81,6 +81,9 @@
                                     <td class="d-none d-md-table-cell">
                                         {{ werkzeug.tech_param_label or '-' }}
                                     </td>
+                                    <td class="d-none d-md-table-cell">
+                                        {{ "%.2f"|format(werkzeug.price|default(0.0)) }} €
+                                    </td>
                                     <td class="text-end">
                                         <form
                                             action="{{ ingress_path }}{{ url_for('main.delete_werkzeug', werkzeug_id=werkzeug.id) }}"
@@ -92,8 +95,8 @@
                                                     data-bs-toggle="modal" data-bs-target="#editWerkzeugModal"
                                                     data-id="{{ werkzeug.id }}" data-name="{{ werkzeug.name }}"
                                                     data-category="{{ werkzeug.material_category }}"
-                                                    data-param="{{ werkzeug.tech_param_label or '' }}"
-                                                    title="Bearbeiten">
+                                                    data-param="{{ werkzeug.tech_param_label or '' }}" data-price="{{ "
+                                                    %.2f"|format(werkzeug.price|default(0.0)) }}" title="Bearbeiten">
                                                     <i class="bi bi-pencil"></i>
                                                 </button>
                                                 <button type="submit" class="btn btn-sm btn-light text-danger border-0"
@@ -106,7 +109,7 @@
                                 </tr>
                                 {% else %}
                                 <tr>
-                                    <td colspan="4" class="text-center text-muted py-3">Keine Werkzeuge angelegt.</td>
+                                    <td colspan="5" class="text-center text-muted py-3">Keine Werkzeuge angelegt.</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -168,6 +171,11 @@
                                             <input type="text" class="form-control" id="modalWerkzeugParam"
                                                 name="tech_param_label">
                                         </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Preis (€)</label>
+                                            <input type="number" step="0.01" class="form-control"
+                                                id="modalWerkzeugPrice" name="price" placeholder="0.00">
+                                        </div>
                                     </div>
                                     <div class="modal-footer">
                                         <button type="button" class="btn btn-secondary"
@@ -226,6 +234,7 @@
                 const name = button.getAttribute('data-name');
                 const category = button.getAttribute('data-category');
                 const param = button.getAttribute('data-param');
+                const price = button.getAttribute('data-price');
 
                 const form = document.getElementById('editWerkzeugForm');
                 const ingressPath = '{{ ingress_path }}';
@@ -234,6 +243,7 @@
                 document.getElementById('modalWerkzeugName').value = name || '';
                 document.getElementById('modalWerkzeugCategory').value = category || 'standard';
                 document.getElementById('modalWerkzeugParam').value = param || '';
+                document.getElementById('modalWerkzeugPrice').value = price || '';
             });
         }
 

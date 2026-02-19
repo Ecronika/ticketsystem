@@ -1,7 +1,10 @@
+"""
+Unit tests for CheckService.
+"""
+from datetime import datetime
 import pytest
 from services import CheckService
 from models import Check, CheckType, Azubi, Werkzeug
-from datetime import datetime
 
 
 def test_check_submission_success(test_app):

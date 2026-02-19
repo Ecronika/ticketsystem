@@ -176,6 +176,12 @@
                                                     for="btnradio3_{{ item.obj.id }}">Fehlt</label>
                                             </div>
 
+                                            <!-- Manufacturer Input -->
+                                            <input type="text" class="form-control form-control-sm"
+                                                style="width: 120px;" name="manufacturer_{{ item.obj.id }}"
+                                                list="manufacturerOptions" placeholder="Hersteller"
+                                                value="{{ item.last_manufacturer }}">
+
                                             <!-- Tech Param Input -->
                                             {% if item.obj.tech_param_label %}
                                             <input type="text" class="form-control form-control-sm tech-input"
@@ -281,6 +287,12 @@
 </form>
 </div>
 </div>
+
+<datalist id="manufacturerOptions">
+    {% for preset in manufacturer_presets %}
+    <option value="{{ preset }}">
+        {% endfor %}
+</datalist>
 
 <!-- Signature Pad JS -->
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
