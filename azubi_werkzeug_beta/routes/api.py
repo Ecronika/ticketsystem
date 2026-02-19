@@ -12,7 +12,6 @@ from services import CheckService
 from routes.auth import admin_required
 
 
-@admin_required
 def get_assigned_tools(azubi_id):
     """Get assigned tools for azubi, sorted by status."""
     try:
@@ -100,6 +99,7 @@ def register_routes(bp):
     )
 
     @bp.route('/api/werkzeug', methods=['POST'])
+    @admin_required
     def api_add_werkzeug():
         """AJAX endpoint for adding werkzeug."""
         try:
@@ -148,6 +148,7 @@ def register_routes(bp):
             }), 500
 
     @bp.route('/api/azubi', methods=['POST'])
+    @admin_required
     def api_add_azubi():
         """AJAX endpoint for adding azubi."""
         try:
@@ -190,6 +191,7 @@ def register_routes(bp):
             }), 500
 
     @bp.route('/api/examiner', methods=['POST'])
+    @admin_required
     def api_add_examiner():
         """AJAX endpoint for adding examiner."""
         try:

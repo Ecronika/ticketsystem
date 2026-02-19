@@ -295,50 +295,86 @@
 
                             const newRow = document.createElement('tr');
 
-                            // SECURITY FIX #13: Use textContent for user data to prevent XSS
+                            // 1. Name Cell
                             const nameCell = document.createElement('td');
                             const nameBold = document.createElement('div');
                             nameBold.className = 'fw-bold';
-                            nameBold.textContent = werkzeug.name;  // Auto-escaped!
+                            nameBold.textContent = werkzeug.name;
                             nameCell.appendChild(nameBold);
 
+                            // 2. Category Cell
                             const categoryCell = document.createElement('td');
                             categoryCell.className = 'd-none d-md-table-cell';
-                            categoryCell.innerHTML = categoryBadge;  // Safe: we generated it
+                            categoryCell.innerHTML = categoryBadge;
 
+                            // 3. Param Cell
                             const paramCell = document.createElement('td');
                             paramCell.className = 'd-none d-md-table-cell';
-                            paramCell.textContent = werkzeug.param || '-';  // Auto-escaped!
+                            paramCell.textContent = werkzeug.param || '-';
 
+                            // 4. Price Cell (Added)
+                            const priceCell = document.createElement('td');
+                            priceCell.className = 'd-none d-md-table-cell';
+                            // Format price safely if possible, or just raw for now
+                            // Backend sends just 'werkzeug' object, likely raw float/dec
+                            // We can try to format it simply
+                            let priceVal = parseFloat(werkzeug.price || 0).toFixed(2);
+                            priceCell.textContent = priceVal + ' €';
+
+                            // 5. Action Cell
                             const actionCell = document.createElement('td');
                             actionCell.className = 'text-end';
-                            actionCell.innerHTML = `
-                                <td class="text-end">
-                                    <form action="{{ ingress_path }}/delete_werkzeug/${werkzeug.id}" method="POST" onsubmit="return confirm('Wirklich löschen?');" class="d-inline">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                                        <div class="d-flex justify-content-end gap-1">
-                                            <button type="button" class="btn btn-sm btn-light text-primary border-0" 
-                                                data-bs-toggle="modal" data-bs-target="#editWerkzeugModal"
-                                                data-id="${werkzeug.id}" data-name="${werkzeug.name}" 
-                                                data-category="${werkzeug.category}" data-param="${werkzeug.param || ''}" 
-                                                title="Bearbeiten">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-                                            <button type="submit" class="btn btn-sm btn-light text-danger border-0" title="Löschen">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </div>
-                                    </form>
-                                </td>
-                            `;
+
+                            // Create button safely to avoid XSS in data attributes
+                            const form = document.createElement('form');
+                            form.action = `{{ ingress_path }}/delete_werkzeug/${werkzeug.id}`;
+                            form.method = 'POST';
+                            form.onsubmit = function () { return confirm('Wirklich löschen?'); };
+                            form.className = 'd-inline';
+
+                            const csrfInput = document.createElement('input');
+                            csrfInput.type = 'hidden';
+                            csrfInput.name = 'csrf_token';
+                            csrfInput.value = '{{ csrf_token() }}';
+                            form.appendChild(csrfInput);
+
+                            const btnGroup = document.createElement('div');
+                            btnGroup.className = 'd-flex justify-content-end gap-1';
+
+                            const editBtn = document.createElement('button');
+                            editBtn.type = 'button';
+                            editBtn.className = 'btn btn-sm btn-light text-primary border-0';
+                            editBtn.title = 'Bearbeiten';
+                            editBtn.setAttribute('data-bs-toggle', 'modal');
+                            editBtn.setAttribute('data-bs-target', '#editWerkzeugModal');
+                            // Safe data attributes
+                            editBtn.dataset.id = werkzeug.id;
+                            editBtn.dataset.name = werkzeug.name;
+                            editBtn.dataset.category = werkzeug.category;
+                            editBtn.dataset.param = werkzeug.param || '';
+                            editBtn.dataset.price = priceVal;
+
+                            editBtn.innerHTML = '<i class="bi bi-pencil"></i>';
+                            btnGroup.appendChild(editBtn);
+
+                            const deleteBtn = document.createElement('button');
+                            deleteBtn.type = 'submit';
+                            deleteBtn.className = 'btn btn-sm btn-light text-danger border-0';
+                            deleteBtn.title = 'Löschen';
+                            deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
+                            btnGroup.appendChild(deleteBtn);
+
+                            form.appendChild(btnGroup);
+                            actionCell.appendChild(form);
 
                             newRow.appendChild(nameCell);
                             newRow.appendChild(categoryCell);
                             newRow.appendChild(paramCell);
+                            newRow.appendChild(priceCell);
                             newRow.appendChild(actionCell);
 
                             // Remove "no items" row if it exists
-                            const noItemsRow = tbody.querySelector('tr td[colspan="4"]');
+                            const noItemsRow = tbody.querySelector('tr td[colspan="5"]'); // Was 4, now 5
                             if (noItemsRow) {
                                 noItemsRow.parentElement.remove();
                             }
@@ -351,7 +387,7 @@
                             button.disabled = false;
                             button.innerHTML = '<i class="bi bi-plus-lg"></i> Hinzufügen';
 
-                            // Show success visually (flash the new row)
+                            // Show success visually
                             newRow.style.backgroundColor = '#d1e7dd';
                             setTimeout(() => {
                                 newRow.style.transition = 'background-color 1s';

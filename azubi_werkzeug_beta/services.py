@@ -12,7 +12,7 @@ import uuid
 from datetime import datetime
 
 from threading import Lock
-from flask import current_app
+from flask import current_app, session
 from extensions import db, Config, scheduler
 from models import Check, CheckType, Werkzeug, Azubi, SystemSettings
 from pdf_utils import generate_handover_pdf, parse_check_type
@@ -341,13 +341,16 @@ class CheckService:
         session_id = CheckService.generate_unique_session_id()
         sig_azubi_path = CheckService.save_signature(
             form_data.get('signature_azubi_data'), session_id, 'azubi')
-        if not sig_azubi_path:
+        
+        is_migration = session.get('migration_mode', False)
+        
+        if not sig_azubi_path and not is_migration:
             raise ValueError("Fehler beim Speichern der Azubi-Signatur")
 
         sig_examiner_path = CheckService.save_signature(
             form_data.get('signature_examiner_data'), session_id, 'examiner')
-        if not sig_examiner_path:
-            if os.path.exists(sig_azubi_path):
+        if not sig_examiner_path and not is_migration:
+            if os.path.exists(sig_azubi_path) if sig_azubi_path else False:
                 try:
                     os.remove(sig_azubi_path)
                 except OSError:

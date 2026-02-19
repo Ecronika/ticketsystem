@@ -4,6 +4,18 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.1] - 2026-02-20
+### Security
+- **Critical:** Fixed Broken Access Control by enforcing `@admin_required` on all modification routes and API endpoints.
+- **Medium:** Fixed DOM-based XSS vulnerability in `tools.html` by safely handling tool names with quotes.
+- Enforced PNG format for logo uploads to prevent file type inconsistencies.
+
+### Fixed
+- Fixed "Tool Exchange" on Dashboard by making `get_assigned_tools` public (removing `@admin_required`).
+- Fixed "Signature Skip" in Migration Mode (server now accepts empty signatures when migration is active).
+- Fixed HTML structure error (nested `<td>`) in tools table.
+- Implemented system restart after backup restoration to ensure configuration reload.
+
 ## [2.8.0-beta5] - 2026-02-19
 ### Fixed
 - Fixed missing "Preis" table header in `tools.html`.

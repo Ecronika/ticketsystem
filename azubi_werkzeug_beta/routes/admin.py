@@ -6,6 +6,7 @@ backups, migration mode, logo upload, QR codes, and reports.
 """
 import os
 import time
+import sys
 
 from flask import (
     render_template, request, redirect, url_for,
@@ -218,11 +219,10 @@ def restore_backup():
                 BackupService.restore_backup(temp_path)
                 flash(
                     'Backup erfolgreich '
-                    'wiederhergestellt.',
+                    'wiederhergestellt. System startet neu...',
                     'success')
-                return redirect(
-                    f"{ingress}"
-                    f"{url_for('main.index')}")
+                # Force restart to reload DB connections and config
+                sys.exit(1)
             except Exception as e:  # pylint: disable=broad-exception-caught
                 flash(
                     f'Fehler bei Wiederherstellung: '
@@ -301,6 +301,7 @@ def toggle_migration_mode():
         f"{ingress}{url_for('main.settings')}")
 
 
+@admin_required
 def add_examiner():
     """Add a new examiner."""
     form = ExaminerForm(request.form)
@@ -340,6 +341,7 @@ def delete_examiner(examiner_id):
         f"{ingress}{url_for('main.personnel')}")
 
 
+@admin_required
 def add_azubi():
     """Add a new azubi."""
     form = AzubiForm(request.form)
@@ -364,6 +366,7 @@ def add_azubi():
         f"{ingress}{url_for('main.personnel')}")
 
 
+@admin_required
 def edit_azubi(azubi_id):
     """Edit an azubi."""
     azubi = Azubi.query.get_or_404(azubi_id)
@@ -451,6 +454,7 @@ def unarchive_azubi(azubi_id):
         f"{ingress}{url_for('main.personnel')}")
 
 
+@admin_required
 def add_werkzeug():
     """Add a new tool."""
     form = WerkzeugForm(request.form)
@@ -479,6 +483,7 @@ def add_werkzeug():
         f"{ingress}{url_for('main.tools')}")
 
 
+@admin_required
 def edit_werkzeug(werkzeug_id):
     """Edit a tool."""
     werkzeug = Werkzeug.query.get_or_404(
@@ -535,6 +540,7 @@ def delete_werkzeug(werkzeug_id):
         f"{ingress}{url_for('main.tools')}")
 
 
+@admin_required
 @limiter.limit("5 per minute")
 def upload_logo():
     """Upload a custom logo."""
@@ -554,10 +560,10 @@ def upload_logo():
     if file:
         ext = file.filename.rsplit(
             '.', 1)[-1].lower()
-        if ext not in ['png', 'jpg', 'jpeg']:
+        if ext not in ['png']:
             flash(
                 'Ungültige Dateiendung '
-                '(Nur .png, .jpg, .jpeg).', 'error')
+                '(Nur .png erlaubt).', 'error')
             return redirect(
                 f"{ingress}"
                 f"{url_for('main.settings')}")
@@ -569,13 +575,11 @@ def upload_logo():
 
         is_png = content.startswith(b'\x89PNG\r\n\x1a\n') and content.endswith(
             b'\x00\x00\x00\x00IEND\xae\x42\x60\x82')
-        is_jpeg = content.startswith(
-            b'\xff\xd8\xff') and content.endswith(b'\xff\xd9')
 
-        if not (is_png or is_jpeg):
+        if not is_png:
             flash(
                 'Ungültiges Format oder beschädigte Datei '
-                '(Nur valide PNG/JPG erlaubt).', 'error')
+                '(Nur valide PNG erlaubt).', 'error')
             return redirect(
                 f"{ingress}"
                 f"{url_for('main.settings')}")
@@ -605,6 +609,7 @@ def upload_logo():
         f"{ingress}{url_for('main.settings')}")
 
 
+@admin_required
 def generate_qr_codes():
     """Generate PDF with QR codes for all Azubis."""
     all_azubis = Azubi.query.filter_by(is_archived=False).order_by(
@@ -641,6 +646,7 @@ def generate_qr_codes():
             f"{ingress}{url_for('main.settings')}")
 
 
+@admin_required
 def end_of_training_report(azubi_id):
     """Generate end of training report."""
     azubi = Azubi.query.get_or_404(azubi_id)

@@ -122,7 +122,8 @@ def submit_check():
     sig_azubi = request.form.get('signature_azubi_data')
     sig_examiner = request.form.get(
         'signature_examiner_data')
-    if not sig_azubi or not sig_examiner:
+    is_migration = session.get('migration_mode', False)
+    if (not sig_azubi or not sig_examiner) and not is_migration:
         flash('Fehler: Unterschriften fehlen.', 'error')
         return redirect(
             f"{ingress}{url_for('main.index')}")
