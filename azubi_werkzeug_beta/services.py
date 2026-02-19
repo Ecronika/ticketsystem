@@ -325,6 +325,30 @@ class CheckService:
         return {w.id: w for w in werkzeuge}
 
     @staticmethod
+    def _handle_signatures(form_data, session_id):
+        """Handle signature saving and validation."""
+        sig_azubi_path = CheckService.save_signature(
+            form_data.get('signature_azubi_data'), session_id, 'azubi')
+
+        is_migration = session.get('migration_mode', False)
+
+        if not sig_azubi_path and not is_migration:
+            raise ValueError("Fehler beim Speichern der Azubi-Signatur")
+
+        sig_examiner_path = CheckService.save_signature(
+            form_data.get('signature_examiner_data'), session_id, 'examiner')
+
+        if not sig_examiner_path and not is_migration:
+            if os.path.exists(sig_azubi_path) if sig_azubi_path else False:
+                try:
+                    os.remove(sig_azubi_path)
+                except OSError:
+                    pass
+            raise ValueError("Fehler beim Speichern der Ausbilder-Signatur")
+
+        return sig_azubi_path, sig_examiner_path
+
+    @staticmethod
     def process_check_submission(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         azubi_id: int,
         examiner_name: str,
@@ -339,23 +363,9 @@ class CheckService:
             check_date = datetime.now()
 
         session_id = CheckService.generate_unique_session_id()
-        sig_azubi_path = CheckService.save_signature(
-            form_data.get('signature_azubi_data'), session_id, 'azubi')
-        
-        is_migration = session.get('migration_mode', False)
-        
-        if not sig_azubi_path and not is_migration:
-            raise ValueError("Fehler beim Speichern der Azubi-Signatur")
 
-        sig_examiner_path = CheckService.save_signature(
-            form_data.get('signature_examiner_data'), session_id, 'examiner')
-        if not sig_examiner_path and not is_migration:
-            if os.path.exists(sig_azubi_path) if sig_azubi_path else False:
-                try:
-                    os.remove(sig_azubi_path)
-                except OSError:
-                    pass
-            raise ValueError("Fehler beim Speichern der Ausbilder-Signatur")
+        sig_azubi_path, sig_examiner_path = CheckService._handle_signatures(
+            form_data, session_id)
 
         azubi = Azubi.query.get(azubi_id)
         if not azubi:

@@ -93,40 +93,48 @@ def check_azubi(azubi_id):
         manufacturer_presets=manufacturer_presets)
 
 
+def _validate_check_submission(form):
+    """Validate check submission form data."""
+    azubi_id = form.get('azubi_id')
+    check_type_str = form.get('check_type', CheckType.CHECK.value)
+    examiner = form.get('examiner')
+
+    try:
+        CheckType(check_type_str)
+    except ValueError:
+        return None, ('Fehler: Ungültiger Prüfungstyp.', 'error')
+
+    if not azubi_id or not examiner:
+        return None, ('Fehler: Azubi und Prüfer müssen angegeben werden.', 'error')
+
+    sig_azubi = form.get('signature_azubi_data')
+    sig_examiner = form.get('signature_examiner_data')
+    is_migration = session.get('migration_mode', False)
+
+    if (not sig_azubi or not sig_examiner) and not is_migration:
+        return None, ('Fehler: Unterschriften fehlen.', 'error')
+
+    tool_ids = CheckService.collect_tool_ids(form)
+    if not tool_ids:
+        return None, ('Keine Werkzeuge ausgewählt', 'warning')
+
+    return tool_ids, None
+
+
 def submit_check():
     """Handle check submission."""
     # pylint: disable=too-many-locals,too-many-return-statements
     azubi_id = request.form.get('azubi_id')
     check_type_str = request.form.get(
         'check_type', CheckType.CHECK.value)
+    examiner = request.form.get('examiner')
     ingress = request.headers.get('X-Ingress-Path', '')
 
-    try:
-        CheckType(check_type_str)
-    except ValueError:
-        current_app.logger.warning(
-            f"Invalid CheckType: {check_type_str}")
-        flash('Fehler: Ungültiger Prüfungstyp.', 'error')
-        return redirect(
-            f"{ingress}{url_for('main.index')}")
-
-    examiner = request.form.get('examiner')
-
-    if not azubi_id or not examiner:
-        flash(
-            'Fehler: Azubi und Prüfer müssen '
-            'angegeben werden.', 'error')
-        return redirect(
-            f"{ingress}{url_for('main.index')}")
-
-    sig_azubi = request.form.get('signature_azubi_data')
-    sig_examiner = request.form.get(
-        'signature_examiner_data')
-    is_migration = session.get('migration_mode', False)
-    if (not sig_azubi or not sig_examiner) and not is_migration:
-        flash('Fehler: Unterschriften fehlen.', 'error')
-        return redirect(
-            f"{ingress}{url_for('main.index')}")
+    # Validation
+    tool_ids, error = _validate_check_submission(request.form)
+    if error:
+        flash(error[0], error[1])
+        return redirect(f"{ingress}{url_for('main.index')}")
 
     try:
         check_date = datetime.now()
@@ -135,13 +143,6 @@ def submit_check():
                 request.form, ingress)
             if err:
                 return err
-
-        tool_ids = CheckService.collect_tool_ids(
-            request.form)
-        if not tool_ids:
-            flash('Keine Werkzeuge ausgewählt', 'warning')
-            return redirect(
-                f"{ingress}{url_for('main.index')}")
 
         result = CheckService.process_check_submission(
             azubi_id=int(azubi_id),
