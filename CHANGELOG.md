@@ -4,6 +4,10 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.0-beta4] - 2026-02-19
+### Fixed
+- Fixed critical 500 error on Login page due to missing CSRF token.
+
 ## [2.8.0-beta3] - 2026-02-19
 ### Fixed
 - Fixed `404` page crashing with `BuildError` (referenced wrong endpoint).
