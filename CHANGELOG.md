@@ -4,6 +4,10 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.2-beta7] - 2026-02-20
+### 🐛 Hotfixes
+- **Ingress Support:** Fixed an issue where saving settings (e.g. Backups, Manufacturers, Pins) in Home Assistant Ingress would result in a `404 Not Found` error due to missing `ingress_path` prefixes on the redirect URLs.
+
 ## [2.8.2-beta6] - 2026-02-20
 ### 🐛 Hotfixes
 - **Scanner UI:** Fixed an issue where the QR scanner on PC/Desktop would focus but fail to scan. This was caused by the experimental BarcodeDetector API failing silently on some Chromium browsers and a rigid scan box size. The scanning area (`qrbox`) now scales dynamically (70% of screen size) to make scanning much easier, and experimental features were disabled. Added visual feedback for unrecognized QR formats.
