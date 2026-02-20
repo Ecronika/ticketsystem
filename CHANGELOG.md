@@ -4,6 +4,11 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.2-beta3] - 2026-02-20
+### 🐛 Hotfixes
+- **Scanner UI:** Fixed an issue where the camera permission requests or scanner errors were invisible due to a black background.
+- **Iframe Camera Lock:** Added explicit detection for Home Assistant Ingress aggressively blocking the camera via iFrame permissions. The UI now shows a helpful error asking the user to open the Addon in a new tab if blocked.
+
 ## [2.8.2-beta2] - 2026-02-20
 ### 🐛 Hotfixes
 - **Ingress Support:** Fixed `404 Not Found` error in the QR Code Scanner by prepending `ingress_path` to all related URLs.
