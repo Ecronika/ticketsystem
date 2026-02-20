@@ -93,8 +93,14 @@
             // console.warn(`Code scan error = ${error}`);
         }
 
+        // Helper for showing errors
+        function showCameraError(msg) {
+            resultElement.classList.remove('d-none', 'alert-info', 'alert-success');
+            resultElement.classList.add('alert-danger');
+            resultElement.innerHTML = `<i class="bi bi-x-octagon me-1"></i><strong>Kamera-Fehler:</strong> ${msg}`;
+        }
+
         // Config
-        // audo=false to prevent mic permission request
         const config = {
             fps: 10,
             qrbox: { width: 250, height: 250 },
@@ -104,14 +110,41 @@
             }
         };
 
-        // Initialize
-        const html5QrcodeScanner = new Html5QrcodeScanner(
-            readerElement, config, /* verbose= */ false);
+        // Initialize directly with Html5Qrcode to avoid the dropdown UI
+        const html5QrCode = new Html5Qrcode(readerElement);
 
-        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+        resultElement.innerHTML = "Suche Kamera...";
 
-        // Style adjustments for the library's inserted elements
-        // The lib injects some inline styles/buttons we might want to tweak via CSS if needed.
+        Html5Qrcode.getCameras().then(devices => {
+            if (devices && devices.length) {
+                // Try to start with the back camera (environment) first
+                html5QrCode.start(
+                    { facingMode: "environment" },
+                    config,
+                    onScanSuccess,
+                    onScanFailure
+                ).then(() => {
+                    resultElement.innerHTML = "Scanne...";
+                }).catch(err => {
+                    // Fallback to the first available camera if "environment" fails (e.g., on some desktops)
+                    html5QrCode.start(
+                        devices[0].id,
+                        config,
+                        onScanSuccess,
+                        onScanFailure
+                    ).then(() => {
+                        resultElement.innerHTML = "Scanne (Fallback Kamera)...";
+                    }).catch(err2 => {
+                        showCameraError("Kamera konnte nicht gestartet werden. Bitte Berechtigungen prüfen.");
+                    });
+                });
+            } else {
+                showCameraError("Keine Kameras gefunden.");
+            }
+        }).catch(err => {
+            // This happens if the user denies permission, or if Ingress blocks mediaDevices completely
+            showCameraError("Zugriff auf Kameras verweigert oder blockiert. Bitte Berechtigung erteilen oder Seite in neuem Tab öffnen.");
+        });
     });
 </script>
 {% endblock %}
