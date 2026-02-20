@@ -4,6 +4,13 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.2-beta8] - 2026-02-20
+### 🚀 Enhancements
+- **Scanner Mobile Optimization:** Implemented several HTML5-QRCode best practices for mobile usage:
+  - **Battery Saving:** The camera stream is now explicitly stopped immediately upon a successful scan, saving battery life.
+  - **Haptic Feedback:** Added device vibration on successful scan if supported by the browser.
+  - **Aspect Ratio:** Enforced a predictable 1.0 aspect ratio for the camera feed.
+
 ## [2.8.2-beta7] - 2026-02-20
 ### 🐛 Hotfixes
 - **Ingress Support:** Fixed an issue where saving settings (e.g. Backups, Manufacturers, Pins) in Home Assistant Ingress would result in a `404 Not Found` error due to missing `ingress_path` prefixes on the redirect URLs.
