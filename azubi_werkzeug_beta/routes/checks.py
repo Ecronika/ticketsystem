@@ -204,7 +204,7 @@ def exchange_tool():
 
         msg = 'Werkzeug erfolgreich ausgetauscht.'
         if result.get('price'):
-            msg += f" (Geschätzte Kosten: {result['price']:.2f} €)"
+            msg += f" (Geschätzte Kosten: {result['price']:.2f} EUR)"
 
         flash(msg, 'success')
         return redirect(

@@ -28,6 +28,50 @@
         </div>
     </div>
 
+    <!-- QR Codes Card -->
+    <div class="card shadow-sm mt-4">
+        <div class="card-header">
+            <h5>QR-Codes generieren</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">Wählen Sie die Azubis aus, für die QR-Codes generiert werden sollen.</p>
+            <form action="{{ ingress_path }}{{ url_for('main.generate_qr_codes') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+                <div class="mb-3">
+                    <div class="form-check mb-2 pb-2 border-bottom">
+                        <input class="form-check-input" type="checkbox" id="selectAllAzubis" checked>
+                        <label class="form-check-label fw-bold" for="selectAllAzubis">
+                            Alle auswählen
+                        </label>
+                    </div>
+                    {% if all_azubis %}
+                    <div class="row g-2" style="max-height: 200px; overflow-y: auto;">
+                        {% for azubi in all_azubis %}
+                        <div class="col-md-4 col-sm-6">
+                            <div class="form-check">
+                                <input class="form-check-input azubi-checkbox" type="checkbox" name="azubi_ids"
+                                    value="{{ azubi.id }}" id="azubi_{{ azubi.id }}" checked>
+                                <label class="form-check-label" for="azubi_{{ azubi.id }}">
+                                    {{ azubi.name }} <span class="text-muted small">({{ azubi.lehrjahr }}. LJ)</span>
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info py-2">Keine aktiven Azubis vorhanden.</div>
+                    {% endif %}
+                </div>
+
+                <button type="submit" class="btn btn-primary" {% if not all_azubis %}disabled{% endif %}>
+                    <i class="bi bi-qr-code"></i> PDF generieren
+                </button>
+            </form>
+        </div>
+    </div>
+
+
     <!-- Migration Mode Card -->
     <div class="card shadow-sm mt-4">
         <div class="card-header">
@@ -219,4 +263,31 @@
         </div>
     </div>
 </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const selectAllCheckbox = document.getElementById('selectAllAzubis');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', function () {
+                const checkboxes = document.querySelectorAll('.azubi-checkbox');
+                checkboxes.forEach(cb => {
+                    cb.checked = this.checked;
+                });
+            });
+
+            const azubiCheckboxes = document.querySelectorAll('.azubi-checkbox');
+            azubiCheckboxes.forEach(cb => {
+                cb.addEventListener('change', function () {
+                    if (!this.checked) {
+                        selectAllCheckbox.checked = false;
+                    } else {
+                        const allChecked = Array.from(azubiCheckboxes).every(c => c.checked);
+                        selectAllCheckbox.checked = allChecked;
+                    }
+                });
+            });
+        }
+    });
+</script>
 {% endblock %}

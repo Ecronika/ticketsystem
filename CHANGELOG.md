@@ -4,6 +4,14 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.2-beta1] - 2026-02-20
+### ✨ Features & Enhancements
+- **QR Code Generation:** Added a UI to select specific Azubis for QR code generation in settings.
+- **Tool Exchange:** Added price display in the exchange modal showing the estimated tool value.
+### 🐛 Bug Fixes
+- **PDF Generation:** Fixed a PDF encoding error by replacing the '€' symbol with 'EUR'.
+- **UI:** Added "Select All" toggle for faster bulk QR generation.
+
 ## [2.8.1] - 2026-02-20
 ### Security
 - **Critical:** Fixed Broken Access Control by enforcing `@admin_required` on all modification routes and API endpoints.

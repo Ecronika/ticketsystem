@@ -119,6 +119,11 @@
                     </div>
 
                     <div class="mb-3">
+                        <label class="form-label fw-bold">Preis/Wert (€)</label>
+                        <input type="text" class="form-control-plaintext" id="exchangeToolPrice" readonly value="0.00">
+                    </div>
+
+                    <div class="mb-3">
                         <label class="form-label fw-bold">Grund für den Austausch</label>
                         <div class="btn-group w-100" role="group">
                             <input type="radio" class="btn-check" name="reason" id="reasonDefekt" value="Defekt"
@@ -263,6 +268,15 @@
                 document.getElementById('signatureAzubiData').value = data;
             });
         }
+
+        const exchangeToolId = document.getElementById('exchangeToolId');
+        if (exchangeToolId) {
+            exchangeToolId.addEventListener('change', function () {
+                const selectedOption = this.options[this.selectedIndex];
+                const price = selectedOption.dataset.price || '0.00';
+                document.getElementById('exchangeToolPrice').value = price;
+            });
+        }
     });
 
     function clearPad(type) {
@@ -287,10 +301,12 @@
             const tools = await response.json();
 
             select.innerHTML = '<option disabled selected>Werkzeug wählen...</option>';
+            document.getElementById('exchangeToolPrice').value = "0.00"; // Reset price
             tools.forEach(tool => {
                 const opt = document.createElement('option');
                 opt.value = tool.id;
                 opt.textContent = tool.name;
+                opt.dataset.price = (tool.price || 0.0).toFixed(2);
                 select.appendChild(opt);
             });
 

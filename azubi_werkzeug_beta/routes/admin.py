@@ -112,6 +112,9 @@ def settings():
         'manufacturer_presets',
         'Wera,Wiha,Knipex,Hazet,Stahlwille,Gedore,NWS')
 
+    all_azubis = Azubi.query.filter_by(is_archived=False).order_by(
+        Azubi.lehrjahr, Azubi.name).all()
+
     return render_template(
         'settings.html',
         logo_exists=logo_exists,
@@ -120,7 +123,8 @@ def settings():
         backup_interval=backup_interval,
         backup_time=backup_time,
         retention_days=retention_days,
-        manufacturer_presets=manufacturer_presets)
+        manufacturer_presets=manufacturer_presets,
+        all_azubis=all_azubis)
 
 
 @admin_required
@@ -612,8 +616,18 @@ def upload_logo():
 @admin_required
 def generate_qr_codes():
     """Generate PDF with QR codes for all Azubis."""
-    all_azubis = Azubi.query.filter_by(is_archived=False).order_by(
-        Azubi.lehrjahr, Azubi.name).all()
+    if request.method == 'POST':
+        azubi_ids = request.form.getlist('azubi_ids')
+        if not azubi_ids:
+            flash('Keine Azubis ausgewählt.', 'warning')
+            ingress = request.headers.get('X-Ingress-Path', '')
+            return redirect(f"{ingress}{url_for('main.settings')}")
+        all_azubis = Azubi.query.filter(Azubi.id.in_(azubi_ids)).order_by(
+            Azubi.lehrjahr, Azubi.name).all()
+    else:
+        all_azubis = Azubi.query.filter_by(is_archived=False).order_by(
+            Azubi.lehrjahr, Azubi.name).all()
+
     if not all_azubis:
         flash('Keine Azubis vorhanden.',
               'warning')
@@ -753,7 +767,7 @@ def register_routes(bp):
         view_func=upload_logo, methods=['POST'])
     bp.add_url_rule(
         '/generate_qr_codes',
-        view_func=generate_qr_codes)
+        view_func=generate_qr_codes, methods=['GET', 'POST'])
     bp.add_url_rule(
         '/report/end_of_training/<int:azubi_id>',
         view_func=end_of_training_report)

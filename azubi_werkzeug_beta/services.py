@@ -495,7 +495,7 @@ class CheckService:
 
         extra_lines = []
         if price > 0:
-            extra_lines.append(f"Geschätzter Ersatzwert: {price:.2f} €")
+            extra_lines.append(f"Geschätzter Ersatzwert: {price:.2f} EUR")
 
         generate_handover_pdf(
             azubi_name=azubi.name,

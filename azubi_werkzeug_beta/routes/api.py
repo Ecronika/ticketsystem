@@ -56,7 +56,8 @@ def get_assigned_tools(azubi_id):
                 'id': tool.id,
                 'name': tool.name + status_label,
                 'sort_weight': weight,
-                'raw_name': tool.name
+                'raw_name': tool.name,
+                'price': float(tool.price) if tool.price else 0.0
             })
 
         # Sort: Weight asc (Missing=0, Broken=1, OK=2), then Name asc

@@ -197,6 +197,7 @@ def _render_handover_table(pdf, tools, title_text):
     pdf.ln(10)
 
 
+# pylint: disable=too-many-locals
 def generate_handover_pdf(
     azubi_name, examiner_name, tools, check_type, signature_paths, output_path,
     extra_lines=None
@@ -252,7 +253,9 @@ def generate_handover_pdf(
     if extra_lines:
         pdf.set_font('Arial', 'B', 10)
         for line in extra_lines:
-            pdf.cell(0, 6, line, 0, 1, 'R')
+            # Fix: Replace € with EUR to prevent encoding errors in standard fonts
+            safe_line = line.replace('€', 'EUR')
+            pdf.cell(0, 6, safe_line, 0, 1, 'R')
         pdf.ln(5)
 
     # --- Signatures ---
