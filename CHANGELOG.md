@@ -4,6 +4,11 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.2-beta2] - 2026-02-20
+### 🐛 Hotfixes
+- **Ingress Support:** Fixed `404 Not Found` error in the QR Code Scanner by prepending `ingress_path` to all related URLs.
+- **Scanner Access:** Added a clear warning message when the camera is blocked due to missing HTTPS (secure context).
+
 ## [2.8.2-beta1] - 2026-02-20
 ### ✨ Features & Enhancements
 - **QR Code Generation:** Added a UI to select specific Azubis for QR code generation in settings.
