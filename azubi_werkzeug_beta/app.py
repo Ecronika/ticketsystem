@@ -414,4 +414,5 @@ if __name__ == '__main__':
     # setup_database() # Already called above (unless pytest, but main implies
     # not pytest)
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
-    app.run(host='0.0.0.0', port=5000, debug=debug_mode)
+    app.logger.info("Starte Server mit temporärem SSL-Zertifikat (adhoc)...")
+    app.run(host='0.0.0.0', port=5000, debug=debug_mode, ssl_context='adhoc')

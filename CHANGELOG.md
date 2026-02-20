@@ -4,6 +4,10 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.2-beta9] - 2026-02-20
+### 🚀 Enhancements
+- **Standalone Mode Settings:** In development/standalone mode (`app.py` execution), the server now spins up with a temporary ad-hoc SSL certificate (`ssl_context='adhoc'`). This solves the problem of testing camera functionality on other devices within the local network, as mobile browsers strictly require a secure `https://` context to access `navigator.mediaDevices`. Added `pyOpenSSL` to dependencies.
+
 ## [2.8.2-beta8] - 2026-02-20
 ### 🚀 Enhancements
 - **Scanner Mobile Optimization:** Implemented several HTML5-QRCode best practices for mobile usage:
