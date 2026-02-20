@@ -187,11 +187,11 @@ if not IS_HOMEASSISTANT:
              force_https=False,  # External proxy (nginx/traefik) handles SSL
              content_security_policy={
                  'default-src': "'self'",
-                 'script-src': ["'self'", 'cdn.jsdelivr.net', "'unsafe-inline'"],
+                 'script-src': ["'self'", 'cdn.jsdelivr.net', 'unpkg.com', "'unsafe-inline'"],
                  'style-src': ["'self'", 'cdn.jsdelivr.net', "'unsafe-inline'"],
                  'img-src': ["'self'", 'data:'],
                  'font-src': ["'self'", 'cdn.jsdelivr.net'],
-                 'connect-src': ["'self'", 'cdn.jsdelivr.net']
+                 'connect-src': ["'self'", 'cdn.jsdelivr.net', 'unpkg.com']
              }
              )
     app.logger.info(
@@ -208,11 +208,11 @@ else:
         # CSP headers (same policy as Talisman)
         response.headers['Content-Security-Policy'] = (
             "default-src 'self'; "
-            "script-src 'self' cdn.jsdelivr.net 'unsafe-inline'; "
+            "script-src 'self' cdn.jsdelivr.net unpkg.com 'unsafe-inline'; "
             "style-src 'self' cdn.jsdelivr.net 'unsafe-inline'; "
             "img-src 'self' data:; "
             "font-src 'self' cdn.jsdelivr.net; "
-            "connect-src 'self' cdn.jsdelivr.net"
+            "connect-src 'self' cdn.jsdelivr.net unpkg.com"
         )
         return response
     app.logger.info(

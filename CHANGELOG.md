@@ -4,6 +4,10 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.2-beta4] - 2026-02-20
+### 🐛 Hotfixes
+- **Scanner UI:** Fixed a critical issue where the QR code scanner failed to load completely. The `html5-qrcode` script was being blocked from loading by the Content-Security-Policy (CSP) because `unpkg.com` was missing from the allowed `script-src` and `connect-src` headers.
+
 ## [2.8.2-beta3] - 2026-02-20
 ### 🐛 Hotfixes
 - **Scanner UI:** Fixed an issue where the camera permission requests or scanner errors were invisible due to a black background.
