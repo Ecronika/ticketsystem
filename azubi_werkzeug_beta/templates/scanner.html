@@ -81,10 +81,12 @@
                     window.location.href = "{{ ingress_path }}{{ url_for('main.check_azubi', azubi_id=0) }}".replace('0', azubiId);
                 }, 500);
 
-                html5QrcodeScanner.clear();
+                html5QrCode.clear();
             } else {
-                // Invalid code format
-                // resultElement.innerText = "Ungültiger Code: " + decodedText;
+                // Invalid code format - show to user for debugging
+                resultElement.classList.remove('d-none', 'alert-info', 'alert-success');
+                resultElement.classList.add('alert-warning');
+                resultElement.innerHTML = `<i class="bi bi-question-circle me-1"></i><strong>Unerkanntes Format:</strong> '${decodedText}'`;
             }
         }
 
@@ -103,10 +105,11 @@
         // Config
         const config = {
             fps: 10,
-            qrbox: { width: 250, height: 250 },
-            aspectRatio: 1.0,
-            experimentalFeatures: {
-                useBarCodeDetectorIfSupported: true
+            qrbox: function (viewfinderWidth, viewfinderHeight) {
+                // 70% of the smallest dimension
+                let minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
+                let qrboxSize = Math.floor(minEdgeSize * 0.7);
+                return { width: qrboxSize, height: qrboxSize };
             }
         };
 
