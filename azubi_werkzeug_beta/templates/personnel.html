@@ -322,7 +322,6 @@
                             const actionCell = document.createElement('td');
                             actionCell.className = 'text-end';
                             actionCell.innerHTML = `
-                                <td class="text-end">
                                     <form action="{{ ingress_path }}/delete_azubi/${azubi.id}" method="POST" onsubmit="return confirm('Wirklich löschen?');" class="d-inline">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                                         <div class="d-flex justify-content-end gap-1">
@@ -340,7 +339,6 @@
                                             </button>
                                         </div>
                                     </form>
-                                </td>
                             `;
 
                             // CRITICAL FIX: Append cells to row!
@@ -413,14 +411,12 @@
                             const actionCell = document.createElement('td');
                             actionCell.className = 'text-end';
                             actionCell.innerHTML = `
-                                <td class="text-end">
                                     <form action="{{ ingress_path }}/delete_examiner/${examiner.id}" method="POST" onsubmit="return confirm('Wirklich löschen?');" class="d-inline">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                                         <button type="submit" class="btn btn-sm btn-light text-danger border-0" title="Löschen">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </form>
-                                </td>
                             `;
 
                             // CRITICAL FIX: Append cells to row!

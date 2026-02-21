@@ -285,6 +285,10 @@
     // Helper to load assigned tools
     async function loadAssignedTools(azubiId) {
         const select = document.getElementById('exchangeToolId');
+        if (!azubiId) {
+            select.innerHTML = '<option disabled>Fehler: Kein Azubi gewählt</option>';
+            return;
+        }
         select.innerHTML = '<option disabled selected>Lade...</option>';
 
         // We reuse the new API endpoint or standard tools list?

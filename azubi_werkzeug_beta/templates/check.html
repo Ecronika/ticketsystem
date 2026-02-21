@@ -380,9 +380,11 @@
 
                 if (shouldShow) {
                     row.style.display = '';
+                    row.querySelectorAll('input, select').forEach(el => el.disabled = false);
                     visibleCount++;
                 } else {
                     row.style.display = 'none';
+                    row.querySelectorAll('input, select').forEach(el => el.disabled = true);
                     // UX Fix: Uncheck hidden rows prevents accidental submission
                     const cb = row.querySelector('.tool-select');
                     if (cb) cb.checked = false;
@@ -440,12 +442,12 @@
 
                     if (this.value === 'broken') {
                         // Show defekt-gründe, hide fehlt-gründe
-                        if (brokenGroup) brokenGroup.style.display = '';
-                        if (missingGroup) missingGroup.style.display = 'none';
+                        if (brokenGroup) { brokenGroup.disabled = false; brokenGroup.hidden = false; }
+                        if (missingGroup) { missingGroup.disabled = true; missingGroup.hidden = true; }
                     } else if (this.value === 'missing') {
                         // Show fehlt-gründe, hide defekt-gründe
-                        if (brokenGroup) brokenGroup.style.display = 'none';
-                        if (missingGroup) missingGroup.style.display = '';
+                        if (brokenGroup) { brokenGroup.disabled = true; brokenGroup.hidden = true; }
+                        if (missingGroup) { missingGroup.disabled = false; missingGroup.hidden = false; }
                     }
                 } else {
                     incidentDiv.style.display = 'none';
@@ -455,8 +457,8 @@
                     // Show all optgroups again when hidden
                     const brokenGroup = incidentSelect.querySelector('.broken-reasons');
                     const missingGroup = incidentSelect.querySelector('.missing-reasons');
-                    if (brokenGroup) brokenGroup.style.display = '';
-                    if (missingGroup) missingGroup.style.display = '';
+                    if (brokenGroup) { brokenGroup.disabled = false; brokenGroup.hidden = false; }
+                    if (missingGroup) { missingGroup.disabled = false; missingGroup.hidden = false; }
 
                     // Logic: Tech param might be required if label exists, depends on business rule.
                     // Assuming 'ok' means we verified the param.

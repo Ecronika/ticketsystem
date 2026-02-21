@@ -4,6 +4,16 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.2-beta15] - 2026-02-21
+### 🚀 UX & Stability
+- **AJAX DOM Generation:** Fixed invalid HTML DOM generation (`<td><td class='text-end'>`) when adding Azubis/Examiners via AJAX, preventing page layout destruction (`personnel.html`).
+- **Safari/iOS Compatibility:** Replaced `style.display='none'` on `<optgroup>` elements with robust `disabled` and `hidden` properties to prevent iOS Safari users from selecting invalid defect reasons in the check workflow (`check.html`).
+- **Form Validation Lockout:** Disabled input fields and select tags dynamically inside hidden table rows to prevent silent HTML5 "invalid form control is not focusable" locking submissions (`check.html`).
+- **Modal Stability:** Handled empty or invalid `azubiId` parameters with an early return in asynchronous tool fetching (`index.html`).
+
+### 🔒 Security
+- **Pinned Dependencies:** Pinned `html5-qrcode` scanning library to version `@2.3.8` on unpkg CDN to enforce dependency security and eliminate HTTP 302 redirects for performance (`scanner.html`).
+
 ## [2.8.2-beta14] - 2026-02-21
 ### 🔒 Security
 - **QR Scanner:** Fixed a DOM-based XSS vulnerability by avoiding `innerHTML` when displaying unrecognized QR codes. URLs are now also securely URL-encoded on redirect.
