@@ -7,7 +7,8 @@ RUN \
     python3 \
     py3-pip \
     curl \
-    openssl
+    openssl \
+    nginx
 
 # Arbeitsverzeichnis setzen
 WORKDIR /app
