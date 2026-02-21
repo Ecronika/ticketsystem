@@ -22,8 +22,25 @@ KEYFILE=$(bashio::config 'keyfile')
 # Pruefe ob SSL aktiviert ist
 if bashio::var.true "${SSL}"; then
     bashio::log.info "SSL ist aktiviert."
-    bashio::log.info "Zertifikat: /ssl/${CERTFILE}"
-    bashio::log.info "Key: /ssl/${KEYFILE}"
+    
+    CERTFILE_PATH="/ssl/${CERTFILE}"
+    KEYFILE_PATH="/ssl/${KEYFILE}"
+
+    if [ ! -f "${CERTFILE_PATH}" ] || [ ! -f "${KEYFILE_PATH}" ]; then
+        bashio::log.warning "Zertifikate (${CERTFILE_PATH} / ${KEYFILE_PATH}) nicht gefunden!"
+        bashio::log.warning "Generiere temporäres (Self-Signed) Zertifikat für lokalen Zugriff..."
+        openssl req -new -newkey rsa:4096 -days 3650 -nodes -x509 \
+            -subj "/C=DE/ST=Berlin/L=Berlin/O=Local/CN=localhost" \
+            -keyout "/data/adhoc_key.pem" \
+            -out "/data/adhoc_cert.pem" 2>/dev/null
+        CERTFILE_PATH="/data/adhoc_cert.pem"
+        KEYFILE_PATH="/data/adhoc_key.pem"
+        bashio::log.info "Temporäres Zertifikat erstellt: ${CERTFILE_PATH}"
+    else
+        bashio::log.info "Nutze vorhandene Zertifikate:"
+        bashio::log.info "Zertifikat: ${CERTFILE_PATH}"
+        bashio::log.info "Key: ${KEYFILE_PATH}"
+    fi
     
     # Server starten mit SSL (Optimized for SD Card / Stability)
     bashio::log.info "Starte Gunicorn Server mit SSL auf Port 5000..."
@@ -37,8 +54,8 @@ if bashio::var.true "${SSL}"; then
         --max-requests 1000 \
         --max-requests-jitter 50 \
         --bind 0.0.0.0:5000 \
-        --certfile "/ssl/${CERTFILE}" \
-        --keyfile "/ssl/${KEYFILE}" \
+        --certfile "${CERTFILE_PATH}" \
+        --keyfile "${KEYFILE_PATH}" \
         --access-logfile - \
         --error-logfile - \
         app:app

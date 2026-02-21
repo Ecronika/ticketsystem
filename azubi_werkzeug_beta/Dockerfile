@@ -6,7 +6,8 @@ RUN \
     apk add --no-cache \
     python3 \
     py3-pip \
-    curl
+    curl \
+    openssl
 
 # Arbeitsverzeichnis setzen
 WORKDIR /app
