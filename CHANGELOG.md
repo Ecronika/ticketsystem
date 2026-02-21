@@ -4,6 +4,15 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.2-beta20] - 2026-02-21
+### ✨ Security & Performance Polish
+- **Dependency / Stability:** Fixed a runtime crash when generating QR codes in Alpine Docker by adding the `[pil]` extra to `qrcode` inside `requirements.txt`.
+- **Database Stability:** Prevented double SQLite migration initializations by removing the redundant manual `setup_database()` invocation in the `run` script.
+- **Performance Optimization:** Eliminated a severe N+1 database query bottleneck in the frontend Check page (`routes/checks.py`). The tool status list now uses a highly efficient grouped SQLAlchemy Subquery.
+- **Logic:** Fixed a bug in `detect_exchange_type` where string comparisons to Enum keys always failed.
+- **Stability:** Fixed a Time-of-Check to Time-of-Use (TOCTOU) file deletion race condition in `BackupService.list_backups()` that could crash the settings page.
+- **Documentation:** Removed the outdated `safety_report.json` file.
+
 ## [2.8.2-beta19] - 2026-02-21
 ### ✨ Final Audit Fixes & Performance
 - **Security:** Patched an Open Redirect vulnerability in `routes/auth.py` by strictly validating the `next` URL parameter to ensure it remains on the same host before redirecting after login.

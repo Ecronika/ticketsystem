@@ -118,10 +118,12 @@ class CheckService:
     @staticmethod
     def detect_exchange_type(checks):
         """Detect if a session is an exchange based on check types."""
-        has_return = any(
-            c.check_type == CheckType.RETURN for c in checks)
-        has_issue = any(
-            c.check_type == CheckType.ISSUE for c in checks)
+        from models import parse_check_type
+        
+        check_types = [parse_check_type(c.check_type) for c in checks]
+        has_return = CheckType.RETURN in check_types
+        has_issue = CheckType.ISSUE in check_types
+        
         if has_return and has_issue and len(checks) >= 2:
             return 'exchange'
         if any('Austausch' in (c.bemerkung or '') for c in checks):
@@ -916,7 +918,10 @@ class BackupService:
             for f in os.listdir(backup_dir):
                 if f.endswith('.zip') and f.startswith('backup_'):
                     path = os.path.join(backup_dir, f)
-                    stat = os.stat(path)
+                    try:
+                        stat = os.stat(path)
+                    except OSError:
+                        continue
                     backups.append({
                         'filename': f,
                         'size_mb': round(stat.st_size / (1024 * 1024), 2),

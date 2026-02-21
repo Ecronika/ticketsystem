@@ -24,12 +24,29 @@ from routes.auth import admin_required
 
 def _build_tool_status_list(azubi, werkzeuge, assigned_ids):
     """Build status list for tools."""
+    from sqlalchemy import func
+
+    subq = (
+        db.session.query(
+            Check.werkzeug_id,
+            func.max(Check.datum).label('last_datum')
+        )
+        .filter_by(azubi_id=azubi.id)
+        .group_by(Check.werkzeug_id)
+        .subquery()
+    )
+    last_checks = {
+        c.werkzeug_id: c
+        for c in Check.query
+        .join(subq, (Check.werkzeug_id == subq.c.werkzeug_id) &
+                     (Check.datum == subq.c.last_datum))
+        .filter(Check.azubi_id == azubi.id)
+        .all()
+    }
+
     mapped_werkzeuge = []
     for w in werkzeuge:
-        last_entry = Check.query.filter_by(
-            azubi_id=azubi.id,
-            werkzeug_id=w.id).order_by(
-            Check.datum.desc()).first()
+        last_entry = last_checks.get(w.id)
         status = 'ok'
         tech_val = ""
         manufacturer = ""

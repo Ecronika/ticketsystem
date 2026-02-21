@@ -3,7 +3,7 @@ Flask-SQLAlchemy==3.1.1
 gunicorn==23.0.0
 fpdf2==2.8.5
 Flask-WTF==1.2.2
-qrcode==8.2
+qrcode[pil]==8.2
 Flask-Limiter==4.1.1
 flask-talisman==1.1.0
 pytest==9.0.2
