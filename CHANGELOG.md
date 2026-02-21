@@ -4,6 +4,10 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.2-beta12] - 2026-02-21
+### 🐛 Hotfixes
+- **Add-on Startup Script:** Fixed a bash syntax error (`unexpected token else`) in the Add-on startup script (`run`) introduced in beta11 when configuring the SSL certification block.
+
 ## [2.8.2-beta11] - 2026-02-21
 ### 🐛 Hotfixes
 - **Add-on Ingress + SSL Compatibility:** Fixed a severe issue where enabling SSL in the Home Assistant Add-on caused the addon to abruptly crash Home Assistant Ingress traffic, flooding the logs with `[SSL: HTTP_REQUEST]`. 

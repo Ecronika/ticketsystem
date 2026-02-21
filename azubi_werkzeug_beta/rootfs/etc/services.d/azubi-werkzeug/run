@@ -40,6 +40,8 @@ if bashio::var.true "${SSL}"; then
         bashio::log.info "Nutze vorhandene Zertifikate:"
         bashio::log.info "Zertifikat: ${CERTFILE_PATH}"
         bashio::log.info "Key: ${KEYFILE_PATH}"
+    fi
+
     bashio::log.info "Konfiguriere NGINX als SSL-Reverse-Proxy auf Port 5000..."
     cat > /etc/nginx/http.d/default.conf <<EOF
 server {
