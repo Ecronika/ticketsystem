@@ -4,6 +4,10 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.2-beta16] - 2026-02-21
+### 🐛 Hotfixes
+- **CSRF Token Validation:** Fixed a severe `400 Bad Request: The referrer does not match the host.` CSRF error that surfaced when accessing the system directly via local IP and port 5000. The internal NGINX proxy was aggressively stripping the port from the `Host` header (`$host`), breaking the Flask-WTF Referrer boundary check. The NGINX config now passes the exact `Host` header via `$http_host`.
+
 ## [2.8.2-beta15] - 2026-02-21
 ### 🚀 UX & Stability
 - **AJAX DOM Generation:** Fixed invalid HTML DOM generation (`<td><td class='text-end'>`) when adding Azubis/Examiners via AJAX, preventing page layout destruction (`personnel.html`).
