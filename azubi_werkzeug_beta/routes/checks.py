@@ -73,8 +73,6 @@ def check_azubi(azubi_id):
     ).days if last_check_global else 999
     is_overdue = days_since_global > 90
 
-    is_overdue = days_since_global > 90
-
     presets_str = SystemSettings.get_setting(
         'manufacturer_presets',
         'Wera,Wiha,Knipex,Hazet,Stahlwille,Gedore,NWS')

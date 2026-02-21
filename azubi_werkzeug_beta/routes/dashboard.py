@@ -57,12 +57,14 @@ def register_routes(bp):
             .all()
         )
 
+        azubi_ids = [a.id for a, l in azubis_with_checks]
+        assigned_tools_batch = CheckService.get_assigned_tools_batch(azubi_ids)
+
         dashboard_data = []
         for azubi, last_datum in azubis_with_checks:
             status, status_class, last_check_str, sort_order = \
                 azubi.get_dashboard_status(last_datum)
-            assigned_count = len(
-                CheckService.get_assigned_tools(azubi.id))
+            assigned_count = len(assigned_tools_batch.get(azubi.id, set()))
             dashboard_data.append({
                 'id': azubi.id,
                 'name': azubi.name,

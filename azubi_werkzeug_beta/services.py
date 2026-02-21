@@ -35,6 +35,19 @@ class CheckService:
         return Config.get_data_dir()
 
     @staticmethod
+    def get_assigned_tools_batch(azubi_ids: list) -> dict:
+        """Return {azubi_id: set(tool_ids)} for all given IDs in 2 queries."""
+        checks = Check.query.filter(Check.azubi_id.in_(azubi_ids)).order_by(Check.datum.asc()).all()
+        result = {aid: set() for aid in azubi_ids}
+        for check in checks:
+            ct = parse_check_type(check.check_type)
+            if ct == CheckType.ISSUE:
+                result[check.azubi_id].add(check.werkzeug_id)
+            elif ct == CheckType.RETURN:
+                result[check.azubi_id].discard(check.werkzeug_id)
+        return result
+
+    @staticmethod
     def get_assigned_tools(azubi_id):
         """
         Return a set of tool IDs currently assigned to the Azubi.

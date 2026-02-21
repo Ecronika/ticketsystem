@@ -461,10 +461,6 @@
                     const missingGroup = incidentSelect.querySelector('.missing-reasons');
                     if (brokenGroup) { brokenGroup.disabled = false; brokenGroup.hidden = false; }
                     if (missingGroup) { missingGroup.disabled = false; missingGroup.hidden = false; }
-
-                    // Logic: Tech param might be required if label exists, depends on business rule.
-                    // Assuming 'ok' means we verified the param.
-                    if (techInput) techInput.setAttribute('required', 'required');
                 }
             });
         });

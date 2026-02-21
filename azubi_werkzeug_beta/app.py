@@ -350,7 +350,12 @@ def setup_database():
     with app.app_context():
         db.create_all()
 
+        conn = None
         try:
+            # Fix H2: Prevent WAL connection locking by disposing existing SQLAlchemy pool connections
+            db.session.remove()
+            db.engine.dispose()
+
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
 
@@ -366,7 +371,8 @@ def setup_database():
             # Seed default settings (idempotent — only if key missing)
             _seed_default_settings()
         except Exception as e:  # pylint: disable=broad-exception-caught
-            conn.rollback()
+            if conn:
+                conn.rollback()
             app.logger.critical(
                 "Migration Failed! Rolled back changes. Error: %s", e)
             # We might want to exit here, but for now we just log critical

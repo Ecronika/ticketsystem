@@ -4,6 +4,17 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.2-beta19] - 2026-02-21
+### ✨ Final Audit Fixes & Performance
+- **Security:** Patched an Open Redirect vulnerability in `routes/auth.py` by strictly validating the `next` URL parameter to ensure it remains on the same host before redirecting after login.
+- **Security:** Prevented a potential information leak in production by stripping the raw exception traceback (`{{ error }}`) from `500.html` unless `config.DEBUG` is active.
+- **Security:** Pinned all third-party dependencies in `requirements.txt` to exact known-safe versions to prevent supply-chain attacks and ReDoS vulnerabilities in unpinned packages like `fpdf2`.
+- **Database Stability:** Patched a critical `NameError` crash in `app.py`'s `setup_database()` routine that could crash Gunicorn workers if `sqlite3.connect` threw an exception.
+- **Database Stability:** Resolved a race condition where the raw sqlite3 migration connection conflicted with the active SQLAlchemy WAL transaction by explicitly disposing the SQLAlchemy engine pool before migrations.
+- **Performance Optimization:** Eliminated a severe N+1 database query bottleneck in the frontend dashboard. The system now fetches all "assigned tool counts" for every Azubi in a single batched query instead of firing individual queries per apprentice on cold cache.
+- **Performance Optimization:** Eliminated a duplicate N+1 database query inside the API loop returning assigned tools (`routes/api.py`), replacing it with a single, highly efficient SQLAlchemy Subquery.
+- **UI & Accessibility:** Fixed unclosed grid rows in `history.html` that broke responsive layouts. Fixed missing title tags in `base.html` and corrected ARIA roles on the main navigation. Fixed a bug in `check.html` where tech parameters were erroneously forced as `required` even for completely verified tool rows.
+
 ## [2.8.2-beta18] - 2026-02-21
 ### ✨ Consistency Polish
 - **Input Consistency:** Aligned the "Edit Tool" modal's Price field with the creation form. It now uses `inputmode="decimal"` and processes comma separators in the backend to ensure a frictionless mobile UX and zero HTML5 validation errors when entering values like `15,99`.

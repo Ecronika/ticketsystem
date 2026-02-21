@@ -7,8 +7,9 @@
         <h2 class="mb-4">Interner Serverfehler</h2>
         <div class="alert alert-danger text-start" role="alert">
             <h4 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Ein Fehler ist aufgetreten</h4>
-            <p>Das System konnte Ihre Anfrage nicht verarbeiten. Dies kann durch eine fehlerhafte Datenbank oder ein unerwartetes Problem verursacht worden sein.</p>
-            {% if error %}
+            <p>Das System konnte Ihre Anfrage nicht verarbeiten. Dies kann durch eine fehlerhafte Datenbank oder ein
+                unerwartetes Problem verursacht worden sein.</p>
+            {% if config.DEBUG and error %}
             <hr>
             <p class="mb-0 font-monospace small text-break">{{ error }}</p>
             {% endif %}

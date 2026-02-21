@@ -22,17 +22,28 @@ def get_assigned_tools(azubi_id):
         tools = Werkzeug.query.filter(Werkzeug.id.in_(assigned_ids)).all()
         result = []
 
+        from sqlalchemy import func
+        subq = (
+            db.session.query(
+                Check.werkzeug_id,
+                func.max(Check.datum).label('last_datum')
+            )
+            .filter_by(azubi_id=azubi_id)
+            .group_by(Check.werkzeug_id)
+            .subquery()
+        )
+        last_checks_list = (
+            Check.query
+            .join(subq, (Check.werkzeug_id == subq.c.werkzeug_id) &
+                        (Check.datum == subq.c.last_datum))
+            .filter(Check.azubi_id == azubi_id)
+            .all()
+        )
+        last_checks = {c.werkzeug_id: c for c in last_checks_list}
+
         for tool in tools:
             # Determine status
-            last_entry = Check.query.filter_by(
-                azubi_id=azubi_id,
-                werkzeug_id=tool.id).order_by(
-                Check.datum.desc()).first()
-            # Determine status
-            last_entry = Check.query.filter_by(
-                azubi_id=azubi_id,
-                werkzeug_id=tool.id).order_by(
-                Check.datum.desc()).first()
+            last_entry = last_checks.get(tool.id)
 
             status = 'ok'
             if last_entry and last_entry.bemerkung:
