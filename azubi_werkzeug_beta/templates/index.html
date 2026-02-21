@@ -151,7 +151,8 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold">Unterschrift Azubi (Empfang)</label>
                         <div class="border rounded bg-light" style="height: 200px; position: relative;">
-                            <canvas id="signaturePadAzubi" class="w-100 h-100"></canvas>
+                            <canvas id="signaturePadAzubi" aria-label="Unterschrift Azubi" role="img"
+                                class="w-100 h-100"></canvas>
                             <div class="position-absolute bottom-0 end-0 p-2">
                                 <button type="button" class="btn btn-sm btn-outline-secondary mb-1"
                                     onclick="clearPad('azubi')">
@@ -203,7 +204,7 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 <script>
     let padAzubi = null;
 
@@ -228,6 +229,7 @@
         // Modal Logic
         const exchangeModal = document.getElementById('exchangeModal');
         if (exchangeModal) {
+            // Data loading on show
             exchangeModal.addEventListener('show.bs.modal', function (event) {
                 const button = event.relatedTarget;
                 const azubiId = button.getAttribute('data-azubi-id');
@@ -236,23 +238,19 @@
                 document.getElementById('exchangeAzubiId').value = azubiId;
                 document.getElementById('exchangeAzubiName').value = azubiName;
 
-                // Load Tools for this Azubi via AJAX (using existing Check Logic partial re-use?)
-                // Better: Simple API call. We need a new/existing API for assigned tools.
-                // For now, let's load ALL tools and maybe filtering happen server side? 
-                // Wait, we need "Assigned" tools only.
-                // Let's assume we fetch all tools and user selects one. 
-                // Improvement: Fetch only assigned tools.
                 loadAssignedTools(azubiId);
+            });
 
-                // Resize pad after modal is shown (visibility fix)
-                setTimeout(() => {
-                    const canvas = document.getElementById('signaturePadAzubi');
+            // Resize canvas specifically after DOM is fully visible
+            exchangeModal.addEventListener('shown.bs.modal', function () {
+                const canvas = document.getElementById('signaturePadAzubi');
+                if (canvas) {
                     const ratio = Math.max(window.devicePixelRatio || 1, 1);
                     canvas.width = canvas.offsetWidth * ratio;
                     canvas.height = canvas.offsetHeight * ratio;
                     canvas.getContext("2d").scale(ratio, ratio);
-                    padAzubi.clear();
-                }, 200);
+                    if (padAzubi) padAzubi.clear();
+                }
             });
         }
 
@@ -301,7 +299,7 @@
             if (!response.ok) throw new Error("Fehler beim Laden");
             const tools = await response.json();
 
-            select.innerHTML = '<option disabled selected>Werkzeug wählen...</option>';
+            select.innerHTML = '<option value="" disabled selected>Werkzeug wählen...</option>';
             document.getElementById('exchangeToolPrice').value = "0.00"; // Reset price
             tools.forEach(tool => {
                 const opt = document.createElement('option');

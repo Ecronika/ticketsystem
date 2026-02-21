@@ -114,7 +114,8 @@ def register_routes(bp):
                 material_category=(
                     form.material_category.data),
                 tech_param_label=(
-                    form.tech_param_label.data))
+                    form.tech_param_label.data),
+                price=form.price.data)
             db.session.add(new_werkzeug)
             db.session.commit()
             return jsonify({
@@ -126,7 +127,8 @@ def register_routes(bp):
                         new_werkzeug.material_category),
                     'param': (
                         new_werkzeug.tech_param_label
-                        or '')
+                        or ''),
+                    'price': float(new_werkzeug.price or 0.0)
                 }
             })
         except SQLAlchemyError as e:

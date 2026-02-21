@@ -4,6 +4,20 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.2-beta14] - 2026-02-21
+### 🔒 Security
+- **QR Scanner:** Fixed a DOM-based XSS vulnerability by avoiding `innerHTML` when displaying unrecognized QR codes. URLs are now also securely URL-encoded on redirect.
+  
+### 🚀 UX & Performance
+- **Search Filters:** Fixed layout thrashing and massive memory leaks in table searches (`tools.html`, `personnel.html`) by implementing proper debounce timers (200ms).
+- **Scanner Modal:** Fixed a resize glitch where the signature canvas in the exchange modal calculated its size as 0 width. Transitioned the listener from `show` to `shown` for exact DOM sizing.
+- **Dependencies:** Deduplicated script loads. The index page now uniformly uses `signature_pad@4.1.7` instead of loading redundant older versions.
+
+### 🐛 Bugfixes
+- **Pricing:** Fixed a critical bug where the "Preis" field was entirely missing from the frontend AJAX injection and backend model logic upon new tool creation. The DB and UI now correctly propagate the price.
+- **Form Validation:** Improved the fallback placeholder value for assigned tools to `value=""`, which securely hooks into HTML5 `required` validation.
+- **Accessibility:** Added compliant ARIA attributes (`aria-label`, `role="img"`) to all signature canvas elements for screenreader compatibility.
+
 ## [2.8.2-beta13] - 2026-02-21
 ### 🐛 Hotfixes
 - **Add-on Missing Dependency:** Fixed a container startup crash where `nginx` was not installed in the Docker image, leading to a `No such file or directory` error when trying to write the NGINX configuration. Added `nginx` to the Dockerfile and ensured config directories are created.

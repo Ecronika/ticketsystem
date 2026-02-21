@@ -266,10 +266,12 @@
             const table = document.getElementById(tableId);
             if (!input || !table) return;
 
+            let debounceTimer;
             input.addEventListener('keyup', function () {
+                clearTimeout(debounceTimer);
                 table.style.opacity = '0.5';
                 const filter = this.value.toLowerCase();
-                setTimeout(() => {
+                debounceTimer = setTimeout(() => {
                     const rows = table.getElementsByTagName('tr');
                     for (let i = 1; i < rows.length; i++) {
                         const row = rows[i];

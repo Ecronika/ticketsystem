@@ -79,17 +79,20 @@
                 html5QrCode.stop().then(() => {
                     // Redirect
                     setTimeout(() => {
-                        window.location.href = "{{ ingress_path }}{{ url_for('main.check_azubi', azubi_id=0) }}".replace('0', azubiId);
+                        window.location.href = "{{ ingress_path }}{{ url_for('main.check_azubi', azubi_id=0) }}".replace('0', encodeURIComponent(azubiId));
                     }, 500);
                 }).catch((err) => {
                     console.error("Failed to stop camera", err);
-                    window.location.href = "{{ ingress_path }}{{ url_for('main.check_azubi', azubi_id=0) }}".replace('0', azubiId);
+                    window.location.href = "{{ ingress_path }}{{ url_for('main.check_azubi', azubi_id=0) }}".replace('0', encodeURIComponent(azubiId));
                 });
             } else {
                 // Invalid code format - show to user for debugging
                 resultElement.classList.remove('d-none', 'alert-info', 'alert-success');
                 resultElement.classList.add('alert-warning');
-                resultElement.innerHTML = `<i class="bi bi-question-circle me-1"></i><strong>Unerkanntes Format:</strong> '${decodedText}'`;
+                resultElement.innerHTML = `<i class="bi bi-question-circle me-1"></i><strong>Unerkanntes Format:</strong> `;
+                const span = document.createElement('span');
+                span.textContent = `'${decodedText}'`;
+                resultElement.appendChild(span);
             }
         }
 

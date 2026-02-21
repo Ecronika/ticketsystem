@@ -22,11 +22,11 @@
                     <form id="addWerkzeugForm" class="mb-4 bg-light p-3 rounded-3 border">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                         <div class="row g-2 align-items-end">
-                            <div class="col-12 col-md-4">
+                            <div class="col-12 col-md-3">
                                 <label class="form-label small">Bezeichnung</label>
                                 <input type="text" name="name" class="form-control form-control-sm" required>
                             </div>
-                            <div class="col-12 col-md-3">
+                            <div class="col-12 col-md-2">
                                 <label class="form-label small">VDE Kategorie</label>
                                 <select name="material_category" class="form-select form-select-sm">
                                     <option value="standard">Standard</option>
@@ -38,6 +38,11 @@
                             <div class="col-12 col-md-3">
                                 <label class="form-label small">Tech. Daten</label>
                                 <input type="text" name="tech_param_label" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-12 col-md-2">
+                                <label class="form-label small">Preis (€)</label>
+                                <input type="number" step="0.01" name="price" class="form-control form-control-sm"
+                                    placeholder="0.00">
                             </div>
                             <div class="col-12 col-md-2 text-end">
                                 <button class="btn btn-primary btn-sm w-100" type="submit">
@@ -201,10 +206,12 @@
             const table = document.getElementById(tableId);
             if (!input || !table) return;
 
+            let debounceTimer;
             input.addEventListener('keyup', function () {
+                clearTimeout(debounceTimer);
                 table.style.opacity = '0.5';
                 const filter = this.value.toLowerCase();
-                setTimeout(() => {
+                debounceTimer = setTimeout(() => {
                     const rows = table.getElementsByTagName('tr');
                     for (let i = 1; i < rows.length; i++) {
                         const row = rows[i];
