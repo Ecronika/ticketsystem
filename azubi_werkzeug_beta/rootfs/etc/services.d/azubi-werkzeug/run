@@ -40,41 +40,53 @@ if bashio::var.true "${SSL}"; then
         bashio::log.info "Nutze vorhandene Zertifikate:"
         bashio::log.info "Zertifikat: ${CERTFILE_PATH}"
         bashio::log.info "Key: ${KEYFILE_PATH}"
-    fi
-    
-    # Server starten mit SSL (Optimized for SD Card / Stability)
-    bashio::log.info "Starte Gunicorn Server mit SSL auf Port 5000..."
-    exec gunicorn \
-        --workers 1 \
-        --threads 2 \
-        --worker-class gthread \
-        --timeout 120 \
-        --graceful-timeout 120 \
-        --keep-alive 5 \
-        --max-requests 1000 \
-        --max-requests-jitter 50 \
-        --bind 0.0.0.0:5000 \
-        --certfile "${CERTFILE_PATH}" \
-        --keyfile "${KEYFILE_PATH}" \
-        --access-logfile - \
-        --error-logfile - \
-        app:app
+    bashio::log.info "Konfiguriere NGINX als SSL-Reverse-Proxy auf Port 5000..."
+    cat > /etc/nginx/http.d/default.conf <<EOF
+server {
+    listen 5000 ssl;
+    ssl_certificate ${CERTFILE_PATH};
+    ssl_certificate_key ${KEYFILE_PATH};
+    location / {
+        proxy_pass http://127.0.0.1:8099;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOF
 else
     bashio::log.info "SSL ist deaktiviert."
-    
-    # Server starten ohne SSL (Optimized for SD Card / Stability)
-    bashio::log.info "Starte Gunicorn Server auf Port 5000..."
-    exec gunicorn \
-        --workers 1 \
-        --threads 2 \
-        --worker-class gthread \
-        --timeout 120 \
-        --graceful-timeout 120 \
-        --keep-alive 5 \
-        --max-requests 1000 \
-        --max-requests-jitter 50 \
-        --bind 0.0.0.0:5000 \
-        --access-logfile - \
-        --error-logfile - \
-        app:app
+    bashio::log.info "Konfiguriere NGINX als HTTP-Reverse-Proxy auf Port 5000..."
+    cat > /etc/nginx/http.d/default.conf <<EOF
+server {
+    listen 5000;
+    location / {
+        proxy_pass http://127.0.0.1:8099;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOF
 fi
+
+bashio::log.info "Starte NGINX im Hintergrund..."
+# suppress warning about running as root if any
+nginx -g "daemon off;" 2>&1 &
+
+bashio::log.info "Starte Gunicorn Server (Backend) auf Port 8099..."
+exec gunicorn \
+    --workers 1 \
+    --threads 2 \
+    --worker-class gthread \
+    --timeout 120 \
+    --graceful-timeout 120 \
+    --keep-alive 5 \
+    --max-requests 1000 \
+    --max-requests-jitter 50 \
+    --bind 0.0.0.0:8099 \
+    --access-logfile - \
+    --error-logfile - \
+    app:app

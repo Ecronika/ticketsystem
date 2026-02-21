@@ -1,5 +1,5 @@
 name: "Azubi Werkzeug Tracker (Beta)"
-version: "2.8.2-beta10"
+version: "2.8.2-beta11"
 slug: "azubi_werkzeug_beta"
 description: "Manage and track tools assigned to apprentices."
 url: "https://github.com/Ecronika/azubi_werkzeug"
@@ -13,7 +13,7 @@ init: false
 startup: application
 boot: auto
 ingress: true
-ingress_port: 5000
+ingress_port: 8099
 ports:
   5000/tcp: 5000
 ports_description:

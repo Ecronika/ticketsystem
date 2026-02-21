@@ -4,6 +4,12 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.2-beta11] - 2026-02-21
+### 🐛 Hotfixes
+- **Add-on Ingress + SSL Compatibility:** Fixed a severe issue where enabling SSL in the Home Assistant Add-on caused the addon to abruptly crash Home Assistant Ingress traffic, flooding the logs with `[SSL: HTTP_REQUEST]`. 
+  - The application is now served securely behind an internal NGINX reverse-proxy, ensuring external local access responds over HTTPS while keeping Ingress HTTP traffic flowing smoothly. 
+  - Integrated `ProxyFix` to parse accurate user IPs from Home Assistant through the Nginx proxy, fixing potential rate-limit bugs.
+
 ## [2.8.2-beta10] - 2026-02-21
 ### 🚀 Enhancements
 - **Add-on Local SSL Support:** Fixed an issue where enabling `ssl: true` in the Home Assistant Add-on configuration without providing valid Let's Encrypt certificates would cause Gunicorn to crash or fail to provide HTTPS. The Add-on's startup container now includes `openssl` and will automatically generate a temporary self-signed certificate (`adhoc`) if the configured certificates are missing. This allows local direct IP access over HTTPS (e.g. `https://<ip>:5000`) for camera testing out-of-the-box.

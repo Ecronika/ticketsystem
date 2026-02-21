@@ -20,12 +20,14 @@ from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from werkzeug.exceptions import NotFound
 from werkzeug.security import generate_password_hash
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from extensions import Config, csrf, db, limiter, scheduler
 from services import BackupService
 from routes import main_bp
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 # Security: Session Configuration
 app.config.update(

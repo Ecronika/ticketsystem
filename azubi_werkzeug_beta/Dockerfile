@@ -40,4 +40,4 @@ ENV DB_PATH=/data/werkzeug.db
 
 # Healthcheck (Optimized for SD Card / Slow Start)
 HEALTHCHECK --interval=30s --timeout=15s --start-period=30s --retries=5 \
-    CMD curl -f http://localhost:5000/health || exit 1
+    CMD curl -f http://127.0.0.1:8099/health || exit 1
