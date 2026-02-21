@@ -4,6 +4,10 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.2-beta18] - 2026-02-21
+### ✨ Consistency Polish
+- **Input Consistency:** Aligned the "Edit Tool" modal's Price field with the creation form. It now uses `inputmode="decimal"` and processes comma separators in the backend to ensure a frictionless mobile UX and zero HTML5 validation errors when entering values like `15,99`.
+
 ## [2.8.2-beta17] - 2026-02-21
 ### ✨ Release Candidate Polish
 - **Mobile UX:** Fixed a severe scroll lockout on smartphones inside the "Exchange Tool" modal by adding `touch-action: none;` to the signature canvas (`index.html`).

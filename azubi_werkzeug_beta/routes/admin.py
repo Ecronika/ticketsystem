@@ -492,7 +492,12 @@ def edit_werkzeug(werkzeug_id):
     """Edit a tool."""
     werkzeug = Werkzeug.query.get_or_404(
         werkzeug_id)
-    form = WerkzeugForm(request.form)
+
+    form_data = request.form.copy()
+    if 'price' in form_data and isinstance(form_data['price'], str):
+        form_data['price'] = form_data['price'].replace(',', '.')
+
+    form = WerkzeugForm(form_data)
     ingress = request.headers.get(
         'X-Ingress-Path', '')
     if form.validate():
