@@ -104,7 +104,10 @@ def register_routes(bp):
     def api_add_werkzeug():
         """AJAX endpoint for adding werkzeug."""
         try:
-            form = WerkzeugForm(request.form)
+            form_data = request.form.copy()
+            if 'price' in form_data and isinstance(form_data['price'], str):
+                form_data['price'] = form_data['price'].replace(',', '.')
+            form = WerkzeugForm(form_data)
             if not form.validate():
                 return jsonify(
                     {'success': False,

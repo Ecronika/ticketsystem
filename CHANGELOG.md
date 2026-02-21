@@ -4,6 +4,13 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.2-beta17] - 2026-02-21
+### ✨ Release Candidate Polish
+- **Mobile UX:** Fixed a severe scroll lockout on smartphones inside the "Exchange Tool" modal by adding `touch-action: none;` to the signature canvas (`index.html`).
+- **Signature Distortion:** Switched the auto-resize listener mechanism in `check.html` from preserving pixel bitmaps via `toDataURL()` to preserving the original vector coordinates via `toData()`. This guarantees razor-sharp signature repainting without any aspect ratio distortion when rotating a tablet between portrait and landscape.
+- **Accessibility:** Added dynamically populated `aria-label` tags to the individual tool selection checkboxes and the "Select All" checkbox. Screenreaders will now precisely announce the tool's designation when navigating the list.
+- **Input Flexibility:** Changed the "Price" input type to `text` with `inputmode="decimal"` and added backend sanitization (`api.py`) to flawlessly support comma-separated European decimal inputs (`15,99`) on HTML5 without triggering silent validation bypasses or input truncation.
+
 ## [2.8.2-beta16] - 2026-02-21
 ### 🐛 Hotfixes
 - **CSRF Token Validation:** Fixed a severe `400 Bad Request: The referrer does not match the host.` CSRF error that surfaced when accessing the system directly via local IP and port 5000. The internal NGINX proxy was aggressively stripping the port from the `Host` header (`$host`), breaking the Flask-WTF Referrer boundary check. The NGINX config now passes the exact `Host` header via `$http_host`.

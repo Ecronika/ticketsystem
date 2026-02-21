@@ -105,7 +105,8 @@
                             <thead class="table-light">
                                 <tr>
                                     <th style="width: 5%;">
-                                        <input class="form-check-input" type="checkbox" id="selectAll">
+                                        <input class="form-check-input" type="checkbox" id="selectAll"
+                                            aria-label="Alle Werkzeuge auswählen">
                                     </th>
                                     <th style="width: 35%;">Werkzeug</th>
                                     <th class="d-none d-md-table-cell" style="width: 20%;">Aktueller Status</th>
@@ -121,7 +122,8 @@
                                     <td>
                                         <!-- Checkbox to select tool for this action -->
                                         <input class="form-check-input tool-select" type="checkbox"
-                                            name="tool_{{ item.obj.id }}" value="ok" id="check_{{ item.obj.id }}">
+                                            name="tool_{{ item.obj.id }}" value="ok" id="check_{{ item.obj.id }}"
+                                            aria-label="Auswählen: {{ item.obj.name }}">
                                     </td>
 
                                     <td>
@@ -310,7 +312,7 @@
             // Store data if pad exists and has content
             let data = null;
             if (pad && !pad.isEmpty()) {
-                data = pad.toDataURL();
+                data = pad.toData();
             }
 
             canvas.width = canvas.offsetWidth * ratio;
@@ -319,7 +321,7 @@
 
             // Restore data
             if (data) {
-                pad.fromDataURL(data);
+                pad.fromData(data);
             } else if (pad) {
                 pad.clear(); // Ensure clean state if empty
             }
