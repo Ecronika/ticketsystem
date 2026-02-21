@@ -118,12 +118,10 @@ class CheckService:
     @staticmethod
     def detect_exchange_type(checks):
         """Detect if a session is an exchange based on check types."""
-        from models import parse_check_type
-        
         check_types = [parse_check_type(c.check_type) for c in checks]
         has_return = CheckType.RETURN in check_types
         has_issue = CheckType.ISSUE in check_types
-        
+
         if has_return and has_issue and len(checks) >= 2:
             return 'exchange'
         if any('Austausch' in (c.bemerkung or '') for c in checks):

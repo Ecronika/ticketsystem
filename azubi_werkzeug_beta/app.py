@@ -352,7 +352,8 @@ def setup_database():
 
         conn = None
         try:
-            # Fix H2: Prevent WAL connection locking by disposing existing SQLAlchemy pool connections
+            # Fix H2: Prevent WAL locking by disposing existing SQLAlchemy
+            # pool connections
             db.session.remove()
             db.engine.dispose()
 

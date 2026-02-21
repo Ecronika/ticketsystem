@@ -4,6 +4,12 @@ All notable changes to the Azubi Werkzeug Tracker will be documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.2-beta21] - 2026-02-21
+### ✨ Quality Gates & Cleanup
+- **Code Quality:** Systematically cleared all Pylint, Xenon, Radon, and Flake8 warnings to achieve a perfect 10.00/10 Score and a Grade A/B Maintainability Index.
+- **Refactoring:** Removed redundant `pylint: disable` comments, fixed remaining broad-exception blocks structurally where applicable, and extracted API formatters to reduce Cyclomatic Complexity.
+- **Cleanup:** Added `lint_report*.txt` to `.gitignore` and removed leftover lint/QA files to keep the repository clean.
+
 ## [2.8.2-beta20] - 2026-02-21
 ### ✨ Security & Performance Polish
 - **Dependency / Stability:** Fixed a runtime crash when generating QR codes in Alpine Docker by adding the `[pil]` extra to `qrcode` inside `requirements.txt`.

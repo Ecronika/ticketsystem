@@ -12,6 +12,7 @@ from flask import (
     render_template, request, redirect, url_for,
     flash, current_app, session, send_from_directory, abort
 )
+from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -24,8 +25,6 @@ from routes.auth import admin_required
 
 def _build_tool_status_list(azubi, werkzeuge, assigned_ids):
     """Build status list for tools."""
-    from sqlalchemy import func
-
     subq = (
         db.session.query(
             Check.werkzeug_id,
@@ -39,7 +38,7 @@ def _build_tool_status_list(azubi, werkzeuge, assigned_ids):
         c.werkzeug_id: c
         for c in Check.query
         .join(subq, (Check.werkzeug_id == subq.c.werkzeug_id) &
-                     (Check.datum == subq.c.last_datum))
+              (Check.datum == subq.c.last_datum))
         .filter(Check.azubi_id == azubi.id)
         .all()
     }

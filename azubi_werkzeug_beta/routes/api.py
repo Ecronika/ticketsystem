@@ -4,6 +4,7 @@ from datetime import datetime
 
 from flask import request, jsonify, current_app
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import func
 
 from extensions import db, limiter, csrf
 from models import Azubi, Werkzeug, Examiner, Check
@@ -11,6 +12,33 @@ from forms import AzubiForm, ExaminerForm, WerkzeugForm
 from services import CheckService
 from routes.auth import admin_required
 
+
+def _map_tool_status_for_api(tool, last_entry):
+    """Map tool status for API response, returns dict."""
+    status = 'ok'
+    if last_entry and last_entry.bemerkung:
+        parts = last_entry.bemerkung.split('|')
+        for p in parts:
+            if p.strip().startswith("Status:"):
+                status = p.replace("Status:", "").strip()
+                break
+
+    weight = 2  # OK
+    status_label = ""
+    if status == 'missing':
+        weight = 0
+        status_label = " (FEHLT)"
+    elif status == 'broken':
+        weight = 1
+        status_label = " (DEFEKT)"
+
+    return {
+        'id': tool.id,
+        'name': tool.name + status_label,
+        'sort_weight': weight,
+        'raw_name': tool.name,
+        'price': float(tool.price) if tool.price else 0.0
+    }
 
 def get_assigned_tools(azubi_id):
     """Get assigned tools for azubi, sorted by status."""
@@ -22,7 +50,6 @@ def get_assigned_tools(azubi_id):
         tools = Werkzeug.query.filter(Werkzeug.id.in_(assigned_ids)).all()
         result = []
 
-        from sqlalchemy import func
         subq = (
             db.session.query(
                 Check.werkzeug_id,
@@ -42,34 +69,8 @@ def get_assigned_tools(azubi_id):
         last_checks = {c.werkzeug_id: c for c in last_checks_list}
 
         for tool in tools:
-            # Determine status
             last_entry = last_checks.get(tool.id)
-
-            status = 'ok'
-            if last_entry and last_entry.bemerkung:
-                parts = last_entry.bemerkung.split('|')
-                for p in parts:
-                    if p.strip().startswith("Status:"):
-                        status = p.replace("Status:", "").strip()
-                        break
-
-            # Sort weights
-            weight = 2  # OK
-            status_label = ""
-            if status == 'missing':
-                weight = 0
-                status_label = " (FEHLT)"
-            elif status == 'broken':
-                weight = 1
-                status_label = " (DEFEKT)"
-
-            result.append({
-                'id': tool.id,
-                'name': tool.name + status_label,
-                'sort_weight': weight,
-                'raw_name': tool.name,
-                'price': float(tool.price) if tool.price else 0.0
-            })
+            result.append(_map_tool_status_for_api(tool, last_entry))
 
         # Sort: Weight asc (Missing=0, Broken=1, OK=2), then Name asc
         result.sort(key=lambda x: (x['sort_weight'], x['raw_name']))

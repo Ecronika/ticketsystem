@@ -1,14 +1,15 @@
 """Test configuration and fixtures."""
+# pylint: disable=redefined-outer-name
+import os
+import sys
+import pytest
+
 from models import Azubi, Werkzeug
 from extensions import db
 from app import app as flask_app
-import pytest
-import sys
-import os
 
 # Add beta folder to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 
 @pytest.fixture
 def test_app():
