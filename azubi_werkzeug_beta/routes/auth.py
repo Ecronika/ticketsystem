@@ -26,7 +26,10 @@ def admin_required(f):
     def decorated_function(*args, **kwargs):
         if not session.get('is_admin'):
             flash('Bitte zuerst einloggen.', 'warning')
-            return redirect(url_for('main.login', next=request.url))
+            ingress = request.headers.get('X-Ingress-Path', '')
+            return redirect(
+                f"{ingress}{url_for('main.login', next=request.url)}"
+            )
         return f(*args, **kwargs)
     return decorated_function
 

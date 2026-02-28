@@ -1,8 +1,38 @@
 # Changelog
 
-All notable changes to the Azubi Werkzeug Tracker will be documented in this file.
+All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.8.0] - 2026-02-21
+
+### Added
+- **Authentication System:** New PIN-based login system for administrators (`routes/auth.py`) including session management and the `@admin_required` decorator.
+- **Data Models:** Added `price` property to the `Werkzeug` model.
+- **Data Models:** Added `manufacturer` property to the `Check` model.
+- **PDF Reports:** Display the estimated replacement value on exchange protocols if the tool replacement is payable.
+- **Performance:** New batch query (`get_assigned_tools_batch`) to fetch assigned tools for multiple apprentices more efficiently (prevents N+1 query performance issues).
+- **System Initialization:** Automatic seeding of default system settings on first startup (e.g., default manufacturers and initial PIN hash).
+- **Migration Mode:** Introduced the ability to temporarily bypass the signature requirement during data imports (`migration_mode`).
+
+### Changed
+- **Migrations:** Refactored database migration logic to use optimized helper functions (`_add_column_if_missing`) for cleaner schema updates.
+- **Dev Server:** The local development server now starts in Adhoc SSL mode (`https://`) by default.
+
+### Fixed
+- **Database Locks:** Resolved errors caused by file locks (SQLite WAL Locks) during startup migrations by explicitly disposing of SQLAlchemy connections beforehand (`db.engine.dispose()`).
+- **Backup Service:** Fixed `OSError` crashes when listing backups if files are moved or deleted while being read.
+- **Cleanup:** Temporary PDF and signature files are now more reliably deleted when database transactions fail during the tool exchange process.
+
+### Security
+- **Reverse Proxy Support:** Integrated `werkzeug.middleware.proxy_fix.ProxyFix` to correctly process IP addresses and protocols behind Nginx or HAProxy.
+- **Open Redirect Protection:** Added a validation function (`_is_safe_redirect`) to the login process to prevent malicious redirects to external domains.
+- **Content-Security-Policy (CSP):** Added `unpkg.com` as a safe source for scripts and external connections in the CSP headers (for both Talisman and manual headers).
+
+## [2.8.2-beta22] - 2026-02-28
+### 🐛 Hotfix
+- **Ingress: Einstellungen 404-Fehler:** Behoben, dass beim Klick auf „Einstellungen" über Home Assistant Ingress ein `404 Not Found` Fehler aufgetreten ist. Ursache war der `@admin_required` Decorator, der bei nicht angemeldeten Nutzern zu `/login` weiterleitete, ohne den Ingress-Pfad-Prefix einzubeziehen. Der Redirect liest nun korrekt den `X-Ingress-Path`-Header und baut die Login-URL entsprechend auf.
 
 ## [2.8.2-beta21] - 2026-02-21
 ### ✨ Quality Gates & Cleanup
