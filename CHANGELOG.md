@@ -30,6 +30,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Open Redirect Protection:** Added a validation function (`_is_safe_redirect`) to the login process to prevent malicious redirects to external domains.
 - **Content-Security-Policy (CSP):** Added `unpkg.com` as a safe source for scripts and external connections in the CSP headers (for both Talisman and manual headers).
 
+## [2.8.2-beta29] - 2026-02-28
+### 🛠 Code Quality
+- **Quality gate compliance pass:** All 7 quality gates now pass.
+  - **autopep8** applied recursively (PEP 8 formatting).
+  - **Flake8** (`--max-line-length=120`): clean — removed unused `session` import from `routes/checks.py`.
+  - **Pylint** 10.00/10 — same fix resolved the W0611 warning.
+  - **pydocstyle** (PEP 257 convention): clean.
+  - **Safety**: 0 known CVEs in `requirements.txt`.
+  - **Xenon** CC ≤ B: extracted 5 helper functions from `checks.py` (`_parse_last_entry_status`, `_validate_signatures`, `_parse_session_checks`, `_collect_session_files`, `_log_session_deleted`) to reduce cyclomatic complexity from B(10) → B(8) on the most complex functions; module average now A (4.2).
+  - **Radon MI**: all modules grade A.
+
 ## [2.8.2-beta28] - 2026-02-28
 ### 🐛 Hotfix
 - **Startup crash — circular import in `services.py`:** beta27 introduced `from routes.utils import is_migration_active` into `services.py`. Because `routes/` imports from `services`, this created a circular import (`services` → `routes.utils` → `routes/__init__` → `routes/dashboard` → `services`) and crashed Gunicorn on startup with `ImportError: cannot import name 'CheckService'`. Fixed by inlining the migration-expiry check directly in `services._handle_signatures`, removing the cross-layer import.
