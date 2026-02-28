@@ -144,6 +144,16 @@ db.init_app(app)
 csrf.init_app(app)
 limiter.init_app(app)
 
+# C-5: Multi-Worker Guard — in-memory cache is process-local, unsafe for > 1 worker
+_configured_workers = int(os.environ.get('GUNICORN_WORKERS', 1))
+if _configured_workers > 1:
+    app.logger.critical(
+        "FATAL: GUNICORN_WORKERS=%d detected. The in-memory tool-assignment cache "
+        "(_assigned_tools_cache) is process-local and will cause inventory "
+        "inconsistencies with multiple workers. Set GUNICORN_WORKERS=1 or "
+        "migrate to a shared cache (e.g. Redis).", _configured_workers
+    )
+
 if not scheduler.running:
     scheduler.init_app(app)
     scheduler.start()

@@ -511,6 +511,11 @@
                 errorAlert.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 return;
             }
+
+            // Prevent double-submit: disable button and show spinner
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Speichere...';
         });
     });
 </script>

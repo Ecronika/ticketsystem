@@ -124,9 +124,9 @@ class CheckService:
         has_issue = CheckType.ISSUE in check_types
 
         if has_return and has_issue and len(checks) >= 2:
-            return 'exchange'
+            return CheckType.EXCHANGE  # Return enum, not string
         if any('Austausch' in (c.bemerkung or '') for c in checks):
-            return 'exchange'
+            return CheckType.EXCHANGE
         return None
 
     @staticmethod

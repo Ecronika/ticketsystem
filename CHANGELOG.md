@@ -30,6 +30,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Open Redirect Protection:** Added a validation function (`_is_safe_redirect`) to the login process to prevent malicious redirects to external domains.
 - **Content-Security-Policy (CSP):** Added `unpkg.com` as a safe source for scripts and external connections in the CSP headers (for both Talisman and manual headers).
 
+## [2.8.2-beta27] - 2026-02-28
+### 🐛 Bug Fixes
+- **Double-click protection on Check/Issue/Return form:** After a valid submission the submit button is immediately disabled and replaced with a loading spinner, preventing duplicate check records from PDF generation latency.
+- **`detect_exchange_type` returns `CheckType` enum:** Previously returned the raw string `'exchange'` instead of `CheckType.EXCHANGE`. Fixed for type safety and to prevent silent breakage on refactoring.
+- **`settings.html` extra closing `</div>`:** Removed one superfluous `</div>` at the end of the file that caused an unbalanced DOM tree (masked by browser tolerance).
+- **Debug `console.log` statements removed from `tools.html`:** Five leftover development `console.log('DEBUG: ...')` statements are no longer printed to the browser console in production.
+
+### 🔒 Security / Ops
+- **Multi-worker startup guard:** `app.py` now logs a `CRITICAL` message at startup if `GUNICORN_WORKERS > 1` is detected, warning that the in-memory tool-assignment cache is process-local and will cause inventory inconsistencies.
+
+### 📦 Build
+- **`.dockerignore` added:** `final_polish.py`, `score_check.py`, `verify_setup.py` are now excluded from the Docker image via `.dockerignore`, reducing image size and attack surface.
+
 ## [2.8.2-beta26] - 2026-02-28
 ### 🔒 Security
 - **Rate limit on `/login`:** Added `@limiter.limit("5 per minute")` to the login route. Previously there was no brute-force protection — all 10,000 four-digit PIN combinations could be tried in ~100 seconds.

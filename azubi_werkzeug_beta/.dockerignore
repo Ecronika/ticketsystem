@@ -1,0 +1,14 @@
+# Dev/maintenance scripts not needed in the production Docker image
+final_polish.py
+score_check.py
+verify_setup.py
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local test/debug files
+.env.local
+*.log

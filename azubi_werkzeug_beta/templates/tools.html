@@ -257,14 +257,10 @@
         }
 
         // AJAX Add Werkzeug
-        console.log('DEBUG: Looking for addWerkzeugForm...');
         const addForm = document.getElementById('addWerkzeugForm');
-        console.log('DEBUG: addWerkzeugForm found:', addForm);
 
         if (addForm) {
-            console.log('DEBUG: Registering submit event listener for addWerkzeugForm');
             addForm.addEventListener('submit', function (e) {
-                console.log('DEBUG: addWerkzeugForm submit event fired!');
                 e.preventDefault();
 
                 const formData = new FormData(this);
