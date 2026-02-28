@@ -30,6 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Open Redirect Protection:** Added a validation function (`_is_safe_redirect`) to the login process to prevent malicious redirects to external domains.
 - **Content-Security-Policy (CSP):** Added `unpkg.com` as a safe source for scripts and external connections in the CSP headers (for both Talisman and manual headers).
 
+## [2.8.2-beta23] - 2026-02-28
+### 🐛 Hotfix
+- **Ingress: Post-login 404 error:** Fixed a `404 Not Found` error after entering the PIN when accessing the app via Home Assistant Ingress. Two root causes were addressed:
+  1. `_is_safe_redirect` was comparing the internal `host_url` netloc against the external Ingress URL, causing the check to always fail. The redirect target was discarded and the fallback redirected to `/` (no Ingress prefix), resulting in a 404. The check now additionally trusts URLs whose path starts with the current `X-Ingress-Path` prefix.
+  2. The fallback redirect after login and the logout redirect both now prepend the `X-Ingress-Path` header value before calling `url_for`.
+
 ## [2.8.2-beta22] - 2026-02-28
 ### 🐛 Hotfix
 - **Ingress: Settings 404 error:** Fixed a `404 Not Found` error when clicking "Einstellungen" (Settings) via Home Assistant Ingress. The `@admin_required` decorator was redirecting unauthenticated users to `/login` without prepending the Ingress path prefix. The redirect now correctly reads the `X-Ingress-Path` header and constructs the login URL accordingly.

@@ -14,10 +14,21 @@ from models import SystemSettings
 
 
 def _is_safe_redirect(target: str) -> bool:
-    """Return True only if target stays on the same host."""
+    """Return True only if target stays on the same host or Ingress proxy."""
     ref = urlparse(request.host_url)
     test = urlparse(urljoin(request.host_url, target))
-    return test.scheme in ('http', 'https') and ref.netloc == test.netloc
+    if test.scheme not in ('http', 'https'):
+        return False
+    # Direct same-host match (standalone / local access)
+    if ref.netloc == test.netloc:
+        return True
+    # Behind Ingress: the target URL carries the external hostname.
+    # Trust it if it contains the Ingress path prefix so we stay on the
+    # same add-on and don't redirect to a foreign site.
+    ingress = request.headers.get('X-Ingress-Path', '')
+    if ingress and test.path.startswith(ingress):
+        return True
+    return False
 
 
 def admin_required(f):
@@ -49,8 +60,9 @@ def login():
             session['is_admin'] = True
             flash('Erfolgreich eingeloggt.', 'success')
             raw_next = request.args.get('next') or request.form.get('next')
+            ingress = request.headers.get('X-Ingress-Path', '')
             next_url = raw_next if (raw_next and _is_safe_redirect(raw_next)) else None
-            return redirect(next_url or url_for('main.index'))
+            return redirect(next_url or f"{ingress}{url_for('main.index')}")
 
         flash('Falscher PIN.', 'error')
 
@@ -61,7 +73,8 @@ def logout():
     """Handle admin logout."""
     session.pop('is_admin', None)
     flash('Erfolgreich ausgeloggt.', 'info')
-    return redirect(url_for('main.index'))
+    ingress = request.headers.get('X-Ingress-Path', '')
+    return redirect(f"{ingress}{url_for('main.index')}")
 
 
 def register_routes(bp):
