@@ -663,11 +663,21 @@ class BackupService:
     @staticmethod
     def _perform_restore_overwrite(data_dir, temp_dir):
         """Overwrite current data with restored data."""
-        # DB & Config
+        # DB
         shutil.copy2(
-            os.path.join(
-                temp_dir, 'werkzeug.db'), os.path.join(
-                data_dir, 'werkzeug.db'))
+            os.path.join(temp_dir, 'werkzeug.db'),
+            os.path.join(data_dir, 'werkzeug.db'))
+            
+        # Also restore WAL and SHM if they exist in the backup
+        for ext in ['-wal', '-shm']:
+            src = os.path.join(temp_dir, f'werkzeug.db{ext}')
+            dst = os.path.join(data_dir, f'werkzeug.db{ext}')
+            if os.path.exists(src):
+                shutil.copy2(src, dst)
+            elif os.path.exists(dst):
+                # If backup doesn't have them, clean up old existing ones
+                # to prevent corruption with the newly restored main DB file
+                os.remove(dst)
 
         # Handle Config (Optional in backup)
         if os.path.exists(os.path.join(temp_dir, 'config.yaml')):
@@ -824,10 +834,18 @@ class BackupService:
 
         try:
             with zipfile.ZipFile(backup_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                # 1. Database
+                # 1. Database (including WAL files)
                 db_path = os.path.join(data_dir, 'werkzeug.db')
                 if os.path.exists(db_path):
                     zipf.write(db_path, 'werkzeug.db')
+                    
+                wal_path = os.path.join(data_dir, 'werkzeug.db-wal')
+                if os.path.exists(wal_path):
+                    zipf.write(wal_path, 'werkzeug.db-wal')
+                    
+                shm_path = os.path.join(data_dir, 'werkzeug.db-shm')
+                if os.path.exists(shm_path):
+                    zipf.write(shm_path, 'werkzeug.db-shm')
 
                 # 2. Config (HA Add-on support)
                 config_path = os.path.join(data_dir, 'config.yaml')
