@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Open Redirect Protection:** Added a validation function (`_is_safe_redirect`) to the login process to prevent malicious redirects to external domains.
 - **Content-Security-Policy (CSP):** Added `unpkg.com` as a safe source for scripts and external connections in the CSP headers (for both Talisman and manual headers).
 
+## [2.8.2-beta24] - 2026-02-28
+### 🐛 Hotfix
+- **SSL mode: HTTP 400 on port 5000:** When `ssl: true` is configured, NGINX was listening on port 5000 with SSL only. Accessing the add-on via plain `http://` resulted in a cryptic `400 Bad Request - The plain HTTP request was sent to HTTPS port`. Added a second NGINX server block on port 5001 that issues a `301` redirect to `https://$host:5000`. Port 5001 is now declared in `config.yaml`.
+
 ## [2.8.2-beta23] - 2026-02-28
 ### 🐛 Hotfix
 - **Ingress: Post-login 404 error:** Fixed a `404 Not Found` error after entering the PIN when accessing the app via Home Assistant Ingress. Two root causes were addressed:
