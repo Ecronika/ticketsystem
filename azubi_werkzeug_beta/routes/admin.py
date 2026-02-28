@@ -226,8 +226,14 @@ def restore_backup():
                     'Backup erfolgreich '
                     'wiederhergestellt. System startet neu...',
                     'success')
-                # Force restart to reload DB connections and config
-                sys.exit(1)
+                # os._exit() terminates at OS level without raising SystemExit.
+                # callbacks catch and log as CRITICAL — os._exit avoids that.
+                # Delay by 2.0s so the HTTP 302 response has enough time to
+                # reach the browser before Gunicorn terminates (prevents 504).
+                import threading  # pylint: disable=import-outside-toplevel
+                threading.Timer(2.0, lambda: os._exit(1)).start()  # noqa: SLF001
+                return redirect(
+                    f"{ingress}{url_for('main.settings')}")
             except Exception as e:  # pylint: disable=broad-exception-caught
                 flash(
                     f'Fehler bei Wiederherstellung: '
