@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Open Redirect Protection:** Added a validation function (`_is_safe_redirect`) to the login process to prevent malicious redirects to external domains.
 - **Content-Security-Policy (CSP):** Added `unpkg.com` as a safe source for scripts and external connections in the CSP headers (for both Talisman and manual headers).
 
+## [2.8.2-beta28] - 2026-02-28
+### 🐛 Hotfix
+- **Startup crash — circular import in `services.py`:** beta27 introduced `from routes.utils import is_migration_active` into `services.py`. Because `routes/` imports from `services`, this created a circular import (`services` → `routes.utils` → `routes/__init__` → `routes/dashboard` → `services`) and crashed Gunicorn on startup with `ImportError: cannot import name 'CheckService'`. Fixed by inlining the migration-expiry check directly in `services._handle_signatures`, removing the cross-layer import.
+
 ## [2.8.2-beta27] - 2026-02-28
 ### 🐛 Bug Fixes
 - **Double-click protection on Check/Issue/Return form:** After a valid submission the submit button is immediately disabled and replaced with a loading spinner, preventing duplicate check records from PDF generation latency.
