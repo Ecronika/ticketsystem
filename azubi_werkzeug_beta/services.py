@@ -343,10 +343,16 @@ class CheckService:
         sig_azubi_path = CheckService.save_signature(
             form_data.get('signature_azubi_data'), session_id, 'azubi')
 
-        # Inline migration check to avoid circular import (routes imports services).
-        # Mirrors the logic of is_migration_active() in routes/utils.py.
-        _expires = session.get('migration_mode_expires')
-        is_migration = bool(_expires and time.time() <= _expires)
+        # Inline migration check — avoids circular import (routes imports services).
+        # migration_mode_expires is stored as an ISO datetime string by admin.py.
+        # Mirrors is_migration_active() in routes/utils.py.
+        _expires_str = session.get('migration_mode_expires')
+        is_migration = False
+        if _expires_str:
+            try:
+                is_migration = datetime.utcnow() < datetime.fromisoformat(_expires_str)
+            except (ValueError, TypeError):
+                pass
 
         if not sig_azubi_path and not is_migration:
             raise ValueError("Fehler beim Speichern der Azubi-Signatur")

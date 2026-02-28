@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Open Redirect Protection:** Added a validation function (`_is_safe_redirect`) to the login process to prevent malicious redirects to external domains.
 - **Content-Security-Policy (CSP):** Added `unpkg.com` as a safe source for scripts and external connections in the CSP headers (for both Talisman and manual headers).
 
+## [2.8.2-beta30] - 2026-02-28
+### 🐛 Hotfix
+- **B-01: `TypeError` in `services._handle_signatures` (migration mode broken via Service layer):** The inline migration check introduced in beta28 compared `time.time()` (Unix float) against `migration_mode_expires` which `admin.py` stores as `expires.isoformat()` (ISO datetime string). Python 3 raises `TypeError` for this comparison, silently breaking migration-mode bypass of the signature requirement in `CheckService`. Fixed by using `datetime.utcnow() < datetime.fromisoformat(...)` matching the identical logic already present in `routes/utils.py → is_migration_active()`.
+
 ## [2.8.2-beta29] - 2026-02-28
 ### 🛠 Code Quality
 - **Quality gate compliance pass:** All 7 quality gates now pass.
