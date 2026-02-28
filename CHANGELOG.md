@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Open Redirect Protection:** Added a validation function (`_is_safe_redirect`) to the login process to prevent malicious redirects to external domains.
 - **Content-Security-Policy (CSP):** Added `unpkg.com` as a safe source for scripts and external connections in the CSP headers (for both Talisman and manual headers).
 
+## [2.8.2-beta32] - 2026-02-28
+### 🐛 Hotfix
+- **nginx 413 Request Entity Too Large on backup upload:** `client_max_body_size` was missing from the nginx config in `rootfs/etc/services.d/azubi-werkzeug/run` — nginx defaulted to 1 MB. Added `client_max_body_size 50m` to both the SSL and HTTP server blocks. 50 MB gives ample headroom for backup ZIPs (DB + signatures + reports). **Requires Add-on restart to take effect.**
+
 ## [2.8.2-beta31] - 2026-02-28 — RC1 Preparation
 ### 🐛 Bug Fixes
 - **B-02: Root `tests/` deleted:** The root `tests/conftest.py` imported the old monolithic `app.py` (routes.py no longer exists since v2.7 blueprint split). Running `pytest` at repo root caused import errors. Directory removed, all tests are in `azubi_werkzeug_beta/tests/`.
