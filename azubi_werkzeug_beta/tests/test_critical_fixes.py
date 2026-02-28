@@ -75,3 +75,59 @@ def test_global_cache_invalidation(test_app):
         # without error it's likely working. To be sure, we could check if a
         # new fetch triggers logic, but for now we trust unit test logic above.
         # new fetch triggers logic, but for now we trust unit test logic above.
+
+
+# ---------------------------------------------------------------------------
+# B-01 regression: migration expiry check must use datetime, not Unix float
+# ---------------------------------------------------------------------------
+
+def test_is_migration_active_expired(test_app):
+    """is_migration_active() returns False when the timestamp has elapsed."""
+    from datetime import datetime, timedelta  # noqa: PLC0415
+    from routes.utils import is_migration_active  # noqa: PLC0415
+
+    with test_app.test_request_context():
+        from flask import session  # noqa: PLC0415
+        # Timestamp one hour in the past
+        past = (datetime.utcnow() - timedelta(hours=1)).isoformat()
+        session['migration_mode'] = True
+        session['migration_mode_expires'] = past
+        assert not is_migration_active(), (
+            "is_migration_active() should return False for an expired timestamp")
+
+
+def test_is_migration_active_valid(test_app):
+    """is_migration_active() returns True when the timestamp is in the future."""
+    from datetime import datetime, timedelta  # noqa: PLC0415
+    from routes.utils import is_migration_active  # noqa: PLC0415
+
+    with test_app.test_request_context():
+        from flask import session  # noqa: PLC0415
+        future = (datetime.utcnow() + timedelta(hours=7)).isoformat()
+        session['migration_mode'] = True
+        session['migration_mode_expires'] = future
+        assert is_migration_active(), (
+            "is_migration_active() should return True for a future timestamp")
+
+
+def test_is_migration_active_malformed(test_app):
+    """is_migration_active() returns False for a malformed expiry string."""
+    from routes.utils import is_migration_active  # noqa: PLC0415
+
+    with test_app.test_request_context():
+        from flask import session  # noqa: PLC0415
+        session['migration_mode'] = True
+        session['migration_mode_expires'] = 'not-a-date'
+        assert not is_migration_active(), (
+            "is_migration_active() should return False for a malformed timestamp")
+
+
+def test_is_migration_active_missing(test_app):
+    """is_migration_active() returns False when the flag is not set at all."""
+    from routes.utils import is_migration_active  # noqa: PLC0415
+
+    with test_app.test_request_context():
+        from flask import session  # noqa: PLC0415
+        session.clear()
+        assert not is_migration_active(), (
+            "is_migration_active() should return False when flag is absent")

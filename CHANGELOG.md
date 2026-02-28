@@ -30,6 +30,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Open Redirect Protection:** Added a validation function (`_is_safe_redirect`) to the login process to prevent malicious redirects to external domains.
 - **Content-Security-Policy (CSP):** Added `unpkg.com` as a safe source for scripts and external connections in the CSP headers (for both Talisman and manual headers).
 
+## [2.8.2-beta31] - 2026-02-28 — RC1 Preparation
+### 🐛 Bug Fixes
+- **B-02: Root `tests/` deleted:** The root `tests/conftest.py` imported the old monolithic `app.py` (routes.py no longer exists since v2.7 blueprint split). Running `pytest` at repo root caused import errors. Directory removed, all tests are in `azubi_werkzeug_beta/tests/`.
+- **B-03: History total count hint:** `history()` now also queries `total_count` before applying `.limit(2000)`. Template shows `"Neueste 2.000 von X Einträgen"` banner when the display limit is reached.
+- **`/health` returns JSON:** Changed from plain text `"OK"` to `{"status": "ok", "version": "...", "uptime": ..., "db_ok": true}`. Returns 503 with `"degraded"` status on DB failure.
+
+### 🧪 Tests
+- **Rate limit regression:** `test_auth.py` — 6th wrong PIN within one burst must return 429.
+- **Open redirect blocked:** `test_auth.py` — Login with `next=https://evil.com` must not redirect externally.
+- **B-01 regression (4 cases):** `test_critical_fixes.py` — `is_migration_active()` correctly handles expired, valid, malformed and missing timestamps.
+- **Zip Slip rejected:** `test_backup.py` — `BackupService.restore_backup()` rejects ZIP archives with path-traversal entries.
+
+### 📦 Build
+- **`pytest.ini` added:** `testpaths = azubi_werkzeug_beta/tests` — running `pytest` at repo root now always targets the correct test directory.
+
 ## [2.8.2-beta30] - 2026-02-28
 ### 🐛 Hotfix
 - **B-01: `TypeError` in `services._handle_signatures` (migration mode broken via Service layer):** The inline migration check introduced in beta28 compared `time.time()` (Unix float) against `migration_mode_expires` which `admin.py` stores as `expires.isoformat()` (ISO datetime string). Python 3 raises `TypeError` for this comparison, silently breaking migration-mode bypass of the signature requirement in `CheckService`. Fixed by using `datetime.utcnow() < datetime.fromisoformat(...)` matching the identical logic already present in `routes/utils.py → is_migration_active()`.

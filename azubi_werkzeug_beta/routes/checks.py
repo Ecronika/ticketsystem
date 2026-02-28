@@ -253,6 +253,7 @@ def history():
                 azubi_id=int(azubi_id))
 
         query_start = time.time()
+        total_count = query.count()
         all_checks = query.options(
             joinedload(Check.azubi)).limit(2000).all()
         query_duration = time.time() - query_start
@@ -278,6 +279,7 @@ def history():
             'history.html',
             sessions=sessions,
             azubis=azubis,
+            total_count=total_count,
             selected_azubi_id=(
                 int(azubi_id)
                 if azubi_id and azubi_id != 'all'

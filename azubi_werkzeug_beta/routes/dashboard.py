@@ -9,13 +9,15 @@ import time
 from datetime import datetime
 
 from flask import (
-    render_template, request, current_app, Response
+    render_template, request, current_app, Response, jsonify
 )
 from sqlalchemy import func
 
 from extensions import db, Config
 from models import Azubi, Check
 from services import CheckService
+
+_dash_start_time = time.time()
 
 
 def register_routes(bp):
@@ -124,15 +126,22 @@ def register_routes(bp):
 
     @bp.route('/health')
     def health_check():
-        """Lightweight healthcheck endpoint."""
+        """Lightweight healthcheck endpoint — returns JSON."""
         try:
-            db.session.execute(
-                db.text('SELECT 1')).fetchone()
-            return 'OK', 200
+            db.session.execute(db.text('SELECT 1')).fetchone()
+            db_ok = True
         except Exception as e:  # pylint: disable=broad-exception-caught
-            current_app.logger.error(
-                f"Healthcheck failed: {e}")
-            return 'FAIL', 503
+            current_app.logger.error(f"Healthcheck DB failed: {e}")
+            db_ok = False
+
+        payload = {
+            "status": "ok" if db_ok else "degraded",
+            "version": current_app.config.get("VERSION", "2.8.2"),
+            "uptime": round(time.time() - _dash_start_time, 2),
+            "db_ok": db_ok,
+        }
+        status_code = 200 if db_ok else 503
+        return jsonify(payload), status_code
 
     @bp.route('/scanner')
     def scanner():
