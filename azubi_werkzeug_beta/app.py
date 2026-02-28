@@ -11,6 +11,7 @@ import queue
 import secrets
 import sqlite3
 import sys
+from datetime import timedelta
 from logging.handlers import QueueHandler, QueueListener, RotatingFileHandler
 
 from flask import (
@@ -35,7 +36,9 @@ app.config.update(
     SESSION_COOKIE_SAMESITE='Lax',
     MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB Upload Limit
     # 7 Days Validity (Prevent expiry in long sessions)
-    WTF_CSRF_TIME_LIMIT=604800
+    WTF_CSRF_TIME_LIMIT=604800,
+    # Auto-logout after 8 hours of inactivity
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=8)
     # SESSION_COOKIE_SECURE=True # Disabled for Ingress (SSL terminated by HA
     # Proxy)
 )

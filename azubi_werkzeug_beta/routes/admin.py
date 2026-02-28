@@ -7,6 +7,7 @@ backups, migration mode, logo upload, QR codes, and reports.
 import os
 import time
 import sys
+from datetime import datetime, timedelta
 
 from flask import (
     render_template, request, redirect, url_for,
@@ -294,6 +295,12 @@ def toggle_migration_mode():
     current_mode = session.get(
         'migration_mode', False)
     session['migration_mode'] = not current_mode
+    if session['migration_mode']:
+        # Store expiry time: 8 hours from now
+        expires = datetime.utcnow() + timedelta(hours=8)
+        session['migration_mode_expires'] = expires.isoformat()
+    else:
+        session.pop('migration_mode_expires', None)
     status = ("aktiviert"
               if session['migration_mode']
               else "deaktiviert")

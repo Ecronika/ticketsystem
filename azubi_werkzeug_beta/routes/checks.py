@@ -19,7 +19,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from extensions import db
 from models import Azubi, Werkzeug, Examiner, Check, CheckType, SystemSettings
 from services import CheckService
-from routes.utils import get_data_dir, parse_migration_date
+from routes.utils import get_data_dir, parse_migration_date, is_migration_active
 from routes.auth import admin_required
 
 
@@ -123,7 +123,7 @@ def _validate_check_submission(form):
 
     sig_azubi = form.get('signature_azubi_data')
     sig_examiner = form.get('signature_examiner_data')
-    is_migration = session.get('migration_mode', False)
+    is_migration = is_migration_active()
 
     if (not sig_azubi or not sig_examiner) and not is_migration:
         return None, ('Fehler: Unterschriften fehlen.', 'error')
@@ -152,7 +152,7 @@ def submit_check():
 
     try:
         check_date = datetime.now()
-        if session.get('migration_mode', False):
+        if is_migration_active():
             check_date, err = parse_migration_date(
                 request.form, ingress)
             if err:
@@ -366,7 +366,7 @@ def delete_session(session_id):
     """Delete a check session (migration mode only)."""
     ingress = request.headers.get('X-Ingress-Path', '')
 
-    if not session.get('migration_mode', False):
+    if not is_migration_active():
         current_app.logger.warning(
             f"Delete session attempted WITHOUT "
             f"migration mode: {session_id}")

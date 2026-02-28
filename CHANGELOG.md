@@ -30,6 +30,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Open Redirect Protection:** Added a validation function (`_is_safe_redirect`) to the login process to prevent malicious redirects to external domains.
 - **Content-Security-Policy (CSP):** Added `unpkg.com` as a safe source for scripts and external connections in the CSP headers (for both Talisman and manual headers).
 
+## [2.8.2-beta25] - 2026-02-28
+### ✨ Features
+- **Auto-logout after 8 hours:** Admin sessions now automatically expire 8 hours after login. Flask's `PERMANENT_SESSION_LIFETIME` is set to 8 hours and `session.permanent = True` is set on successful login.
+- **Migration mode auto-expiry:** When migration mode is activated, an expiry timestamp (8 hours from now) is stored in the session. A new `is_migration_active()` helper in `routes/utils.py` checks this timestamp on every access and silently clears migration mode when it has elapsed. This replaces all direct `session.get('migration_mode')` calls in `routes/checks.py` and `services.py`.
+
+### 🐛 Hotfix
+- **Reverted port 5001:** Removed the HTTP→HTTPS redirect NGINX block and `5001/tcp` from `config.yaml` introduced in beta24. Direct HTTPS access via `https://<host>:5000/` is the intended path when SSL is enabled.
+
 ## [2.8.2-beta24] - 2026-02-28
 ### 🐛 Hotfix
 - **SSL mode: HTTP 400 on port 5000:** When `ssl: true` is configured, NGINX was listening on port 5000 with SSL only. Accessing the add-on via plain `http://` resulted in a cryptic `400 Bad Request - The plain HTTP request was sent to HTTPS port`. Added a second NGINX server block on port 5001 that issues a `301` redirect to `https://$host:5000`. Port 5001 is now declared in `config.yaml`.

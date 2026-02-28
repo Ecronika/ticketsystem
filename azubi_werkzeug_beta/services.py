@@ -16,6 +16,7 @@ from flask import current_app, session
 from extensions import db, Config, scheduler
 from models import Check, CheckType, Werkzeug, Azubi, SystemSettings
 from pdf_utils import generate_handover_pdf, parse_check_type
+from routes.utils import is_migration_active
 
 # Cache for assigned tools to reduce DB load
 _assigned_tools_cache = {}
@@ -343,7 +344,7 @@ class CheckService:
         sig_azubi_path = CheckService.save_signature(
             form_data.get('signature_azubi_data'), session_id, 'azubi')
 
-        is_migration = session.get('migration_mode', False)
+        is_migration = is_migration_active()
 
         if not sig_azubi_path and not is_migration:
             raise ValueError("Fehler beim Speichern der Azubi-Signatur")

@@ -58,6 +58,7 @@ def login():
 
         if check_password_hash(pin_hash, pin):
             session['is_admin'] = True
+            session.permanent = True  # Enables PERMANENT_SESSION_LIFETIME (8h)
             flash('Erfolgreich eingeloggt.', 'success')
             raw_next = request.args.get('next') or request.form.get('next')
             ingress = request.headers.get('X-Ingress-Path', '')
