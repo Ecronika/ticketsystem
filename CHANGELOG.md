@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Open Redirect Protection:** Added a validation function (`_is_safe_redirect`) to the login process to prevent malicious redirects to external domains.
 - **Content-Security-Policy (CSP):** Added `unpkg.com` as a safe source for scripts and external connections in the CSP headers (for both Talisman and manual headers).
 
+## [2.8.2-beta34] - 2026-02-28
+### 🐛 Hotfix
+- **Data Loss on Backup Restore (WAL/SHM ignored):** Fixed a critical bug in `BackupService.create_backup()` where only `werkzeug.db` was added to the ZIP archive, ignoring the `werkzeug.db-wal` (Write-Ahead Log) and `werkzeug.db-shm` files. Because SQLite operates in WAL mode, all recent data (up to the last checkpoint) lives in the WAL file. Creating or restoring a backup without it caused recent checks (up to two weeks old) to vanish. The archiver now includes `.db`, `-wal`, and `-shm` files. The restore process copies them back, or actively deletes existing local WAL files if the backup does not contain them (e.g. older v2.7.0 backups) to prevent DB corruption.
+
 ## [2.8.2-beta33] - 2026-02-28
 ### 🐛 Hotfix
 - **504 Gateway Time-out on backup restore:** Replaced the immediate `sys.exit(1)` upon successful backup restore with a 2.0-second delayed `os._exit(1)`. The immediate exit caused Gunicorn to die before the HTTP 302 response could properly flush through NGINX to the browser, resulting in a 504 error instead of the success message and redirect. `os._exit(1)` also prevents the `CRITICAL:concurrent.futures:Exception in worker` log entry that `sys.exit(1)` caused in Gunicorn's thread pool.
