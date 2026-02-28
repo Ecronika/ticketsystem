@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.8.2-beta22] - 2026-02-28
 ### 🐛 Hotfix
-- **Ingress: Einstellungen 404-Fehler:** Behoben, dass beim Klick auf „Einstellungen" über Home Assistant Ingress ein `404 Not Found` Fehler aufgetreten ist. Ursache war der `@admin_required` Decorator, der bei nicht angemeldeten Nutzern zu `/login` weiterleitete, ohne den Ingress-Pfad-Prefix einzubeziehen. Der Redirect liest nun korrekt den `X-Ingress-Path`-Header und baut die Login-URL entsprechend auf.
+- **Ingress: Settings 404 error:** Fixed a `404 Not Found` error when clicking "Einstellungen" (Settings) via Home Assistant Ingress. The `@admin_required` decorator was redirecting unauthenticated users to `/login` without prepending the Ingress path prefix. The redirect now correctly reads the `X-Ingress-Path` header and constructs the login URL accordingly.
 
 ## [2.8.2-beta21] - 2026-02-21
 ### ✨ Quality Gates & Cleanup
