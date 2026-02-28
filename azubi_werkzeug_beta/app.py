@@ -37,10 +37,11 @@ app.config.update(
     MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB Upload Limit
     # 7 Days Validity (Prevent expiry in long sessions)
     WTF_CSRF_TIME_LIMIT=604800,
-    # Auto-logout after 8 hours of inactivity
-    PERMANENT_SESSION_LIFETIME=timedelta(hours=8)
-    # SESSION_COOKIE_SECURE=True # Disabled for Ingress (SSL terminated by HA
-    # Proxy)
+    # Auto-logout after 8 hours
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
+    # Secure cookie: True in production (HA always serves HTTPS via Ingress/SSL).
+    # Set FLASK_ENV=development to allow HTTP cookies during local debugging.
+    SESSION_COOKIE_SECURE=os.environ.get('FLASK_ENV', 'production') == 'production'
 )
 
 # --- Environment Validation ---

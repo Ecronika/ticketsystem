@@ -101,8 +101,9 @@
                                                     data-bs-toggle="modal" data-bs-target="#editWerkzeugModal"
                                                     data-id="{{ werkzeug.id }}" data-name="{{ werkzeug.name }}"
                                                     data-category="{{ werkzeug.material_category }}"
-                                                    data-param="{{ werkzeug.tech_param_label or '' }}" data-price="{{ "
-                                                    %.2f"|format(werkzeug.price|default(0.0)) }}" title="Bearbeiten">
+                                                    data-param="{{ werkzeug.tech_param_label or '' }}"
+                                                    data-price="{{ '%.2f'|format(werkzeug.price|default(0.0)) }}"
+                                                    title="Bearbeiten">
                                                     <i class="bi bi-pencil"></i>
                                                 </button>
                                                 <button type="submit" class="btn btn-sm btn-light text-danger border-0"

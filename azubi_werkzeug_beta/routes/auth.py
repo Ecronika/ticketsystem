@@ -11,6 +11,7 @@ from flask import (
 )
 from werkzeug.security import check_password_hash
 from models import SystemSettings
+from extensions import limiter
 
 
 def _is_safe_redirect(target: str) -> bool:
@@ -45,7 +46,7 @@ def admin_required(f):
     return decorated_function
 
 
-def login():
+def _login_view():
     """Handle admin login."""
     if request.method == 'POST':
         pin = request.form.get('pin')
@@ -70,7 +71,7 @@ def login():
     return render_template('login.html')
 
 
-def logout():
+def _logout_view():
     """Handle admin logout."""
     session.pop('is_admin', None)
     flash('Erfolgreich ausgeloggt.', 'info')
@@ -80,5 +81,11 @@ def logout():
 
 def register_routes(bp):
     """Register auth routes."""
-    bp.add_url_rule('/login', view_func=login, methods=['GET', 'POST'])
-    bp.add_url_rule('/logout', view_func=logout)
+    # Rate-limit applied via @bp.route so the decorator chain is respected.
+    login_view = limiter.limit("5 per minute")(_login_view)
+    login_view.__name__ = 'login'
+    bp.add_url_rule('/login', view_func=login_view, methods=['GET', 'POST'])
+
+    logout_view = _logout_view
+    logout_view.__name__ = 'logout'
+    bp.add_url_rule('/logout', view_func=logout_view)

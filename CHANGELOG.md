@@ -30,6 +30,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Open Redirect Protection:** Added a validation function (`_is_safe_redirect`) to the login process to prevent malicious redirects to external domains.
 - **Content-Security-Policy (CSP):** Added `unpkg.com` as a safe source for scripts and external connections in the CSP headers (for both Talisman and manual headers).
 
+## [2.8.2-beta26] - 2026-02-28
+### 🔒 Security
+- **Rate limit on `/login`:** Added `@limiter.limit("5 per minute")` to the login route. Previously there was no brute-force protection — all 10,000 four-digit PIN combinations could be tried in ~100 seconds.
+- **`SESSION_COOKIE_SECURE` enabled:** Session cookies are now sent with the `Secure` flag in production. Set `FLASK_ENV=development` to disable for local HTTP debugging.
+
+### 🐛 Bug Fixes
+- **`session` variable shadowing in `history.html`:** The loop variable `{% for session in sessions %}` was overwriting the Flask/Jinja context variable `session`, causing the migration mode badge to read from the loop dict instead of the Flask session. Renamed to `check_session`.
+- **`data-price` HTML attribute escaping in `tools.html`:** Inner double quotes in the Jinja expression `data-price="{{ "%.2f"|format(...) }}"` split the attribute across two tokens. The browser parsed an incorrect price value. Fixed by using single quotes inside the Jinja expression.
+- **`repository.yaml` placeholder values:** Replaced `USERNAME/REPOSITORY` and `Your Name <your@email.com>` with real values. HA Add-on Store validation would have failed with the placeholders.
+
 ## [2.8.2-beta25] - 2026-02-28
 ### ✨ Features
 - **Auto-logout after 8 hours:** Admin sessions now automatically expire 8 hours after login. Flask's `PERMANENT_SESSION_LIFETIME` is set to 8 hours and `session.permanent = True` is set on successful login.
