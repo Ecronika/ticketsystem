@@ -9,10 +9,8 @@ bashio::log.info "Starte Azubi Werkzeug Tracker..."
 # Wechsel ins Arbeitsverzeichnis
 cd /app || bashio::exit.nok "Kann nicht nach /app wechseln"
 
-# Datenbank initialisieren
+# Datenbank initialisieren (wird durch Gunicorn/app.py abgewickelt)
 bashio::log.info "Initialisiere Datenbank..."
-python3 -c "from app import setup_database; setup_database()" \
-    || bashio::exit.nok "Datenbank-Initialisierung fehlgeschlagen"
 
 # SSL Konfiguration lesen
 SSL=$(bashio::config 'ssl')
@@ -22,42 +20,77 @@ KEYFILE=$(bashio::config 'keyfile')
 # Pruefe ob SSL aktiviert ist
 if bashio::var.true "${SSL}"; then
     bashio::log.info "SSL ist aktiviert."
-    bashio::log.info "Zertifikat: /ssl/${CERTFILE}"
-    bashio::log.info "Key: /ssl/${KEYFILE}"
     
-    # Server starten mit SSL (Optimized for SD Card / Stability)
-    bashio::log.info "Starte Gunicorn Server mit SSL auf Port 5000..."
-    exec gunicorn \
-        --workers 1 \
-        --threads 2 \
-        --worker-class gthread \
-        --timeout 120 \
-        --graceful-timeout 120 \
-        --keep-alive 5 \
-        --max-requests 1000 \
-        --max-requests-jitter 50 \
-        --bind 0.0.0.0:5000 \
-        --certfile "/ssl/${CERTFILE}" \
-        --keyfile "/ssl/${KEYFILE}" \
-        --access-logfile - \
-        --error-logfile - \
-        app:app
+    CERTFILE_PATH="/ssl/${CERTFILE}"
+    KEYFILE_PATH="/ssl/${KEYFILE}"
+
+    if [ ! -f "${CERTFILE_PATH}" ] || [ ! -f "${KEYFILE_PATH}" ]; then
+        bashio::log.warning "Zertifikate (${CERTFILE_PATH} / ${KEYFILE_PATH}) nicht gefunden!"
+        bashio::log.warning "Generiere temporäres (Self-Signed) Zertifikat für lokalen Zugriff..."
+        openssl req -new -newkey rsa:4096 -days 3650 -nodes -x509 \
+            -subj "/C=DE/ST=Berlin/L=Berlin/O=Local/CN=localhost" \
+            -keyout "/data/adhoc_key.pem" \
+            -out "/data/adhoc_cert.pem" 2>/dev/null
+        CERTFILE_PATH="/data/adhoc_cert.pem"
+        KEYFILE_PATH="/data/adhoc_key.pem"
+        bashio::log.info "Temporäres Zertifikat erstellt: ${CERTFILE_PATH}"
+    else
+        bashio::log.info "Nutze vorhandene Zertifikate:"
+        bashio::log.info "Zertifikat: ${CERTFILE_PATH}"
+        bashio::log.info "Key: ${KEYFILE_PATH}"
+    fi
+
+    bashio::log.info "Konfiguriere NGINX als SSL-Reverse-Proxy auf Port 5000..."
+    mkdir -p /etc/nginx/http.d
+    cat > /etc/nginx/http.d/default.conf <<EOF
+server {
+    listen 5000 ssl;
+    ssl_certificate ${CERTFILE_PATH};
+    ssl_certificate_key ${KEYFILE_PATH};
+    client_max_body_size 50m;
+    location / {
+        proxy_pass http://127.0.0.1:8099;
+        proxy_set_header Host \$http_host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOF
 else
     bashio::log.info "SSL ist deaktiviert."
-    
-    # Server starten ohne SSL (Optimized for SD Card / Stability)
-    bashio::log.info "Starte Gunicorn Server auf Port 5000..."
-    exec gunicorn \
-        --workers 1 \
-        --threads 2 \
-        --worker-class gthread \
-        --timeout 120 \
-        --graceful-timeout 120 \
-        --keep-alive 5 \
-        --max-requests 1000 \
-        --max-requests-jitter 50 \
-        --bind 0.0.0.0:5000 \
-        --access-logfile - \
-        --error-logfile - \
-        app:app
+    bashio::log.info "Konfiguriere NGINX als HTTP-Reverse-Proxy auf Port 5000..."
+    mkdir -p /etc/nginx/http.d
+    cat > /etc/nginx/http.d/default.conf <<EOF
+server {
+    listen 5000;
+    client_max_body_size 50m;
+    location / {
+        proxy_pass http://127.0.0.1:8099;
+        proxy_set_header Host \$http_host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOF
 fi
+
+bashio::log.info "Starte NGINX im Hintergrund..."
+# suppress warning about running as root if any
+nginx -g "daemon off;" 2>&1 &
+
+bashio::log.info "Starte Gunicorn Server (Backend) auf Port 8099..."
+exec gunicorn \
+    --workers 1 \
+    --threads 2 \
+    --worker-class gthread \
+    --timeout 120 \
+    --graceful-timeout 120 \
+    --keep-alive 5 \
+    --max-requests 1000 \
+    --max-requests-jitter 50 \
+    --bind 0.0.0.0:8099 \
+    --access-logfile - \
+    --error-logfile - \
+    app:app

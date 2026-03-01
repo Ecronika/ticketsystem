@@ -10,9 +10,11 @@ from extensions import db
 
 class SystemSettings(db.Model):
     """
-    Key-Value store for system-wide configuration
+    Key-Value store for system-wide configuration.
+
     Used for: Backup Schedules, Retention Policy, Feature Flags
     """
+
     key = db.Column(db.String(50), primary_key=True)
     value = db.Column(db.String(200), nullable=True)
 
@@ -45,6 +47,7 @@ class SystemSettings(db.Model):
 
 class CheckType(Enum):  # pylint: disable=too-few-public-methods
     """Enumeration of check types."""
+
     CHECK = 'check'
     ISSUE = 'issue'
     RETURN = 'return'
@@ -53,6 +56,7 @@ class CheckType(Enum):  # pylint: disable=too-few-public-methods
 
 class Azubi(db.Model):
     """Model representing an apprentice."""
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     lehrjahr = db.Column(db.Integer, default=1)
@@ -93,6 +97,7 @@ class Werkzeug(db.Model):  # pylint: disable=too-few-public-methods
     name = db.Column(db.String(100), nullable=False)
     material_category = db.Column(db.String(20), default="standard")
     tech_param_label = db.Column(db.String(50), nullable=True)
+    price = db.Column(db.Float, nullable=True, default=0.0)
     checks = db.relationship(
         'Check',
         backref='werkzeug',
@@ -125,6 +130,7 @@ class Check(db.Model):  # pylint: disable=too-few-public-methods
 
     Represents a tool check/transaction.
     """
+
     id = db.Column(db.Integer, primary_key=True)
     session_id = db.Column(db.String(36), nullable=True, index=True)
     datum = db.Column(db.DateTime, default=datetime.now, index=True)
@@ -143,3 +149,4 @@ class Check(db.Model):  # pylint: disable=too-few-public-methods
     signature_azubi = db.Column(db.String(200), nullable=True)
     signature_examiner = db.Column(db.String(200), nullable=True)
     report_path = db.Column(db.String(200), nullable=True)
+    manufacturer = db.Column(db.String(100), nullable=True)

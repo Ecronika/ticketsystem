@@ -10,7 +10,7 @@ import os
 
 
 def get_pylint_score(filepath):
-    """Runs pylint and returns the score as a float."""
+    """Run pylint and returns the score as a float."""
     if not os.path.exists(filepath):
         return 0.0
 
@@ -33,7 +33,7 @@ def get_pylint_score(filepath):
 
 
 def run_autopep8(filepath):
-    """Runs autopep8 in-place."""
+    """Run autopep8 in-place."""
     try:
         # Try running as module first (more reliable)
         subprocess.run(
@@ -46,7 +46,7 @@ def run_autopep8(filepath):
 
 
 def main():
-    """Main execution function."""
+    """Execute main function."""
     # Get all python files in current directory + tests
     files = glob.glob("*.py") + glob.glob("tests/*.py")
 

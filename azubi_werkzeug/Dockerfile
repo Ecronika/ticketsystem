@@ -6,14 +6,17 @@ RUN \
     apk add --no-cache \
     python3 \
     py3-pip \
-    curl
+    curl \
+    openssl \
+    nginx
 
 # Arbeitsverzeichnis setzen
 WORKDIR /app
 
 # Requirements kopieren und installieren
 COPY requirements.txt .
-RUN pip3 install --no-cache-dir -r requirements.txt --break-system-packages
+RUN pip3 install --no-cache-dir --upgrade pip setuptools --break-system-packages && \
+    pip3 install --no-cache-dir -r requirements.txt --break-system-packages
 
 # App-Code kopieren
 COPY app.py .
@@ -38,4 +41,4 @@ ENV DB_PATH=/data/werkzeug.db
 
 # Healthcheck (Optimized for SD Card / Slow Start)
 HEALTHCHECK --interval=30s --timeout=15s --start-period=30s --retries=5 \
-    CMD curl -f http://localhost:5000/health || exit 1
+    CMD curl -f http://127.0.0.1:8099/health || exit 1

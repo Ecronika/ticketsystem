@@ -1,9 +1,12 @@
+"""Test configuration and fixtures."""
+# pylint: disable=redefined-outer-name
+import os
+import sys
+import pytest
+
 from models import Azubi, Werkzeug
 from extensions import db
 from app import app as flask_app
-import pytest
-import sys
-import os
 
 # Add beta folder to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -11,6 +14,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 @pytest.fixture
 def test_app():
+    """Create a test application instance."""
     # Use the global app object
     flask_app.config.update({
         "TESTING": True,
@@ -43,9 +47,11 @@ def test_app():
 
 @pytest.fixture
 def client(test_app):
+    """Create a test client."""
     return test_app.test_client()
 
 
 @pytest.fixture
 def runner(test_app):
+    """Create a test CLI runner."""
     return test_app.test_cli_runner()

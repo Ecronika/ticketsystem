@@ -197,8 +197,10 @@ def _render_handover_table(pdf, tools, title_text):
     pdf.ln(10)
 
 
+# pylint: disable=too-many-locals
 def generate_handover_pdf(
-    azubi_name, examiner_name, tools, check_type, signature_paths, output_path
+    azubi_name, examiner_name, tools, check_type, signature_paths, output_path,
+    extra_lines=None
 ):
     """
     Generate a PDF report for tool handover/check/exchange.
@@ -247,6 +249,15 @@ def generate_handover_pdf(
     # --- Tool Table ---
     _render_handover_table(pdf, tools, title_text)
 
+    # --- Extra Lines (e.g. Price) ---
+    if extra_lines:
+        pdf.set_font('Arial', 'B', 10)
+        for line in extra_lines:
+            # Fix: Replace € with EUR to prevent encoding errors in standard fonts
+            safe_line = line.replace('€', 'EUR')
+            pdf.cell(0, 6, safe_line, 0, 1, 'R')
+        pdf.ln(5)
+
     # --- Signatures ---
     start_y, box_height = _render_signature_boxes(pdf, signature_paths)
 
@@ -262,88 +273,104 @@ def generate_handover_pdf(
     return output_path
 
 
-def generate_qr_codes_pdf(tools):
+def generate_qr_codes_pdf(azubis):
     """
-    Generate a PDF containing QR codes for the provided tools.
+    Generate a PDF containing QR codes for the provided Azubis.
+
+    Layout: Avery Zweckform B5274-50 (52x74mm, 4x4 grid)
 
     Args:
-        tools (list): List of tool objects (id, name).
+        azubis (list): List of Azubi objects (id, name, lehrjahr).
 
     Returns:
         FPDF: The generated PDF object (not saved to disk).
     """
+    # pylint: disable=too-many-locals
 
     pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.set_auto_page_break(auto=True, margin=0)  # Full control
     pdf.add_page()
     pdf.set_font("Arial", size=10)
 
-    # Grid config (A4: 210mm wide)
-    # 4 columns approx 50mm each
-    col_width = 45
-    row_height = 55
-    margin_x = 10
-    margin_y = 10
+    # Avery B5274-50 Layout Config (approximate for A4)
+    # 4 columns, 4 rows = 16 labels per page
+    # Label size: 52mm x 74mm
+    # Home Assistant / Browser print margins can vary, so we use safe margins.
 
-    x = margin_x
-    y = margin_y
+    # Layout definition
+    margin_left = 6
+    margin_top = 4.5
+    col_width = 52.5  # Includes horizontal gap
+    row_height = 74.0  # Includes vertical gap (0 usually)
 
-    tools_processed = 0
+    # Inner Label Bounds (printable area)
+    label_w = 48
+    # label_h = 70  # Unused
 
-    for tool in tools:
-        # Generate QR Code image
+    # Grid state
+    col = 0
+    row = 0
+    items_on_page = 0
+
+    for azubi in azubis:
+        # Calculate X/Y based on grid
+        x = margin_left + (col * col_width)
+        y = margin_top + (row * row_height)
+
+        # Draw Label Boundary (Optional: Debugging, remove for final)
+        # pdf.rect(x, y, label_w, label_h)
+
+        # --- Content ---
+
+        # QR Code
+        qr_content = f"AZUBI:{azubi.id}"
         qr = qrcode.QRCode(box_size=10, border=1)
-        # Content: Simple string or URL. For now ID + Name
-        qr.add_data(f"ID:{tool.id}\n{tool.name}")
+        qr.add_data(qr_content)
         qr.make(fit=True)
         img = qr.make_image(fill_color="black", back_color="white")
 
-        # Save temp file
-        temp_qr_path = os.path.join(tempfile.gettempdir(), f"qr_{tool.id}.png")
+        temp_qr_path = os.path.join(tempfile.gettempdir(), f"qr_az_{azubi.id}.png")
         img.save(temp_qr_path)
 
-        # Draw Cell
-        # Check page break
-        if y + row_height > 280:
-            pdf.add_page()
-            x = margin_x
-            y = margin_y
+        # QR Image Centered
+        # Width 35mm
+        qr_size = 35
+        qr_x = x + (label_w - qr_size) / 2
+        qr_y = y + 10  # 10mm defined space from top
 
-        pdf.rect(x, y, col_width, row_height)
-
-        # Title
-        pdf.set_xy(x, y + 2)
-        pdf.set_font("Arial", 'B', 8)
-        # Truncate name to avoid overflow
-        name = tool.name[:40]
-        pdf.multi_cell(col_width, 4, name, align='C')
-
-        # QR Image
-        # Center image: (45 - 35) / 2 = 5 padding
         if os.path.exists(temp_qr_path):
-            pdf.image(temp_qr_path, x=x + 5, y=y + 12, w=35, h=35)
+            pdf.image(temp_qr_path, x=qr_x, y=qr_y, w=qr_size, h=qr_size)
             try:
-                os.remove(temp_qr_path)  # Clean up
+                os.remove(temp_qr_path)
             except OSError:
                 pass
 
-        # ID text
-        pdf.set_xy(x, y + 48)
-        pdf.set_font("Arial", '', 8)
-        pdf.cell(col_width, 5, f"ID: {tool.id}", 0, 1, 'C')
+        # Text below QR
+        text_y_start = qr_y + qr_size + 5
+        pdf.set_xy(x, text_y_start)
+        pdf.set_font("Arial", 'B', 11)
+        pdf.multi_cell(label_w, 5, azubi.name, align='C')
 
-        # Move Cursor
-        x += col_width + 5
-        tools_processed += 1
+        pdf.set_xy(x, pdf.get_y() + 1)
+        pdf.set_font("Arial", '', 9)
+        pdf.cell(label_w, 5, f"Lehrjahr {azubi.lehrjahr}", 0, 1, 'C')
+
+        # --- Grid Logic ---
+        col += 1
+        items_on_page += 1
 
         # New Row
-        if tools_processed % 4 == 0:
-            x = margin_x
-            y += row_height + 5
-            # Reset X
-            x = margin_x
+        if col >= 4:
+            col = 0
+            row += 1
 
-    # Return PDF object (to be outputted by caller)
+        # New Page
+        if items_on_page >= 16:
+            pdf.add_page()
+            col = 0
+            row = 0
+            items_on_page = 0
+
     return pdf
 
 

@@ -15,9 +15,11 @@ from .dashboard import register_routes as register_dashboard  # noqa: E402
 from .checks import register_routes as register_checks  # noqa: E402
 from .admin import register_routes as register_admin  # noqa: E402
 from .api import register_routes as register_api  # noqa: E402
+from .auth import register_routes as register_auth  # noqa: E402
 # pylint: enable=wrong-import-position
 
 register_dashboard(main_bp)
 register_checks(main_bp)
 register_admin(main_bp)
 register_api(main_bp)
+register_auth(main_bp)

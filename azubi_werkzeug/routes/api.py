@@ -4,11 +4,83 @@ from datetime import datetime
 
 from flask import request, jsonify, current_app
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import func
 
 from extensions import db, limiter, csrf
 from models import Azubi, Werkzeug, Examiner, Check
 from forms import AzubiForm, ExaminerForm, WerkzeugForm
 from services import CheckService
+from routes.auth import admin_required
+
+
+def _map_tool_status_for_api(tool, last_entry):
+    """Map tool status for API response, returns dict."""
+    status = 'ok'
+    if last_entry and last_entry.bemerkung:
+        parts = last_entry.bemerkung.split('|')
+        for p in parts:
+            if p.strip().startswith("Status:"):
+                status = p.replace("Status:", "").strip()
+                break
+
+    weight = 2  # OK
+    status_label = ""
+    if status == 'missing':
+        weight = 0
+        status_label = " (FEHLT)"
+    elif status == 'broken':
+        weight = 1
+        status_label = " (DEFEKT)"
+
+    return {
+        'id': tool.id,
+        'name': tool.name + status_label,
+        'sort_weight': weight,
+        'raw_name': tool.name,
+        'price': float(tool.price) if tool.price else 0.0
+    }
+
+
+def get_assigned_tools(azubi_id):
+    """Get assigned tools for azubi, sorted by status."""
+    try:
+        assigned_ids = CheckService.get_assigned_tools(azubi_id)
+        if not assigned_ids:
+            return jsonify([])
+
+        tools = Werkzeug.query.filter(Werkzeug.id.in_(assigned_ids)).all()
+        result = []
+
+        subq = (
+            db.session.query(
+                Check.werkzeug_id,
+                func.max(Check.datum).label('last_datum')
+            )
+            .filter_by(azubi_id=azubi_id)
+            .group_by(Check.werkzeug_id)
+            .subquery()
+        )
+        last_checks_list = (
+            Check.query
+            .join(subq, (Check.werkzeug_id == subq.c.werkzeug_id) &
+                        (Check.datum == subq.c.last_datum))
+            .filter(Check.azubi_id == azubi_id)
+            .all()
+        )
+        last_checks = {c.werkzeug_id: c for c in last_checks_list}
+
+        for tool in tools:
+            last_entry = last_checks.get(tool.id)
+            result.append(_map_tool_status_for_api(tool, last_entry))
+
+        # Sort: Weight asc (Missing=0, Broken=1, OK=2), then Name asc
+        result.sort(key=lambda x: (x['sort_weight'], x['raw_name']))
+
+        return jsonify(result)
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        current_app.logger.error(f"API Error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 def register_routes(bp):
@@ -34,23 +106,21 @@ def register_routes(bp):
             'generated_at': datetime.now().isoformat()
         })
 
-    @bp.route('/api/assigned_tools/<int:azubi_id>')
-    def api_get_assigned_tools(azubi_id):
-        """Get assigned tools for dropdown."""
-        tool_ids = CheckService.get_assigned_tools(
-            azubi_id)
-        found_tools = Werkzeug.query.filter(
-            Werkzeug.id.in_(tool_ids)).order_by(
-            Werkzeug.name).all()
-        return jsonify(
-            [{'id': t.id, 'name': t.name}
-             for t in found_tools])
+    # Register new handler
+    bp.add_url_rule(
+        '/api/assigned_tools/<int:azubi_id>',
+        view_func=get_assigned_tools
+    )
 
     @bp.route('/api/werkzeug', methods=['POST'])
+    @admin_required
     def api_add_werkzeug():
         """AJAX endpoint for adding werkzeug."""
         try:
-            form = WerkzeugForm(request.form)
+            form_data = request.form.copy()
+            if 'price' in form_data and isinstance(form_data['price'], str):
+                form_data['price'] = form_data['price'].replace(',', '.')
+            form = WerkzeugForm(form_data)
             if not form.validate():
                 return jsonify(
                     {'success': False,
@@ -60,7 +130,8 @@ def register_routes(bp):
                 material_category=(
                     form.material_category.data),
                 tech_param_label=(
-                    form.tech_param_label.data))
+                    form.tech_param_label.data),
+                price=form.price.data)
             db.session.add(new_werkzeug)
             db.session.commit()
             return jsonify({
@@ -72,7 +143,8 @@ def register_routes(bp):
                         new_werkzeug.material_category),
                     'param': (
                         new_werkzeug.tech_param_label
-                        or '')
+                        or ''),
+                    'price': float(new_werkzeug.price or 0.0)
                 }
             })
         except SQLAlchemyError as e:
@@ -95,6 +167,7 @@ def register_routes(bp):
             }), 500
 
     @bp.route('/api/azubi', methods=['POST'])
+    @admin_required
     def api_add_azubi():
         """AJAX endpoint for adding azubi."""
         try:
@@ -137,6 +210,7 @@ def register_routes(bp):
             }), 500
 
     @bp.route('/api/examiner', methods=['POST'])
+    @admin_required
     def api_add_examiner():
         """AJAX endpoint for adding examiner."""
         try:

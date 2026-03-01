@@ -6,6 +6,20 @@
         <h2 class="fw-bold text-secondary">Azubi Übersicht</h2>
         <p class="text-muted">Nächste fällige Prüfungen</p>
     </div>
+    <div class="col-auto align-self-center">
+        <div class="d-flex gap-2">
+            <a href="{{ ingress_path }}{{ url_for('main.personnel') }}?show_archived=1"
+                class="btn btn-outline-secondary">
+                <i class="bi bi-archive me-2"></i>Archiv
+            </a>
+            <a href="{{ ingress_path }}{{ url_for('main.scanner') }}" class="btn btn-primary">
+                <i class="bi bi-qr-code-scan me-2"></i>QR Scannen
+            </a>
+            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addAzubiModal">
+                <i class="bi bi-person-plus-fill me-2"></i>Neuer Azubi
+            </button>
+        </div>
+    </div>
 </div>
 
 <div class="row g-4">
@@ -106,6 +120,11 @@
                     </div>
 
                     <div class="mb-3">
+                        <label class="form-label fw-bold">Preis/Wert (€)</label>
+                        <input type="text" class="form-control-plaintext" id="exchangeToolPrice" readonly value="0.00">
+                    </div>
+
+                    <div class="mb-3">
                         <label class="form-label fw-bold">Grund für den Austausch</label>
                         <div class="btn-group w-100" role="group">
                             <input type="radio" class="btn-check" name="reason" id="reasonDefekt" value="Defekt"
@@ -132,7 +151,8 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold">Unterschrift Azubi (Empfang)</label>
                         <div class="border rounded bg-light" style="height: 200px; position: relative;">
-                            <canvas id="signaturePadAzubi" class="w-100 h-100"></canvas>
+                            <canvas id="signaturePadAzubi" aria-label="Unterschrift Azubi" role="img"
+                                class="w-100 h-100" style="touch-action: none;"></canvas>
                             <div class="position-absolute bottom-0 end-0 p-2">
                                 <button type="button" class="btn btn-sm btn-outline-secondary mb-1"
                                     onclick="clearPad('azubi')">
@@ -154,7 +174,37 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+<!-- Add Azubi Modal -->
+<div class="modal fade" id="addAzubiModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Neuen Azubi hinzufügen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ ingress_path }}{{ url_for('main.add_azubi') }}" method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label for="azubiName" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="azubiName" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="azubiLehrjahr" class="form-label">Lehrjahr</label>
+                        <input type="number" class="form-control" id="azubiLehrjahr" name="lehrjahr" min="1" max="4"
+                            required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Hinzufügen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 <script>
     let padAzubi = null;
 
@@ -179,6 +229,7 @@
         // Modal Logic
         const exchangeModal = document.getElementById('exchangeModal');
         if (exchangeModal) {
+            // Data loading on show
             exchangeModal.addEventListener('show.bs.modal', function (event) {
                 const button = event.relatedTarget;
                 const azubiId = button.getAttribute('data-azubi-id');
@@ -187,23 +238,19 @@
                 document.getElementById('exchangeAzubiId').value = azubiId;
                 document.getElementById('exchangeAzubiName').value = azubiName;
 
-                // Load Tools for this Azubi via AJAX (using existing Check Logic partial re-use?)
-                // Better: Simple API call. We need a new/existing API for assigned tools.
-                // For now, let's load ALL tools and maybe filtering happen server side? 
-                // Wait, we need "Assigned" tools only.
-                // Let's assume we fetch all tools and user selects one. 
-                // Improvement: Fetch only assigned tools.
                 loadAssignedTools(azubiId);
+            });
 
-                // Resize pad after modal is shown (visibility fix)
-                setTimeout(() => {
-                    const canvas = document.getElementById('signaturePadAzubi');
+            // Resize canvas specifically after DOM is fully visible
+            exchangeModal.addEventListener('shown.bs.modal', function () {
+                const canvas = document.getElementById('signaturePadAzubi');
+                if (canvas) {
                     const ratio = Math.max(window.devicePixelRatio || 1, 1);
                     canvas.width = canvas.offsetWidth * ratio;
                     canvas.height = canvas.offsetHeight * ratio;
                     canvas.getContext("2d").scale(ratio, ratio);
-                    padAzubi.clear();
-                }, 200);
+                    if (padAzubi) padAzubi.clear();
+                }
             });
         }
 
@@ -220,6 +267,15 @@
                 document.getElementById('signatureAzubiData').value = data;
             });
         }
+
+        const exchangeToolId = document.getElementById('exchangeToolId');
+        if (exchangeToolId) {
+            exchangeToolId.addEventListener('change', function () {
+                const selectedOption = this.options[this.selectedIndex];
+                const price = selectedOption.dataset.price || '0.00';
+                document.getElementById('exchangeToolPrice').value = price;
+            });
+        }
     });
 
     function clearPad(type) {
@@ -229,6 +285,10 @@
     // Helper to load assigned tools
     async function loadAssignedTools(azubiId) {
         const select = document.getElementById('exchangeToolId');
+        if (!azubiId) {
+            select.innerHTML = '<option disabled>Fehler: Kein Azubi gewählt</option>';
+            return;
+        }
         select.innerHTML = '<option disabled selected>Lade...</option>';
 
         // We reuse the new API endpoint or standard tools list?
@@ -243,11 +303,13 @@
             if (!response.ok) throw new Error("Fehler beim Laden");
             const tools = await response.json();
 
-            select.innerHTML = '<option disabled selected>Werkzeug wählen...</option>';
+            select.innerHTML = '<option value="" disabled selected>Werkzeug wählen...</option>';
+            document.getElementById('exchangeToolPrice').value = "0.00"; // Reset price
             tools.forEach(tool => {
                 const opt = document.createElement('option');
                 opt.value = tool.id;
                 opt.textContent = tool.name;
+                opt.dataset.price = (tool.price || 0.0).toFixed(2);
                 select.appendChild(opt);
             });
 

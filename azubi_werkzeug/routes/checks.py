@@ -10,43 +10,64 @@ from datetime import datetime
 
 from flask import (
     render_template, request, redirect, url_for,
-    flash, current_app, session, send_from_directory, abort
+    flash, current_app, send_from_directory, abort
 )
+from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError
 
 from extensions import db
-from models import Azubi, Werkzeug, Examiner, Check, CheckType
+from models import Azubi, Werkzeug, Examiner, Check, CheckType, SystemSettings
 from services import CheckService
-from routes.utils import get_data_dir, parse_migration_date
+from routes.utils import get_data_dir, parse_migration_date, is_migration_active
+from routes.auth import admin_required
+
+
+def _parse_last_entry_status(last_entry):
+    """Extract status, tech_val and manufacturer from a Check entry."""
+    status, tech_val, manufacturer = 'ok', '', ''
+    if last_entry:
+        manufacturer = last_entry.manufacturer or ''
+        if last_entry.bemerkung:
+            for p in last_entry.bemerkung.split('|'):
+                if p.strip().startswith('Status:'):
+                    status = p.replace('Status:', '').strip()
+                    break
+        if last_entry.tech_param_value:
+            tech_val = last_entry.tech_param_value
+    return status, tech_val, manufacturer
 
 
 def _build_tool_status_list(azubi, werkzeuge, assigned_ids):
     """Build status list for tools."""
+    subq = (
+        db.session.query(
+            Check.werkzeug_id,
+            func.max(Check.datum).label('last_datum')
+        )
+        .filter_by(azubi_id=azubi.id)
+        .group_by(Check.werkzeug_id)
+        .subquery()
+    )
+    last_checks = {
+        c.werkzeug_id: c
+        for c in Check.query
+        .join(subq, (Check.werkzeug_id == subq.c.werkzeug_id) &
+              (Check.datum == subq.c.last_datum))
+        .filter(Check.azubi_id == azubi.id)
+        .all()
+    }
+
     mapped_werkzeuge = []
     for w in werkzeuge:
-        last_entry = Check.query.filter_by(
-            azubi_id=azubi.id,
-            werkzeug_id=w.id).order_by(
-            Check.datum.desc()).first()
-        status = 'ok'
-        tech_val = ""
-
-        if last_entry:
-            if last_entry.bemerkung:
-                parts = last_entry.bemerkung.split('|')
-                for p in parts:
-                    if p.strip().startswith("Status:"):
-                        status = p.replace("Status:", "").strip()
-                        break
-            if last_entry.tech_param_value:
-                tech_val = last_entry.tech_param_value
-
+        status, tech_val, manufacturer = _parse_last_entry_status(
+            last_checks.get(w.id))
         mapped_werkzeuge.append({
             'obj': w,
             'is_assigned': w.id in assigned_ids,
             'last_status': status,
-            'last_tech_val': tech_val
+            'last_tech_val': tech_val,
+            'last_manufacturer': manufacturer
         })
     return mapped_werkzeuge
 
@@ -69,6 +90,12 @@ def check_azubi(azubi_id):
     ).days if last_check_global else 999
     is_overdue = days_since_global > 90
 
+    presets_str = SystemSettings.get_setting(
+        'manufacturer_presets',
+        'Wera,Wiha,Knipex,Hazet,Stahlwille,Gedore,NWS')
+    manufacturer_presets = [
+        p.strip() for p in presets_str.split(',') if p.strip()]
+
     mapped_werkzeuge = _build_tool_status_list(azubi, werkzeuge, assigned_ids)
 
     return render_template(
@@ -77,7 +104,42 @@ def check_azubi(azubi_id):
         werkzeuge=mapped_werkzeuge,
         examiners=examiners,
         current_date=current_date,
-        is_overdue=is_overdue)
+        is_overdue=is_overdue,
+        manufacturer_presets=manufacturer_presets)
+
+
+def _validate_signatures(form, is_migration):
+    """Return error tuple if signatures are missing and not in migration mode."""
+    sig_azubi = form.get('signature_azubi_data')
+    sig_examiner = form.get('signature_examiner_data')
+    if (not sig_azubi or not sig_examiner) and not is_migration:
+        return ('Fehler: Unterschriften fehlen.', 'error')
+    return None
+
+
+def _validate_check_submission(form):
+    """Validate check submission form data."""
+    azubi_id = form.get('azubi_id')
+    check_type_str = form.get('check_type', CheckType.CHECK.value)
+    examiner = form.get('examiner')
+
+    try:
+        CheckType(check_type_str)
+    except ValueError:
+        return None, ('Fehler: Ungültiger Prüfungstyp.', 'error')
+
+    if not azubi_id or not examiner:
+        return None, ('Fehler: Azubi und Prüfer müssen angegeben werden.', 'error')
+
+    sig_error = _validate_signatures(form, is_migration_active())
+    if sig_error:
+        return None, sig_error
+
+    tool_ids = CheckService.collect_tool_ids(form)
+    if not tool_ids:
+        return None, ('Keine Werkzeuge ausgewählt', 'warning')
+
+    return tool_ids, None
 
 
 def submit_check():
@@ -86,48 +148,22 @@ def submit_check():
     azubi_id = request.form.get('azubi_id')
     check_type_str = request.form.get(
         'check_type', CheckType.CHECK.value)
+    examiner = request.form.get('examiner')
     ingress = request.headers.get('X-Ingress-Path', '')
 
-    try:
-        CheckType(check_type_str)
-    except ValueError:
-        current_app.logger.warning(
-            f"Invalid CheckType: {check_type_str}")
-        flash('Fehler: Ungültiger Prüfungstyp.', 'error')
-        return redirect(
-            f"{ingress}{url_for('main.index')}")
-
-    examiner = request.form.get('examiner')
-
-    if not azubi_id or not examiner:
-        flash(
-            'Fehler: Azubi und Prüfer müssen '
-            'angegeben werden.', 'error')
-        return redirect(
-            f"{ingress}{url_for('main.index')}")
-
-    sig_azubi = request.form.get('signature_azubi_data')
-    sig_examiner = request.form.get(
-        'signature_examiner_data')
-    if not sig_azubi or not sig_examiner:
-        flash('Fehler: Unterschriften fehlen.', 'error')
-        return redirect(
-            f"{ingress}{url_for('main.index')}")
+    # Validation
+    tool_ids, error = _validate_check_submission(request.form)
+    if error:
+        flash(error[0], error[1])
+        return redirect(f"{ingress}{url_for('main.index')}")
 
     try:
         check_date = datetime.now()
-        if session.get('migration_mode', False):
+        if is_migration_active():
             check_date, err = parse_migration_date(
                 request.form, ingress)
             if err:
                 return err
-
-        tool_ids = CheckService.collect_tool_ids(
-            request.form)
-        if not tool_ids:
-            flash('Keine Werkzeuge ausgewählt', 'warning')
-            return redirect(
-                f"{ingress}{url_for('main.index')}")
 
         result = CheckService.process_check_submission(
             azubi_id=int(azubi_id),
@@ -178,7 +214,7 @@ def exchange_tool():
             f"{ingress}{url_for('main.index')}")
 
     try:
-        CheckService.process_tool_exchange(
+        result = CheckService.process_tool_exchange(
             azubi_id=int(azubi_id),
             tool_id=int(tool_id),
             reason=reason,
@@ -186,9 +222,12 @@ def exchange_tool():
             signature_data=signature_data
         )
         CheckService.invalidate_cache(int(azubi_id))
-        flash(
-            'Werkzeug erfolgreich ausgetauscht.',
-            'success')
+
+        msg = 'Werkzeug erfolgreich ausgetauscht.'
+        if result.get('price'):
+            msg += f" (Geschätzte Kosten: {result['price']:.2f} EUR)"
+
+        flash(msg, 'success')
         return redirect(
             f"{ingress}{url_for('main.index')}")
 
@@ -214,6 +253,7 @@ def history():
                 azubi_id=int(azubi_id))
 
         query_start = time.time()
+        total_count = query.count()
         all_checks = query.options(
             joinedload(Check.azubi)).limit(2000).all()
         query_duration = time.time() - query_start
@@ -239,6 +279,7 @@ def history():
             'history.html',
             sessions=sessions,
             azubis=azubis,
+            total_count=total_count,
             selected_azubi_id=(
                 int(azubi_id)
                 if azubi_id and azubi_id != 'all'
@@ -256,6 +297,23 @@ def history():
             f"Error in history: {e}", exc_info=True)
         flash(f'Fehler: {str(e)}', 'danger')
         return redirect(url_for('main.index'))
+
+
+def _parse_session_checks(checks):
+    """Parse a list of Check records into display dicts."""
+    parsed, global_bemerkung = [], ''
+    for c in checks:
+        status_code, comment = CheckService.parse_check_bemerkung(c.bemerkung)
+        if comment and not global_bemerkung:
+            global_bemerkung = comment
+        parsed.append({
+            'werkzeug': c.werkzeug.name,
+            'status': status_code,
+            'tech_label': c.werkzeug.tech_param_label,
+            'tech_value': c.tech_param_value,
+            'incident_reason': c.incident_reason
+        })
+    return parsed, global_bemerkung
 
 
 def history_details(session_id):
@@ -280,39 +338,17 @@ def history_details(session_id):
 
     if not checks:
         flash('Prüfung nicht gefunden.', 'error')
-        ingress = request.headers.get(
-            'X-Ingress-Path', '')
-        return redirect(
-            f"{ingress}{url_for('main.history')}")
+        ingress = request.headers.get('X-Ingress-Path', '')
+        return redirect(f"{ingress}{url_for('main.history')}")
 
     first_c = checks[0]
-    check_type = (
-        CheckService.detect_exchange_type(checks)
-        or first_c.check_type)
-
-    parsed_checks = []
-    global_bemerkung = ""
-
-    for c in checks:
-        status_code, comment = (
-            CheckService.parse_check_bemerkung(
-                c.bemerkung))
-        if comment and not global_bemerkung:
-            global_bemerkung = comment
-
-        parsed_checks.append({
-            'werkzeug': c.werkzeug.name,
-            'status': status_code,
-            'tech_label': c.werkzeug.tech_param_label,
-            'tech_value': c.tech_param_value,
-            'incident_reason': c.incident_reason
-        })
+    check_type = CheckService.detect_exchange_type(checks) or first_c.check_type
+    parsed_checks, global_bemerkung = _parse_session_checks(checks)
 
     return render_template(
         'history_details.html',
         azubi=first_c.azubi,
-        datum=first_c.datum.strftime(
-            "%d. %b %Y %H:%M"),
+        datum=first_c.datum.strftime("%d. %b %Y %H:%M"),
         checks=parsed_checks,
         global_bemerkung=global_bemerkung,
         check_type=check_type,
@@ -329,38 +365,50 @@ def download_report(filename):
         reports_dir, filename, as_attachment=True)
 
 
+def _collect_session_files(first_check):
+    """Collect file paths associated with a session for deletion."""
+    return [p for p in [
+        first_check.report_path,
+        first_check.signature_azubi,
+        first_check.signature_examiner
+    ] if p]
+
+
+def _log_session_deleted(session_id, azubi_name, azubi_id_val,
+                         datum, examiner, check_count, deleted_count):
+    """Emit a structured WARNING for a deleted check session."""
+    # pylint: disable=too-many-arguments,too-many-positional-arguments
+    current_app.logger.warning(
+        "SESSION DELETED | sid=%s | azubi=%s(id:%s) | datum=%s |"
+        " examiner=%s | checks=%s | files=%s",
+        session_id, azubi_name, azubi_id_val,
+        datum.strftime('%Y-%m-%d %H:%M'),
+        examiner, check_count, deleted_count,
+    )
+
+
+@admin_required
 def delete_session(session_id):
     """Delete a check session (migration mode only)."""
     ingress = request.headers.get('X-Ingress-Path', '')
 
-    if not session.get('migration_mode', False):
+    if not is_migration_active():
         current_app.logger.warning(
-            f"Delete session attempted WITHOUT "
-            f"migration mode: {session_id}")
-        flash(
-            '⚠️ Session-Löschung nur im '
-            'Migration-Modus erlaubt!', 'danger')
-        return redirect(
-            f"{ingress}{url_for('main.history')}")
+            "Delete session attempted WITHOUT migration mode: %s", session_id)
+        flash('⚠️ Session-Löschung nur im Migration-Modus erlaubt!', 'danger')
+        return redirect(f"{ingress}{url_for('main.history')}")
 
     try:
         if session_id.startswith("LEGACY_"):
-            flash(
-                'Legacy-Sessions können noch nicht '
-                'gelöscht werden.', 'warning')
-            return redirect(
-                f"{ingress}{url_for('main.history')}")
+            flash('Legacy-Sessions können noch nicht gelöscht werden.', 'warning')
+            return redirect(f"{ingress}{url_for('main.history')}")
 
-        checks = Check.query.filter_by(
-            session_id=session_id).all()
+        checks = Check.query.filter_by(session_id=session_id).all()
 
         if not checks:
-            current_app.logger.warning(
-                f"Delete session not found: "
-                f"{session_id}")
+            current_app.logger.warning("Delete session not found: %s", session_id)
             flash('Session nicht gefunden.', 'warning')
-            return redirect(
-                f"{ingress}{url_for('main.history')}")
+            return redirect(f"{ingress}{url_for('main.history')}")
 
         first = checks[0]
         azubi_name = first.azubi.name
@@ -368,59 +416,37 @@ def delete_session(session_id):
         datum = first.datum
         examiner = first.examiner or 'Unbekannt'
         check_count = len(checks)
-
-        files_to_delete = [
-            p for p in [
-                first.report_path,
-                first.signature_azubi,
-                first.signature_examiner] if p
-        ]
+        files_to_delete = _collect_session_files(first)
 
         for check_entry in checks:
             db.session.delete(check_entry)
         CheckService.invalidate_cache(azubi_id_val)
         db.session.commit()
 
-        deleted_count = (
-            CheckService.cleanup_session_files(
-                files_to_delete))
-
-        current_app.logger.warning(
-            f"SESSION DELETED | sid={session_id} | "
-            f"azubi={azubi_name}(id:{azubi_id_val}) | "
-            f"datum="
-            f"{datum.strftime('%Y-%m-%d %H:%M')} | "
-            f"examiner={examiner} | "
-            f"checks={check_count} | "
-            f"files={deleted_count}")
+        deleted_count = CheckService.cleanup_session_files(files_to_delete)
+        _log_session_deleted(
+            session_id, azubi_name, azubi_id_val,
+            datum, examiner, check_count, deleted_count)
 
         flash(
             f'Session gelöscht. {check_count} Einträge '
-            f'entfernt. {deleted_count} Dateien '
-            f'bereinigt.', 'success')
-        return redirect(
-            f"{ingress}{url_for('main.history')}")
+            f'entfernt. {deleted_count} Dateien bereinigt.', 'success')
+        return redirect(f"{ingress}{url_for('main.history')}")
 
     except SQLAlchemyError as e:
         db.session.rollback()
         db.session.remove()
         current_app.logger.error(
-            f"DB error deleting session "
-            f"{session_id}: {e}", exc_info=True)
-        flash(
-            'Datenbankfehler beim Löschen.',
-            'danger')
+            "DB error deleting session %s: %s", session_id, e, exc_info=True)
+        flash('Datenbankfehler beim Löschen.', 'danger')
         return redirect(
             f"{ingress}{url_for('main.history_details', session_id=session_id)}")
     except Exception as e:  # pylint: disable=broad-exception-caught
         db.session.rollback()
         db.session.remove()
         current_app.logger.error(
-            f"Error deleting session "
-            f"{session_id}: {e}", exc_info=True)
-        flash(
-            f'❌ Fehler beim Löschen: {str(e)}',
-            'danger')
+            "Error deleting session %s: %s", session_id, e, exc_info=True)
+        flash(f'❌ Fehler beim Löschen: {str(e)}', 'danger')
         return redirect(
             f"{ingress}{url_for('main.history_details', session_id=session_id)}")
 

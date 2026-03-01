@@ -4,25 +4,31 @@ Main Application Entry Point.
 
 Configures and initializes the Flask application.
 """
-from logging.handlers import RotatingFileHandler, QueueHandler, QueueListener
-import os
-import sys
-import logging
-import secrets
-import queue
 import atexit
+import logging
+import os
+import queue
+import secrets
 import sqlite3
+import sys
+from datetime import timedelta
+from logging.handlers import QueueHandler, QueueListener, RotatingFileHandler
 
-from flask import Flask, render_template, request, flash, redirect, url_for
-from werkzeug.exceptions import NotFound
+from flask import (
+    Flask, flash, redirect, render_template, request, url_for
+)
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
+from werkzeug.exceptions import NotFound
+from werkzeug.security import generate_password_hash
+from werkzeug.middleware.proxy_fix import ProxyFix
 
-from extensions import db, limiter, csrf, scheduler, Config
+from extensions import Config, csrf, db, limiter, scheduler
 from services import BackupService
 from routes import main_bp
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 # Security: Session Configuration
 app.config.update(
@@ -30,21 +36,18 @@ app.config.update(
     SESSION_COOKIE_SAMESITE='Lax',
     MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB Upload Limit
     # 7 Days Validity (Prevent expiry in long sessions)
-    WTF_CSRF_TIME_LIMIT=604800
-    # SESSION_COOKIE_SECURE=True # Disabled for Ingress (SSL terminated by HA
-    # Proxy)
+    WTF_CSRF_TIME_LIMIT=604800,
+    # Auto-logout after 8 hours
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
+    # Secure cookie: True in production (HA always serves HTTPS via Ingress/SSL).
+    # Set FLASK_ENV=development to allow HTTP cookies during local debugging.
+    SESSION_COOKIE_SECURE=os.environ.get('FLASK_ENV', 'production') == 'production'
 )
 
 # --- Environment Validation ---
 # Ensure critical variables are set (or fallback is known)
-# Note: SECRET_KEY and DATA_DIR are handled below, but we log warnings for
-# clarity.
-if not os.environ.get('SECRET_KEY') and \
-   not os.path.exists(os.path.join(Config.get_base_dir(), 'secret.key')):
-    logging.warning(
-        "No SECRET_KEY set and no secret.key file found. "
-        "A new key will be generated (sessions invalid on restart)."
-    )
+# Note: SECRET_KEY is handled securely in the 'Security: Dynamic Secret Key' section below.
+# We check DATA_DIR next to ensure the persistent storage location exists.
 
 if not os.environ.get('DATA_DIR'):
     logging.info("DATA_DIR not set. Using default: %s", Config.get_data_dir())
@@ -141,6 +144,16 @@ db.init_app(app)
 csrf.init_app(app)
 limiter.init_app(app)
 
+# C-5: Multi-Worker Guard — in-memory cache is process-local, unsafe for > 1 worker
+_configured_workers = int(os.environ.get('GUNICORN_WORKERS', 1))
+if _configured_workers > 1:
+    app.logger.critical(
+        "FATAL: GUNICORN_WORKERS=%d detected. The in-memory tool-assignment cache "
+        "(_assigned_tools_cache) is process-local and will cause inventory "
+        "inconsistencies with multiple workers. Set GUNICORN_WORKERS=1 or "
+        "migrate to a shared cache (e.g. Redis).", _configured_workers
+    )
+
 if not scheduler.running:
     scheduler.init_app(app)
     scheduler.start()
@@ -190,11 +203,11 @@ if not IS_HOMEASSISTANT:
              force_https=False,  # External proxy (nginx/traefik) handles SSL
              content_security_policy={
                  'default-src': "'self'",
-                 'script-src': ["'self'", 'cdn.jsdelivr.net', "'unsafe-inline'"],
+                 'script-src': ["'self'", 'cdn.jsdelivr.net', 'unpkg.com', "'unsafe-inline'"],
                  'style-src': ["'self'", 'cdn.jsdelivr.net', "'unsafe-inline'"],
                  'img-src': ["'self'", 'data:'],
                  'font-src': ["'self'", 'cdn.jsdelivr.net'],
-                 'connect-src': ["'self'", 'cdn.jsdelivr.net']
+                 'connect-src': ["'self'", 'cdn.jsdelivr.net', 'unpkg.com']
              }
              )
     app.logger.info(
@@ -211,11 +224,11 @@ else:
         # CSP headers (same policy as Talisman)
         response.headers['Content-Security-Policy'] = (
             "default-src 'self'; "
-            "script-src 'self' cdn.jsdelivr.net 'unsafe-inline'; "
+            "script-src 'self' cdn.jsdelivr.net unpkg.com 'unsafe-inline'; "
             "style-src 'self' cdn.jsdelivr.net 'unsafe-inline'; "
             "img-src 'self' data:; "
             "font-src 'self' cdn.jsdelivr.net; "
-            "connect-src 'self' cdn.jsdelivr.net"
+            "connect-src 'self' cdn.jsdelivr.net unpkg.com"
         )
         return response
     app.logger.info(
@@ -243,32 +256,26 @@ def remove_session(_exception=None):
 # --- Helper to create DB and Seed Data ---
 
 
+def _add_column_if_missing(cursor, table, column, definition):
+    """Add a column to a table if it does not exist."""
+    cursor.execute(f'PRAGMA table_info("{table}")')
+    columns = [info[1] for info in cursor.fetchall()]
+    if column not in columns:
+        app.logger.info(
+            "Migrating DB: Adding '%s' column to %s table.", column, table)
+        cursor.execute(f'ALTER TABLE "{table}" ADD COLUMN {column} {definition}')
+
+
 def _apply_migrations(cursor):
     """Apply schema migrations to the database."""
     # --- Check 'tech_param_value' in 'check' table ---
-    cursor.execute('PRAGMA table_info("check")')
-    check_columns = [info[1] for info in cursor.fetchall()]
-    if 'tech_param_value' not in check_columns:
-        app.logger.info(
-            "Migrating DB: Adding 'tech_param_value' column to check table.")
-        cursor.execute(
-            'ALTER TABLE "check" ADD COLUMN tech_param_value VARCHAR(50)')
+    _add_column_if_missing(cursor, "check", "tech_param_value", "VARCHAR(50)")
 
     # --- Check 'incident_reason' in 'check' table (Phase 2) ---
-    if 'incident_reason' not in check_columns:
-        app.logger.info(
-            "Migrating DB: Adding 'incident_reason' column to check table.")
-        cursor.execute(
-            'ALTER TABLE "check" ADD COLUMN incident_reason VARCHAR(50)')
+    _add_column_if_missing(cursor, "check", "incident_reason", "VARCHAR(50)")
 
     # --- Check 'tech_param_label' in 'werkzeug' table ---
-    cursor.execute("PRAGMA table_info(werkzeug)")
-    werkzeug_columns = [info[1] for info in cursor.fetchall()]
-    if 'tech_param_label' not in werkzeug_columns:
-        app.logger.info(
-            "Migrating DB: Adding 'tech_param_label' column to werkzeug table.")
-        cursor.execute(
-            "ALTER TABLE werkzeug ADD COLUMN tech_param_label VARCHAR(50)")
+    _add_column_if_missing(cursor, "werkzeug", "tech_param_label", "VARCHAR(50)")
 
     # --- Phase 3: Audit Trail Columns in 'Check' ---
     cursor.execute('PRAGMA table_info("check")')
@@ -288,13 +295,24 @@ def _apply_migrations(cursor):
             "ALTER TABLE \"check\" ADD COLUMN report_path VARCHAR(200)")
 
     # --- Phase 6: is_archived in 'Azubi' ---
-    cursor.execute("PRAGMA table_info(azubi)")
-    azubi_columns = [info[1] for info in cursor.fetchall()]
-    if 'is_archived' not in azubi_columns:
+    _add_column_if_missing(cursor, "azubi", "is_archived", "BOOLEAN DEFAULT 0")
+
+    # --- v2.8.0: price on werkzeug, manufacturer on check ---
+    cursor.execute("PRAGMA table_info(werkzeug)")
+    werkzeug_cols_v28 = [info[1] for info in cursor.fetchall()]
+    if 'price' not in werkzeug_cols_v28:
         app.logger.info(
-            "Migrating DB: Adding 'is_archived' column to azubi table.")
+            "Migrating DB: Adding 'price' column to werkzeug table.")
         cursor.execute(
-            "ALTER TABLE azubi ADD COLUMN is_archived BOOLEAN DEFAULT 0")
+            "ALTER TABLE werkzeug ADD COLUMN price FLOAT DEFAULT 0.0")
+
+    cursor.execute('PRAGMA table_info("check")')
+    check_cols_v28 = [info[1] for info in cursor.fetchall()]
+    if 'manufacturer' not in check_cols_v28:
+        app.logger.info(
+            "Migrating DB: Adding 'manufacturer' column to check table.")
+        cursor.execute(
+            'ALTER TABLE "check" ADD COLUMN manufacturer VARCHAR(100)')
 
     _apply_indexes(cursor)
 
@@ -328,12 +346,31 @@ def _apply_indexes(cursor):
         cursor.execute("CREATE INDEX idx_werkzeug_name ON werkzeug (name)")
 
 
+def _seed_default_settings():
+    """Seed default system settings if not already present."""
+    from models import SystemSettings  # pylint: disable=import-outside-toplevel
+    defaults = {
+        'manufacturer_presets': 'Wera,Wiha,Knipex,Hazet,Stahlwille,Gedore,NWS',
+        'admin_pin_hash': generate_password_hash("0000"),
+    }
+    for key, value in defaults.items():
+        if SystemSettings.get_setting(key) is None:
+            SystemSettings.set_setting(key, value)
+            app.logger.info("Seeded default setting: %s", key)
+
+
 def setup_database():
     """Create database tables and perform migrations (schema updates)."""
     with app.app_context():
         db.create_all()
 
+        conn = None
         try:
+            # Fix H2: Prevent WAL locking by disposing existing SQLAlchemy
+            # pool connections
+            db.session.remove()
+            db.engine.dispose()
+
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
 
@@ -345,8 +382,12 @@ def setup_database():
             conn.commit()
             app.logger.info(
                 "Database setup and migrations completed successfully.")
+
+            # Seed default settings (idempotent — only if key missing)
+            _seed_default_settings()
         except Exception as e:  # pylint: disable=broad-exception-caught
-            conn.rollback()
+            if conn:
+                conn.rollback()
             app.logger.critical(
                 "Migration Failed! Rolled back changes. Error: %s", e)
             # We might want to exit here, but for now we just log critical
@@ -396,4 +437,5 @@ if __name__ == '__main__':
     # setup_database() # Already called above (unless pytest, but main implies
     # not pytest)
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
-    app.run(host='0.0.0.0', port=5000, debug=debug_mode)
+    app.logger.info("Starte Server mit temporärem SSL-Zertifikat (adhoc)...")
+    app.run(host='0.0.0.0', port=5000, debug=debug_mode, ssl_context='adhoc')

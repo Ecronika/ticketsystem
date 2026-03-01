@@ -12,7 +12,7 @@ import uuid
 from datetime import datetime
 
 from threading import Lock
-from flask import current_app
+from flask import current_app, session
 from extensions import db, Config, scheduler
 from models import Check, CheckType, Werkzeug, Azubi, SystemSettings
 from pdf_utils import generate_handover_pdf, parse_check_type
@@ -33,6 +33,19 @@ class CheckService:
     def get_data_dir():
         """Return the data directory from config."""
         return Config.get_data_dir()
+
+    @staticmethod
+    def get_assigned_tools_batch(azubi_ids: list) -> dict:
+        """Return {azubi_id: set(tool_ids)} for all given IDs in 2 queries."""
+        checks = Check.query.filter(Check.azubi_id.in_(azubi_ids)).order_by(Check.datum.asc()).all()
+        result = {aid: set() for aid in azubi_ids}
+        for check in checks:
+            ct = parse_check_type(check.check_type)
+            if ct == CheckType.ISSUE:
+                result[check.azubi_id].add(check.werkzeug_id)
+            elif ct == CheckType.RETURN:
+                result[check.azubi_id].discard(check.werkzeug_id)
+        return result
 
     @staticmethod
     def get_assigned_tools(azubi_id):
@@ -105,14 +118,14 @@ class CheckService:
     @staticmethod
     def detect_exchange_type(checks):
         """Detect if a session is an exchange based on check types."""
-        has_return = any(
-            c.check_type == CheckType.RETURN for c in checks)
-        has_issue = any(
-            c.check_type == CheckType.ISSUE for c in checks)
+        check_types = [parse_check_type(c.check_type) for c in checks]
+        has_return = CheckType.RETURN in check_types
+        has_issue = CheckType.ISSUE in check_types
+
         if has_return and has_issue and len(checks) >= 2:
-            return 'exchange'
+            return CheckType.EXCHANGE  # Return enum, not string
         if any('Austausch' in (c.bemerkung or '') for c in checks):
-            return 'exchange'
+            return CheckType.EXCHANGE
         return None
 
     @staticmethod
@@ -303,26 +316,11 @@ class CheckService:
 
     @staticmethod
     def _build_check_context(
-        azubi, examiner_name, form_data, check_date, check_type
+        azubi, examiner_name, check_date, check_type,
+        session_id, sig_azubi_path, sig_examiner_path
     ):
         """Build context dict for check processing."""
-        session_id = CheckService.generate_unique_session_id()
-        sig_azubi_path = CheckService.save_signature(
-            form_data.get('signature_azubi_data'), session_id, 'azubi')
-        if not sig_azubi_path:
-            raise ValueError("Fehler beim Speichern der Azubi-Signatur")
-
-        sig_examiner_path = CheckService.save_signature(
-            form_data.get('signature_examiner_data'), session_id, 'examiner')
-        if not sig_examiner_path:
-            # Cleanup Azubi sig if Examiner sig fails
-            if os.path.exists(sig_azubi_path):
-                try:
-                    os.remove(sig_azubi_path)
-                except OSError:
-                    pass
-            raise ValueError("Fehler beim Speichern der Ausbilder-Signatur")
-
+        # pylint: disable=too-many-arguments,too-many-positional-arguments
         return {
             'session_id': session_id,
             'azubi': azubi,
@@ -340,6 +338,39 @@ class CheckService:
         return {w.id: w for w in werkzeuge}
 
     @staticmethod
+    def _handle_signatures(form_data, session_id):
+        """Handle signature saving and validation."""
+        sig_azubi_path = CheckService.save_signature(
+            form_data.get('signature_azubi_data'), session_id, 'azubi')
+
+        # Inline migration check — avoids circular import (routes imports services).
+        # migration_mode_expires is stored as an ISO datetime string by admin.py.
+        # Mirrors is_migration_active() in routes/utils.py.
+        _expires_str = session.get('migration_mode_expires')
+        is_migration = False
+        if _expires_str:
+            try:
+                is_migration = datetime.utcnow() < datetime.fromisoformat(_expires_str)
+            except (ValueError, TypeError):
+                pass
+
+        if not sig_azubi_path and not is_migration:
+            raise ValueError("Fehler beim Speichern der Azubi-Signatur")
+
+        sig_examiner_path = CheckService.save_signature(
+            form_data.get('signature_examiner_data'), session_id, 'examiner')
+
+        if not sig_examiner_path and not is_migration:
+            if os.path.exists(sig_azubi_path) if sig_azubi_path else False:
+                try:
+                    os.remove(sig_azubi_path)
+                except OSError:
+                    pass
+            raise ValueError("Fehler beim Speichern der Ausbilder-Signatur")
+
+        return sig_azubi_path, sig_examiner_path
+
+    @staticmethod
     def process_check_submission(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         azubi_id: int,
         examiner_name: str,
@@ -349,8 +380,15 @@ class CheckService:
         check_type: CheckType = CheckType.CHECK
     ) -> dict:
         """Process a full check submission."""
+        # pylint: disable=too-many-locals
         if not check_date:
             check_date = datetime.now()
+
+        session_id = CheckService.generate_unique_session_id()
+
+        sig_azubi_path, sig_examiner_path = CheckService._handle_signatures(
+            form_data, session_id)
+
         azubi = Azubi.query.get(azubi_id)
         if not azubi:
             current_app.logger.error(
@@ -358,7 +396,8 @@ class CheckService:
             raise ValueError(f"Azubi mit ID {azubi_id} nicht gefunden")
 
         check_context = CheckService._build_check_context(
-            azubi, examiner_name, form_data, check_date, check_type)
+            azubi, examiner_name, check_date, check_type,
+            session_id, sig_azubi_path, sig_examiner_path)
 
         # 3. Fetch Data Efficiently
         werkzeug_dict = CheckService._fetch_tools_dict(tool_ids)
@@ -461,9 +500,10 @@ class CheckService:
 
     @staticmethod
     def _generate_exchange_pdf(
-        azubi, tool, reason, session_id, sig_path
+        azubi, tool, reason, session_id, sig_path, price=0.0
     ):
         """Generate exchange PDF."""
+        # pylint: disable=too-many-arguments,too-many-positional-arguments
         tools_list = [{'name': tool.name,
                        'category': tool.material_category,
                        'status': f'Rückgabe ({reason})'},
@@ -475,15 +515,35 @@ class CheckService:
         pdf_filename = f"austausch_{session_id}.pdf"
         pdf_path = os.path.join(data_dir, 'reports', pdf_filename)
 
+        extra_lines = []
+        if price > 0:
+            extra_lines.append(f"Geschätzter Ersatzwert: {price:.2f} EUR")
+
         generate_handover_pdf(
             azubi_name=azubi.name,
             examiner_name="System",
             tools=tools_list,
             check_type=CheckType.EXCHANGE,
             signature_paths={'azubi': sig_path},
-            output_path=pdf_path
+            output_path=pdf_path,
+            extra_lines=extra_lines
         )
         return pdf_path
+
+    @staticmethod
+    def _cleanup_exchange_files(sig_path, pdf_path):
+        """Cleanup files on error."""
+        if sig_path and os.path.exists(sig_path):
+            try:
+                os.remove(sig_path)
+            except OSError:
+                pass
+
+        if pdf_path and os.path.exists(pdf_path):
+            try:
+                os.remove(pdf_path)
+            except OSError:
+                pass
 
     @staticmethod
     def process_tool_exchange(
@@ -510,22 +570,27 @@ class CheckService:
         session_id = CheckService.generate_unique_session_id()
         check_date = datetime.now()
 
+        # Calculate Price (Estimate)
+        price = 0.0
+        if is_payable and tool.price:
+            price = tool.price
+
         # 2. Save Signature
         sig_path = CheckService.save_signature(
             signature_data, session_id, 'azubi')
 
-        # 3. Create Records (Memory)
-        ret_entry, issue_entry = CheckService._create_exchange_records(
-            session_id, azubi_id, tool_id, reason, is_payable, check_date, sig_path)
-
-        db.session.add(ret_entry)
-        db.session.add(issue_entry)
-
-        # 4. Generate PDF
         pdf_path = None
         try:
+            # 3. Create Records (Memory)
+            ret_entry, issue_entry = CheckService._create_exchange_records(
+                session_id, azubi_id, tool_id, reason, is_payable, check_date, sig_path)
+
+            db.session.add(ret_entry)
+            db.session.add(issue_entry)
+
+            # 4. Generate PDF
             pdf_path = CheckService._generate_exchange_pdf(
-                azubi, tool, reason, session_id, sig_path)
+                azubi, tool, reason, session_id, sig_path, price)
 
             ret_entry.report_path = pdf_path
             issue_entry.report_path = pdf_path
@@ -536,20 +601,7 @@ class CheckService:
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Exchange failed: {e}")
-
-            # Cleanup files on error (prevent leak)
-            if sig_path and os.path.exists(sig_path):
-                try:
-                    os.remove(sig_path)
-                except OSError:
-                    pass
-
-            if pdf_path and os.path.exists(pdf_path):
-                try:
-                    os.remove(pdf_path)
-                except OSError:
-                    pass
-
+            CheckService._cleanup_exchange_files(sig_path, pdf_path)
             raise e
 
         current_app.logger.info(
@@ -558,7 +610,8 @@ class CheckService:
         return {
             "success": True,
             "session_id": session_id,
-            "pdf_path": pdf_path
+            "pdf_path": pdf_path,
+            "price": price
         }
 
 
@@ -890,7 +943,10 @@ class BackupService:
             for f in os.listdir(backup_dir):
                 if f.endswith('.zip') and f.startswith('backup_'):
                     path = os.path.join(backup_dir, f)
-                    stat = os.stat(path)
+                    try:
+                        stat = os.stat(path)
+                    except OSError:
+                        continue
                     backups.append({
                         'filename': f,
                         'size_mb': round(stat.st_size / (1024 * 1024), 2),

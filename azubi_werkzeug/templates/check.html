@@ -105,7 +105,8 @@
                             <thead class="table-light">
                                 <tr>
                                     <th style="width: 5%;">
-                                        <input class="form-check-input" type="checkbox" id="selectAll">
+                                        <input class="form-check-input" type="checkbox" id="selectAll"
+                                            aria-label="Alle Werkzeuge auswählen">
                                     </th>
                                     <th style="width: 35%;">Werkzeug</th>
                                     <th class="d-none d-md-table-cell" style="width: 20%;">Aktueller Status</th>
@@ -121,7 +122,8 @@
                                     <td>
                                         <!-- Checkbox to select tool for this action -->
                                         <input class="form-check-input tool-select" type="checkbox"
-                                            name="tool_{{ item.obj.id }}" value="ok" id="check_{{ item.obj.id }}">
+                                            name="tool_{{ item.obj.id }}" value="ok" id="check_{{ item.obj.id }}"
+                                            aria-label="Auswählen: {{ item.obj.name }}">
                                     </td>
 
                                     <td>
@@ -175,6 +177,12 @@
                                                 <label class="btn btn-outline-danger"
                                                     for="btnradio3_{{ item.obj.id }}">Fehlt</label>
                                             </div>
+
+                                            <!-- Manufacturer Input -->
+                                            <input type="text" class="form-control form-control-sm"
+                                                style="width: 120px;" name="manufacturer_{{ item.obj.id }}"
+                                                list="manufacturerOptions" placeholder="Hersteller"
+                                                value="{{ item.last_manufacturer }}">
 
                                             <!-- Tech Param Input -->
                                             {% if item.obj.tech_param_label %}
@@ -236,7 +244,7 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold small text-uppercase">Azubi: {{ azubi.name }}</label>
                             <div class="border rounded bg-light" style="height: 150px; position: relative;">
-                                <canvas id="canvasAzubi"
+                                <canvas id="canvasAzubi" aria-label="Unterschrift Azubi" role="img"
                                     style="width: 100%; height: 100%; touch-action: none;"></canvas>
                             </div>
                             <button type="button" class="btn btn-sm btn-link text-muted"
@@ -245,7 +253,7 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold small text-uppercase">Prüfer / Ausbilder</label>
                             <div class="border rounded bg-light" style="height: 150px; position: relative;">
-                                <canvas id="canvasExaminer"
+                                <canvas id="canvasExaminer" aria-label="Unterschrift Ausbilder" role="img"
                                     style="width: 100%; height: 100%; touch-action: none;"></canvas>
                             </div>
                             <button type="button" class="btn btn-sm btn-link text-muted"
@@ -282,6 +290,12 @@
 </div>
 </div>
 
+<datalist id="manufacturerOptions">
+    {% for preset in manufacturer_presets %}
+    <option value="{{ preset }}">
+        {% endfor %}
+</datalist>
+
 <!-- Signature Pad JS -->
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 
@@ -298,7 +312,7 @@
             // Store data if pad exists and has content
             let data = null;
             if (pad && !pad.isEmpty()) {
-                data = pad.toDataURL();
+                data = pad.toData();
             }
 
             canvas.width = canvas.offsetWidth * ratio;
@@ -307,7 +321,7 @@
 
             // Restore data
             if (data) {
-                pad.fromDataURL(data);
+                pad.fromData(data);
             } else if (pad) {
                 pad.clear(); // Ensure clean state if empty
             }
@@ -368,9 +382,11 @@
 
                 if (shouldShow) {
                     row.style.display = '';
+                    row.querySelectorAll('input, select').forEach(el => el.disabled = false);
                     visibleCount++;
                 } else {
                     row.style.display = 'none';
+                    row.querySelectorAll('input, select').forEach(el => el.disabled = true);
                     // UX Fix: Uncheck hidden rows prevents accidental submission
                     const cb = row.querySelector('.tool-select');
                     if (cb) cb.checked = false;
@@ -428,12 +444,12 @@
 
                     if (this.value === 'broken') {
                         // Show defekt-gründe, hide fehlt-gründe
-                        if (brokenGroup) brokenGroup.style.display = '';
-                        if (missingGroup) missingGroup.style.display = 'none';
+                        if (brokenGroup) { brokenGroup.disabled = false; brokenGroup.hidden = false; }
+                        if (missingGroup) { missingGroup.disabled = true; missingGroup.hidden = true; }
                     } else if (this.value === 'missing') {
                         // Show fehlt-gründe, hide defekt-gründe
-                        if (brokenGroup) brokenGroup.style.display = 'none';
-                        if (missingGroup) missingGroup.style.display = '';
+                        if (brokenGroup) { brokenGroup.disabled = true; brokenGroup.hidden = true; }
+                        if (missingGroup) { missingGroup.disabled = false; missingGroup.hidden = false; }
                     }
                 } else {
                     incidentDiv.style.display = 'none';
@@ -443,12 +459,8 @@
                     // Show all optgroups again when hidden
                     const brokenGroup = incidentSelect.querySelector('.broken-reasons');
                     const missingGroup = incidentSelect.querySelector('.missing-reasons');
-                    if (brokenGroup) brokenGroup.style.display = '';
-                    if (missingGroup) missingGroup.style.display = '';
-
-                    // Logic: Tech param might be required if label exists, depends on business rule.
-                    // Assuming 'ok' means we verified the param.
-                    if (techInput) techInput.setAttribute('required', 'required');
+                    if (brokenGroup) { brokenGroup.disabled = false; brokenGroup.hidden = false; }
+                    if (missingGroup) { missingGroup.disabled = false; missingGroup.hidden = false; }
                 }
             });
         });
@@ -499,6 +511,11 @@
                 errorAlert.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 return;
             }
+
+            // Prevent double-submit: disable button and show spinner
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Speichere...';
         });
     });
 </script>

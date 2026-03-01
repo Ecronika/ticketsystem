@@ -9,7 +9,7 @@ import os
 
 
 def main():
-    """Main execution function."""
+    """Execute main function."""
     # Files to check (explicit list to avoid checking scripts)
     files = [
         'app.py', 'routes.py', 'services.py', 'models.py',

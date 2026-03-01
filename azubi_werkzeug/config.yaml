@@ -1,6 +1,6 @@
-name: "Azubi Werkzeug Tracker"
-version: "2.7.1"
-slug: "azubi_werkzeug"
+name: "Azubi Werkzeug Tracker (Beta)"
+version: "2.8.2-beta34"
+slug: "azubi_werkzeug_beta"
 description: "Manage and track tools assigned to apprentices."
 url: "https://github.com/Ecronika/azubi_werkzeug"
 arch:
@@ -13,11 +13,11 @@ init: false
 startup: application
 boot: auto
 ingress: true
-ingress_port: 5000
+ingress_port: 8099
 ports:
   5000/tcp: 5000
 ports_description:
-  5000/tcp: Web Interface
+  5000/tcp: Web Interface (HTTPS when SSL is enabled)
 panel_icon: mdi:tools
 panel_title: "Werkzeug Tracker"
 hassio_api: false

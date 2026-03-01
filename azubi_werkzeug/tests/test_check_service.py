@@ -1,7 +1,10 @@
+"""
+Unit tests for CheckService.
+"""
+from datetime import datetime
 import pytest
 from services import CheckService
 from models import Check, CheckType, Azubi, Werkzeug
-from datetime import datetime
 
 
 def test_check_submission_success(test_app):
@@ -62,7 +65,7 @@ def test_check_date_override(test_app):
         assert check.datum == custom_date
 
 
-def test_exchange_enum_handling(test_app):
+def test_exchange_enum_handling():
     """Verify CheckType Enum works correctly"""
     assert CheckType.ISSUE.value == 'issue'
     assert CheckType.RETURN.value == 'return'
@@ -90,14 +93,10 @@ def test_check_submission_invalid_tool(test_app):
         azubi = Azubi.query.first()
 
         # Use invalid Tool ID (database has empty tool list for this ID)
-        # CheckService iterates over tool_ids and does Werkzeug.query.get(tool_id) - wait, does it?
+        # CheckService iterates over tool_ids and does query.
         # Let's check implementation. It filters by ID.
-
-        # If I pass a tool ID that doesn't exist, the loop `for tool_id in tool_ids` will still run?
-        # No, the implementation selects tools: `werkzeuge = Werkzeug.query.filter(Werkzeug.id.in_(tool_ids)).all()`
-        # If I pass [99999], werkzeuge will be empty.
-        # But the code iterates `for tool_id in tool_ids` later? No, it iterates `for tool in werkzeuge`.
-        # So nothing happens.
+        # If I pass a tool ID that doesn't exist, it won't be processed.
+        # Result should return success True and count 0.
 
         result = CheckService.process_check_submission(
             azubi_id=azubi.id,
