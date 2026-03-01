@@ -40,7 +40,13 @@ trigger: always_on
 * [cite_start]Visualisiere die Datenklassifizierung des aktuell angezeigten Datensatzes (z.B. vertraulich, intern) klar und unmissverständlich auf der Benutzeroberfläche[cite: 243].
 * [cite_start]Integriere Echtzeit-Sichtbarkeitsindikatoren und intelligentes Field-Level-Locking, um Datenkorruption bei der parallelen Bearbeitung durch mehrere Nutzer zu verhindern[cite: 258, 259].
 
-## 7. Performance-Grenzwert-Vorgaben
+## 7. Mobile-First & Shopfloor-Ergonomie (Tablet-Nutzung)
+* [cite_start]Optimiere interaktive Elemente zwingend für Touch-Bedienung: Die minimale Touch-Target-Größe muss konsistent 44x44 CSS-Pixel betragen (WCAG 2.5.5 Target Size).
+* [cite_start]Verhindere störendes "Pinch-to-Zoom" oder Über-Scrollen bei modalen Fenstern (z.B. Unterschriften-Pads), indem selektiv `touch-action: none` eingesetzt wird.
+* [cite_start]Integriere native Hardware-Features (Kamera-basierte Barcode-/QR-Scanner) als primäre Eingabemethode für Identifikation, um manuelle Tipparbeit auf mobilen Endgeräten drastisch zu reduzieren.
+* [cite_start]Gebe klares, visuelles Feedback bei Netzwerkverlust (Offline-Indikatoren), da auf dem Shopfloor oder in der Werkstatt WLAN-Verbindungen abbrechen können.
+
+## 8. Performance-Grenzwert-Vorgaben
 * [cite_start]Largest Contentful Paint (LCP): Darf maximal 2,5 Sekunden betragen[cite: 207].
 * [cite_start]Interaction to Next Paint (INP): Darf maximal 200 Millisekunden betragen[cite: 207].
 * [cite_start]Cumulative Layout Shift (CLS): Darf maximal 0,1 betragen[cite: 207].
@@ -77,5 +83,10 @@ Bevor du als Agent einen Design-Vorschlag, Code-Änderungen oder ein UI-Konzept 
 - [ ] [cite_start]Ist die Datenklassifizierung (z.B. vertraulich, intern) des aktuellen Datensatzes unmissverständlich visualisiert? [cite: 243]
 - [ ] [cite_start]Verhindern Echtzeit-Sichtbarkeitsindikatoren und intelligentes Field-Level-Locking Datenkorruption bei der parallelen Bearbeitung durch mehrere Nutzer? [cite: 258, 259]
 
-### 7. Core Web Vitals & Performance
+### 7. Mobile-First & Shopfloor-Ergonomie
+- [ ] [cite_start]Unterschreiten klickbare Tasten oder Icons niemals die Minimalgröße von 44x44 Pixeln für Touch-Interfaces?
+- [ ] [cite_start]Ist unerwünschtes Zoomen bei kritischen Eingabekomponenten (Unterschriften) physisch deaktiviert?
+- [ ] [cite_start]Gibt es visuelle Indikatoren für Verbindungsabbrüche (Offline-Modus) während der Dateneingabe?
+
+### 8. Core Web Vitals & Performance
 - [ ] [cite_start]Ist sichergestellt, dass architektonische Designentscheidungen die harten Grenzwerte unterstützen (LCP maximal 2,5 Sekunden, INP maximal 200 Millisekunden, CLS maximal 0,1)? [cite: 207]
