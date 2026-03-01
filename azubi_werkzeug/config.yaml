@@ -1,6 +1,6 @@
 name: "Azubi Werkzeug Tracker (Beta)"
-version: "2.8.2-beta34"
-slug: "azubi_werkzeug_beta"
+version: "2.8.2"
+slug: "azubi_werkzeug"
 description: "Manage and track tools assigned to apprentices."
 url: "https://github.com/Ecronika/azubi_werkzeug"
 arch:
