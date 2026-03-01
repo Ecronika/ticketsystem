@@ -33,15 +33,16 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 # Security: Session Configuration
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax',
+    # Allow iframes in Home Assistant by setting SameSite=None and Secure=True
+    # (Browsers require Secure=True when SameSite=None)
+    SESSION_COOKIE_SAMESITE='None' if IS_HOMEASSISTANT else 'Lax',
     MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB Upload Limit
     # 7 Days Validity (Prevent expiry in long sessions)
     WTF_CSRF_TIME_LIMIT=604800,
     # Auto-logout after 8 hours
     PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
-    # Secure cookie: True in production (HA always serves HTTPS via Ingress/SSL).
-    # Set FLASK_ENV=development to allow HTTP cookies during local debugging.
-    SESSION_COOKIE_SECURE=os.environ.get('FLASK_ENV', 'production') == 'production'
+    # Secure cookie: True in production or when SameSite=None.
+    SESSION_COOKIE_SECURE=True if IS_HOMEASSISTANT else (os.environ.get('FLASK_ENV', 'production') == 'production')
 )
 
 # --- Environment Validation ---
