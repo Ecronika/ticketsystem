@@ -28,6 +28,8 @@ COPY services.py .
 COPY forms.py .
 COPY templates templates/
 COPY static static/
+COPY metrics.py .
+COPY migrations/ migrations/
 
 # Service-Skripte kopieren
 COPY rootfs /
