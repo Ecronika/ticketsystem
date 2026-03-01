@@ -79,6 +79,41 @@ def _logout_view():
     return redirect(f"{ingress}{url_for('main.index')}")
 
 
+def _recover_pin_view():
+    """Handle PIN recovery using a single-use token."""
+    if request.method == 'POST':
+        token = request.form.get('token', '').strip().upper()
+
+        # Load existing hashes
+        saved_hashes_str = SystemSettings.get_setting('recovery_tokens_hash', '')
+        if not saved_hashes_str:
+            flash('Keine Recovery-Tokens im System hinterlegt.', 'error')
+            return render_template('recover_pin.html')
+
+        hashed_tokens = saved_hashes_str.split(',')
+        valid_index = -1
+
+        for idx, h in enumerate(hashed_tokens):
+            if check_password_hash(h, token):
+                valid_index = idx
+                break
+
+        if valid_index >= 0:
+            # Valid token found! Remove it from the list
+            hashed_tokens.pop(valid_index)
+            SystemSettings.set_setting('recovery_tokens_hash', ','.join(hashed_tokens))
+
+            session['is_admin'] = True
+            session.permanent = True
+            flash('Erfolgreich eingeloggt. Bitte ändern Sie jetzt sofort Ihren PIN!', 'success')
+            ingress = request.headers.get('X-Ingress-Path', '')
+            return redirect(f"{ingress}{url_for('main.settings')}")
+
+        flash('Ungültiger oder bereits verwendeter Token.', 'error')
+
+    return render_template('recover_pin.html')
+
+
 def register_routes(bp):
     """Register auth routes."""
     # Rate-limit applied via @bp.route so the decorator chain is respected.
@@ -89,3 +124,7 @@ def register_routes(bp):
     logout_view = _logout_view
     logout_view.__name__ = 'logout'
     bp.add_url_rule('/logout', view_func=logout_view)
+
+    recover_pin_view = limiter.limit("5 per minute")(_recover_pin_view)
+    recover_pin_view.__name__ = 'recover_pin'
+    bp.add_url_rule('/recover_pin', view_func=recover_pin_view, methods=['GET', 'POST'])

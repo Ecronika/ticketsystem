@@ -61,12 +61,14 @@ def register_routes(bp):
 
         azubi_ids = [a.id for a, l in azubis_with_checks]
         assigned_tools_batch = CheckService.get_assigned_tools_batch(azubi_ids)
+        anomalies_batch = CheckService.get_tool_anomalies_batch(azubi_ids, assigned_tools_batch)
 
         dashboard_data = []
         for azubi, last_datum in azubis_with_checks:
             status, status_class, last_check_str, sort_order = \
                 azubi.get_dashboard_status(last_datum)
             assigned_count = len(assigned_tools_batch.get(azubi.id, set()))
+            anomalies = anomalies_batch.get(azubi.id, {'missing': 0, 'broken': 0, 'missing_tools': [], 'broken_tools': []})
             dashboard_data.append({
                 'id': azubi.id,
                 'name': azubi.name,
@@ -75,6 +77,10 @@ def register_routes(bp):
                 'status_class': status_class,
                 'last_check': last_check_str,
                 'assigned_count': assigned_count,
+                'missing_count': anomalies['missing'],
+                'missing_tools': anomalies.get('missing_tools', []),
+                'broken_count': anomalies['broken'],
+                'broken_tools': anomalies.get('broken_tools', []),
                 'sort_order': sort_order
             })
 

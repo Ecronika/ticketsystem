@@ -23,16 +23,16 @@
     </div>
 </div>
 
-{% if total_count is defined and total_count > 2000 %}
-<div class="alert alert-info py-2 small mb-3">
-    <i class="bi bi-info-circle me-1"></i>
-    Es werden die neuesten <strong>2.000</strong> von insgesamt <strong>{{ total_count }}</strong>
-    Einträgen angezeigt.
+{% if pagination is defined and pagination and pagination.total > 0 %}
+<div class="alert alert-secondary py-2 small mb-3 border-0 bg-secondary-subtle">
+    <i class="bi bi-list-ol me-1"></i>
+    Anzeige Prüfungen <strong>{{ pagination.first }}</strong> bis <strong>{{ pagination.last }}</strong>
+    von insgesamt <strong>{{ pagination.total }}</strong>.
 </div>
 {% endif %}
 
 <div class="card shadow-sm border-0 rounded-4">
-    <div class="list-group list-group-flush rounded-4">
+    <div class="list-group list-group-flush rounded-4" id="historyListGroup">
         {% for check_session in sessions %}
         <a href="{{ ingress_path }}{{ url_for('main.history_details', session_id=check_session.session_id) }}"
             class="list-group-item list-group-item-action p-4 d-flex justify-content-between align-items-center">
@@ -54,22 +54,24 @@
                 </div>
 
                 <div>
-                    <h5 class="fw-bold mb-1">{{ check_session.azubi_name }}</h5>
-                    <div class="text-muted small">
-                        <i class="bi bi-calendar3 me-1"></i> {{ check_session.datum.strftime('%d.%m.%Y') }}
-                        <span class="mx-2">•</span>
-                        <i class="bi bi-clock me-1"></i> {{ check_session.datum.strftime('%H:%M') }} Uhr
+                    <h3 class="fw-bolder fs-4 mb-0" style="letter-spacing: -0.5px;">{{
+                        check_session.azubi_name }}</h3>
+                    <div class="text-muted mt-1" style="font-family: monospace; font-size: 0.70rem; opacity: 0.7;">
+                        {{ check_session.datum.strftime('%d.%m.%Y') }} &bull; {{ check_session.datum.strftime('%H:%M')
+                        }} Uhr
                     </div>
                 </div>
             </div>
 
-            <div class="text-end d-none d-sm-block">
+            <div class="text-end d-none d-sm-flex align-items-center gap-3">
                 {% if check_session.is_ok %}
-                <span class="badge bg-success rounded-pill px-3 py-2">Alles OK</span>
+                <div class="text-theme-success fw-bolder" style="font-size: 1.1rem; letter-spacing: -0.5px;">ALLES OK
+                </div>
                 {% else %}
-                <span class="badge bg-warning text-dark rounded-pill px-3 py-2">Auffälligkeiten</span>
+                <div class="text-theme-warning fw-bolder" style="font-size: 1.1rem; letter-spacing: -0.5px;">
+                    AUFFÄLLIGKEITEN</div>
                 {% endif %}
-                <i class="bi bi-chevron-right text-muted ms-3"></i>
+                <i class="bi bi-chevron-right text-muted opacity-50"></i>
             </div>
         </a>
         {% else %}
@@ -80,5 +82,92 @@
         {% endfor %}
 
     </div>
-</div>
-{% endblock %}
+
+    <!-- Load More Button -->
+    {% if pagination is defined and pagination and pagination.has_next %}
+    <div class="text-center mt-4 mb-3">
+        <button id="loadMoreBtn" class="btn btn-outline-secondary rounded-pill px-4"
+            data-next-page="{{ pagination.next_num }}">
+            Weitere laden <i class="bi bi-arrow-down-short"></i>
+        </button>
+    </div>
+    {% endif %}
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const loadMoreBtn = document.getElementById('loadMoreBtn');
+            const historyListGroup = document.getElementById('historyListGroup');
+            const ingressPath = "{{ ingress_path }}";
+            const historyDetailsBaseUrl = ingressPath + "{{ url_for('main.history_details', session_id='') }}";
+            const apiHistoryUrl = ingressPath + "{{ url_for('main.api_history') }}";
+
+            // Get filter from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const azubiId = urlParams.get('azubi_id') || 'all';
+
+            if (loadMoreBtn && historyListGroup) {
+                loadMoreBtn.addEventListener('click', async function () {
+                    const nextPage = this.getAttribute('data-next-page');
+                    if (!nextPage) return;
+
+                    // Show loading state
+                    const originalText = this.innerHTML;
+                    this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Lade...';
+                    this.disabled = true;
+
+                    try {
+                        const response = await fetch(`${apiHistoryUrl}?page=${nextPage}&azubi_id=${azubiId}`);
+                        const data = await response.json();
+
+                        if (data.success && data.sessions) {
+                            data.sessions.forEach(session => {
+                                const itemHtml = `
+                            <a href="${historyDetailsBaseUrl}${session.session_id}" class="list-group-item list-group-item-action p-4 d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-4 text-center" style="min-width: 60px;">
+                                        ${session.is_ok ?
+                                        '<div class="rounded-circle bg-success-subtle d-flex align-items-center justify-content-center mx-auto" style="width: 48px; height: 48px;"><i class="bi bi-check-lg text-success fs-4"></i></div>' :
+                                        '<div class="rounded-circle bg-warning-subtle d-flex align-items-center justify-content-center mx-auto" style="width: 48px; height: 48px;"><i class="bi bi-exclamation-lg text-warning-emphasis fs-4"></i></div>'}
+                                    </div>
+                                    <div>
+                                        <h3 class="fw-bolder fs-4 mb-0" style="letter-spacing: -0.5px;">${session.azubi_name}</h3>
+                                        <div class="text-muted mt-1" style="font-family: monospace; font-size: 0.70rem; opacity: 0.7;">
+                                            ${session.datum_formatted} &bull; ${session.time_formatted} Uhr
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-end d-none d-sm-flex align-items-center gap-3">
+                                    ${session.is_ok ?
+                                        '<div class="text-theme-success fw-bolder" style="font-size: 1.1rem; letter-spacing: -0.5px;">ALLES OK</div>' :
+                                        '<div class="text-theme-warning fw-bolder" style="font-size: 1.1rem; letter-spacing: -0.5px;">AUFFÄLLIGKEITEN</div>'}
+                                    <i class="bi bi-chevron-right text-muted opacity-50"></i>
+                                </div>
+                            </a>`;
+                                historyListGroup.insertAdjacentHTML('beforeend', itemHtml);
+                            });
+
+                            if (data.has_next) {
+                                this.setAttribute('data-next-page', data.next_page);
+                                this.innerHTML = originalText;
+                                this.disabled = false;
+                            } else {
+                                // All loaded
+                                this.remove();
+                            }
+                        } else {
+                            console.error("Failed to load more history:", data.error);
+                            this.innerHTML = originalText;
+                            this.disabled = false;
+                            alert("Fehler beim Laden weiterer Einträge.");
+                        }
+                    } catch (err) {
+                        console.error("Fetch error:", err);
+                        this.innerHTML = originalText;
+                        this.disabled = false;
+                        alert("Verbindungsfehler. Bitte versuchen Sie es erneut.");
+                    }
+                });
+            }
+        });
+    </script>
+    {% endblock %}

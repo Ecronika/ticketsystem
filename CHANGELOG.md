@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.0] - 2026-03-01
+
+### ✨ Features & UX Enhancements
+- **Bulk Tool Exchange (Massenverarbeitung):** Overhauled the exchange modal to support selecting multiple tools concurrently. This eliminates the need for repetitive signatures and clicks for power users.
+- **Dynamic Pricing:** The exchange modal now aggregates the estimated total replacement value in real-time as tools are selected via check boxes.
+- **Progressive Disclosure UI:** Redesigned the "Tool Reason" selection to support a "Global Reason" up top with the option to override on an individual tool level natively within the Bento-style list.
+- **Prometheus Metrics:** Integrated a `/metrics` endpoint to monitor application health, check submissions, durations, and scans natively.
+- **Persistent Pagination Search:** Upgraded the UI search functionality. Database queries now process search terms server-side with a debounce, applying queries across all result pages instead of limiting filters to the visible HTML DOM.
+
+### 🎨 Theming & Accessibility
+- **High Contrast (HC) Mode Signature Polish:** Fixed signature rendering artifacts in High-Contrast Mode. The signature pad now enforces a pure black background with glowing Cyan ink and borders to prevent halation and maximize visibility.
+- **Semantic Button Styling:** Refined button state logic to ensure the "Defekt" danger states correctly apply soft pastel-red backgrounds natively via RGB coordinates, circumventing Bootstrap 5 "Dark Mode Variable" invisibility issues.
+
+### 🐛 Bug Fixes
+- **Tools Table Search:** Corrected the client-side limitation where the UI search bar would only filter results located within the active 20-row pagination chunk.
+
 ## [2.8.0] - 2026-02-21
 
 ### Added

@@ -1,34 +1,21 @@
-/* Weicherer Hintergrund */
+/* Weicherer Hintergrund werden jetzt von CSS Variablen gesteuert */
 body {
-    background-color: #f8f9fa;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 /* Karten sollen leicht schweben */
 .card {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease, border-color 0.3s ease;
 }
 
 /* Hover Effekt für Klickbare Karten */
 a .card:hover {
-    /* Note: This selector might be too specific depending on HTML structure, but keeping per requirements */
     transform: translateY(-3px);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1) !important;
+    box-shadow: var(--card-shadow-hover) !important;
 }
 
-/* Ensure cards inside anchors or wrapper divs also get hover if needed. 
-   The user's HTML has <a> around button, but card is separate. 
-   Wait, the user's index.html has:
-   <div class="col..."> <div class="card ..."> ... <a ...> ... </a> </div> </div>
-   The hover effect requested was 'a .card:hover', which implies the card is inside an anchor.
-   However, in the user's provided HTML for index.html, the card contains the link.
-   I will add a general card hover class or just apply to .card:hover for better UX if they want the whole card actionable.
-   But to strictly follow:
-*/
-
 .card:hover {
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-    /* Default subtle hover */
+    box-shadow: var(--card-shadow);
 }
 
 /* Die Liste in der Checkbox etwas auflockern */
@@ -48,15 +35,15 @@ a .card:hover {
     cursor: pointer;
 }
 
-/* --- Phase 4: Mobile Optimization (Thumb Zone) --- */
-@media (max-width: 768px) {
+/* --- Phase 4: Ergonomics & Touch (Thumb Zone / Hit Areas) --- */
+.btn,
+.form-control,
+.form-select {
+    min-height: 44px;
+    /* Apple Human Interface Guidelines & WCAG 2.5.8 */
+}
 
-    .btn,
-    .form-control,
-    .form-select {
-        min-height: 44px;
-        /* Apple Human Interface Guidelines for Touch */
-    }
+@media (max-width: 768px) {
 
     /* Prevent iOS text zooming on inputs */
     input,
@@ -71,101 +58,326 @@ a .card:hover {
     }
 }
 
-/* --- Phase 4: High Contrast Mode --- */
-body.high-contrast-mode {
-    background-color: #000000 !important;
-    color: #FFFF00 !important;
+/* --- Phase 1: CSS-Architektur & Custom Properties (Variablen) --- */
+
+/* Standard: Light Mode */
+:root {
+    --bg-body: #f8f9fa;
+    --bg-surface: #ffffff;
+    --text-main: #212529;
+    --text-muted: #6c757d;
+    --border-color: #dee2e6;
+    --focus-ring: 3px solid #0d6efd;
+    --card-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    --card-shadow-hover: 0 10px 20px rgba(0, 0, 0, 0.1);
+
+    /* Semantic Colors */
+    --color-primary: #0d6efd;
+    --color-success: #146c43;
+    /* Darker, forest-green for contrast on white */
+    --color-warning: #daa520;
+    /* Goldenrod for contrast on white */
+    --color-danger: #dc3545;
+    --color-info: #0dcaf0;
+
+    /* Status Backgrounds & Borders (Subtle) */
+    --bg-success-subtle: #d1e7dd;
+    --border-success-subtle: #a3cfbb;
+    --bg-warning-subtle: #fff3cd;
+    --border-warning-subtle: #ffe69c;
+    --bg-danger-subtle: #f8d7da;
+    --border-danger-subtle: #f1aeb5;
+    --bg-info-subtle: #cff4fc;
+    --border-info-subtle: #9eeaf9;
 }
 
-body.high-contrast-mode .bg-light,
-body.high-contrast-mode .card,
-body.high-contrast-mode .modal-content,
-body.high-contrast-mode .navbar-light,
-body.high-contrast-mode .bg-white {
-    background-color: #222222 !important;
-    color: #FFFFFF !important;
-    border: 1px solid #FFFF00 !important;
+/* Dark Mode (Ergonomisch, kein reines Schwarz) */
+[data-theme="dark"] {
+    --bg-body: #121212;
+    --bg-surface: #1e1e1e;
+    --text-main: #e0e0e0;
+    --text-muted: #a0a0a0;
+    --border-color: #333333;
+    --focus-ring: 3px solid #3b82f6;
+    --card-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    --card-shadow-hover: 0 10px 20px rgba(0, 0, 0, 0.5);
+
+    /* Semantic Colors (Adjusted for Dark Mode contrast) */
+    --color-primary: #3b82f6;
+    --color-success: #2ecc71;
+    --color-warning: #f1c40f;
+    --color-danger: #e74c3c;
+    --color-info: #3498db;
+
+    /* Status Backgrounds & Borders (Subtle - Darker) */
+    --bg-success-subtle: rgba(46, 204, 113, 0.2);
+    --border-success-subtle: rgba(46, 204, 113, 0.4);
+    --bg-warning-subtle: rgba(241, 196, 15, 0.2);
+    --border-warning-subtle: rgba(241, 196, 15, 0.4);
+    --bg-danger-subtle: rgba(231, 76, 60, 0.2);
+    --border-danger-subtle: rgba(231, 76, 60, 0.4);
+    --bg-info-subtle: rgba(52, 152, 219, 0.2);
+    --border-info-subtle: rgba(52, 152, 219, 0.4);
 }
 
-body.high-contrast-mode .card-header,
-body.high-contrast-mode .card-footer,
-body.high-contrast-mode .modal-header,
-body.high-contrast-mode .modal-footer {
-    background-color: #000000 !important;
-    border-bottom: 1px solid #FFFF00 !important;
-    border-top: 1px solid #FFFF00 !important;
+/* High Contrast Mode (Halation-reduziert) */
+[data-theme="hc"] {
+    --bg-body: #0d0d0d;
+    --bg-surface: #1a1a1a;
+    --text-main: #e6e600;
+    /* Weiches Gelb */
+    --text-muted: #cccc00;
+    --border-color: #e6e600;
+    --focus-ring: 4px solid #00ffff;
+    /* Cyan für maximale Sichtbarkeit */
+    --card-shadow: none;
+    --card-shadow-hover: 0 0 0 2px #00ffff;
+    /* Outline statt Shadow im HC Mode */
+
+    /* Semantic Colors (High Visibility) */
+    --color-primary: #e6e600;
+    --color-success: #00ff00;
+    --color-warning: #ffff00;
+    /* Pure yellow */
+    --color-danger: #ff0000;
+    /* Pure red */
+    --color-info: #00ffff;
+
+    /* Status Backgrounds & Borders (Subtle - Replaced by pure borders in HC) */
+    --bg-success-subtle: #0d0d0d;
+    --border-success-subtle: #00ff00;
+    --bg-warning-subtle: #0d0d0d;
+    --border-warning-subtle: #ffff00;
+    --bg-danger-subtle: #0d0d0d;
+    --border-danger-subtle: #ff0000;
+    --bg-info-subtle: #0d0d0d;
+    --border-info-subtle: #00ffff;
 }
 
-body.high-contrast-mode .form-control,
-body.high-contrast-mode .form-select {
-    background-color: #000000 !important;
-    color: #FFFF00 !important;
-    border: 2px solid #FFFFFF !important;
+/* --- Custom WCAG Buttons --- */
+.btn-primary-soft {
+    background-color: transparent;
+    color: var(--color-primary);
+    border: 2px solid var(--color-primary);
+    font-weight: 600;
+    transition: all 0.2s ease;
 }
 
-body.high-contrast-mode .text-muted {
-    color: #DDDDDD !important;
+.btn-primary-soft:hover {
+    background-color: var(--color-primary);
+    color: #fff;
 }
 
-body.high-contrast-mode a {
-    color: #FFFF00 !important;
-    text-decoration: underline !important;
+/* Pastell / Sky Blue in Dark mode */
+[data-theme="dark"] .btn-primary-soft {
+    background-color: rgba(135, 206, 235, 0.15);
+    color: #87ceeb;
+    border: 1px solid rgba(135, 206, 235, 0.4);
 }
 
-body.high-contrast-mode .btn-primary {
-    background-color: #FFFF00 !important;
-    color: #000000 !important;
-    border: 2px solid #FFFFFF !important;
-    font-weight: bold;
+[data-theme="dark"] .btn-primary-soft:hover {
+    background-color: rgba(135, 206, 235, 0.3);
+    color: #b0e0e6;
+    border-color: rgba(135, 206, 235, 0.6);
 }
 
-body.high-contrast-mode .btn-secondary,
-body.high-contrast-mode .btn-light,
-body.high-contrast-mode .btn-outline-secondary {
-    background-color: #444444 !important;
-    color: #FFFFFF !important;
-    border: 2px solid #FFFFFF !important;
+/* High-Contrast friendly (Cyan) in HC mode */
+[data-theme="hc"] .btn-primary-soft {
+    background-color: transparent;
+    color: #00ffff;
+    border: 2px solid #00ffff;
 }
 
-body.high-contrast-mode .table {
-    color: #FFFFFF !important;
+[data-theme="hc"] .btn-primary-soft:hover {
+    background-color: #00ffff;
+    color: #000000;
+    border-color: #00ffff;
 }
 
-body.high-contrast-mode .table thead th {
-    background-color: #444444 !important;
-    color: #FFFF00 !important;
-    border-color: #FFFF00 !important;
+/* Custom Warning Outline Button that respects Theme colors */
+.btn-outline-theme-warning {
+    color: var(--color-warning);
+    border-color: var(--color-warning);
+    background-color: transparent;
+    transition: all 0.2s ease;
 }
 
-body.high-contrast-mode .table td,
-body.high-contrast-mode .table th {
-    border-color: #666666 !important;
+.btn-outline-theme-warning:hover {
+    background-color: var(--color-warning);
+    color: #000;
 }
 
-/* Fix für Listen-Elemente im High Contrast Mode */
-body.high-contrast-mode .list-group-item {
-    background-color: #000000 !important;
-    /* Schwarz statt Weiß */
-    color: #FFFF00 !important;
-    /* Gelbe Schrift */
-    border: 1px solid #FFFF00 !important;
-    /* Gelber Rahmen zur Trennung */
+/* --- Theme Application (Global Setup) --- */
+
+body {
+    background-color: var(--bg-body);
+    color: var(--text-main);
 }
 
-/* Fix für die kleinen Zeitstempel-Texte */
-body.high-contrast-mode .list-group-item .text-muted {
-    color: #FFFF00 !important;
-    /* Auch Gelb erzwingen */
-    opacity: 0.8;
-    /* Leicht abgedunkelt zur Unterscheidung */
+/* Custom Text Utilities to enforce Theme Colors */
+.text-theme-danger {
+    color: var(--color-danger) !important;
 }
 
-/* Fix für die runden Icon-Hintergründe (Grüner/Gelber Kreis) */
-body.high-contrast-mode .rounded-circle.bg-success-subtle,
-body.high-contrast-mode .rounded-circle.bg-warning-subtle,
-body.high-contrast-mode .rounded-circle.bg-danger-subtle,
-body.high-contrast-mode .rounded-circle.bg-info-subtle {
-    background-color: #222222 !important;
-    /* Dunkler Hintergrund für Icons */
-    border: 1px solid #FFFF00 !important;
+.text-theme-success {
+    color: var(--color-success) !important;
+}
+
+.text-theme-warning {
+    color: var(--color-warning) !important;
+}
+
+.text-theme-info {
+    color: var(--color-info) !important;
+}
+
+.text-theme-primary {
+    color: var(--color-primary) !important;
+}
+
+/* Custom Background & Border Utilities for Theme Subtles */
+.bg-theme-danger-subtle {
+    background-color: var(--bg-danger-subtle) !important;
+}
+
+.border-theme-danger-subtle {
+    border-color: var(--border-danger-subtle) !important;
+}
+
+.bg-theme-warning-subtle {
+    background-color: var(--bg-warning-subtle) !important;
+}
+
+.border-theme-warning-subtle {
+    border-color: var(--border-warning-subtle) !important;
+}
+
+/* Solid Background Utilities */
+.bg-theme-success {
+    background-color: var(--color-success) !important;
+    color: #fff !important;
+}
+
+[data-theme="hc"] .bg-theme-success {
+    background-color: #000 !important;
+    color: var(--color-success) !important;
+    border: 2px solid var(--color-success) !important;
+}
+
+[data-theme="dark"] .bg-theme-success {
+    color: #121212 !important;
+}
+
+.bg-theme-success-subtle {
+    background-color: var(--bg-success-subtle) !important;
+}
+
+.border-theme-success-subtle {
+    border-color: var(--border-success-subtle) !important;
+}
+
+.bg-theme-info-subtle {
+    background-color: var(--bg-info-subtle) !important;
+}
+
+.border-theme-info-subtle {
+    border-color: var(--border-info-subtle) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Theme Switches                                                             */
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+.card,
+.modal-content,
+.bg-white {
+    background-color: var(--bg-surface) !important;
+    color: var(--text-main);
+    border-color: var(--border-color);
+}
+
+.card-header,
+.card-footer,
+.modal-header,
+.modal-footer {
+    border-color: var(--border-color);
+    background-color: var(--bg-surface);
+}
+
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+.form-control,
+.form-select {
+    background-color: var(--bg-surface);
+    color: var(--text-main);
+    border-color: var(--border-color);
+}
+
+.form-control::placeholder {
+    color: var(--text-muted);
+    opacity: 1;
+    /* override default browser opacity */
+}
+
+.form-control:focus,
+.form-select:focus {
+    background-color: var(--bg-surface);
+    color: var(--text-main);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+[data-theme="hc"] .form-control:focus,
+[data-theme="hc"] .form-select:focus {
+    box-shadow: none;
+    outline: var(--focus-ring);
+    outline-offset: 2px;
+}
+
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus {
+    box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25);
+}
+
+/* --- Bootstrap Component Overrides --- */
+
+.table {
+    color: var(--text-main);
+    border-color: var(--border-color);
+    --bs-table-bg: var(--bg-surface);
+    --bs-table-color: var(--text-main);
+    --bs-table-striped-bg: rgba(0, 0, 0, 0.05);
+    --bs-table-hover-bg: rgba(0, 0, 0, 0.075);
+    --bs-table-hover-color: var(--text-main);
+}
+
+[data-theme="dark"] .table,
+[data-theme="hc"] .table {
+    --bs-table-striped-bg: rgba(255, 255, 255, 0.05);
+    --bs-table-hover-bg: rgba(255, 255, 255, 0.075);
+}
+
+.table> :not(caption)>*>* {
+    background-color: var(--bs-table-bg);
+    color: var(--bs-table-color);
+}
+
+.list-group-item {
+    background-color: var(--bg-surface);
+    color: var(--text-main);
+    border-color: var(--border-color);
+}
+
+/* --- Accessibility Focus Indicators (WCAG 2.2) --- */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: 2px;
 }

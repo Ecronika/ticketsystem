@@ -7,18 +7,52 @@
   <title>{% block title %}Werkstatt Check{% endblock %}</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-  <link rel="stylesheet" href="{{ ingress_path }}{{ url_for('static', filename='css/style.css') }}?v=4.1">
+  <link rel="stylesheet" href="{{ ingress_path }}{{ url_for('static', filename='css/style.css') }}?v=4.9">
+  {% block styles %}{% endblock %}
 </head>
 
-<body class="bg-light">
+<body class="d-flex flex-column min-vh-100">
   <script>
-    // Critical: Apply High Contrast immediately to prevent FOUC
-    (function () {
+    // Phase 2 + Phase 3: Theme Auto-Detect & Application Logic
+    window.applyTheme = function (themeParam) {
       try {
-        if (localStorage.getItem('highContrast') === 'true') {
-          document.body.classList.add('high-contrast-mode');
+        let theme = themeParam;
+        if (theme === 'auto') {
+          if (window.matchMedia('(prefers-contrast: more)').matches) {
+            theme = 'hc';
+          } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            theme = 'dark';
+          } else {
+            theme = 'light';
+          }
         }
-      } catch (e) { }
+        document.documentElement.setAttribute('data-theme', theme);
+
+        // Sync with Bootstrap 5.3 native dark mode
+        const bsTheme = theme === 'hc' ? 'dark' : theme;
+        document.documentElement.setAttribute('data-bs-theme', bsTheme);
+
+        window.dispatchEvent(new CustomEvent('themeChanged', { detail: theme }));
+
+        // Update Navbar Icon if it exists
+        const themeIcon = document.getElementById('themeIcon');
+        const toggleBtn = document.getElementById('themeToggle');
+        if (themeIcon && toggleBtn) {
+          if (theme === 'light') {
+            themeIcon.className = 'bi bi-moon-stars';
+            toggleBtn.title = 'Dark Mode aktivieren';
+          } else {
+            themeIcon.className = 'bi bi-sun';
+            toggleBtn.title = 'Light Mode aktivieren';
+          }
+        }
+      } catch (e) { console.error('Theme Script Error:', e); }
+    };
+
+    // Apply immediately to prevent FOUC
+    (function () {
+      const savedTheme = localStorage.getItem('ui_theme') || 'auto';
+      window.applyTheme(savedTheme);
     })();
   </script>
 
@@ -58,9 +92,9 @@
               request.endpoint=='main.settings' %}aria-current="page" {% endif %}>Einstellungen</a>
           </li>
           <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
-            <button class="btn btn-outline-light btn-sm" id="contrastToggle" title="Hoher Kontrast"
-              aria-label="Hohen Kontrast umschalten">
-              <i class="bi bi-circle-half" aria-hidden="true"></i>
+            <button class="btn btn-outline-light btn-sm" id="themeToggle" title="Theme wechseln"
+              aria-label="Theme umschalten">
+              <i class="bi bi-moon-stars" id="themeIcon" aria-hidden="true"></i>
             </button>
           </li>
         </ul>
@@ -68,10 +102,10 @@
     </div>
   </nav>
 
-  <div class="container py-4">
+  <div class="container-fluid px-4 py-4">
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-    <div class="position-fixed top-0 end-0 p-3" style="z-index: 1050">
+    <div class="position-fixed top-0 end-0 p-3" style="z-index: 1050" aria-live="polite" aria-atomic="true">
       {% for category, message in messages %}
       <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show shadow"
         role="alert">
@@ -87,36 +121,25 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    // High Contrast Logic
+    // Phase 3: Theme Toggle Logic (Navbar)
     document.addEventListener('DOMContentLoaded', () => {
-      console.log("High Contrast Script Loaded");
-      const toggleBtn = document.getElementById('contrastToggle');
-      const body = document.body;
+      const toggleBtn = document.getElementById('themeToggle');
+      const root = document.documentElement;
 
-      if (!toggleBtn) {
-        console.error("Contrast Toggle Button not found!");
-        return;
-      }
-
-      // Sync button state with current body class (set by top script)
-      if (body.classList.contains('high-contrast-mode')) {
-        toggleBtn.classList.remove('btn-outline-light');
-        toggleBtn.classList.add('btn-light');
-      }
+      if (!toggleBtn) return;
 
       toggleBtn.addEventListener('click', () => {
-        console.log("Toggle clicked");
-        body.classList.toggle('high-contrast-mode');
-        const isActive = body.classList.contains('high-contrast-mode');
-        localStorage.setItem('highContrast', isActive);
+        const activeTheme = root.getAttribute('data-theme');
+        // Toggle only between Light and Dark for quick access from the navbar
+        const newTheme = activeTheme === 'light' ? 'dark' : 'light';
 
-        // Visual Feedback on button
-        if (isActive) {
-          toggleBtn.classList.remove('btn-outline-light');
-          toggleBtn.classList.add('btn-light');
-        } else {
-          toggleBtn.classList.add('btn-outline-light');
-          toggleBtn.classList.remove('btn-light');
+        localStorage.setItem('ui_theme', newTheme);
+        window.applyTheme(newTheme);
+
+        // If we are on the settings page, also update the dropdown seamlessly
+        const themeSelect = document.getElementById('themeSelect');
+        if (themeSelect) {
+          themeSelect.value = newTheme;
         }
       });
     });

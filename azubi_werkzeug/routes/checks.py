@@ -10,7 +10,7 @@ from datetime import datetime
 
 from flask import (
     render_template, request, redirect, url_for,
-    flash, current_app, send_from_directory, abort
+    flash, current_app, send_from_directory, abort, jsonify
 )
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
@@ -21,6 +21,7 @@ from models import Azubi, Werkzeug, Examiner, Check, CheckType, SystemSettings
 from services import CheckService
 from routes.utils import get_data_dir, parse_migration_date, is_migration_active
 from routes.auth import admin_required
+from metrics import CHECKS_SUBMITTED_TOTAL, SCANS_TOTAL
 
 
 def _parse_last_entry_status(last_entry):
@@ -98,6 +99,9 @@ def check_azubi(azubi_id):
 
     mapped_werkzeuge = _build_tool_status_list(azubi, werkzeuge, assigned_ids)
 
+    # Track that a QR Code scan successfully landed on the check page
+    SCANS_TOTAL.inc()
+
     return render_template(
         'check.html',
         azubi=azubi,
@@ -174,6 +178,9 @@ def submit_check():
             check_type=CheckType(check_type_str)
         )
 
+        # Track successful check submission in Prometheus
+        CHECKS_SUBMITTED_TOTAL.labels(check_type=check_type_str).inc()
+
         flash(
             f'{check_type_str.capitalize()} erfolgreich '
             f'gespeichert! '
@@ -196,40 +203,42 @@ def submit_check():
 
 
 def exchange_tool():
-    """Handle one-click tool exchange."""
+    """Handle one-click tool exchange (Bulk mass processing)."""
+    import json
     azubi_id = request.form.get('azubi_id')
-    tool_id = request.form.get('tool_id')
-    reason = request.form.get('reason')
+    exchange_data_json = request.form.get('exchange_data')
     is_payable = request.form.get('is_payable') == 'on'
-    signature_data = request.form.get(
-        'signature_azubi_data')
+    signature_data = request.form.get('signature_azubi_data')
     ingress = request.headers.get('X-Ingress-Path', '')
 
-    if not all([azubi_id, tool_id, reason,
-                signature_data]):
-        flash(
-            'Fehler: Unvollständige Daten '
-            'für Austausch.', 'error')
-        return redirect(
-            f"{ingress}{url_for('main.index')}")
+    if not all([azubi_id, exchange_data_json, signature_data]):
+        flash('Fehler: Unvollständige Daten für Austausch.', 'error')
+        return redirect(f"{ingress}{url_for('main.index')}")
 
     try:
-        result = CheckService.process_tool_exchange(
+        exchange_data = json.loads(exchange_data_json)
+        if not exchange_data:
+            flash('Fehler: Keine Werkzeuge ausgewählt.', 'error')
+            return redirect(f"{ingress}{url_for('main.index')}")
+
+        result = CheckService.process_tool_exchange_batch(
             azubi_id=int(azubi_id),
-            tool_id=int(tool_id),
-            reason=reason,
+            exchange_data=exchange_data,
             is_payable=is_payable,
             signature_data=signature_data
         )
+        
+        # Track successful exchange in Prometheus for the batch
+        CHECKS_SUBMITTED_TOTAL.labels(check_type='exchange').inc(amount=len(exchange_data))
+
         CheckService.invalidate_cache(int(azubi_id))
 
-        msg = 'Werkzeug erfolgreich ausgetauscht.'
-        if result.get('price'):
-            msg += f" (Geschätzte Kosten: {result['price']:.2f} EUR)"
+        msg = f"{len(exchange_data)} Werkzeuge erfolgreich ausgetauscht."
+        if result.get('total_price'):
+            msg += f" (Geschätzte Kosten: {result['total_price']:.2f} EUR)"
 
         flash(msg, 'success')
-        return redirect(
-            f"{ingress}{url_for('main.index')}")
+        return redirect(f"{ingress}{url_for('main.index')}")
 
     except Exception as e:  # pylint: disable=broad-exception-caught
         current_app.logger.error(
@@ -247,18 +256,24 @@ def history():
     azubi_id = request.args.get('azubi_id')
 
     try:
+        page = request.args.get('page', 1, type=int)
+        
         query = Check.query.order_by(Check.datum.desc())
         if azubi_id and azubi_id != 'all':
             query = query.filter_by(
                 azubi_id=int(azubi_id))
 
         query_start = time.time()
-        total_count = query.count()
-        all_checks = query.options(
-            joinedload(Check.azubi)).limit(2000).all()
+        
+        # New server-side pagination (100 items per page)
+        pagination = query.options(joinedload(Check.azubi)).paginate(
+            page=page, per_page=100, error_out=False
+        )
+        all_checks = pagination.items
+        
         query_duration = time.time() - query_start
         current_app.logger.info(
-            f"History query: {len(all_checks)} checks "
+            f"History query (Page {page}): {len(all_checks)} checks "
             f"in {query_duration:.3f}s")
 
         azubis = Azubi.query.order_by(Azubi.name).all()
@@ -279,7 +294,8 @@ def history():
             'history.html',
             sessions=sessions,
             azubis=azubis,
-            total_count=total_count,
+            pagination=pagination,
+            total_count=pagination.total,
             selected_azubi_id=(
                 int(azubi_id)
                 if azubi_id and azubi_id != 'all'
@@ -297,6 +313,41 @@ def history():
             f"Error in history: {e}", exc_info=True)
         flash(f'Fehler: {str(e)}', 'danger')
         return redirect(url_for('main.index'))
+
+
+def api_history():
+    """API endpoint for history 'Load More'."""
+    azubi_id = request.args.get('azubi_id')
+    page = request.args.get('page', 1, type=int)
+
+    try:
+        query = Check.query.order_by(Check.datum.desc())
+        if azubi_id and azubi_id != 'all':
+            query = query.filter_by(azubi_id=int(azubi_id))
+
+        pagination = query.options(joinedload(Check.azubi)).paginate(
+            page=page, per_page=100, error_out=False
+        )
+        all_checks = pagination.items
+        sessions = CheckService.group_checks_into_sessions(all_checks)
+
+        for session_item in sessions:
+            dt = session_item['datum']
+            session_item['datum_formatted'] = dt.strftime('%d.%m.%Y')
+            session_item['time_formatted'] = dt.strftime('%H:%M')
+            session_item['datum'] = dt.isoformat()  # JSON serialization
+
+        return jsonify({
+            'success': True,
+            'sessions': sessions,
+            'has_next': pagination.has_next,
+            'next_page': pagination.next_num,
+            'total': pagination.total
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"Error in api_history: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 def _parse_session_checks(checks):
@@ -468,6 +519,10 @@ def register_routes(bp):
     bp.add_url_rule(
         '/history',
         view_func=history)
+    bp.add_url_rule(
+        '/api/history',
+        view_func=api_history,
+        methods=['GET'])
     bp.add_url_rule(
         '/history_details/<path:session_id>',
         view_func=history_details)

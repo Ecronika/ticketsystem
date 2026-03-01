@@ -58,7 +58,7 @@ class Azubi(db.Model):
     """Model representing an apprentice."""
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
+    name = db.Column(db.String(100), nullable=False, index=True)
     lehrjahr = db.Column(db.Integer, default=1)
     is_archived = db.Column(db.Boolean, default=False)
     checks = db.relationship('Check', backref='azubi', lazy=True)
@@ -94,7 +94,7 @@ class Werkzeug(db.Model):  # pylint: disable=too-few-public-methods
     """
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
+    name = db.Column(db.String(100), nullable=False, index=True)
     material_category = db.Column(db.String(20), default="standard")
     tech_param_label = db.Column(db.String(50), nullable=True)
     price = db.Column(db.Float, nullable=True, default=0.0)

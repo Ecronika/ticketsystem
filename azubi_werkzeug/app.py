@@ -11,6 +11,7 @@ import queue
 import secrets
 import sqlite3
 import sys
+import time
 from datetime import timedelta
 from logging.handlers import QueueHandler, QueueListener, RotatingFileHandler
 
@@ -22,16 +23,22 @@ from sqlalchemy.engine import Engine
 from werkzeug.exceptions import NotFound
 from werkzeug.security import generate_password_hash
 from werkzeug.middleware.proxy_fix import ProxyFix
+from flask_migrate import Migrate
 
 from extensions import Config, csrf, db, limiter, scheduler
 from services import BackupService
 from routes import main_bp
+from routes.metrics import metrics_bp
+from metrics import HTTP_REQUESTS_TOTAL, HTTP_REQUEST_DURATION_SECONDS, ACTIVE_SESSIONS
 
 app = Flask(__name__)
 # Home Assistant Check (Ingress usually sets headers, but we also check env)
 IS_HOMEASSISTANT = os.environ.get('SUPERVISOR_TOKEN') is not None or os.environ.get('HAS_INGRESS') == '1'
 
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
+# Init Migrate
+migrate = Migrate(app, db)
 
 # Security: Session Configuration
 app.config.update(
@@ -202,7 +209,7 @@ def set_sqlite_pragma(dbapi_conn, _connection_record):
 
 # Security: Content-Security-Policy (Issue #3)
 # CONDITIONAL: Use Talisman for standalone, manual headers for Home Assistant
-IS_HOMEASSISTANT = os.environ.get('SUPERVISOR_TOKEN') is not None
+# IS_HOMEASSISTANT is defined at the top of the file
 
 if not IS_HOMEASSISTANT:
     # Standalone deployment: Use Flask-Talisman
@@ -244,6 +251,42 @@ else:
 
 # Register Blueprints
 app.register_blueprint(main_bp)
+app.register_blueprint(metrics_bp)
+
+# --- Prometheus Metrics Middleware ---
+from flask import g, session
+
+@app.before_request
+def before_request_metrics():
+    """Start timer for request duration and update active session count."""
+    g.start_time = time.time()
+    
+    # Simple active session estimation: if 'user_authenticated' or 'admin_mode' is in session
+    if 'admin_mode' in session or 'tech_auth' in session: # Based on existing logic if any
+        ACTIVE_SESSIONS.set(1) # We can't track total global sessions easily without a DB lock, so we just track if the current request is an active user (Gauge might fluctuate rapidly). 
+        # A better approach for ACTIVE_SESSIONS in a stateless app is to leave it to Grafana to aggregate unique IPs or login events over time. We'll set it to 1 if active, 0 if not for this instance.
+        ACTIVE_SESSIONS.inc()
+    elif not hasattr(g, 'session_counted'):
+        pass # Optional logic
+
+@app.after_request
+def after_request_metrics(response):
+    """Record request duration and count."""
+    # Ignore static files and the metrics endpoint itself
+    if request.endpoint and request.endpoint not in ['static', 'metrics.metrics']:
+        request_latency = time.time() - getattr(g, 'start_time', time.time())
+        HTTP_REQUESTS_TOTAL.labels(
+            method=request.method,
+            endpoint=request.endpoint,
+            http_status=response.status_code
+        ).inc()
+        
+        HTTP_REQUEST_DURATION_SECONDS.labels(
+            method=request.method,
+            endpoint=request.endpoint
+        ).observe(request_latency)
+        
+    return response
 
 # Database Session Cleanup (Prevent Connection Leaks)
 
@@ -263,97 +306,6 @@ def remove_session(_exception=None):
 
 # --- Helper to create DB and Seed Data ---
 
-
-def _add_column_if_missing(cursor, table, column, definition):
-    """Add a column to a table if it does not exist."""
-    cursor.execute(f'PRAGMA table_info("{table}")')
-    columns = [info[1] for info in cursor.fetchall()]
-    if column not in columns:
-        app.logger.info(
-            "Migrating DB: Adding '%s' column to %s table.", column, table)
-        cursor.execute(f'ALTER TABLE "{table}" ADD COLUMN {column} {definition}')
-
-
-def _apply_migrations(cursor):
-    """Apply schema migrations to the database."""
-    # --- Check 'tech_param_value' in 'check' table ---
-    _add_column_if_missing(cursor, "check", "tech_param_value", "VARCHAR(50)")
-
-    # --- Check 'incident_reason' in 'check' table (Phase 2) ---
-    _add_column_if_missing(cursor, "check", "incident_reason", "VARCHAR(50)")
-
-    # --- Check 'tech_param_label' in 'werkzeug' table ---
-    _add_column_if_missing(cursor, "werkzeug", "tech_param_label", "VARCHAR(50)")
-
-    # --- Phase 3: Audit Trail Columns in 'Check' ---
-    cursor.execute('PRAGMA table_info("check")')
-    check_columns_audit = [info[1] for info in cursor.fetchall()]
-
-    if 'check_type' not in check_columns_audit:
-        app.logger.info("Migrating DB: Phase 3 Columns...")
-        cursor.execute(
-            "ALTER TABLE \"check\" ADD COLUMN check_type VARCHAR(20) DEFAULT 'check'")
-        cursor.execute(
-            "ALTER TABLE \"check\" ADD COLUMN examiner VARCHAR(100)")
-        cursor.execute(
-            "ALTER TABLE \"check\" ADD COLUMN signature_azubi VARCHAR(200)")
-        cursor.execute(
-            "ALTER TABLE \"check\" ADD COLUMN signature_examiner VARCHAR(200)")
-        cursor.execute(
-            "ALTER TABLE \"check\" ADD COLUMN report_path VARCHAR(200)")
-
-    # --- Phase 6: is_archived in 'Azubi' ---
-    _add_column_if_missing(cursor, "azubi", "is_archived", "BOOLEAN DEFAULT 0")
-
-    # --- v2.8.0: price on werkzeug, manufacturer on check ---
-    cursor.execute("PRAGMA table_info(werkzeug)")
-    werkzeug_cols_v28 = [info[1] for info in cursor.fetchall()]
-    if 'price' not in werkzeug_cols_v28:
-        app.logger.info(
-            "Migrating DB: Adding 'price' column to werkzeug table.")
-        cursor.execute(
-            "ALTER TABLE werkzeug ADD COLUMN price FLOAT DEFAULT 0.0")
-
-    cursor.execute('PRAGMA table_info("check")')
-    check_cols_v28 = [info[1] for info in cursor.fetchall()]
-    if 'manufacturer' not in check_cols_v28:
-        app.logger.info(
-            "Migrating DB: Adding 'manufacturer' column to check table.")
-        cursor.execute(
-            'ALTER TABLE "check" ADD COLUMN manufacturer VARCHAR(100)')
-
-    _apply_indexes(cursor)
-
-
-def _apply_indexes(cursor):
-    """Apply database indexes."""
-    # --- Phase 8: Performance Indexes ---
-    cursor.execute("PRAGMA index_list('check')")
-    indexes = [row[1] for row in cursor.fetchall()]
-
-    if 'idx_check_session_id' not in indexes:
-        app.logger.info("Migrating DB: Creating Index idx_check_session_id")
-        cursor.execute(
-            "CREATE INDEX idx_check_session_id ON \"check\" (session_id)")
-
-    if 'idx_check_datum' not in indexes:
-        app.logger.info("Migrating DB: Creating Index idx_check_datum")
-        cursor.execute("CREATE INDEX idx_check_datum ON \"check\" (datum)")
-
-    # --- Phase 9: UI Sorting Indexes (Performance Fix) ---
-    cursor.execute("PRAGMA index_list('azubi')")
-    azubi_indexes = [row[1] for row in cursor.fetchall()]
-    if 'idx_azubi_name' not in azubi_indexes:
-        app.logger.info("Migrating DB: Creating Index idx_azubi_name")
-        cursor.execute("CREATE INDEX idx_azubi_name ON azubi (name)")
-
-    cursor.execute("PRAGMA index_list('werkzeug')")
-    werkzeug_indexes = [row[1] for row in cursor.fetchall()]
-    if 'idx_werkzeug_name' not in werkzeug_indexes:
-        app.logger.info("Migrating DB: Creating Index idx_werkzeug_name")
-        cursor.execute("CREATE INDEX idx_werkzeug_name ON werkzeug (name)")
-
-
 def _seed_default_settings():
     """Seed default system settings if not already present."""
     from models import SystemSettings  # pylint: disable=import-outside-toplevel
@@ -366,42 +318,17 @@ def _seed_default_settings():
             SystemSettings.set_setting(key, value)
             app.logger.info("Seeded default setting: %s", key)
 
-
 def setup_database():
-    """Create database tables and perform migrations (schema updates)."""
+    """Create database tables and seed default data."""
     with app.app_context():
-        db.create_all()
-
-        conn = None
+        # db.create_all() has been replaced by Alembic migrations (flask db upgrade).
+        # We only run seeding here. The actual schema is managed by Alembic.
+        
         try:
-            # Fix H2: Prevent WAL locking by disposing existing SQLAlchemy
-            # pool connections
-            db.session.remove()
-            db.engine.dispose()
-
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-
-            # Explicit transaction for safety
-            cursor.execute("BEGIN TRANSACTION")
-
-            _apply_migrations(cursor)
-
-            conn.commit()
-            app.logger.info(
-                "Database setup and migrations completed successfully.")
-
             # Seed default settings (idempotent — only if key missing)
             _seed_default_settings()
         except Exception as e:  # pylint: disable=broad-exception-caught
-            if conn:
-                conn.rollback()
-            app.logger.critical(
-                "Migration Failed! Rolled back changes. Error: %s", e)
-            # We might want to exit here, but for now we just log critical
-        finally:
-            if conn:
-                conn.close()
+            app.logger.error("Failed to seed default settings: %s", e)
 
 
 # --- Global Error Handlers ---

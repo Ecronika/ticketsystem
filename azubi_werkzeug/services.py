@@ -48,6 +48,50 @@ class CheckService:
         return result
 
     @staticmethod
+    def get_tool_anomalies_batch(azubi_ids: list, assigned_tools_batch: dict) -> dict:
+        """Return missing/broken counts and tool names for assigned tools per Azubi."""
+        from sqlalchemy import func
+        from models import Check, Werkzeug
+        from extensions import db
+        
+        if not azubi_ids:
+            return {}
+
+        subq = (
+            db.session.query(
+                Check.azubi_id,
+                Check.werkzeug_id,
+                func.max(Check.datum).label('last_datum')
+            )
+            .filter(Check.azubi_id.in_(azubi_ids))
+            .group_by(Check.azubi_id, Check.werkzeug_id)
+            .subquery()
+        )
+
+        latest_checks = (
+            db.session.query(Check, Werkzeug)
+            .join(Werkzeug, Check.werkzeug_id == Werkzeug.id)
+            .join(subq, (Check.azubi_id == subq.c.azubi_id) & 
+                        (Check.werkzeug_id == subq.c.werkzeug_id) & 
+                        (Check.datum == subq.c.last_datum))
+            .all()
+        )
+
+        anomalies = {aid: {'missing': 0, 'broken': 0, 'missing_tools': [], 'broken_tools': []} for aid in azubi_ids}
+        for check, werkzeug in latest_checks:
+            assigned_for_azubi = assigned_tools_batch.get(check.azubi_id, set())
+            if check.werkzeug_id in assigned_for_azubi:
+                bemerkung = check.bemerkung or ""
+                if 'Status: missing' in bemerkung:
+                    anomalies[check.azubi_id]['missing'] += 1
+                    anomalies[check.azubi_id]['missing_tools'].append(werkzeug.name)
+                elif 'Status: broken' in bemerkung:
+                    anomalies[check.azubi_id]['broken'] += 1
+                    anomalies[check.azubi_id]['broken_tools'].append(werkzeug.name)
+
+        return anomalies
+
+    @staticmethod
     def get_assigned_tools(azubi_id):
         """
         Return a set of tool IDs currently assigned to the Azubi.
@@ -402,33 +446,50 @@ class CheckService:
         # 3. Fetch Data Efficiently
         werkzeug_dict = CheckService._fetch_tools_dict(tool_ids)
 
-        # 4. Prepare Data for DB and PDF
-        reports_to_create, selected_tools = CheckService._prepare_check_records(
-            tool_ids, werkzeug_dict, form_data, check_context)
-
-        # 5. Generate PDF (BEFORE DB Transaction)
         pdf_path = None
-        if selected_tools:
-            try:
+        reports_to_create = []
+
+        try:
+            # 4. Prepare Data for DB and PDF
+            reports_to_create, selected_tools = CheckService._prepare_check_records(
+                tool_ids, werkzeug_dict, form_data, check_context)
+
+            # 5. Generate PDF (BEFORE DB Transaction)
+            if selected_tools:
                 pdf_path = CheckService._generate_and_link_pdf(
                     check_context, selected_tools, reports_to_create
                 )
-            except Exception as e:
-                current_app.logger.error(f"PDF Gen failed: {e}")
-                raise e
 
-        # 6. Commit to DB (Fast Transaction)
-        CheckService._commit_checks_or_cleanup(reports_to_create, pdf_path)
+            # 6. Commit to DB (Fast Transaction)
+            CheckService._commit_checks_or_cleanup(reports_to_create, pdf_path)
+            
+            current_app.logger.info(
+                f"CheckService: Processed {len(reports_to_create)} checks")
 
-        current_app.logger.info(
-            f"CheckService: Processed {len(reports_to_create)} checks")
+            return {
+                "success": True,
+                "session_id": check_context['session_id'],
+                "count": len(reports_to_create),
+                "pdf_path": pdf_path
+            }
 
-        return {
-            "success": True,
-            "session_id": check_context['session_id'],
-            "count": len(reports_to_create),
-            "pdf_path": pdf_path
-        }
+        except Exception as e:
+            current_app.logger.error(f"Check processing failed: {e}")
+            # Ensure signatures are cleaned up if error occurs before Check objects are created
+            for path in [sig_azubi_path, sig_examiner_path]:
+                if path and os.path.exists(path):
+                    try:
+                        os.remove(path)
+                    except OSError:
+                        pass
+            # If reports_to_create exist, _cleanup_on_error might also be called by _commit_checks_or_cleanup, 
+            # but doing it here again for the pdf_path is safe since os.path.exists is checked.
+            if pdf_path and os.path.exists(pdf_path):
+                try:
+                    os.remove(pdf_path)
+                except OSError:
+                    pass
+            raise e
 
     @staticmethod
     def _generate_and_link_pdf(
@@ -499,25 +560,32 @@ class CheckService:
         return ret_entry, issue_entry
 
     @staticmethod
-    def _generate_exchange_pdf(
-        azubi, tool, reason, session_id, sig_path, price=0.0
+    def _generate_exchange_pdf_batch(
+        azubi, tools_for_pdf, session_id, sig_path, total_price=0.0
     ):
-        """Generate exchange PDF."""
-        # pylint: disable=too-many-arguments,too-many-positional-arguments
-        tools_list = [{'name': tool.name,
-                       'category': tool.material_category,
-                       'status': f'Rückgabe ({reason})'},
-                      {'name': tool.name,
-                       'category': tool.material_category,
-                       'status': 'Ausgabe (Neu)'}]
+        """Generate a single exchange PDF for a batch of tools."""
+        tools_list = []
+        for item in tools_for_pdf:
+            tool = item['tool']
+            reason = item['reason']
+            tools_list.append({
+                'name': tool.name,
+                'category': tool.material_category,
+                'status': f'Rückgabe ({reason})'
+            })
+            tools_list.append({
+                'name': tool.name,
+                'category': tool.material_category,
+                'status': 'Ausgabe (Neu)'
+            })
 
         data_dir = CheckService.get_data_dir()
         pdf_filename = f"austausch_{session_id}.pdf"
         pdf_path = os.path.join(data_dir, 'reports', pdf_filename)
 
         extra_lines = []
-        if price > 0:
-            extra_lines.append(f"Geschätzter Ersatzwert: {price:.2f} EUR")
+        if total_price > 0:
+            extra_lines.append(f"Geschätzter Gesamtersatzwert: {total_price:.2f} EUR")
 
         generate_handover_pdf(
             azubi_name=azubi.name,
@@ -546,54 +614,71 @@ class CheckService:
                 pass
 
     @staticmethod
-    def process_tool_exchange(
+    def process_tool_exchange_batch(
         azubi_id: int,
-        tool_id: int,
-        reason: str,
+        exchange_data: list,
         is_payable: bool,
         signature_data: str
     ) -> dict:
         """
-        Handle One-Click Tool Exchange (Return Old -> Issue New).
+        Handle Multi-Tool Exchange (Return Old -> Issue New).
 
-        Atomically creates two records and one PDF.
+        Atomically creates DB records for all tools in exchange_data and generates
+        a single consolidated PDF.
         """
         # 1. Validation
         azubi = Azubi.query.get(azubi_id)
         if not azubi:
             raise ValueError(f"Azubi mit ID {azubi_id} nicht gefunden")
 
-        tool = Werkzeug.query.get(tool_id)
-        if not tool:
-            raise ValueError(f"Werkzeug mit ID {tool_id} nicht gefunden")
-
         session_id = CheckService.generate_unique_session_id()
         check_date = datetime.now()
 
-        # Calculate Price (Estimate)
-        price = 0.0
-        if is_payable and tool.price:
-            price = tool.price
-
-        # 2. Save Signature
+        # 2. Save Signature once
         sig_path = CheckService.save_signature(
             signature_data, session_id, 'azubi')
 
         pdf_path = None
+        total_price = 0.0
+
         try:
-            # 3. Create Records (Memory)
-            ret_entry, issue_entry = CheckService._create_exchange_records(
-                session_id, azubi_id, tool_id, reason, is_payable, check_date, sig_path)
+            tools_for_pdf = []
+            
+            # Looping over batch payload
+            for item in exchange_data:
+                tool_id = item.get('tool_id')
+                reason = item.get('reason')
+                
+                tool = Werkzeug.query.get(tool_id)
+                if not tool:
+                    raise ValueError(f"Werkzeug mit ID {tool_id} nicht gefunden")
+                    
+                if is_payable and tool.price:
+                    total_price += tool.price
 
-            db.session.add(ret_entry)
-            db.session.add(issue_entry)
+                # 3. Create Records for each tool
+                ret_entry, issue_entry = CheckService._create_exchange_records(
+                    session_id, azubi_id, tool_id, reason, is_payable, check_date, sig_path)
 
-            # 4. Generate PDF
-            pdf_path = CheckService._generate_exchange_pdf(
-                azubi, tool, reason, session_id, sig_path, price)
+                db.session.add(ret_entry)
+                db.session.add(issue_entry)
+                
+                # Append to PDF batch rendering list
+                tools_for_pdf.append({
+                    'tool': tool,
+                    'reason': reason,
+                    'ret_entry': ret_entry,
+                    'issue_entry': issue_entry
+                })
 
-            ret_entry.report_path = pdf_path
-            issue_entry.report_path = pdf_path
+            # 4. Generate Single PDF
+            pdf_path = CheckService._generate_exchange_pdf_batch(
+                azubi, tools_for_pdf, session_id, sig_path, total_price)
+
+            # Link DB records to the generated PDF
+            for item in tools_for_pdf:
+                item['ret_entry'].report_path = pdf_path
+                item['issue_entry'].report_path = pdf_path
 
             # 5. Commit Atomically
             db.session.commit()
@@ -611,8 +696,25 @@ class CheckService:
             "success": True,
             "session_id": session_id,
             "pdf_path": pdf_path,
-            "price": price
+            "total_price": total_price
         }
+
+
+import time
+
+def _remove_with_retry(filepath, retries=5, delay=0.5):
+    """Helper to remove files with retry logic for Windows file locks."""
+    for i in range(retries):
+        if not os.path.exists(filepath):
+            return True
+        try:
+            os.remove(filepath)
+            return True
+        except OSError as e:
+            if i == retries - 1:
+                current_app.logger.warning(f"Failed to remove {filepath} after {retries} retries: {e}")
+            time.sleep(delay)
+    return False
 
 
 class BackupService:
@@ -687,8 +789,19 @@ class BackupService:
 
             # CRITICAL: Close SQLAlchemy connection to old DB file BEFORE overwriting check
             # This ensures file locks are released on Windows
+            from extensions import scheduler
+            if scheduler.running:
+                try:
+                    scheduler.pause()
+                except Exception:
+                    pass
+            
             db.session.remove()
             db.engine.dispose()
+            
+            # Small delay to allow Windows to actually release the file handles
+            import time
+            time.sleep(0.5)
 
             # 3. Overwrite Data (Critical Section)
             BackupService._perform_restore_overwrite(data_dir, temp_dir)
@@ -696,9 +809,23 @@ class BackupService:
             # Cleanup
             shutil.rmtree(temp_dir)
 
+            if scheduler.running:
+                try:
+                    scheduler.resume()
+                except Exception:
+                    pass
+
             # Ensure all tables exist (older backups may lack newer tables)
-            # This implicitly re-creates the connection
+            # We run flask db upgrade explicitly to ensure schema updates
+            # like missing columns (e.g. manufacturer) are applied.
             db.create_all()
+            
+            try:
+                current_app.logger.info("Running DB migrations after restore...")
+                from flask_migrate import upgrade
+                upgrade()
+            except Exception as e:
+                current_app.logger.error(f"Migration after restore failed: {e}")
 
             # CRITICAL: Clear Cache after restore
             current_app.logger.warning("Clearing all caches after restore.")
@@ -717,20 +844,23 @@ class BackupService:
     def _perform_restore_overwrite(data_dir, temp_dir):
         """Overwrite current data with restored data."""
         # DB
+        db_dst = os.path.join(data_dir, 'werkzeug.db')
+        _remove_with_retry(db_dst)
         shutil.copy2(
             os.path.join(temp_dir, 'werkzeug.db'),
-            os.path.join(data_dir, 'werkzeug.db'))
+            db_dst)
             
         # Also restore WAL and SHM if they exist in the backup
         for ext in ['-wal', '-shm']:
             src = os.path.join(temp_dir, f'werkzeug.db{ext}')
             dst = os.path.join(data_dir, f'werkzeug.db{ext}')
             if os.path.exists(src):
+                _remove_with_retry(dst)
                 shutil.copy2(src, dst)
             elif os.path.exists(dst):
                 # If backup doesn't have them, clean up old existing ones
                 # to prevent corruption with the newly restored main DB file
-                os.remove(dst)
+                _remove_with_retry(dst)
 
         # Handle Config (Optional in backup)
         if os.path.exists(os.path.join(temp_dir, 'config.yaml')):

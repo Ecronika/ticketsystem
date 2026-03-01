@@ -7,6 +7,7 @@ backups, migration mode, logo upload, QR codes, and reports.
 import os
 import time
 import sys
+import secrets
 from datetime import datetime, timedelta
 
 from flask import (
@@ -36,15 +37,27 @@ def manage():
 def tools():
     """Tools management page."""
     page = request.args.get('page', 1, type=int)
+    search_query = request.args.get('q', '').strip()
     per_page = 20
-    werkzeuge_pagination = Werkzeug.query.order_by(
+    
+    query = Werkzeug.query
+    if search_query:
+        search_filter = f"%{search_query}%"
+        query = query.filter(
+            Werkzeug.name.ilike(search_filter) |
+            Werkzeug.material_category.ilike(search_filter) |
+            Werkzeug.tech_param_label.ilike(search_filter)
+        )
+        
+    werkzeuge_pagination = query.order_by(
         Werkzeug.name).paginate(
         page=page, per_page=per_page, error_out=False)
     werkzeuge = werkzeuge_pagination.items
     return render_template(
         'tools.html',
         werkzeuge=werkzeuge,
-        werkzeuge_pagination=werkzeuge_pagination)
+        werkzeuge_pagination=werkzeuge_pagination,
+        search_query=search_query)
 
 
 def personnel():
@@ -153,6 +166,21 @@ def change_pin():
 
     flash('PIN erfolgreich geändert.', 'success')
     return redirect(f"{ingress}{url_for('main.settings')}")
+
+
+@admin_required
+def generate_recovery_tokens():
+    """Generate 5 single-use recovery tokens."""
+    # Generate 5 raw tokens
+    raw_tokens = [f"RT-{secrets.token_hex(4)}-{secrets.token_hex(4)}".upper() for _ in range(5)]
+    # Hash them for storage
+    hashed_tokens = [generate_password_hash(t) for t in raw_tokens]
+
+    # Store them as comma-separated
+    SystemSettings.set_setting('recovery_tokens_hash', ','.join(hashed_tokens))
+
+    # We must show the raw tokens to the user just this once!
+    return render_template('show_recovery_tokens.html', tokens=raw_tokens)
 
 
 @admin_required
@@ -724,6 +752,9 @@ def register_routes(bp):
     bp.add_url_rule(
         '/settings/security/pin',
         view_func=change_pin, methods=['POST'])
+    bp.add_url_rule(
+        '/settings/security/generate_tokens',
+        view_func=generate_recovery_tokens, methods=['POST'])
     bp.add_url_rule(
         '/settings/backup/config',
         view_func=save_backup_config, methods=['POST'])

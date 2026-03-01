@@ -127,8 +127,10 @@
                                     </td>
 
                                     <td>
-                                        <div class="fw-bold">{{ item.obj.name }}</div>
-                                        <div class="small text-muted">
+                                        <div class="fw-bolder fs-5" style="letter-spacing: -0.5px;">{{
+                                            item.obj.name }}</div>
+                                        <div class="small text-muted text-uppercase"
+                                            style="font-family: monospace; font-size: 0.75rem; letter-spacing: 0.5px;">
                                             {{ item.obj.material_category }}
                                         </div>
                                     </td>
@@ -145,10 +147,10 @@
 
                                         {% if item.last_status == 'missing' %}
                                         <span
-                                            class="badge bg-danger-subtle text-danger border border-danger-subtle ms-1">Fehlt</span>
+                                            class="badge bg-danger-subtle text-theme-danger border border-danger-subtle ms-1">Fehlt</span>
                                         {% elif item.last_status == 'broken' %}
                                         <span
-                                            class="badge bg-warning-subtle text-warning border border-warning-subtle ms-1">Defekt</span>
+                                            class="badge bg-warning-subtle text-theme-warning border border-warning-subtle ms-1">Defekt</span>
                                         {% endif %}
                                     </td>
 
@@ -160,22 +162,22 @@
                                                     name="status_radio_{{ item.obj.id }}"
                                                     id="btnradio1_{{ item.obj.id }}" value="ok" checked
                                                     data-target="check_{{ item.obj.id }}">
-                                                <label class="btn btn-outline-success"
+                                                <label class="btn btn-outline-success fw-bold px-3"
                                                     for="btnradio1_{{ item.obj.id }}">OK</label>
 
                                                 <input type="radio" class="btn-check status-radio"
                                                     name="status_radio_{{ item.obj.id }}"
                                                     id="btnradio2_{{ item.obj.id }}" value="broken"
                                                     data-target="check_{{ item.obj.id }}">
-                                                <label class="btn btn-outline-warning"
-                                                    for="btnradio2_{{ item.obj.id }}">Defekt</label>
+                                                <label class="btn btn-outline-warning fw-bold px-3"
+                                                    for="btnradio2_{{ item.obj.id }}">DEFEKT</label>
 
                                                 <input type="radio" class="btn-check status-radio"
                                                     name="status_radio_{{ item.obj.id }}"
                                                     id="btnradio3_{{ item.obj.id }}" value="missing"
                                                     data-target="check_{{ item.obj.id }}">
-                                                <label class="btn btn-outline-danger"
-                                                    for="btnradio3_{{ item.obj.id }}">Fehlt</label>
+                                                <label class="btn btn-outline-danger fw-bold px-3"
+                                                    for="btnradio3_{{ item.obj.id }}">FEHLT</label>
                                             </div>
 
                                             <!-- Manufacturer Input -->
@@ -197,7 +199,7 @@
                                         <div class="mt-2 incident-div" id="incident_div_{{ item.obj.id }}"
                                             style="display:none;">
                                             <select
-                                                class="form-select form-select-sm border-danger text-danger incident-select"
+                                                class="form-select form-select-sm border-danger text-theme-danger incident-select"
                                                 name="incident_reason_{{ item.obj.id }}"
                                                 data-tool-id="{{ item.obj.id }}">
                                                 <option value="" disabled selected>Grund wählen...</option>
@@ -327,9 +329,40 @@
             }
         }
 
-        // Initialize Pads first
-        const padAzubi = new SignaturePad(canvasAzubi);
-        const padExaminer = new SignaturePad(canvasExaminer);
+        // Initialize Pads with Dynamic Theme Colors
+        const getPadColors = () => {
+            const theme = document.documentElement.getAttribute('data-theme');
+            if (theme === 'hc') return { bg: '#ffffff', pen: '#000000' };
+            const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            return {
+                bg: isDark ? '#2b3035' : '#f8f9fa',
+                pen: isDark ? '#ffffff' : '#000000'
+            };
+        };
+
+        const colors = getPadColors();
+        const padConfig = {
+            backgroundColor: colors.bg,
+            penColor: colors.pen,
+            throttle: 16
+        };
+
+        const padAzubi = new SignaturePad(canvasAzubi, padConfig);
+        const padExaminer = new SignaturePad(canvasExaminer, padConfig);
+
+        // Listen for Theme Changes
+        window.addEventListener('themeChanged', () => {
+            const newColors = getPadColors();
+            [padAzubi, padExaminer].forEach(pad => {
+                if (pad) {
+                    const data = pad.toData();
+                    pad.backgroundColor = newColors.bg;
+                    pad.penColor = newColors.pen;
+                    pad.clear();
+                    if (data && data.length > 0) pad.fromData(data);
+                }
+            });
+        });
 
         // Initial Resize
         resizeCanvas(canvasAzubi, null);
