@@ -1,4 +1,4 @@
-name: "Azubi Werkzeug Tracker (Beta)"
+name: "Azubi Werkzeug Tracker"
 version: "2.8.2"
 slug: "azubi_werkzeug"
 description: "Manage and track tools assigned to apprentices."
