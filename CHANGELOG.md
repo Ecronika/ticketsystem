@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.1] - 2026-03-02
+
+### 🚨 Hotfix Release
+- **Metrics Security:** Protected `/metrics` with `@admin_required` to prevent unauthorized access to monitoring data.
+- **Secure Sessions:** Dynamically toggle `SESSION_COOKIE_SECURE` based on `REQUIRE_HTTPS` to unbreak local non-HTTPS development.
+- **Bugfix (Prometheus):** Fixed the `ACTIVE_SESSIONS` gauge logic which incorrectly caused unbounded metrics inflation over time.
+- **Bugfix (UI):** Fixed `history.html` broken layout by closing a missing `</div>` tag.
+- **Bugfix (Export):** Resolved an issue where PDF exports failed in CI due to missing application contexts or invalid signature payloads.
+- **Bugfix (UI):** Corrected a string comparison error in `history_details.html` related to `CheckType` enums.
+- **Bugfix (Backup):** Updated `backup.py` to correctly respect `DATA_DIR` so standalone and Add-on backups both target the correct configuration and database paths.
+- **UX (Exchange Modal):** Implemented a submit guard, loading spinner, and JS `confirm()` prompt for bulk tool returns to prevent accidental duplicate issues.
+- **UX (Login):** Appended an explicit hint on the login screen regarding the default '0000' PIN.
+- **Quality Gates:** Formatted the backend codebase (`autopep8`) and resolved all `flake8` warnings to enforce style consistency.
+
 ## [2.9.0] - 2026-03-01
 
 ### ✨ Features & UX Enhancements

@@ -53,7 +53,7 @@ class CheckService:
         from sqlalchemy import func
         from models import Check, Werkzeug
         from extensions import db
-        
+
         if not azubi_ids:
             return {}
 
@@ -71,8 +71,8 @@ class CheckService:
         latest_checks = (
             db.session.query(Check, Werkzeug)
             .join(Werkzeug, Check.werkzeug_id == Werkzeug.id)
-            .join(subq, (Check.azubi_id == subq.c.azubi_id) & 
-                        (Check.werkzeug_id == subq.c.werkzeug_id) & 
+            .join(subq, (Check.azubi_id == subq.c.azubi_id) &
+                        (Check.werkzeug_id == subq.c.werkzeug_id) &
                         (Check.datum == subq.c.last_datum))
             .all()
         )
@@ -462,7 +462,7 @@ class CheckService:
 
             # 6. Commit to DB (Fast Transaction)
             CheckService._commit_checks_or_cleanup(reports_to_create, pdf_path)
-            
+
             current_app.logger.info(
                 f"CheckService: Processed {len(reports_to_create)} checks")
 
@@ -482,7 +482,7 @@ class CheckService:
                         os.remove(path)
                     except OSError:
                         pass
-            # If reports_to_create exist, _cleanup_on_error might also be called by _commit_checks_or_cleanup, 
+            # If reports_to_create exist, _cleanup_on_error might also be called by _commit_checks_or_cleanup,
             # but doing it here again for the pdf_path is safe since os.path.exists is checked.
             if pdf_path and os.path.exists(pdf_path):
                 try:
@@ -643,16 +643,16 @@ class CheckService:
 
         try:
             tools_for_pdf = []
-            
+
             # Looping over batch payload
             for item in exchange_data:
                 tool_id = item.get('tool_id')
                 reason = item.get('reason')
-                
+
                 tool = Werkzeug.query.get(tool_id)
                 if not tool:
                     raise ValueError(f"Werkzeug mit ID {tool_id} nicht gefunden")
-                    
+
                 if is_payable and tool.price:
                     total_price += tool.price
 
@@ -662,7 +662,7 @@ class CheckService:
 
                 db.session.add(ret_entry)
                 db.session.add(issue_entry)
-                
+
                 # Append to PDF batch rendering list
                 tools_for_pdf.append({
                     'tool': tool,
@@ -699,8 +699,6 @@ class CheckService:
             "total_price": total_price
         }
 
-
-import time
 
 def _remove_with_retry(filepath, retries=5, delay=0.5):
     """Helper to remove files with retry logic for Windows file locks."""
@@ -795,12 +793,11 @@ class BackupService:
                     scheduler.pause()
                 except Exception:
                     pass
-            
+
             db.session.remove()
             db.engine.dispose()
-            
+
             # Small delay to allow Windows to actually release the file handles
-            import time
             time.sleep(0.5)
 
             # 3. Overwrite Data (Critical Section)
@@ -819,7 +816,7 @@ class BackupService:
             # We run flask db upgrade explicitly to ensure schema updates
             # like missing columns (e.g. manufacturer) are applied.
             db.create_all()
-            
+
             try:
                 current_app.logger.info("Running DB migrations after restore...")
                 from flask_migrate import upgrade
@@ -849,7 +846,7 @@ class BackupService:
         shutil.copy2(
             os.path.join(temp_dir, 'werkzeug.db'),
             db_dst)
-            
+
         # Also restore WAL and SHM if they exist in the backup
         for ext in ['-wal', '-shm']:
             src = os.path.join(temp_dir, f'werkzeug.db{ext}')
@@ -1021,11 +1018,11 @@ class BackupService:
                 db_path = os.path.join(data_dir, 'werkzeug.db')
                 if os.path.exists(db_path):
                     zipf.write(db_path, 'werkzeug.db')
-                    
+
                 wal_path = os.path.join(data_dir, 'werkzeug.db-wal')
                 if os.path.exists(wal_path):
                     zipf.write(wal_path, 'werkzeug.db-wal')
-                    
+
                 shm_path = os.path.join(data_dir, 'werkzeug.db-shm')
                 if os.path.exists(shm_path):
                     zipf.write(shm_path, 'werkzeug.db-shm')

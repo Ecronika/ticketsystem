@@ -227,7 +227,7 @@ def exchange_tool():
             is_payable=is_payable,
             signature_data=signature_data
         )
-        
+
         # Track successful exchange in Prometheus for the batch
         CHECKS_SUBMITTED_TOTAL.labels(check_type='exchange').inc(amount=len(exchange_data))
 
@@ -257,20 +257,20 @@ def history():
 
     try:
         page = request.args.get('page', 1, type=int)
-        
+
         query = Check.query.order_by(Check.datum.desc())
         if azubi_id and azubi_id != 'all':
             query = query.filter_by(
                 azubi_id=int(azubi_id))
 
         query_start = time.time()
-        
+
         # New server-side pagination (100 items per page)
         pagination = query.options(joinedload(Check.azubi)).paginate(
             page=page, per_page=100, error_out=False
         )
         all_checks = pagination.items
-        
+
         query_duration = time.time() - query_start
         current_app.logger.info(
             f"History query (Page {page}): {len(all_checks)} checks "
@@ -393,7 +393,8 @@ def history_details(session_id):
         return redirect(f"{ingress}{url_for('main.history')}")
 
     first_c = checks[0]
-    check_type = CheckService.detect_exchange_type(checks) or first_c.check_type
+    raw_type = CheckService.detect_exchange_type(checks) or first_c.check_type
+    check_type = raw_type.value if hasattr(raw_type, 'value') else raw_type
     parsed_checks, global_bemerkung = _parse_session_checks(checks)
 
     return render_template(

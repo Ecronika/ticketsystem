@@ -25,9 +25,10 @@ SCANS_TOTAL = Counter(
 CHECKS_SUBMITTED_TOTAL = Counter(
     'werkzeug_checks_submitted_total',
     'Total number of tool checks/issues submitted',
-    ['check_type'] # e.g., 'check', 'issue', 'return'
+    ['check_type']  # e.g., 'check', 'issue', 'return'
 )
 
+# TODO: Calculate and expose actual session metrics, current implementation unused
 ACTIVE_SESSIONS = Gauge(
     'werkzeug_active_sessions',
     'Estimated number of active user sessions (logins)'
@@ -36,5 +37,5 @@ ACTIVE_SESSIONS = Gauge(
 DB_OPERATION_DURATION_SECONDS = Histogram(
     'werkzeug_db_operation_duration_seconds',
     'Database operation duration in seconds',
-    ['operation_type'] # e.g., 'query', 'commit'
+    ['operation_type']  # e.g., 'query', 'commit'
 )

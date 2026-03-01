@@ -291,7 +291,7 @@
                 button.disabled = true;
                 button.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Lädt...';
 
-                console.log('DEBUG: Sending AJAX request to', '{{ ingress_path }}{{ url_for("main.api_add_werkzeug") }}');
+
                 fetch('{{ ingress_path }}{{ url_for("main.api_add_werkzeug") }}', {
                     method: 'POST',
                     body: formData

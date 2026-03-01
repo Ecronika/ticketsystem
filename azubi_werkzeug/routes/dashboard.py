@@ -68,7 +68,8 @@ def register_routes(bp):
             status, status_class, last_check_str, sort_order = \
                 azubi.get_dashboard_status(last_datum)
             assigned_count = len(assigned_tools_batch.get(azubi.id, set()))
-            anomalies = anomalies_batch.get(azubi.id, {'missing': 0, 'broken': 0, 'missing_tools': [], 'broken_tools': []})
+            anomalies = anomalies_batch.get(
+                azubi.id, {'missing': 0, 'broken': 0, 'missing_tools': [], 'broken_tools': []})
             dashboard_data.append({
                 'id': azubi.id,
                 'name': azubi.name,

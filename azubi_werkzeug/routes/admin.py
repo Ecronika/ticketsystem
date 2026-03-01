@@ -6,7 +6,6 @@ backups, migration mode, logo upload, QR codes, and reports.
 """
 import os
 import time
-import sys
 import secrets
 from datetime import datetime, timedelta
 
@@ -39,7 +38,7 @@ def tools():
     page = request.args.get('page', 1, type=int)
     search_query = request.args.get('q', '').strip()
     per_page = 20
-    
+
     query = Werkzeug.query
     if search_query:
         search_filter = f"%{search_query}%"
@@ -48,7 +47,7 @@ def tools():
             Werkzeug.material_category.ilike(search_filter) |
             Werkzeug.tech_param_label.ilike(search_filter)
         )
-        
+
     werkzeuge_pagination = query.order_by(
         Werkzeug.name).paginate(
         page=page, per_page=per_page, error_out=False)

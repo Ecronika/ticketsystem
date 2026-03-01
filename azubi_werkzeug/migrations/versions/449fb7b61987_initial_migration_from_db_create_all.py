@@ -1,12 +1,11 @@
 """Initial migration from db.create_all
 
 Revision ID: 449fb7b61987
-Revises: 
+Revises:
 Create Date: 2026-03-01 12:01:29.893314
 
 """
 from alembic import op
-import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.

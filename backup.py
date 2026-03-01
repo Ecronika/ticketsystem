@@ -5,11 +5,16 @@ import shutil
 import sys
 
 # Configuration
-BACKUP_DIR = 'backups'
+DATA_DIR = os.environ.get('DATA_DIR', 'azubi_werkzeug')
+BACKUP_DIR = os.path.join(DATA_DIR, 'backups')
 ITEMS_TO_BACKUP = [
-    'azubi_werkzeug/werkzeug.db',
-    'azubi_werkzeug/config.yaml',
-    'azubi_werkzeug/signatures' # Directory
+    os.path.join(DATA_DIR, 'werkzeug.db'),
+    os.path.join(DATA_DIR, 'werkzeug.db-wal'),
+    os.path.join(DATA_DIR, 'werkzeug.db-shm'),
+    os.path.join(DATA_DIR, 'config.yaml'),
+    os.path.join(DATA_DIR, 'options.json'),
+    os.path.join(DATA_DIR, 'signatures'), # Directory
+    os.path.join(DATA_DIR, 'reports') # Directory
 ]
 MAX_BACKUPS = 10
 
@@ -32,10 +37,12 @@ def create_backup():
                         for root, dirs, files in os.walk(item):
                             for file in files:
                                 file_path = os.path.join(root, file)
-                                zipf.write(file_path, file_path)
+                                arcname = os.path.relpath(file_path, DATA_DIR)
+                                zipf.write(file_path, arcname)
                                 print(f"  Added: {file_path}")
                     else:
-                        zipf.write(item, item)
+                        arcname = os.path.basename(item)
+                        zipf.write(item, arcname)
                         print(f"  Added: {item}")
                 else:
                     print(f"  Warning: {item} not found, skipping.")

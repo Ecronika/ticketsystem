@@ -4,6 +4,7 @@ Main Application Entry Point.
 
 Configures and initializes the Flask application.
 """
+from flask import g
 import atexit
 import logging
 import os
@@ -29,7 +30,7 @@ from extensions import Config, csrf, db, limiter, scheduler
 from services import BackupService
 from routes import main_bp
 from routes.metrics import metrics_bp
-from metrics import HTTP_REQUESTS_TOTAL, HTTP_REQUEST_DURATION_SECONDS, ACTIVE_SESSIONS
+from metrics import HTTP_REQUESTS_TOTAL, HTTP_REQUEST_DURATION_SECONDS
 
 app = Flask(__name__)
 # Home Assistant Check (Ingress usually sets headers, but we also check env)
@@ -56,7 +57,7 @@ app.config.update(
     # Auto-logout after 8 hours
     PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
     # Secure cookie: True in production or when SameSite=None.
-    SESSION_COOKIE_SECURE=True if IS_HOMEASSISTANT else (os.environ.get('FLASK_ENV', 'production') == 'production')
+    SESSION_COOKIE_SECURE=True if IS_HOMEASSISTANT else (os.environ.get('REQUIRE_HTTPS', '0') == '1')
 )
 
 # --- Environment Validation ---
@@ -215,7 +216,7 @@ if not IS_HOMEASSISTANT:
     # Standalone deployment: Use Flask-Talisman
     from flask_talisman import Talisman
     Talisman(app,
-             force_https=False,  # External proxy (nginx/traefik) handles SSL
+             force_https=(os.environ.get('REQUIRE_HTTPS', '0') == '1'),  # Redirect to HTTPS if enforced
              content_security_policy={
                  'default-src': "'self'",
                  'script-src': ["'self'", 'cdn.jsdelivr.net', 'unpkg.com', "'unsafe-inline'"],
@@ -254,20 +255,13 @@ app.register_blueprint(main_bp)
 app.register_blueprint(metrics_bp)
 
 # --- Prometheus Metrics Middleware ---
-from flask import g, session
+
 
 @app.before_request
 def before_request_metrics():
-    """Start timer for request duration and update active session count."""
+    """Start timer for request duration."""
     g.start_time = time.time()
-    
-    # Simple active session estimation: if 'user_authenticated' or 'admin_mode' is in session
-    if 'admin_mode' in session or 'tech_auth' in session: # Based on existing logic if any
-        ACTIVE_SESSIONS.set(1) # We can't track total global sessions easily without a DB lock, so we just track if the current request is an active user (Gauge might fluctuate rapidly). 
-        # A better approach for ACTIVE_SESSIONS in a stateless app is to leave it to Grafana to aggregate unique IPs or login events over time. We'll set it to 1 if active, 0 if not for this instance.
-        ACTIVE_SESSIONS.inc()
-    elif not hasattr(g, 'session_counted'):
-        pass # Optional logic
+
 
 @app.after_request
 def after_request_metrics(response):
@@ -280,12 +274,12 @@ def after_request_metrics(response):
             endpoint=request.endpoint,
             http_status=response.status_code
         ).inc()
-        
+
         HTTP_REQUEST_DURATION_SECONDS.labels(
             method=request.method,
             endpoint=request.endpoint
         ).observe(request_latency)
-        
+
     return response
 
 # Database Session Cleanup (Prevent Connection Leaks)
@@ -306,6 +300,7 @@ def remove_session(_exception=None):
 
 # --- Helper to create DB and Seed Data ---
 
+
 def _seed_default_settings():
     """Seed default system settings if not already present."""
     from models import SystemSettings  # pylint: disable=import-outside-toplevel
@@ -318,12 +313,13 @@ def _seed_default_settings():
             SystemSettings.set_setting(key, value)
             app.logger.info("Seeded default setting: %s", key)
 
+
 def setup_database():
     """Create database tables and seed default data."""
     with app.app_context():
         # db.create_all() has been replaced by Alembic migrations (flask db upgrade).
         # We only run seeding here. The actual schema is managed by Alembic.
-        
+
         try:
             # Seed default settings (idempotent — only if key missing)
             _seed_default_settings()

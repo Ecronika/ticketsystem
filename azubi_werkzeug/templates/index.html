@@ -312,7 +312,7 @@
                     </div>
 
                     <div class="d-grid">
-                        <button type="submit" class="btn btn-primary rounded-pill">
+                        <button type="submit" id="exchangeSubmitBtn" class="btn btn-primary rounded-pill">
                             <i class="bi bi-arrow-repeat"></i> Werkzeug austauschen
                         </button>
                     </div>
@@ -475,10 +475,23 @@
                     });
                 });
 
+                // Confirmation Dialog (S3)
+                if (!confirm(`Möchten Sie wirklich ${checkboxes.length} Werkzeug(e) austauschen? Diese Aktion kann nicht rückgängig gemacht werden.`)) {
+                    e.preventDefault();
+                    return;
+                }
+
                 document.getElementById('exchangeDataPayload').value = JSON.stringify(exchangeData);
 
                 const data = padAzubi.toDataURL('image/png');
                 document.getElementById('signatureAzubiData').value = data;
+
+                // Submit Guard & Loading State (S2)
+                const submitBtn = document.getElementById('exchangeSubmitBtn');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Wird verarbeitet...';
+                }
             });
         }
     });
