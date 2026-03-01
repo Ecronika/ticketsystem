@@ -42,6 +42,10 @@ app.config.update(
     MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB Upload Limit
     # 7 Days Validity (Prevent expiry in long sessions)
     WTF_CSRF_TIME_LIMIT=604800,
+    # Fix for Ingress: Disable strict referer checking behind proxy
+    WTF_CSRF_SSL_STRICT=False,
+    # Crucial for iframes: The CSRF cookie itself needs SameSite=None
+    WTF_CSRF_SAMESITE='None' if IS_HOMEASSISTANT else 'Lax',
     # Auto-logout after 8 hours
     PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
     # Secure cookie: True in production or when SameSite=None.
