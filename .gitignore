@@ -6,6 +6,8 @@ __pycache__/
 # Database
 *.db
 *.sqlite3
+*-wal
+*-shm
 
 # Logs
 *.log
