@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.2] - 2026-03-05
+
+### ✨ UX & Accessibility
+- **Signaling First:** Status badges (GEPRÜFT, ÜBERFÄLLIG, FEHLT) now explicitly feature semantic icons (`✔`, `⚠`, `❌`). This critical fix resolves a WCAG accessibility violation where status was conveyed exclusively via color (Rot-Grün-Schwäche).
+- **Legibility & Glare Reduction:**
+  - Darkened secondary text (`--text-muted`) in Light and Dark mode to guarantee WCAG AA contrast ratios and fix Presbyopia legibility.
+  - Reduced the blinding "Taschenlampen-Effekt" in the Light Theme by subtly tinting the backgrounds (`#f5f5f0` and `#fdfcfb`), aiding users with Cataracts (Grauer Star) on the shopfloor.
+
 ## [2.9.1] - 2026-03-02
 
 ### 🚨 Hotfix Release

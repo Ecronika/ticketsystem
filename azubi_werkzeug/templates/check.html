@@ -147,10 +147,12 @@
 
                                         {% if item.last_status == 'missing' %}
                                         <span
-                                            class="badge bg-danger-subtle text-theme-danger border border-danger-subtle ms-1">Fehlt</span>
+                                            class="badge bg-danger-subtle text-theme-danger border border-danger-subtle ms-1"><i
+                                                class="bi bi-x-circle-fill me-1"></i>Fehlt</span>
                                         {% elif item.last_status == 'broken' %}
                                         <span
-                                            class="badge bg-warning-subtle text-theme-warning border border-warning-subtle ms-1">Defekt</span>
+                                            class="badge bg-warning-subtle text-theme-warning border border-warning-subtle ms-1"><i
+                                                class="bi bi-exclamation-triangle-fill me-1"></i>Defekt</span>
                                         {% endif %}
                                     </td>
 

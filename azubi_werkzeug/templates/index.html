@@ -163,7 +163,7 @@
                         <div class="d-flex flex-column align-items-md-end w-100">
                             <span
                                 class="badge rounded-1 bg-theme-danger-subtle text-theme-danger border border-theme-danger-subtle"
-                                style="font-size: 1.25rem; font-weight: 900; line-height: 1; letter-spacing: -0.5px; padding: 0.4em 0.6em;">ÜBERFÄLLIG</span>
+                                style="font-size: 1.25rem; font-weight: 900; line-height: 1; letter-spacing: -0.5px; padding: 0.4em 0.6em;"><i class="bi bi-exclamation-triangle-fill me-1"></i>ÜBERFÄLLIG</span>
                             <span class="text-muted mt-2"
                                 style="font-size: 0.875rem; font-family: monospace; font-weight: 600;">PRÜFUNG
                                 FEHLT</span>
@@ -171,7 +171,7 @@
                         {% elif azubi.status_class == 'success' %}
                         <div class="d-flex flex-column align-items-md-end w-100">
                             <span class="badge rounded-pill bg-theme-success"
-                                style="font-size: 1.25rem; font-weight: 800; line-height: 1; letter-spacing: -0.5px; padding: 0.4em 0.8em;">GEPRÜFT</span>
+                                style="font-size: 1.25rem; font-weight: 800; line-height: 1; letter-spacing: -0.5px; padding: 0.4em 0.8em;"><i class="bi bi-check-circle-fill me-1"></i>GEPRÜFT</span>
                             {% if azubi.missing_count > 0 or azubi.broken_count > 0 %}
                             <span class="text-theme-warning mt-2 fw-bold"
                                 style="font-size: 0.875rem; font-family: monospace;">MIT
