@@ -86,7 +86,10 @@ def register_routes(bp):
             })
 
         dashboard_data.sort(
-            key=lambda x: (x['sort_order'], x['name']))
+            key=lambda x: (-1 if x['status_class'] == 'danger' else 0,
+                           -1 if (x['missing_count'] > 0 or x['broken_count'] > 0) else 0,
+                           x['sort_order'], 
+                           x['name']))
 
         duration = time.time() - start_time
         current_app.logger.info(

@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.3] - 2026-03-05
+
+### ✨ UX Accessibility & Formatting (v2 Iteration)
+- **Typografie (Presbyopie):** Die Schriftgröße und Strichstärke von Sekundärtexten und Metadaten (`Letzte Prüfung`, `Lehrjahr`) wurde systemweit auf ein gut lesbares Minimum von 14px normiert, um Altersweitsichtigkeit entgegenzuwirken.
+- **Dark Mode Card Borders:** Zur besseren haptisch-visuellen Abgrenzung für Low-Vision-Nutzer wurden die primären Status-Indikatoren am linken Kartenrand von schwachen 2px auf solide 4px verdickt.
+- **HC Mode Halation-Fix:** Der reine schwarze Hintergrund (`#000000`) im High Contrast Theme wurde durch einen ergonomischen Soft-Black-Ton (`#111111`) ersetzt, wodurch gelbe Neon-Schriften bei Makuladegeneration nicht mehr verschmelzen oder flimmern (Irradiation/Halation).
+- **Dashboard Praxisnutzen:**
+  - **Sortierung:** Das Dashboard sortiert Azubis nun intelligent (Überfällig > Mängel vorhanden > Alles OK).
+  - **Hover-Tooltips:** Status-Badges erklären ihre Bedeutung nun auf nativem Wege bei Mouseover.
+  - **"Overdue"-Fokus:** Karten von überfälligen Prüfungen erhalten subtil einen extrem sanften rötlichen Warnton im Hintergrund.
+
 ## [2.9.2] - 2026-03-05
 
 ### ✨ UX & Accessibility
