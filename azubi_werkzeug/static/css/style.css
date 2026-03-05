@@ -512,6 +512,52 @@ textarea:focus-visible {
     border: 1px solid var(--border-info-subtle);
 }
 
+.badge-subtle-secondary {
+    background-color: var(--bs-secondary-bg-subtle, #e2e3e5);
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+}
+
+/* === Typography Utilities === */
+.tracking-tight {
+    letter-spacing: -0.5px;
+}
+
+.tracking-tighter {
+    letter-spacing: -1px;
+}
+
+.tracking-tightest {
+    letter-spacing: -2px;
+}
+
+.tracking-wide {
+    letter-spacing: 0.5px;
+}
+
+.lh-solid {
+    line-height: 1;
+}
+
+.status-label {
+    font-size: 1.25rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.5px;
+    padding: 0.4em 0.8em;
+}
+
+.display-counter {
+    font-size: 3.5rem;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -2px;
+}
+
+.cursor-help {
+    cursor: help;
+}
+
 /* === Typography Utilities === */
 .tracking-tight {
     letter-spacing: -0.5px;

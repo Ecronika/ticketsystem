@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.7] - 2026-03-05
+
+### 🧹 UI / CSS Refactoring & Tech Debt (Phase 3)
+- **Komponenten-Lücken geschlossen:** Fehlende Basisklasse `.badge-subtle-secondary` für neutrale (graue) Statusmeldungen eingeführt und in Tabellen (`check.html`) ausgetauscht.
+- **JavaScript DOM-Strings bereinigt:** Harte, veraltete Utility-Klassen-Ketten in der dynamischen Tabellengenerierung (`tools.html`) wurden vollständig auf die neuen `.badge-subtle-*` Basisklassen migriert.
+- **Missed Views aktualisiert:** In `history_details.html` wurden die Status-Icons für abgeschlossene Prüfungen ebenfalls auf das neue abstrakte Badge-System umgestellt.
+- **Inline-Styles restlos entfernt:** Verbleibende Typografie-Workarounds (`style="letter-spacing: 0.5px;"` und `style="cursor: help;"`) in den Templates wurden durch dedizierte Component-Utilities (`.tracking-wide`, `.cursor-help`) abgelöst.
+
 ## [2.9.6] - 2026-03-05
 
 ### 🧹 UI / CSS Refactoring & Tech Debt (Phase 2)

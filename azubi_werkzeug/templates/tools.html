@@ -73,8 +73,7 @@
                                     <td class="d-none d-md-table-cell">
                                         {% if werkzeug.material_category == 'standard' %}
                                         <span
-                                            class="badge bg-secondary-subtle text-muted border border-secondary-subtle text-uppercase fw-bold"
-                                            style="letter-spacing: 0.5px;">Standard</span>
+                                            class="badge badge-subtle-secondary text-uppercase fw-bold tracking-wide">Standard</span>
                                         {% elif werkzeug.material_category == 'teilisoliert' %}
                                         <span class="badge badge-subtle-warning text-uppercase fw-bold"
                                             style="letter-spacing: 0.5px;">Teilisoliert</span>
@@ -303,7 +302,7 @@
                             let categoryBadge = '';
                             switch (werkzeug.category) {
                                 case 'standard':
-                                    categoryBadge = '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Standard</span>';
+                                    categoryBadge = '<span class="badge badge-subtle-secondary">Standard</span>';
                                     break;
                                 case 'teilisoliert':
                                     categoryBadge = '<span class="badge badge-subtle-warning">Teilisoliert</span>';
