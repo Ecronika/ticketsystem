@@ -33,8 +33,8 @@
                 <!-- Top Section (Name & Info) grows to push everything else to the bottom -->
                 <div class="d-flex justify-content-between align-items-start flex-grow-1 mb-2">
                     <div class="d-flex flex-column overflow-hidden me-2">
-                        <h2 class="display-6 fw-bolder mb-0 text-truncate" title="{{ azubi.name }}"
-                            style="letter-spacing: -1px; max-width: 100%;">
+                        <h2 class="display-6 fw-bolder mb-0 text-truncate tracking-tighter w-100"
+                            title="{{ azubi.name }}">
                             {{ azubi.name }}
                         </h2>
                         <div class="d-flex gap-2 mt-1 align-items-center flex-wrap">
@@ -89,7 +89,7 @@
                     <div class="d-flex flex-column align-items-md-end flex-grow-1" style="flex-basis: 120px;">
                         {% if azubi.status_class == 'danger' %}
                         <div class="d-flex flex-column align-items-md-end w-100">
-                            <span class="badge rounded-1 badge-subtle-danger status-label" style="cursor: help;"
+                            <span class="badge rounded-1 badge-subtle-danger status-label cursor-help"
                                 title="Prüfung länger als 90 Tage her"><i
                                     class="bi bi-exclamation-triangle-fill me-1"></i>ÜBERFÄLLIG</span>
                             <span class="text-meta mt-2 fw-bold">PRÜFUNG
@@ -97,7 +97,7 @@
                         </div>
                         {% elif azubi.status_class == 'success' %}
                         <div class="d-flex flex-column align-items-md-end w-100">
-                            <span class="badge rounded-pill bg-theme-success status-label" style="cursor: help;"
+                            <span class="badge rounded-pill bg-theme-success status-label cursor-help"
                                 title="{% if azubi.missing_count > 0 or azubi.broken_count > 0 %}Prüfung aktuell, aber Mängel vorhanden{% else %}Alle Werkzeuge vorhanden{% endif %}"><i
                                     class="bi bi-check-circle-fill me-1"></i>GEPRÜFT</span>
                             {% if azubi.missing_count > 0 or azubi.broken_count > 0 %}

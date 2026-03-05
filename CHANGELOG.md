@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.8] - 2026-03-05
+
+### 🧹 UI / CSS Refactoring & Tech Debt (Phase 4)
+- **Dead Code bereinigt:** Doppelt generierter CSS-Block für Typografie am Ende der `style.css` wurde restlos entfernt, um die CSS-Architektur fehlerfrei und wartbar zu halten.
+- **Konsistenz the Templates:** Inkonsequente Umsetzung der Utility-Klassen in Template-If/Elif-Bäumen (z.B. in `tools.html`) wurde behoben. Hartkodierte Styles in elif-Zweigen nutzen nun konsistent die `.tracking-wide` Utility-Kombination.
+- **Isolierte Styles begradigt:** Letzte verbliebene Inline-Formatierungen auf dem Dashboard (`index.html`) für Font-Abstände und Tooltip-Cursor wurden auf die neu geschaffenen abstrakten Komponentenkernklassen (`.tracking-tighter`, `.w-100`, `.cursor-help`) umgelegtet.
+
 ## [2.9.7] - 2026-03-05
 
 ### 🧹 UI / CSS Refactoring & Tech Debt (Phase 3)

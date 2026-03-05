@@ -559,38 +559,6 @@ textarea:focus-visible {
 }
 
 /* === Typography Utilities === */
-.tracking-tight {
-    letter-spacing: -0.5px;
-}
-
-.tracking-tighter {
-    letter-spacing: -1px;
-}
-
-.tracking-tightest {
-    letter-spacing: -2px;
-}
-
-.lh-solid {
-    line-height: 1;
-}
-
-.status-label {
-    font-size: 1.25rem;
-    font-weight: 800;
-    line-height: 1;
-    letter-spacing: -0.5px;
-    padding: 0.4em 0.8em;
-}
-
-.display-counter {
-    font-size: 3.5rem;
-    font-weight: 900;
-    line-height: 1;
-    letter-spacing: -2px;
-}
-
-/* === Typography Utilities === */
 .font-mono {
     font-family: ui-monospace, 'Courier New', monospace;
 }
