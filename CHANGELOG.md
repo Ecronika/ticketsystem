@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.5] - 2026-03-05
+
+### 🧹 UI / CSS Refactoring & Tech Debt
+- **Token Konsolidierung:** Messbare Redundanzen in `style.css` behoben (`body` Deklarationen zusammengelegt, re-deklarationen von `.text-muted` entfernt).
+- **Template Cleanup:** Über 40 harte in-line `<styles>` mit Magic-Number Schriftgrößen (z.B. `0.875rem`) aus `index.html` und Folgeseiten in das externe Stylesheet `style.css` migriert.
+- **Typografie (Presbyopie):** Einführung der zentralen Utility-Klassen `.text-meta` und `.font-mono`. Diese erzwingen eine Mindest-Schriftgröße von 14px (0.875rem) für sekundäre Metadaten (`Letzte Prüfung`, `WOCHEN`, etc.), was konsistent Altersweitsichtigkeit entgegenwirkt.
+- **Theme Awareness:** Raw Bootstrap-Klassen wie `bg-danger-subtle` in den Badges (`FEHLT`, `DEFEKT`) wurden systemweit durch Theme-aware Klassen (`bg-theme-danger-subtle`) ersetzt. Dadurch können Kontraste im Dark Mode und High-Contrast Mode unabhängig vom Light Mode korrigiert werden. Die Override-Klasse `bg-white` wurde aus Card-Headern entfernt, was nativen Dark Mode in `check.html` ermöglicht.
+
 ## [2.9.4] - 2026-03-05
 
 ### ✨ UX Accessibility & Formatting (v3 "Blur/Presbyopia" Fixes)

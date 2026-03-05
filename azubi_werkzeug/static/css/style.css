@@ -1,6 +1,8 @@
 /* Weicherer Hintergrund werden jetzt von CSS Variablen gesteuert */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-body);
+    color: var(--text-main);
 }
 
 /* Karten sollen leicht schweben */
@@ -234,11 +236,6 @@ h6 {
 
 /* --- Theme Application (Global Setup) --- */
 
-body {
-    background-color: var(--bg-body);
-    color: var(--text-main);
-}
-
 /* Custom Text Utilities to enforce Theme Colors */
 .text-theme-danger {
     color: var(--color-danger) !important;
@@ -336,8 +333,7 @@ body {
 }
 
 .card,
-.modal-content,
-.bg-white {
+.modal-content {
     background-color: var(--bg-surface) !important;
     color: var(--text-main);
     border-color: var(--border-color);
@@ -348,12 +344,11 @@ body {
 .modal-header,
 .modal-footer {
     border-color: var(--border-color);
-    background-color: var(--bg-surface);
+    background-color: transparent;
+    /* Use parent's background */
 }
 
-.text-muted {
-    color: var(--text-muted) !important;
-}
+/* Removed duplicate .text-muted */
 
 .form-control,
 .form-select {
@@ -425,4 +420,72 @@ select:focus-visible,
 textarea:focus-visible {
     outline: var(--focus-ring);
     outline-offset: 2px;
+}
+
+/* === Exchange Modal / Bento Components === */
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--bs-secondary-bg-subtle, #555);
+    border-radius: 4px;
+}
+
+.bento-check-row {
+    min-height: 56px;
+}
+
+/* Custom Reason Group - Semantic Colors */
+.custom-reason-group .btn-check:checked+#globalReasonDefektLabel {
+    background-color: rgba(220, 53, 69, 0.15) !important;
+    color: #dc3545 !important;
+    border-color: rgba(220, 53, 69, 0.4) !important;
+}
+
+.custom-reason-group .btn-check:hover+#globalReasonDefektLabel {
+    background-color: rgba(220, 53, 69, 0.25) !important;
+    border-color: rgba(220, 53, 69, 0.5) !important;
+    color: #dc3545 !important;
+}
+
+[data-theme="dark"] .custom-reason-group .btn-check:checked+#globalReasonDefektLabel {
+    background-color: rgba(220, 53, 69, 0.25) !important;
+    color: #ff8793 !important;
+    border-color: rgba(220, 53, 69, 0.5) !important;
+}
+
+[data-theme="dark"] .custom-reason-group .btn-outline-secondary:not(.active):not(:hover) {
+    color: #adb5bd !important;
+    background-color: rgba(255, 255, 255, 0.02) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* High Contrast Mode Overrides */
+[data-theme="hc"] .custom-reason-group .btn-check:checked+#globalReasonDefektLabel {
+    background-color: #000000 !important;
+    color: #00ffff !important;
+    border: 2px solid #00ffff !important;
+    box-shadow: 0 0 8px #00ffff !important;
+}
+
+[data-theme="hc"] .custom-reason-group .btn-outline-secondary:not(.active) {
+    color: #ffffff !important;
+    border-color: #ffffff !important;
+}
+
+[data-theme="hc"] #signatureContainer {
+    border: 2px solid #00ffff !important;
+    background-color: #000000 !important;
+}
+
+[data-theme="hc"] .btn-clear-pad {
+    background-color: #000000 !important;
+    color: #00ffff !important;
+    border-color: #00ffff !important;
 }
