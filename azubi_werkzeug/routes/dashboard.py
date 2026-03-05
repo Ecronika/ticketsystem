@@ -80,8 +80,10 @@ def register_routes(bp):
                 'assigned_count': assigned_count,
                 'missing_count': anomalies['missing'],
                 'missing_tools': anomalies.get('missing_tools', []),
+                'missing_tool_ids': anomalies.get('missing_tool_ids', []),
                 'broken_count': anomalies['broken'],
                 'broken_tools': anomalies.get('broken_tools', []),
+                'broken_tool_ids': anomalies.get('broken_tool_ids', []),
                 'sort_order': sort_order
             })
 

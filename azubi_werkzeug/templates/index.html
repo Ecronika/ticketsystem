@@ -48,7 +48,9 @@
 
                     <button type="button" class="btn btn-outline-theme-warning rounded-circle flex-shrink-0"
                         data-bs-toggle="modal" data-bs-target="#exchangeModal" data-azubi-id="{{ azubi.id }}"
-                        data-azubi-name="{{ azubi.name }}" title="Werkzeug austauschen (Defekt/Verloren)"
+                        data-azubi-name="{{ azubi.name }}" data-missing-ids='{{ azubi.missing_tool_ids | tojson }}'
+                        data-broken-ids='{{ azubi.broken_tool_ids | tojson }}'
+                        title="Werkzeug austauschen (Defekt/Verloren)"
                         aria-label="Werkzeug austauschen für {{ azubi.name }}" style="width: 45px; height: 45px;">
                         <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
                     </button>
@@ -344,6 +346,11 @@
                 document.getElementById('exchangeAzubiId').value = azubiId;
                 document.getElementById('exchangeAzubiName').value = azubiName;
 
+                // Store context IDs for pre-check after AJAX load
+                const missingIds = JSON.parse(button.getAttribute('data-missing-ids') || '[]');
+                const brokenIds = JSON.parse(button.getAttribute('data-broken-ids') || '[]');
+                window._exchangePrecheck = { missingIds, brokenIds };
+
                 loadAssignedTools(azubiId);
             });
 
@@ -490,6 +497,33 @@
             checkboxes.forEach(cb => {
                 cb.addEventListener('change', updateExchangeTotalPrice);
             });
+
+            // Context-Aware Pre-Check: pre-check defective/missing tools from dashboard
+            const precheck = window._exchangePrecheck || { missingIds: [], brokenIds: [] };
+            const allPrecheckIds = [...precheck.missingIds, ...precheck.brokenIds];
+            if (allPrecheckIds.length > 0) {
+                allPrecheckIds.forEach(toolId => {
+                    const cb = document.getElementById(`check_tool_${toolId}`);
+                    if (cb) {
+                        cb.checked = true;
+                        // Pre-select reason per tool
+                        const reasonSel = document.getElementById(`reason_tool_${toolId}`);
+                        if (reasonSel) {
+                            reasonSel.value = precheck.brokenIds.includes(toolId) ? 'Defekt' : 'Verloren';
+                        }
+                    }
+                });
+                updateExchangeTotalPrice();
+
+                // If ALL defects/missing - also pre-select the global reason radio
+                if (precheck.missingIds.length > 0 && precheck.brokenIds.length === 0) {
+                    const radio = document.getElementById('globalReasonVerloren');
+                    if (radio) radio.checked = true;
+                } else if (precheck.brokenIds.length > 0 && precheck.missingIds.length === 0) {
+                    const radio = document.getElementById('globalReasonDefekt');
+                    if (radio) radio.checked = true;
+                }
+            }
 
         } catch (e) {
             listContainer.innerHTML = '<div class="text-center text-danger p-3">Fehler beim Laden (Server-Error).</div>';

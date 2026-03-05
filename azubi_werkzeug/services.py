@@ -77,7 +77,8 @@ class CheckService:
             .all()
         )
 
-        anomalies = {aid: {'missing': 0, 'broken': 0, 'missing_tools': [], 'broken_tools': []} for aid in azubi_ids}
+        anomalies = {aid: {'missing': 0, 'broken': 0, 'missing_tools': [], 'broken_tools': [],
+                           'missing_tool_ids': [], 'broken_tool_ids': []} for aid in azubi_ids}
         for check, werkzeug in latest_checks:
             assigned_for_azubi = assigned_tools_batch.get(check.azubi_id, set())
             if check.werkzeug_id in assigned_for_azubi:
@@ -85,9 +86,11 @@ class CheckService:
                 if 'Status: missing' in bemerkung:
                     anomalies[check.azubi_id]['missing'] += 1
                     anomalies[check.azubi_id]['missing_tools'].append(werkzeug.name)
+                    anomalies[check.azubi_id]['missing_tool_ids'].append(werkzeug.id)
                 elif 'Status: broken' in bemerkung:
                     anomalies[check.azubi_id]['broken'] += 1
                     anomalies[check.azubi_id]['broken_tools'].append(werkzeug.name)
+                    anomalies[check.azubi_id]['broken_tool_ids'].append(werkzeug.id)
 
         return anomalies
 

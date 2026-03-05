@@ -146,20 +146,23 @@
                                 <div class="btn-group shadow-sm" role="group" aria-label="Werkzeug-Zustand">
                                     <input type="radio" class="btn-check status-radio"
                                         name="status_radio_{{ item.obj.id }}" id="btnradio1_{{ item.obj.id }}"
-                                        value="ok" checked data-target="check_{{ item.obj.id }}">
+                                        value="ok" {% if item.last_status=='ok' %}checked{% endif %}
+                                        data-target="check_{{ item.obj.id }}">
                                     <label class="btn btn-outline-success fw-bold px-3"
                                         for="btnradio1_{{ item.obj.id }}"><i class="bi bi-check-lg me-1"></i>OK</label>
 
                                     <input type="radio" class="btn-check status-radio"
                                         name="status_radio_{{ item.obj.id }}" id="btnradio2_{{ item.obj.id }}"
-                                        value="broken" data-target="check_{{ item.obj.id }}">
+                                        value="broken" {% if item.last_status=='broken' %}checked{% endif %}
+                                        data-target="check_{{ item.obj.id }}">
                                     <label class="btn btn-outline-warning fw-bold px-3"
                                         for="btnradio2_{{ item.obj.id }}"><i
                                             class="bi bi-exclamation-triangle-fill me-1"></i>DEFEKT</label>
 
                                     <input type="radio" class="btn-check status-radio"
                                         name="status_radio_{{ item.obj.id }}" id="btnradio3_{{ item.obj.id }}"
-                                        value="missing" data-target="check_{{ item.obj.id }}">
+                                        value="missing" {% if item.last_status=='missing' %}checked{% endif %}
+                                        data-target="check_{{ item.obj.id }}">
                                     <label class="btn btn-outline-danger fw-bold px-3"
                                         for="btnradio3_{{ item.obj.id }}"><i
                                             class="bi bi-x-circle-fill me-1"></i>FEHLT</label>
@@ -180,28 +183,44 @@
                             </div>
 
                             <div class="mt-2 incident-div w-100" id="incident_div_{{ item.obj.id }}"
-                                style="display:none;">
+                                style="display:{% if item.last_status in ('broken', 'missing') %}block{% else %}none{% endif %};">
                                 <select class="form-select border-danger text-theme-danger incident-select"
                                     name="incident_reason_{{ item.obj.id }}" data-tool-id="{{ item.obj.id }}">
-                                    <option value="" disabled selected>Grund wählen...</option>
+                                    <option value="" disabled {% if not item.last_incident_reason %}selected{% endif %}>
+                                        Grund wählen...</option>
 
-                                    <optgroup label="🔧 Defekt-Gründe" class="broken-reasons">
-                                        <option value="Verschleiß">Verschleiß (Normal)</option>
-                                        <option value="Fahrlässig">Beschädigt (Fahrlässig/Haftung)</option>
-                                        <option value="Materialfehler">Materialfehler (Fabrikation)</option>
-                                        <option value="Unsachgemäß">Unsachgemäße Nutzung</option>
-                                        <option value="Überlastung">Überlastung</option>
-                                        <option value="Sturz">Sturz/Fall</option>
-                                        <option value="Feuchtigkeit">Feuchtigkeit/Rost</option>
+                                    <optgroup label="🔧 Defekt-Gründe" class="broken-reasons" {% if
+                                        item.last_status=='missing' %}disabled hidden{% endif %}>
+                                        <option value="Verschleiß" {% if item.last_incident_reason=='Verschleiß'
+                                            %}selected{% endif %}>Verschleiß (Normal)</option>
+                                        <option value="Fahrlässig" {% if item.last_incident_reason=='Fahrlässig'
+                                            %}selected{% endif %}>Beschädigt (Fahrlässig/Haftung)</option>
+                                        <option value="Materialfehler" {% if item.last_incident_reason=='Materialfehler'
+                                            %}selected{% endif %}>Materialfehler (Fabrikation)</option>
+                                        <option value="Unsachgemäß" {% if item.last_incident_reason=='Unsachgemäß'
+                                            %}selected{% endif %}>Unsachgemäße Nutzung</option>
+                                        <option value="Überlastung" {% if item.last_incident_reason=='Überlastung'
+                                            %}selected{% endif %}>Überlastung</option>
+                                        <option value="Sturz" {% if item.last_incident_reason=='Sturz' %}selected{%
+                                            endif %}>Sturz/Fall</option>
+                                        <option value="Feuchtigkeit" {% if item.last_incident_reason=='Feuchtigkeit'
+                                            %}selected{% endif %}>Feuchtigkeit/Rost</option>
                                     </optgroup>
 
-                                    <optgroup label="❌ Fehlt-Gründe" class="missing-reasons">
-                                        <option value="Verloren">Verloren</option>
-                                        <option value="Vergessen">Vergessen (Zuhause/Ort)</option>
-                                        <option value="Gestohlen">Gestohlen</option>
-                                        <option value="Ausgeliehen">Ausgeliehen (Kollege)</option>
-                                        <option value="Nicht zurück">Nicht zurückgegeben</option>
-                                        <option value="Unbekannt">Verbleib unbekannt</option>
+                                    <optgroup label="❌ Fehlt-Gründe" class="missing-reasons" {% if
+                                        item.last_status=='broken' %}disabled hidden{% endif %}>
+                                        <option value="Verloren" {% if item.last_incident_reason=='Verloren'
+                                            %}selected{% endif %}>Verloren</option>
+                                        <option value="Vergessen" {% if item.last_incident_reason=='Vergessen'
+                                            %}selected{% endif %}>Vergessen (Zuhause/Ort)</option>
+                                        <option value="Gestohlen" {% if item.last_incident_reason=='Gestohlen'
+                                            %}selected{% endif %}>Gestohlen</option>
+                                        <option value="Ausgeliehen" {% if item.last_incident_reason=='Ausgeliehen'
+                                            %}selected{% endif %}>Ausgeliehen (Kollege)</option>
+                                        <option value="Nicht zurück" {% if item.last_incident_reason=='Nicht zurück'
+                                            %}selected{% endif %}>Nicht zurückgegeben</option>
+                                        <option value="Unbekannt" {% if item.last_incident_reason=='Unbekannt'
+                                            %}selected{% endif %}>Verbleib unbekannt</option>
                                     </optgroup>
                                 </select>
                             </div>
@@ -403,6 +422,17 @@
                 }
             });
 
+            // Smart Auto-Select: for Rückgabe, check all visible tools automatically
+            if (type === 'return') {
+                toolRows.forEach(row => {
+                    if (!row.classList.contains('d-none')) {
+                        const cb = row.querySelector('.tool-select');
+                        if (cb) cb.checked = true;
+                    }
+                });
+                selectAllCheckbox.checked = true;
+            }
+
             if (toolCountBadge) toolCountBadge.textContent = visibleCount;
 
             // Reset Select All when view changes
@@ -411,6 +441,17 @@
 
         checkTypeSelector.addEventListener('change', updateView);
         updateView(); // Initial Call
+
+        // --- Examiner Memory (localStorage) ---
+        const examinerSelect = document.querySelector('select[name="examiner"]');
+        if (examinerSelect) {
+            const savedExaminer = localStorage.getItem('lastExaminer');
+            if (savedExaminer) {
+                // Only pre-select if that option exists in the list
+                const option = examinerSelect.querySelector(`option[value="${savedExaminer}"]`);
+                if (option) examinerSelect.value = savedExaminer;
+            }
+        }
 
         // --- Select All Logic (FIXED) ---
         selectAllCheckbox.addEventListener('change', function () {
@@ -481,6 +522,10 @@
         const errorTextSpan = document.getElementById('errorText');
 
         form.addEventListener('submit', function (e) {
+            // Persist examiner selection for next check
+            if (examinerSelect && examinerSelect.value) {
+                localStorage.setItem('lastExaminer', examinerSelect.value);
+            }
             let valid = true;
             let errorMsg = "";
 

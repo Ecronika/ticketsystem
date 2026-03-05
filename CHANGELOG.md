@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-03-06
+
+### ✨ Smart Defaults & Autofill (Zero Redundant Inputs)
+- **Status-Gedächtnis (`check.html`):** Radio-Button und Incident-Dropdown sind vorausgefüllt, wenn das Werkzeug beim letzten Check als DEFEKT oder FEHLT markiert war. Der spezifische Grund (z.B. "Verschleiß") ist ebenfalls vorausgewählt. Nur relevante Optgruppen werden angezeigt (Defekt-Gründe bei Status DEFEKT, Fehlt-Gründe bei Status FEHLT). Backend: `_parse_last_entry_status` in `checks.py` gibt nun `incident_reason` als 4. Rückgabewert zurück.
+- **Prüfer-Memory (`check.html`):** Der zuletzt ausgewählte Prüfer / Ausbilder wird über `localStorage.setItem('lastExaminer', ...)` beim Absenden gespeichert und beim nächsten Aufruf von `check.html` automatisch wieder vorausgewählt.
+- **Smart Auto-Select bei Rückgabe (`check.html`):** Wechselt der Benutzer den Vorgang auf "Werkzeug-Rückgabe", werden alle sichtbaren (im Besitz befindlichen) Werkzeuge sofort angehakt.
+- **Context-Aware Exchange Modal (`index.html`):** Das "Werkzeug tauschen"-Modal erkennt beim Öffnen, welche Werkzeuge des Azubis zuletzt als defekt oder fehlend markiert waren, und hakt diese vorab an. Der spezifische Grund pro Werkzeug wird passend vorausgewählt ("Defekt" oder "Verloren"). Backend: `missing_tool_ids` / `broken_tool_ids` werden nun von `get_tool_anomalies_batch()` in `services.py` und dem Dashboard-Controller in `dashboard.py` übergeben.
+- **Lehrjahr Default = 1 (`personnel.html`):** Das Lehrjahr-Eingabefeld beim Anlegen neuer Azubis hat nun den Standardwert `1`.
+
 ## [2.9.9] - 2026-03-05
 
 ### ✨ UX & Ergonomie Refactoring (Shopfloor / WCAG 2.2)

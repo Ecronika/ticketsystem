@@ -25,10 +25,11 @@ from metrics import CHECKS_SUBMITTED_TOTAL, SCANS_TOTAL
 
 
 def _parse_last_entry_status(last_entry):
-    """Extract status, tech_val and manufacturer from a Check entry."""
-    status, tech_val, manufacturer = 'ok', '', ''
+    """Extract status, tech_val, manufacturer and incident_reason from a Check entry."""
+    status, tech_val, manufacturer, incident_reason = 'ok', '', '', ''
     if last_entry:
         manufacturer = last_entry.manufacturer or ''
+        incident_reason = last_entry.incident_reason or ''
         if last_entry.bemerkung:
             for p in last_entry.bemerkung.split('|'):
                 if p.strip().startswith('Status:'):
@@ -36,7 +37,7 @@ def _parse_last_entry_status(last_entry):
                     break
         if last_entry.tech_param_value:
             tech_val = last_entry.tech_param_value
-    return status, tech_val, manufacturer
+    return status, tech_val, manufacturer, incident_reason
 
 
 def _build_tool_status_list(azubi, werkzeuge, assigned_ids):
@@ -61,14 +62,15 @@ def _build_tool_status_list(azubi, werkzeuge, assigned_ids):
 
     mapped_werkzeuge = []
     for w in werkzeuge:
-        status, tech_val, manufacturer = _parse_last_entry_status(
+        status, tech_val, manufacturer, incident_reason = _parse_last_entry_status(
             last_checks.get(w.id))
         mapped_werkzeuge.append({
             'obj': w,
             'is_assigned': w.id in assigned_ids,
             'last_status': status,
             'last_tech_val': tech_val,
-            'last_manufacturer': manufacturer
+            'last_manufacturer': manufacturer,
+            'last_incident_reason': incident_reason
         })
     return mapped_werkzeuge
 
