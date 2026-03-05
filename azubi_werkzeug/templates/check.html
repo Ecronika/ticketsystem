@@ -391,11 +391,11 @@
                 }
 
                 if (shouldShow) {
-                    row.style.display = '';
+                    row.classList.remove('d-none');
                     row.querySelectorAll('input, select').forEach(el => el.disabled = false);
                     visibleCount++;
                 } else {
-                    row.style.display = 'none';
+                    row.classList.add('d-none');
                     row.querySelectorAll('input, select').forEach(el => el.disabled = true);
                     // UX Fix: Uncheck hidden rows prevents accidental submission
                     const cb = row.querySelector('.tool-select');
@@ -417,7 +417,7 @@
             const isChecked = this.checked;
             toolRows.forEach(row => {
                 // BUGFIX: Only select visible rows!
-                if (row.style.display !== 'none') {
+                if (!row.classList.contains('d-none')) {
                     const cb = row.querySelector('.tool-select');
                     if (cb) cb.checked = isChecked;
                 }
