@@ -41,13 +41,11 @@
                 <div class="me-4 text-center" style="min-width: 60px;">
                     <!-- Status Icon for the Session -->
                     {% if check_session.is_ok %}
-                    <div class="rounded-circle bg-theme-success-subtle d-flex align-items-center justify-content-center mx-auto"
-                        style="width: 48px; height: 48px;">
+                    <div class="rounded-circle bg-theme-success-subtle icon-box-lg mx-auto">
                         <i class="bi bi-check-lg text-theme-success fs-4"></i>
                     </div>
                     {% else %}
-                    <div class="rounded-circle bg-theme-warning-subtle d-flex align-items-center justify-content-center mx-auto"
-                        style="width: 48px; height: 48px;">
+                    <div class="rounded-circle bg-theme-warning-subtle icon-box-lg mx-auto">
                         <i class="bi bi-exclamation-lg text-theme-warning fs-4"></i>
                     </div>
                     {% endif %}
@@ -65,10 +63,10 @@
 
             <div class="text-end d-none d-sm-flex align-items-center gap-3">
                 {% if check_session.is_ok %}
-                <div class="text-theme-success fw-bolder" style="font-size: 1.1rem; letter-spacing: -0.5px;">ALLES OK
+                <div class="text-theme-success fw-bolder tracking-tight" style="font-size: 1.1rem;">ALLES OK
                 </div>
                 {% else %}
-                <div class="text-theme-warning fw-bolder" style="font-size: 1.1rem; letter-spacing: -0.5px;">
+                <div class="text-theme-warning fw-bolder tracking-tight" style="font-size: 1.1rem;">
                     AUFFÄLLIGKEITEN</div>
                 {% endif %}
                 <i class="bi bi-chevron-right text-muted opacity-50"></i>
@@ -127,11 +125,11 @@
                                 <div class="d-flex align-items-center">
                                     <div class="me-4 text-center" style="min-width: 60px;">
                                         ${session.is_ok ?
-                                    '<div class="rounded-circle bg-theme-success-subtle d-flex align-items-center justify-content-center mx-auto" style="width: 48px; height: 48px;"><i class="bi bi-check-lg text-theme-success fs-4"></i></div>' :
-                                    '<div class="rounded-circle bg-theme-warning-subtle d-flex align-items-center justify-content-center mx-auto" style="width: 48px; height: 48px;"><i class="bi bi-exclamation-lg text-theme-warning fs-4"></i></div>'}
+                                    '<div class="rounded-circle bg-theme-success-subtle icon-box-lg mx-auto"><i class="bi bi-check-lg text-theme-success fs-4"></i></div>' :
+                                    '<div class="rounded-circle bg-theme-warning-subtle icon-box-lg mx-auto"><i class="bi bi-exclamation-lg text-theme-warning fs-4"></i></div>'}
                                     </div>
                                     <div>
-                                        <h3 class="fw-bolder fs-4 mb-0" style="letter-spacing: -0.5px;">${session.azubi_name}</h3>
+                                        <h3 class="fw-bolder fs-4 mb-0 tracking-tight">${session.azubi_name}</h3>
                                         <div class="text-meta mt-1">
                                             ${session.datum_formatted} &bull; ${session.time_formatted} Uhr
                                         </div>
@@ -139,8 +137,8 @@
                                 </div>
                                 <div class="text-end d-none d-sm-flex align-items-center gap-3">
                                     ${session.is_ok ?
-                                    '<div class="text-theme-success fw-bolder" style="font-size: 1.1rem; letter-spacing: -0.5px;">ALLES OK</div>' :
-                                    '<div class="text-theme-warning fw-bolder" style="font-size: 1.1rem; letter-spacing: -0.5px;">AUFFÄLLIGKEITEN</div>'}
+                                    '<div class="text-theme-success fw-bolder tracking-tight" style="font-size: 1.1rem;">ALLES OK</div>' :
+                                    '<div class="text-theme-warning fw-bolder tracking-tight" style="font-size: 1.1rem;">AUFFÄLLIGKEITEN</div>'}
                                     <i class="bi bi-chevron-right text-muted opacity-50"></i>
                                 </div>
                             </a>`;

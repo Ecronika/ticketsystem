@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.6] - 2026-03-05
+
+### 🧹 UI / CSS Refactoring & Tech Debt (Phase 2)
+- **CSS Variablen Bereinigung:** Hardcodierte Theme-Farben (`#ef4444`, `#ffffff`) für den Dark-Mode wurden aus spezifischen Klassen-Overrides gelöst und sauber als Variablen (`--bg-danger-subtle`, `--text-danger-override`) im `.data-theme="dark"` Root-Element deklariert. Das löst Redundanzen und verhindert Kaskaden-Bruch durch exzessives `!important`.
+- **Badge Komponenten Extraktion:** Stark redundante 6-Klassen-Kombinationen für Status-Badges (z.B. `class="badge bg-theme-warning-subtle text-theme-warning border border-theme-warning-subtle"`) wurden zu sauberen abstrakten Komponenten zusammengefasst (z.B. `.badge-subtle-warning`). HTML-DOM Struktur in 5 Templates wurde massiv gestrafft.
+- **Typografie und Layout System:** Duplizierte Inline-Styles für "Magic Number"-Abstände und Schriftgrößen (z.B. `style="font-size: 3.5rem; letter-spacing: -2px;"`) wurden in wiederverwendbare Klassen (`.display-counter`, `.status-label`, `.tracking-tight`, `.icon-box-lg`) abstrahiert und bereinigt.
+
 ## [2.9.5] - 2026-03-05
 
 ### 🧹 UI / CSS Refactoring & Tech Debt

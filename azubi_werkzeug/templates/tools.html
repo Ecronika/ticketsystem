@@ -67,7 +67,7 @@
                                 {% for werkzeug in werkzeuge %}
                                 <tr>
                                     <td>
-                                        <div class="fw-bolder fs-5" style="letter-spacing: -0.5px;">{{
+                                        <div class="fw-bolder fs-5 tracking-tight">{{
                                             werkzeug.name }}</div>
                                     </td>
                                     <td class="d-none d-md-table-cell">
@@ -76,17 +76,14 @@
                                             class="badge bg-secondary-subtle text-muted border border-secondary-subtle text-uppercase fw-bold"
                                             style="letter-spacing: 0.5px;">Standard</span>
                                         {% elif werkzeug.material_category == 'teilisoliert' %}
-                                        <span
-                                            class="badge bg-theme-warning-subtle text-theme-warning border border-theme-warning-subtle text-uppercase fw-bold"
+                                        <span class="badge badge-subtle-warning text-uppercase fw-bold"
                                             style="letter-spacing: 0.5px;">Teilisoliert</span>
                                         {% elif werkzeug.material_category == 'vollisoliert' %}
-                                        <span
-                                            class="badge bg-theme-danger-subtle text-theme-danger border border-theme-danger-subtle text-uppercase fw-bold"
+                                        <span class="badge badge-subtle-danger text-uppercase fw-bold"
                                             style="letter-spacing: 0.5px;">VDE
                                             1000V</span>
                                         {% elif werkzeug.material_category == 'isolierend' %}
-                                        <span
-                                            class="badge bg-theme-info-subtle text-theme-info border border-theme-info-subtle text-uppercase fw-bold"
+                                        <span class="badge badge-subtle-info text-uppercase fw-bold"
                                             style="letter-spacing: 0.5px;">Vollkunststoff</span>
                                         {% endif %}
                                     </td>
@@ -309,13 +306,13 @@
                                     categoryBadge = '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Standard</span>';
                                     break;
                                 case 'teilisoliert':
-                                    categoryBadge = '<span class="badge bg-theme-warning-subtle text-theme-warning border border-theme-warning-subtle">Teilisoliert</span>';
+                                    categoryBadge = '<span class="badge badge-subtle-warning">Teilisoliert</span>';
                                     break;
                                 case 'vollisoliert':
-                                    categoryBadge = '<span class="badge bg-theme-danger-subtle text-theme-danger border border-theme-danger-subtle">VDE 1000V</span>';
+                                    categoryBadge = '<span class="badge badge-subtle-danger">VDE 1000V</span>';
                                     break;
                                 case 'isolierend':
-                                    categoryBadge = '<span class="badge bg-theme-info-subtle text-theme-info border border-theme-info-subtle">Vollkunststoff</span>';
+                                    categoryBadge = '<span class="badge badge-subtle-info">Vollkunststoff</span>';
                                     break;
                             }
 
