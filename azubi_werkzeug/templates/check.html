@@ -100,135 +100,114 @@
                     <div class="alert alert-info py-2 small" id="selectionHint">
                         <i class="bi bi-arrow-down-square"></i> Bitte wählen Sie die betroffenen Werkzeuge aus.
                     </div>
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle">
-                            <thead class="table-light">
-                                <tr>
-                                    <th style="width: 5%;">
-                                        <input class="form-check-input" type="checkbox" id="selectAll"
-                                            aria-label="Alle Werkzeuge auswählen">
-                                    </th>
-                                    <th style="width: 35%;">Werkzeug</th>
-                                    <th class="d-none d-md-table-cell" style="width: 20%;">Aktueller Status</th>
-                                    <th style="width: 40%;">Zustand / Prüfung</th>
-                                </tr>
-                            </thead>
-                            <tbody id="toolTableBody">
-                                {% for item in werkzeuge %}
-                                <!-- Item: {obj, is_assigned, last_status, last_tech_val} -->
-                                <tr class="tool-row" data-assigned="{{ 'true' if item.is_assigned else 'false' }}"
-                                    id="row_{{ item.obj.id }}">
+                    <div class="d-flex flex-row align-items-center gap-2 mb-3">
+                        <div class="form-check mb-0">
+                            <input class="form-check-input form-check-input-lg" type="checkbox" id="selectAll"
+                                aria-label="Alle Werkzeuge auswählen">
+                            <label
+                                class="form-check-label fw-bold ms-2 cursor-pointer text-muted small text-uppercase tracking-wide"
+                                for="selectAll">Alle wählen</label>
+                        </div>
+                    </div>
 
-                                    <td>
-                                        <!-- Checkbox to select tool for this action -->
-                                        <input class="form-check-input tool-select" type="checkbox"
-                                            name="tool_{{ item.obj.id }}" value="ok" id="check_{{ item.obj.id }}"
-                                            aria-label="Auswählen: {{ item.obj.name }}">
-                                    </td>
+                    <div id="toolTableBody">
+                        {% for item in werkzeuge %}
+                        <div class="bento-list-item d-flex flex-column flex-lg-row align-items-lg-center gap-3 tool-row"
+                            data-assigned="{{ 'true' if item.is_assigned else 'false' }}" id="row_{{ item.obj.id }}">
 
-                                    <td>
-                                        <div class="fw-bolder fs-5 tracking-tight">{{
-                                            item.obj.name }}</div>
-                                        <div class="text-muted text-uppercase text-meta-xs font-mono">
-                                            {{ item.obj.material_category }}
-                                        </div>
-                                    </td>
+                            <div class="form-check mb-0 flex-grow-1 d-flex align-items-center">
+                                <input class="form-check-input form-check-input-lg tool-select flex-shrink-0"
+                                    type="checkbox" name="tool_{{ item.obj.id }}" value="ok"
+                                    id="check_{{ item.obj.id }}" aria-label="Auswählen: {{ item.obj.name }}">
+                                <label class="form-check-label ms-3 cursor-pointer" for="check_{{ item.obj.id }}">
+                                    <div class="fw-bolder fs-5 tracking-tight">{{ item.obj.name }}</div>
+                                    <div class="text-muted text-uppercase text-meta-xs font-mono mt-1">{{
+                                        item.obj.material_category }}</div>
+                                </label>
+                            </div>
 
-                                    <td class="d-none d-md-table-cell">
-                                        <!-- Last Status Badge -->
-                                        {% if item.is_assigned %}
-                                        <span class="badge badge-subtle-info">Im
-                                            Besitz</span>
-                                        {% else %}
-                                        <span class="badge badge-subtle-secondary">Nicht ausgegeben</span>
-                                        {% endif %}
+                            <div class="d-flex gap-2 flex-shrink-0 align-items-center d-none d-md-flex">
+                                {% if item.is_assigned %}
+                                <span class="badge badge-subtle-info">Im Besitz</span>
+                                {% else %}
+                                <span class="badge badge-subtle-secondary">Nicht ausgeg.</span>
+                                {% endif %}
 
-                                        {% if item.last_status == 'missing' %}
-                                        <span class="badge badge-subtle-danger ms-1"><i
-                                                class="bi bi-x-circle-fill me-1"></i>Fehlt</span>
-                                        {% elif item.last_status == 'broken' %}
-                                        <span class="badge badge-subtle-warning ms-1"><i
-                                                class="bi bi-exclamation-triangle-fill me-1"></i>Defekt</span>
-                                        {% endif %}
-                                    </td>
+                                {% if item.last_status == 'missing' %}
+                                <span class="badge badge-subtle-danger ms-1"><i
+                                        class="bi bi-x-circle-fill me-1"></i>Fehlt</span>
+                                {% elif item.last_status == 'broken' %}
+                                <span class="badge badge-subtle-warning ms-1"><i
+                                        class="bi bi-exclamation-triangle-fill me-1"></i>Defekt</span>
+                                {% endif %}
+                            </div>
 
-                                    <td>
-                                        <div class="d-flex gap-2 flex-wrap action-controls">
-                                            <!-- Status Radios -->
-                                            <div class="btn-group btn-group-sm" role="group">
-                                                <input type="radio" class="btn-check status-radio"
-                                                    name="status_radio_{{ item.obj.id }}"
-                                                    id="btnradio1_{{ item.obj.id }}" value="ok" checked
-                                                    data-target="check_{{ item.obj.id }}">
-                                                <label class="btn btn-outline-success fw-bold px-3"
-                                                    for="btnradio1_{{ item.obj.id }}">OK</label>
+                            <div class="d-flex flex-column flex-sm-row gap-2 flex-shrink-0 action-controls">
+                                <div class="btn-group shadow-sm" role="group" aria-label="Werkzeug-Zustand">
+                                    <input type="radio" class="btn-check status-radio"
+                                        name="status_radio_{{ item.obj.id }}" id="btnradio1_{{ item.obj.id }}"
+                                        value="ok" checked data-target="check_{{ item.obj.id }}">
+                                    <label class="btn btn-outline-success fw-bold px-3"
+                                        for="btnradio1_{{ item.obj.id }}"><i class="bi bi-check-lg me-1"></i>OK</label>
 
-                                                <input type="radio" class="btn-check status-radio"
-                                                    name="status_radio_{{ item.obj.id }}"
-                                                    id="btnradio2_{{ item.obj.id }}" value="broken"
-                                                    data-target="check_{{ item.obj.id }}">
-                                                <label class="btn btn-outline-warning fw-bold px-3"
-                                                    for="btnradio2_{{ item.obj.id }}">DEFEKT</label>
+                                    <input type="radio" class="btn-check status-radio"
+                                        name="status_radio_{{ item.obj.id }}" id="btnradio2_{{ item.obj.id }}"
+                                        value="broken" data-target="check_{{ item.obj.id }}">
+                                    <label class="btn btn-outline-warning fw-bold px-3"
+                                        for="btnradio2_{{ item.obj.id }}"><i
+                                            class="bi bi-exclamation-triangle-fill me-1"></i>DEFEKT</label>
 
-                                                <input type="radio" class="btn-check status-radio"
-                                                    name="status_radio_{{ item.obj.id }}"
-                                                    id="btnradio3_{{ item.obj.id }}" value="missing"
-                                                    data-target="check_{{ item.obj.id }}">
-                                                <label class="btn btn-outline-danger fw-bold px-3"
-                                                    for="btnradio3_{{ item.obj.id }}">FEHLT</label>
-                                            </div>
+                                    <input type="radio" class="btn-check status-radio"
+                                        name="status_radio_{{ item.obj.id }}" id="btnradio3_{{ item.obj.id }}"
+                                        value="missing" data-target="check_{{ item.obj.id }}">
+                                    <label class="btn btn-outline-danger fw-bold px-3"
+                                        for="btnradio3_{{ item.obj.id }}"><i
+                                            class="bi bi-x-circle-fill me-1"></i>FEHLT</label>
+                                </div>
 
-                                            <!-- Manufacturer Input -->
-                                            <input type="text" class="form-control form-control-sm"
-                                                style="width: 120px;" name="manufacturer_{{ item.obj.id }}"
-                                                list="manufacturerOptions" placeholder="Hersteller"
-                                                value="{{ item.last_manufacturer }}">
+                                <div class="d-flex gap-2">
+                                    <input type="text" class="form-control" style="width: 130px;"
+                                        name="manufacturer_{{ item.obj.id }}" list="manufacturerOptions"
+                                        placeholder="Hersteller" value="{{ item.last_manufacturer }}">
 
-                                            <!-- Tech Param Input -->
-                                            {% if item.obj.tech_param_label %}
-                                            <input type="text" class="form-control form-control-sm tech-input"
-                                                style="width: 120px;" name="tech_param_{{ item.obj.id }}"
-                                                placeholder="{{ item.obj.tech_param_label }}"
-                                                value="{{ item.last_tech_val or '' }}">
-                                            {% endif %}
-                                        </div>
+                                    {% if item.obj.tech_param_label %}
+                                    <input type="text" class="form-control tech-input" style="width: 130px;"
+                                        name="tech_param_{{ item.obj.id }}"
+                                        placeholder="{{ item.obj.tech_param_label }}"
+                                        value="{{ item.last_tech_val or '' }}">
+                                    {% endif %}
+                                </div>
+                            </div>
 
-                                        <!-- Incident Reason (Initially hidden) -->
-                                        <div class="mt-2 incident-div" id="incident_div_{{ item.obj.id }}"
-                                            style="display:none;">
-                                            <select
-                                                class="form-select form-select-sm border-danger text-theme-danger incident-select"
-                                                name="incident_reason_{{ item.obj.id }}"
-                                                data-tool-id="{{ item.obj.id }}">
-                                                <option value="" disabled selected>Grund wählen...</option>
+                            <div class="mt-2 incident-div w-100" id="incident_div_{{ item.obj.id }}"
+                                style="display:none;">
+                                <select class="form-select border-danger text-theme-danger incident-select"
+                                    name="incident_reason_{{ item.obj.id }}" data-tool-id="{{ item.obj.id }}">
+                                    <option value="" disabled selected>Grund wählen...</option>
 
-                                                <!-- Defekt-Gründe (only for broken) -->
-                                                <optgroup label="🔧 Defekt-Gründe" class="broken-reasons">
-                                                    <option value="Verschleiß">Verschleiß (Normal)</option>
-                                                    <option value="Fahrlässig">Beschädigt (Fahrlässig/Haftung)</option>
-                                                    <option value="Materialfehler">Materialfehler (Fabrikation)</option>
-                                                    <option value="Unsachgemäß">Unsachgemäße Nutzung</option>
-                                                    <option value="Überlastung">Überlastung</option>
-                                                    <option value="Sturz">Sturz/Fall</option>
-                                                    <option value="Feuchtigkeit">Feuchtigkeit/Rost</option>
-                                                </optgroup>
+                                    <optgroup label="🔧 Defekt-Gründe" class="broken-reasons">
+                                        <option value="Verschleiß">Verschleiß (Normal)</option>
+                                        <option value="Fahrlässig">Beschädigt (Fahrlässig/Haftung)</option>
+                                        <option value="Materialfehler">Materialfehler (Fabrikation)</option>
+                                        <option value="Unsachgemäß">Unsachgemäße Nutzung</option>
+                                        <option value="Überlastung">Überlastung</option>
+                                        <option value="Sturz">Sturz/Fall</option>
+                                        <option value="Feuchtigkeit">Feuchtigkeit/Rost</option>
+                                    </optgroup>
 
-                                                <!-- Fehlt-Gründe (only for missing) -->
-                                                <optgroup label="❌ Fehlt-Gründe" class="missing-reasons">
-                                                    <option value="Verloren">Verloren</option>
-                                                    <option value="Vergessen">Vergessen (Zuhause/Ort)</option>
-                                                    <option value="Gestohlen">Gestohlen</option>
-                                                    <option value="Ausgeliehen">Ausgeliehen (Kollege)</option>
-                                                    <option value="Nicht zurück">Nicht zurückgegeben</option>
-                                                    <option value="Unbekannt">Verbleib unbekannt</option>
-                                                </optgroup>
-                                            </select>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                                    <optgroup label="❌ Fehlt-Gründe" class="missing-reasons">
+                                        <option value="Verloren">Verloren</option>
+                                        <option value="Vergessen">Vergessen (Zuhause/Ort)</option>
+                                        <option value="Gestohlen">Gestohlen</option>
+                                        <option value="Ausgeliehen">Ausgeliehen (Kollege)</option>
+                                        <option value="Nicht zurück">Nicht zurückgegeben</option>
+                                        <option value="Unbekannt">Verbleib unbekannt</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
             </div>
@@ -440,7 +419,7 @@
                 // BUGFIX: Only select visible rows!
                 if (row.style.display !== 'none') {
                     const cb = row.querySelector('.tool-select');
-                    cb.checked = isChecked;
+                    if (cb) cb.checked = isChecked;
                 }
             });
         });
@@ -459,7 +438,7 @@
                 if (targetCheckbox) targetCheckbox.value = this.value;
 
                 // Handle Incident Div
-                const parentRow = this.closest('tr');
+                const parentRow = this.closest('.tool-row');
                 const incidentDiv = parentRow.querySelector('.incident-div');
                 const incidentSelect = parentRow.querySelector('.incident-select');
                 const techInput = parentRow.querySelector('.tech-input');

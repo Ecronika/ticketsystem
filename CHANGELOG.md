@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.9] - 2026-03-05
+
+### ✨ UX & Ergonomie Refactoring (Shopfloor / WCAG 2.2)
+- **Bento-Card Layout (`check.html`):** Klassische HTML-Tabelle in der "Neue Prüfung" Maske wurde durch ein semantisches Bento-Card-Layout (`.bento-list-item`) ersetzt. Das verbessert die Lesbarkeit und Bedienbarkeit drastisch auf Tablets.
+- **Touch Targets WCAG 2.5.5:** Die Checkboxen in der Prüfungsmaske und im "Werkzeug tauschen" Modal wurden von der Standard-Checkboxgröße auf `.form-check-input-lg` (1.5em) angehoben. Die Statusbuttons OK/DEFEKT/FEHLT wurden von `.btn-group-sm` auf Standardgröße umgestellt für garantierte 44px Touch-Target-Größe.
+- **Semantische Icons:** Die Statusauswahl-Buttons (OK, DEFEKT, FEHLT) in der Prüfungsmaske erhalten jetzt Icons (✓, ⚠, ✗), um nicht nur durch Farbe zu unterscheiden (WCAG 1.4.1 No Color as Sole Means).
+- **Exchange Modal (`index.html`):** Inline-Styles (`transform: scale(1.2)` und `style="cursor: pointer;"`) aus dem JavaScript-Template für das "Werkzeug tauschen" Modal wurden durch `.form-check-input-lg` und `.cursor-pointer` ersetzt. Das Dropdown wurde von `.form-select-sm` auf Standardgröße umgestellt.
+- **JS Badge Konsistenz (`tools.html`):** Die AJAX-generierten Kategorie-Badges wurden mit `text-uppercase fw-bold tracking-wide` erwänzt und sind jetzt pixelgenau identisch mit dem server-seitig gerendertem Jinja-Output.
+
 ## [2.9.8] - 2026-03-05
 
 ### 🧹 UI / CSS Refactoring & Tech Debt (Phase 4)
