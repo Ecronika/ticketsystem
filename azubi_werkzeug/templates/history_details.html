@@ -100,13 +100,13 @@
 
                 <div class="text-end">
                     {% if item.status == 'ok' %}
-                    <span class="badge bg-success-subtle text-success border border-success-subtle"><i
+                    <span class="badge bg-theme-success-subtle text-theme-success border border-theme-success-subtle"><i
                             class="bi bi-check-circle-fill me-1"></i>OK</span>
                     {% elif item.status == 'missing' %}
-                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle"><i
+                    <span class="badge bg-theme-warning-subtle text-theme-warning border border-theme-warning-subtle"><i
                             class="bi bi-x-circle-fill me-1"></i>FEHLT</span>
                     {% elif item.status == 'broken' %}
-                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i
+                    <span class="badge bg-theme-danger-subtle text-theme-danger border border-theme-danger-subtle"><i
                             class="bi bi-exclamation-triangle-fill me-1"></i>DEFEKT</span>
                     {% elif item.status == 'not_issued' %}
                     <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Nicht

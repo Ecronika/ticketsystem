@@ -489,3 +489,21 @@ textarea:focus-visible {
     color: #00ffff !important;
     border-color: #00ffff !important;
 }
+
+/* === Typography Utilities === */
+.font-mono {
+    font-family: ui-monospace, 'Courier New', monospace;
+}
+
+.text-meta {
+    font-family: ui-monospace, 'Courier New', monospace;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.text-meta-xs {
+    font-family: ui-monospace, 'Courier New', monospace;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    opacity: 0.8;
+}

@@ -38,8 +38,7 @@
                             {{ azubi.name }}
                         </h2>
                         <div class="d-flex gap-2 mt-1 align-items-center flex-wrap">
-                            <span class="text-muted text-uppercase fw-bold"
-                                style="letter-spacing: 0.5px; font-size: 0.875rem;">{{
+                            <span class="text-meta text-uppercase fw-bold">{{
                                 azubi.lehrjahr }}. Lehrjahr</span>
                             <span class="text-meta">Letzte
                                 Prüfung: {{
@@ -107,7 +106,7 @@
                                 title="{% if azubi.missing_count > 0 or azubi.broken_count > 0 %}Prüfung aktuell, aber Mängel vorhanden{% else %}Alle Werkzeuge vorhanden{% endif %}"><i
                                     class="bi bi-check-circle-fill me-1"></i>GEPRÜFT</span>
                             {% if azubi.missing_count > 0 or azubi.broken_count > 0 %}
-                            <span class="text-theme-warning mt-2 fw-bold font-mono" style="font-size: 0.875rem;">MIT
+                            <span class="text-theme-warning mt-2 fw-bold font-mono">MIT
                                 MÄNGELN</span>
                             {% else %}
                             <span class="text-meta mt-2 fw-bold">ALLES
