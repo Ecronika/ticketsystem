@@ -368,15 +368,18 @@
         }
 
         // --- Auto-Toggle "Kostenpflichtig" based on exchange reason ---
-        const globalReasonRadios = document.querySelectorAll('input[name="global_reason"]');
+        // Use click on labels (btn-check hides radios via opacity:0, change may not fire in all browsers)
         const payableSwitch = document.getElementById('isPayable');
-        if (globalReasonRadios.length > 0 && payableSwitch) {
-            globalReasonRadios.forEach(radio => {
-                radio.addEventListener('change', function () {
-                    if (this.value === 'Verloren') {
-                        payableSwitch.checked = true;   // Loss: Azubi typically pays
-                    } else if (this.value === 'Verschlissen') {
-                        payableSwitch.checked = false;  // Wear: company pays
+        if (payableSwitch) {
+            document.querySelectorAll('.reason-btn').forEach(label => {
+                label.addEventListener('click', function () {
+                    const radio = document.getElementById(this.getAttribute('for'));
+                    if (!radio) return;
+                    const val = radio.value;
+                    if (val === 'Verloren') {
+                        payableSwitch.checked = true;    // Loss: Azubi typically pays
+                    } else if (val === 'Verschlissen') {
+                        payableSwitch.checked = false;   // Wear: company pays
                     }
                     // 'Defekt': leave as-is (user's explicit choice)
                 });
