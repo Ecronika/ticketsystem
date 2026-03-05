@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.4] - 2026-03-05
+
+### ✨ UX Accessibility & Formatting (v3 "Blur/Presbyopia" Fixes)
+- **Luminanz-Kontrast (Light Mode):** Der "Neue Prüfung" Button und der "Werkzeug austauschen" Button wurden von Ghost-Buttons in Solid-Buttons mit deutlich stärkerer Flächenfüllung (`#eef4ff`), dickerem Rand und fetterer Schriftklasse umgewandelt. Das verhindert, dass diese Buttons bei unkorrigierter Sehschwäche (Unschärfe-Test) visuell mit dem Seitenhintergrund verschmelzen.
+- **Luminanz-Kontrast (Dark Mode):** Rote Gefahr-Badges ("Überfällig", "Fehlt") erhielten eine spezielle Luminanz-Korrektur für den Dark Mode. Um ein "Verbluten" (Verlust der Formenkontur) auf dem dunklen Hintergrund zu verhindern, wurde das Rot signifikant aufgehellt (`#ef4444`), mit einem hellroten Rand eingefasst und der Innen-Text zwingend auf reines Weiß (`#ffffff`) gesetzt (Schilder-Prinzip).
+- Sämtliche subtilen Status-Borders (Grün, Gelb, Rot) wurden im Dark Mode in ihrer Deckkraft (`Opacity`) von 0.4 auf 0.8 angehoben, um als klarer abgegrenzte Form bei unscharfer Sicht zu fungieren.
+
 ## [2.9.3] - 2026-03-05
 
 ### ✨ UX Accessibility & Formatting (v2 Iteration)

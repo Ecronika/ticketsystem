@@ -117,15 +117,15 @@ h6 {
     --color-danger: #e74c3c;
     --color-info: #3498db;
 
-    /* Status Backgrounds & Borders (Subtle - Darker) */
+    /* Status Backgrounds & Borders (Subtle - Darker but with stronger borders for blur) */
     --bg-success-subtle: rgba(46, 204, 113, 0.2);
-    --border-success-subtle: rgba(46, 204, 113, 0.4);
+    --border-success-subtle: rgba(46, 204, 113, 0.8);
     --bg-warning-subtle: rgba(241, 196, 15, 0.2);
-    --border-warning-subtle: rgba(241, 196, 15, 0.4);
+    --border-warning-subtle: rgba(241, 196, 15, 0.8);
     --bg-danger-subtle: rgba(231, 76, 60, 0.2);
-    --border-danger-subtle: rgba(231, 76, 60, 0.4);
+    --border-danger-subtle: rgba(231, 76, 60, 0.8);
     --bg-info-subtle: rgba(52, 152, 219, 0.2);
-    --border-info-subtle: rgba(52, 152, 219, 0.4);
+    --border-info-subtle: rgba(52, 152, 219, 0.8);
 }
 
 /* Phase 4: Thicker card borders for Low Vision in Dark Mode */
@@ -169,9 +169,10 @@ h6 {
 
 /* --- Custom WCAG Buttons --- */
 .btn-primary-soft {
-    background-color: rgba(13, 110, 253, 0.05);
-    color: var(--color-primary);
-    border: 2px solid var(--color-primary);
+    background-color: #eef4ff;
+    /* Light Mode: Phase 7 Light Blue Fill */
+    color: #1d4ed8;
+    border: 2px solid #2563eb;
     font-weight: 600;
     transition: all 0.2s ease;
 }
@@ -211,9 +212,19 @@ h6 {
 /* Custom Warning Outline Button that respects Theme colors */
 .btn-outline-theme-warning {
     color: var(--color-warning);
-    border-color: var(--color-warning);
-    background-color: transparent;
+    border: 2px solid var(--color-warning);
+    background-color: rgba(218, 165, 32, 0.15);
+    /* Light Mode Phase 7 Blur Fix */
+    font-weight: 600;
     transition: all 0.2s ease;
+}
+
+[data-theme="dark"] .btn-outline-theme-warning {
+    background-color: rgba(241, 196, 15, 0.15);
+}
+
+[data-theme="hc"] .btn-outline-theme-warning {
+    background-color: transparent;
 }
 
 .btn-outline-theme-warning:hover {
@@ -256,6 +267,21 @@ body {
 
 .border-theme-danger-subtle {
     border-color: var(--border-danger-subtle) !important;
+}
+
+/* Phase 7: Blur fixes for Dark Mode specific danger badges */
+[data-theme="dark"] .bg-theme-danger-subtle {
+    background-color: #ef4444 !important;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .bg-theme-danger-subtle.text-theme-danger {
+    color: #ffffff !important;
+    /* Force override for inner span */
+}
+
+[data-theme="dark"] .border-theme-danger-subtle {
+    border-color: #f87171 !important;
 }
 
 .bg-theme-warning-subtle {
