@@ -442,15 +442,50 @@
         checkTypeSelector.addEventListener('change', updateView);
         updateView(); // Initial Call
 
+        // --- Smart Bemerkungsfeld auto-fill ---
+        const bemerkungField = document.querySelector('textarea[name="bemerkung"]');
+        if (bemerkungField) {
+            const _AUTO_TEXTS = [
+                'Erstausstattung komplett ausgehändigt.',
+                'Zusatzausstattung ausgehändigt.',
+                'Rückgabe (Ausbildungsende / Wechsel).'
+            ];
+            const originalUpdateView = updateView;
+            updateView = function () {
+                originalUpdateView();
+                const type = checkTypeSelector.value;
+                // Count total assigned tools (data attribute)
+                const assignedCount = [...toolRows].filter(
+                    row => row.getAttribute('data-assigned') === 'true').length;
+                const currentText = bemerkungField.value.trim();
+                const isAutoFillable = currentText === '' || _AUTO_TEXTS.includes(currentText);
+                if (isAutoFillable) {
+                    if (type === 'issue') {
+                        bemerkungField.value = assignedCount === 0
+                            ? 'Erstausstattung komplett ausgehändigt.'
+                            : 'Zusatzausstattung ausgehändigt.';
+                    } else if (type === 'return') {
+                        bemerkungField.value = 'Rückgabe (Ausbildungsende / Wechsel).';
+                    } else {
+                        bemerkungField.value = '';
+                    }
+                }
+            };
+            updateView(); // Re-run with smart Bemerkungen after override
+        }
+
         // --- Examiner Memory (localStorage) ---
         const examinerSelect = document.querySelector('select[name="examiner"]');
         if (examinerSelect) {
-            const savedExaminer = localStorage.getItem('lastExaminer');
-            if (savedExaminer) {
-                // Only pre-select if that option exists in the list
-                const option = examinerSelect.querySelector(`option[value="${savedExaminer}"]`);
-                if (option) examinerSelect.value = savedExaminer;
+            const savedExaminer = localStorage.getItem('lastSelectedExaminer');
+            // Only pre-select if that option actually exists in the current list
+            if (savedExaminer && Array.from(examinerSelect.options).some(opt => opt.value === savedExaminer)) {
+                examinerSelect.value = savedExaminer;
             }
+            // Save immediately on every change (no waiting for form submit)
+            examinerSelect.addEventListener('change', function () {
+                localStorage.setItem('lastSelectedExaminer', this.value);
+            });
         }
 
         // --- Select All Logic (FIXED) ---
