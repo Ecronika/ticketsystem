@@ -42,22 +42,27 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 migrate = Migrate(app, db)
 
 # Security: Session Configuration
+# SSL is active only if explicitly requested — this is the single source of truth
+# for cookie security. SameSite=None requires HTTPS+Secure; plain HTTP must use Lax.
+SSL_ACTIVE = os.environ.get('REQUIRE_HTTPS', '0') == '1'
+
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
-    # Allow iframes in Home Assistant by setting SameSite=None and Secure=True
-    # (Browsers require Secure=True when SameSite=None)
-    SESSION_COOKIE_SAMESITE='None' if IS_HOMEASSISTANT else 'Lax',
+    # SameSite=None allows cookies inside iframes (HA Ingress), BUT browsers
+    # strictly require Secure=True when SameSite=None — so this only applies over HTTPS.
+    # Over plain HTTP we fall back to Lax (works everywhere except cross-site iframes).
+    SESSION_COOKIE_SAMESITE='None' if SSL_ACTIVE else 'Lax',
     MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB Upload Limit
     # 7 Days Validity (Prevent expiry in long sessions)
     WTF_CSRF_TIME_LIMIT=604800,
-    # Fix for Ingress: Disable strict referer checking behind proxy
+    # Disable strict HTTPS referer check — required for both plain HTTP and proxied setups
     WTF_CSRF_SSL_STRICT=False,
-    # Crucial for iframes: The CSRF cookie itself needs SameSite=None
-    WTF_CSRF_SAMESITE='None' if IS_HOMEASSISTANT else 'Lax',
+    # CSRF cookie SameSite must match session cookie policy
+    WTF_CSRF_SAMESITE='None' if SSL_ACTIVE else 'Lax',
     # Auto-logout after 8 hours
     PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
-    # Secure cookie: True in production or when SameSite=None.
-    SESSION_COOKIE_SECURE=True if IS_HOMEASSISTANT else (os.environ.get('REQUIRE_HTTPS', '0') == '1')
+    # Secure flag ONLY when SSL is actually active — critical for plain HTTP operation
+    SESSION_COOKIE_SECURE=SSL_ACTIVE
 )
 
 # --- Environment Validation ---
