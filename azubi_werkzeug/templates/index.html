@@ -68,14 +68,14 @@
                         <div class="mt-3 d-flex flex-column gap-2">
                             {% if azubi.missing_count > 0 %}
                             <span
-                                class="badge badge-subtle-danger w-auto d-inline-flex align-items-center ms-3 rounded-1 text-meta-xs px-2 py-1 cursor-help"
+                                class="badge badge-subtle-danger w-auto d-inline-flex align-items-center ms-3 rounded-1 small fw-semibold px-2 py-1 cursor-help"
                                 title="{{ azubi.missing_tools | join(', ') }}">
                                 <i class="bi bi-x-circle-fill me-2 fs-6"></i> {{ azubi.missing_count }} FEHLT
                             </span>
                             {% endif %}
                             {% if azubi.broken_count > 0 %}
                             <span
-                                class="badge badge-subtle-warning w-auto d-inline-flex align-items-center ms-3 rounded-1 text-meta-xs px-2 py-1 cursor-help"
+                                class="badge badge-subtle-warning w-auto d-inline-flex align-items-center ms-3 rounded-1 small fw-semibold px-2 py-1 cursor-help"
                                 title="{{ azubi.broken_tools | join(', ') }}">
                                 <i class="bi bi-exclamation-triangle-fill me-2 fs-6"></i> {{ azubi.broken_count }}
                                 DEFEKT
