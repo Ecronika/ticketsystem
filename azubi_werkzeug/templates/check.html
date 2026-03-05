@@ -435,8 +435,8 @@
 
             if (toolCountBadge) toolCountBadge.textContent = visibleCount;
 
-            // Reset Select All when view changes
-            selectAllCheckbox.checked = false;
+            // Reset Select All when view changes (return type overrides below)
+            if (type !== 'return') selectAllCheckbox.checked = false;
         }
 
         checkTypeSelector.addEventListener('change', updateView);
