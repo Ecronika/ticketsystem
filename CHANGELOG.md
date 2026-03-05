@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.0.0] - 2026-03-06
+## [2.10.0] - 2026-03-06
 
 ### ✨ Smart Defaults & Autofill (Zero Redundant Inputs)
 - **Status-Gedächtnis (`check.html`):** Radio-Button und Incident-Dropdown sind vorausgefüllt, wenn das Werkzeug beim letzten Check als DEFEKT oder FEHLT markiert war. Der spezifische Grund (z.B. "Verschleiß") ist ebenfalls vorausgewählt. Nur relevante Optgruppen werden angezeigt (Defekt-Gründe bei Status DEFEKT, Fehlt-Gründe bei Status FEHLT). Backend: `_parse_last_entry_status` in `checks.py` gibt nun `incident_reason` als 4. Rückgabewert zurück.
