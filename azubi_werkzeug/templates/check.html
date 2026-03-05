@@ -471,7 +471,10 @@
                     }
                 }
             };
-            updateView(); // Re-run with smart Bemerkungen after override
+            // CRITICAL: Re-bind the change listener to the wrapped function
+            // (the original listener registered above still points to the old fn)
+            checkTypeSelector.removeEventListener('change', originalUpdateView);
+            checkTypeSelector.addEventListener('change', updateView);
         }
 
         // --- Examiner Memory (localStorage) ---

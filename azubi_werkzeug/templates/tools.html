@@ -410,12 +410,17 @@
                             const lastCategory = categorySelect ? categorySelect.value : '';
                             const lastPrice = priceInput ? priceInput.value : '';
 
+                            // CSRF token is set by Jinja only on page load - must be saved before reset
+                            const formCsrfInput = addForm.querySelector('input[name="csrf_token"]');
+                            const formCsrfValue = formCsrfInput ? formCsrfInput.value : '';
+
                             // Clear form (name etc.)
                             addForm.reset();
 
-                            // Restore category and price to save clicks on next entry
+                            // Restore persistent fields
                             if (categorySelect) categorySelect.value = lastCategory;
                             if (priceInput) priceInput.value = lastPrice;
+                            if (formCsrfInput && formCsrfValue) formCsrfInput.value = formCsrfValue;
                             button.disabled = false;
                             button.innerHTML = '<i class="bi bi-plus-lg"></i> Hinzufügen';
 
