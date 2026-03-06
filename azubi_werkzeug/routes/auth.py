@@ -116,8 +116,8 @@ def _recover_pin_view():
 
 def register_routes(bp):
     """Register auth routes."""
-    # Rate-limit increased to 50/minute temporarily to prevent 429 errors from redirect loops
-    login_view = limiter.limit("50 per minute")(_login_view)
+    # Rate-limit applied via @bp.route so the decorator chain is respected.
+    login_view = limiter.limit("5 per minute")(_login_view)
     login_view.__name__ = 'login'
     bp.add_url_rule('/login', view_func=login_view, methods=['GET', 'POST'])
 
@@ -125,6 +125,6 @@ def register_routes(bp):
     logout_view.__name__ = 'logout'
     bp.add_url_rule('/logout', view_func=logout_view)
 
-    recover_pin_view = limiter.limit("50 per minute")(_recover_pin_view)
+    recover_pin_view = limiter.limit("5 per minute")(_recover_pin_view)
     recover_pin_view.__name__ = 'recover_pin'
     bp.add_url_rule('/recover_pin', view_func=recover_pin_view, methods=['GET', 'POST'])

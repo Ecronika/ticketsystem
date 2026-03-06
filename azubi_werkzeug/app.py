@@ -65,9 +65,8 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
     # Secure flag ONLY when SSL is actually active — critical for plain HTTP operation
     SESSION_COOKIE_SECURE=SSL_ACTIVE,
-    # CSRF disabled: local-only add-on, protected by rate-limiting (5/min) + PIN hash.
-    # Re-enable when session-cookie forwarding through NGINX proxy is confirmed working.
-    WTF_CSRF_ENABLED=False,
+    # CSRF protection re-enabled now that session cookies bypass browser isolation
+    WTF_CSRF_ENABLED=True,
 )
 
 # --- Environment Validation ---
