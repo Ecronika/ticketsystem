@@ -48,6 +48,7 @@ SSL_ACTIVE = os.environ.get('REQUIRE_HTTPS', '0') == '1'
 
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_PATH='/',  # Force root path to avoid Ingress/ProxyFix prefix issues
     # SameSite=None allows cookies inside iframes (HA Ingress), BUT browsers
     # strictly require Secure=True when SameSite=None — so this only applies over HTTPS.
     # Over plain HTTP we fall back to Lax (works everywhere except cross-site iframes).
@@ -259,13 +260,16 @@ else:
         )
         return response
     
-@app.after_request
-def debug_cookie_logging(response):
-    """Log outgoing Set-Cookie headers to diagnose session issues."""
+        return response
+
+# To view the session cookie, we use app.session_interface which wraps saving
+original_save_session = app.session_interface.save_session
+def save_session_with_logging(self, app, session, response):
+    original_save_session(self, app, session, response)
     cookies = response.headers.getlist('Set-Cookie')
     if cookies:
-        app.logger.info("DEBUG COOKIE SET: %s", cookies)
-    return response
+        app.logger.info("FLASK EMITTED COOKIE: %s", cookies)
+app.session_interface.save_session = save_session_with_logging.__get__(app.session_interface)
 
 app.logger.info(
         "Security: Manual CSP headers enabled (Home Assistant Ingress mode)")
