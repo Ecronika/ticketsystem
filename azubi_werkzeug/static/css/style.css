@@ -10,11 +10,6 @@ body {
     transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease;
 }
 
-/* Hover Effekt für Klickbare Karten */
-a .card:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--card-shadow-hover) !important;
-}
 
 
 
@@ -364,8 +359,6 @@ small {
     border-color: var(--border-color);
     --bs-table-bg: var(--bg-surface);
     --bs-table-color: var(--text-main);
-    --bs-table-striped-bg: rgba(0, 0, 0, 0.05);
-    --bs-table-hover-bg: rgba(0, 0, 0, 0.075);
     --bs-table-hover-color: var(--text-main);
 }
 
