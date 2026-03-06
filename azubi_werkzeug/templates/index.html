@@ -51,14 +51,14 @@
                         data-azubi-name="{{ azubi.name }}" data-missing-ids='{{ azubi.missing_tool_ids | tojson }}'
                         data-broken-ids='{{ azubi.broken_tool_ids | tojson }}'
                         title="Werkzeug austauschen (Defekt/Verloren)"
-                        aria-label="Werkzeug austauschen für {{ azubi.name }}" style="width: 45px; height: 45px;">
+                        aria-label="Werkzeug austauschen für {{ azubi.name }}">
                         <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
                     </button>
                 </div>
 
                 <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3 mt-auto">
                     <!-- Left Side: Tool Count & Warnings -->
-                    <div class="d-flex flex-column flex-grow-1" style="flex-basis: 120px;">
+                    <div class="d-flex flex-column flex-grow-1 flex-basis-120">
                         <span class="display-counter">{{
                             azubi.assigned_count }}</span>
                         <span class="text-muted text-uppercase mt-1"
@@ -88,7 +88,7 @@
                     </div>
 
                     <!-- Right Side: Status Badge -->
-                    <div class="d-flex flex-column align-items-md-end flex-grow-1" style="flex-basis: 120px;">
+                    <div class="d-flex flex-column align-items-md-end flex-grow-1 flex-basis-120">
                         {% if azubi.status_class == 'danger' %}
                         <div class="d-flex flex-column align-items-md-end w-100">
                             <span class="badge rounded-1 badge-subtle-danger status-label cursor-help"

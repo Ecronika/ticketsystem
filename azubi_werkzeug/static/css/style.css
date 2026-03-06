@@ -98,7 +98,8 @@ h6 {
     --bg-danger-subtle: #f8d7da;
     --border-danger-subtle: #f1aeb5;
     --bg-info-subtle: #cff4fc;
-    --border-info-subtle: #9eeaf9;
+    --border-info-subtle: #93c5fd;
+    --focus-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
 }
 
 /* Dark Mode (Ergonomisch, kein reines Schwarz) */
@@ -124,13 +125,11 @@ h6 {
     --border-success-subtle: rgba(46, 204, 113, 0.8);
     --bg-warning-subtle: rgba(241, 196, 15, 0.2);
     --border-warning-subtle: rgba(241, 196, 15, 0.8);
+    --bg-danger-subtle: rgba(231, 76, 60, 0.2);
+    --border-danger-subtle: rgba(231, 76, 60, 0.8);
     --bg-info-subtle: rgba(52, 152, 219, 0.2);
     --border-info-subtle: rgba(52, 152, 219, 0.8);
-
-    /* Danger specific overrides for strong contrast */
-    --bg-danger-subtle: #ef4444;
-    --border-danger-subtle: #f87171;
-    --text-danger-override: #ffffff;
+    --focus-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25);
 }
 
 /* Phase 4: Thicker card borders for Low Vision in Dark Mode */
@@ -170,6 +169,7 @@ h6 {
     --border-danger-subtle: #ff0000;
     --bg-info-subtle: #0d0d0d;
     --border-info-subtle: #00ffff;
+    --focus-shadow: none;
 }
 
 /* --- Custom WCAG Buttons --- */
@@ -263,7 +263,7 @@ h6 {
 /* Custom Background & Border Utilities for Theme Subtles */
 .bg-theme-danger-subtle {
     background-color: var(--bg-danger-subtle) !important;
-    color: var(--text-danger-override, var(--color-danger)) !important;
+    color: var(--color-danger) !important;
 }
 
 .border-theme-danger-subtle {
@@ -357,7 +357,7 @@ h6 {
     background-color: var(--bg-surface);
     color: var(--text-main);
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    box-shadow: var(--focus-shadow);
 }
 
 [data-theme="hc"] .form-control:focus,
@@ -426,9 +426,7 @@ textarea:focus-visible {
     border-radius: 4px;
 }
 
-.bento-check-row {
-    min-height: 56px;
-}
+
 
 /* Custom Reason Group - Semantic Colors */
 .custom-reason-group .btn-check:checked+#globalReasonDefektLabel {
@@ -488,34 +486,58 @@ textarea:focus-visible {
     justify-content: center;
 }
 
+.min-w-60 {
+    min-width: 60px;
+}
+
+.flex-basis-120 {
+    flex-basis: 120px;
+}
+
+.tech-param-input {
+    width: 140px;
+    min-width: 120px;
+}
+
+[class^="badge-subtle-"],
+[class*=" badge-subtle-"] {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+    padding: 0.25em 0.5em;
+    font-size: 0.75em;
+    font-weight: 600;
+}
+
 .badge-subtle-danger {
     background-color: var(--bg-danger-subtle);
     color: var(--text-danger-override, var(--color-danger));
-    border: 1px solid var(--border-danger-subtle);
+    border-color: var(--border-danger-subtle);
 }
 
 .badge-subtle-warning {
     background-color: var(--bg-warning-subtle);
     color: var(--color-warning);
-    border: 1px solid var(--border-warning-subtle);
+    border-color: var(--border-warning-subtle);
 }
 
 .badge-subtle-success {
     background-color: var(--bg-success-subtle);
     color: var(--color-success);
-    border: 1px solid var(--border-success-subtle);
+    border-color: var(--border-success-subtle);
 }
 
 .badge-subtle-info {
     background-color: var(--bg-info-subtle);
     color: var(--color-info);
-    border: 1px solid var(--border-info-subtle);
+    border-color: var(--border-info-subtle);
 }
 
 .badge-subtle-secondary {
     background-color: var(--bs-secondary-bg-subtle, #e2e3e5);
     color: var(--text-muted);
-    border: 1px solid var(--border-color);
+    border-color: var(--border-color);
 }
 
 /* === Typography Utilities === */
@@ -527,17 +549,13 @@ textarea:focus-visible {
     letter-spacing: -1px;
 }
 
-.tracking-tightest {
-    letter-spacing: -2px;
-}
+
 
 .tracking-wide {
     letter-spacing: 0.5px;
 }
 
-.lh-solid {
-    line-height: 1;
-}
+
 
 .status-label {
     font-size: 1.25rem;

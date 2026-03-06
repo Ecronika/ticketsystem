@@ -169,13 +169,13 @@
                                 </div>
 
                                 <div class="d-flex flex-wrap gap-2">
-                                    <input type="text" class="form-control" style="width: 140px; min-width: 120px;"
+                                    <input type="text" class="form-control tech-param-input"
                                         name="manufacturer_{{ item.obj.id }}" list="manufacturerOptions"
                                         placeholder="Hersteller" value="{{ item.last_manufacturer }}">
 
                                     {% if item.obj.tech_param_label %}
-                                    <input type="text" class="form-control tech-input"
-                                        style="width: 140px; min-width: 120px;" name="tech_param_{{ item.obj.id }}"
+                                    <input type="number" class="form-control tech-param-input"
+                                        name="tech_param_{{ item.obj.id }}"
                                         placeholder="{{ item.obj.tech_param_label }}"
                                         value="{{ item.last_tech_val or '' }}">
                                     {% endif %}
