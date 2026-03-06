@@ -32,16 +32,11 @@ a .card:hover {
     padding-right: 1.2rem;
 }
 
-/* Cursor pointer for labels */
-.cursor-pointer {
-    cursor: pointer;
-}
+
 
 /* --- Phase 4: Presbyopia Font Sizes --- */
-.text-muted,
 .small,
-small,
-h6 {
+small {
     font-size: max(0.875rem, 14px) !important;
 }
 
@@ -72,6 +67,7 @@ h6 {
 
 /* Standard: Light Mode */
 :root {
+    --font-mono: ui-monospace, 'Courier New', monospace;
     --bg-body: #f5f5f0;
     --bg-surface: #fdfcfb;
     --text-main: #212529;
@@ -169,6 +165,7 @@ h6 {
     --border-danger-subtle: #ff0000;
     --bg-info-subtle: #0d0d0d;
     --border-info-subtle: #00ffff;
+    --text-danger-override: var(--color-danger);
     --focus-shadow: none;
 }
 
@@ -319,6 +316,7 @@ h6 {
 /* Theme Switches                                                             */
 .text-muted {
     color: var(--text-muted) !important;
+    font-size: max(0.875rem, 14px) !important;
 }
 
 .card,
@@ -367,10 +365,7 @@ h6 {
     outline-offset: 2px;
 }
 
-[data-theme="dark"] .form-control:focus,
-[data-theme="dark"] .form-select:focus {
-    box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25);
-}
+
 
 /* --- Bootstrap Component Overrides --- */
 
@@ -578,17 +573,17 @@ textarea:focus-visible {
 
 /* === Typography Utilities === */
 .font-mono {
-    font-family: ui-monospace, 'Courier New', monospace;
+    font-family: var(--font-mono);
 }
 
 .text-meta {
-    font-family: ui-monospace, 'Courier New', monospace;
+    font-family: var(--font-mono);
     font-size: 0.875rem;
     color: var(--text-muted);
 }
 
 .text-meta-xs {
-    font-family: ui-monospace, 'Courier New', monospace;
+    font-family: var(--font-mono);
     font-size: 0.75rem;
     color: var(--text-muted);
     opacity: 0.8;
