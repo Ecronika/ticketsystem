@@ -40,6 +40,9 @@ if bashio::var.true "${SSL}"; then
         bashio::log.info "Key: ${KEYFILE_PATH}"
     fi
 
+    # Signal Flask that HTTPS is active → SESSION_COOKIE_SECURE=True + SameSite=None
+    export REQUIRE_HTTPS=1
+
     bashio::log.info "Konfiguriere NGINX als SSL-Reverse-Proxy auf Port 5000..."
     mkdir -p /etc/nginx/http.d
     cat > /etc/nginx/http.d/default.conf <<EOF
@@ -59,6 +62,8 @@ server {
 EOF
 else
     bashio::log.info "SSL ist deaktiviert."
+    # Signal Flask to use plain HTTP cookies → SESSION_COOKIE_SECURE=False + SameSite=Lax
+    export REQUIRE_HTTPS=0
     bashio::log.info "Konfiguriere NGINX als HTTP-Reverse-Proxy auf Port 5000..."
     mkdir -p /etc/nginx/http.d
     cat > /etc/nginx/http.d/default.conf <<EOF
