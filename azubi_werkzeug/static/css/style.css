@@ -273,10 +273,7 @@ small {
     border-color: var(--border-warning-subtle) !important;
 }
 
-/* Phase 6: Subtly highlight overdue cards */
-.bg-overdue-card {
-    border-left: 3px solid var(--color-danger) !important;
-}
+
 
 /* Solid Background Utilities */
 .bg-theme-success {
