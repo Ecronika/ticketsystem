@@ -258,7 +258,16 @@ else:
             "connect-src 'self' cdn.jsdelivr.net unpkg.com"
         )
         return response
-    app.logger.info(
+    
+@app.after_request
+def debug_cookie_logging(response):
+    """Log outgoing Set-Cookie headers to diagnose session issues."""
+    cookies = response.headers.getlist('Set-Cookie')
+    if cookies:
+        app.logger.info("DEBUG COOKIE SET: %s", cookies)
+    return response
+
+app.logger.info(
         "Security: Manual CSP headers enabled (Home Assistant Ingress mode)")
 
 # Register Blueprints
