@@ -332,20 +332,6 @@ small {
 .modal-footer {
     border-color: var(--border-color);
     background-color: transparent;
-    /* Use parent's background */
-}
-
-/* Removed duplicate .text-muted */
-
-.form-control,
-.form-select {
-    background-color: var(--bg-surface);
-    color: var(--text-main);
-    border-color: var(--border-color);
-}
-
-.form-control::placeholder {
-    color: var(--text-muted);
     opacity: 1;
     /* override default browser opacity */
 }
