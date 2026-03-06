@@ -47,6 +47,7 @@ migrate = Migrate(app, db)
 SSL_ACTIVE = os.environ.get('REQUIRE_HTTPS', '0') == '1'
 
 app.config.update(
+    SESSION_COOKIE_NAME='azubi_session_tls' if SSL_ACTIVE else 'azubi_session_plain',
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_PATH='/',  # Force root path to avoid Ingress/ProxyFix prefix issues
     # SameSite=None allows cookies inside iframes (HA Ingress), BUT browsers
@@ -261,15 +262,6 @@ else:
         return response
     
         return response
-
-# To view the session cookie, we use app.session_interface which wraps saving
-original_save_session = app.session_interface.save_session
-def save_session_with_logging(self, app, session, response):
-    original_save_session(app, session, response)
-    cookies = response.headers.getlist('Set-Cookie')
-    if cookies:
-        app.logger.info("FLASK EMITTED COOKIE: %s", cookies)
-app.session_interface.save_session = save_session_with_logging.__get__(app.session_interface)
 
 app.logger.info(
         "Security: Manual CSP headers enabled (Home Assistant Ingress mode)")
