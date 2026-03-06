@@ -265,7 +265,7 @@ else:
 # To view the session cookie, we use app.session_interface which wraps saving
 original_save_session = app.session_interface.save_session
 def save_session_with_logging(self, app, session, response):
-    original_save_session(self, app, session, response)
+    original_save_session(app, session, response)
     cookies = response.headers.getlist('Set-Cookie')
     if cookies:
         app.logger.info("FLASK EMITTED COOKIE: %s", cookies)
