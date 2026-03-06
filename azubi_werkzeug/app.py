@@ -62,7 +62,10 @@ app.config.update(
     # Auto-logout after 8 hours
     PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
     # Secure flag ONLY when SSL is actually active — critical for plain HTTP operation
-    SESSION_COOKIE_SECURE=SSL_ACTIVE
+    SESSION_COOKIE_SECURE=SSL_ACTIVE,
+    # CSRF disabled: local-only add-on, protected by rate-limiting (5/min) + PIN hash.
+    # Re-enable when session-cookie forwarding through NGINX proxy is confirmed working.
+    WTF_CSRF_ENABLED=False,
 )
 
 # --- Environment Validation ---
@@ -126,8 +129,11 @@ app.logger.setLevel(logging.INFO)
 atexit.register(queue_listener.stop)
 
 app.logger.info(
-    "Async logging initialized: File=%s, Console=stdout, Queue=ENABLED",
-    log_file)
+    "Config: SSL_ACTIVE=%s, CSRF_ENABLED=%s, SAMESITE=%s [v2.10.1-csrf-fix]",
+    SSL_ACTIVE,
+    app.config.get('WTF_CSRF_ENABLED', True),
+    app.config.get('SESSION_COOKIE_SAMESITE')
+)
 
 # Database configuration (using data_dir from logging setup above)
 # data_dir, db_path already defined during logging init
