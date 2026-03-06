@@ -7,7 +7,7 @@ body {
 
 /* Karten sollen leicht schweben */
 .card {
-    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease, border-color 0.3s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease;
 }
 
 /* Hover Effekt für Klickbare Karten */
@@ -16,9 +16,7 @@ a .card:hover {
     box-shadow: var(--card-shadow-hover) !important;
 }
 
-.card:hover {
-    box-shadow: var(--card-shadow);
-}
+
 
 /* Die Liste in der Checkbox etwas auflockern */
 .list-group-item {
@@ -277,7 +275,7 @@ small {
 
 /* Phase 6: Subtly highlight overdue cards */
 .bg-overdue-card {
-    background-color: rgba(255, 0, 0, 0.04) !important;
+    border-left: 3px solid var(--color-danger) !important;
 }
 
 /* Solid Background Utilities */
@@ -338,8 +336,6 @@ small {
 
 .form-control:focus,
 .form-select:focus {
-    background-color: var(--bg-surface);
-    color: var(--text-main);
     border-color: var(--color-primary);
     box-shadow: var(--focus-shadow);
 }
@@ -430,7 +426,6 @@ textarea:focus-visible {
 
 [data-theme="dark"] .custom-reason-group .btn-outline-secondary:not(.active):not(:hover) {
     color: #adb5bd !important;
-    background-color: rgba(255, 255, 255, 0.02) !important;
     border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
@@ -572,7 +567,6 @@ textarea:focus-visible {
     font-family: var(--font-mono);
     font-size: 0.75rem;
     color: var(--text-muted);
-    opacity: 0.8;
 }
 
 /* --- Form & Touch Ergonomics (WCAG 2.5.5, 44px min) --- */
@@ -600,5 +594,4 @@ textarea:focus-visible {
 .bento-list-item:focus-within,
 .bento-list-item:hover {
     border-color: var(--color-primary, #0d6efd);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
