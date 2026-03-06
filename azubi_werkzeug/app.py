@@ -259,6 +259,12 @@ else:
 app.register_blueprint(main_bp)
 app.register_blueprint(metrics_bp)
 
+# Exempt auth routes from global CSRF (Flask-WTF 1.2.2 requires endpoint strings,
+# not function references — the protect() method matches against request.endpoint).
+# Login/recover_pin are protected by rate-limiting (5/min) + PIN hash check.
+csrf.exempt('main.login')
+csrf.exempt('main.recover_pin')
+
 # --- Prometheus Metrics Middleware ---
 
 
