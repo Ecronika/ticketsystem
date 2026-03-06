@@ -37,6 +37,7 @@ small {
 }
 
 @media (width <=768px) {
+
     /* Prevent iOS text zooming on inputs */
     input,
     select,
@@ -560,7 +561,7 @@ textarea:focus-visible {
     cursor: help;
 }
 
-/* === Typography Utilities === */
+/* === Monospace & Meta Typography === */
 .font-mono {
     font-family: var(--font-mono);
 }
