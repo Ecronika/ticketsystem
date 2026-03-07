@@ -56,6 +56,7 @@ migrate = Migrate(app, db)
 SSL_ACTIVE = os.environ.get('REQUIRE_HTTPS', '0') == '1'
 
 app.config.update(
+    VERSION=APP_VERSION,
     SESSION_COOKIE_NAME='azubi_session_tls' if SSL_ACTIVE else 'azubi_session_plain',
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_PATH='/',  # Force root path to avoid Ingress/ProxyFix prefix issues
