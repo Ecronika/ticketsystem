@@ -70,19 +70,19 @@
                         {% if azubi.missing_count > 0 or azubi.broken_count > 0 %}
                         <div class="mt-3 d-flex flex-column gap-2">
                             {% if azubi.missing_count > 0 %}
-                            <span
-                                class="badge badge-subtle-danger w-auto d-inline-flex align-items-center ms-3 rounded-1 small fw-semibold px-2 py-1 cursor-help"
+                            <button type="button"
+                                class="badge badge-subtle-danger w-auto d-inline-flex align-items-center ms-3 rounded-1 small fw-semibold px-2 py-1 cursor-help border-0"
                                 title="{{ azubi.missing_tools | join(', ') }}">
                                 <i class="bi bi-x-circle-fill me-2 fs-6"></i> {{ azubi.missing_count }} FEHLT
-                            </span>
+                            </button>
                             {% endif %}
                             {% if azubi.broken_count > 0 %}
-                            <span
-                                class="badge badge-subtle-warning w-auto d-inline-flex align-items-center ms-3 rounded-1 small fw-semibold px-2 py-1 cursor-help"
+                            <button type="button"
+                                class="badge badge-subtle-warning w-auto d-inline-flex align-items-center ms-3 rounded-1 small fw-semibold px-2 py-1 cursor-help border-0"
                                 title="{{ azubi.broken_tools | join(', ') }}">
                                 <i class="bi bi-exclamation-triangle-fill me-2 fs-6"></i> {{ azubi.broken_count }}
                                 DEFEKT
-                            </span>
+                            </button>
                             {% endif %}
                         </div>
                         {% endif %}
@@ -92,17 +92,19 @@
                     <div class="d-flex flex-column align-items-md-end flex-grow-1 flex-basis-120">
                         {% if azubi.status_class == 'danger' %}
                         <div class="d-flex flex-column align-items-md-end w-100">
-                            <span class="badge rounded-1 badge-subtle-danger status-label cursor-help"
+                            <button type="button"
+                                class="badge rounded-1 badge-subtle-danger status-label cursor-help border-0"
                                 title="Prüfung länger als 90 Tage her"><i
-                                    class="bi bi-exclamation-triangle-fill me-1"></i>ÜBERFÄLLIG</span>
+                                    class="bi bi-exclamation-triangle-fill me-1"></i>ÜBERFÄLLIG</button>
                             <span class="text-meta mt-2 fw-bold">PRÜFUNG
                                 FEHLT</span>
                         </div>
                         {% elif azubi.status_class == 'success' %}
                         <div class="d-flex flex-column align-items-md-end w-100">
-                            <span class="badge rounded-pill bg-theme-success status-label cursor-help"
+                            <button type="button"
+                                class="badge rounded-pill bg-theme-success status-label cursor-help border-0"
                                 title="{% if azubi.missing_count > 0 or azubi.broken_count > 0 %}Prüfung aktuell, aber Mängel vorhanden{% else %}Alle Werkzeuge vorhanden{% endif %}"><i
-                                    class="bi bi-check-circle-fill me-1"></i>GEPRÜFT</span>
+                                    class="bi bi-check-circle-fill me-1"></i>GEPRÜFT</button>
                             {% if azubi.missing_count > 0 or azubi.broken_count > 0 %}
                             <span class="text-theme-warning mt-2 fw-bold font-mono">MIT
                                 MÄNGELN</span>

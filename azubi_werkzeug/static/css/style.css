@@ -1,3 +1,8 @@
+/* WCAG A-06: Verhindere, dass Sticky-Navbar Ankerpunkte überdeckt */
+html {
+    scroll-padding-top: 70px;
+}
+
 /* Weicherer Hintergrund werden jetzt von CSS Variablen gesteuert */
 body {
     font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;

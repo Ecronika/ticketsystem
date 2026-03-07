@@ -40,7 +40,7 @@ try:
     with open(_version_file, 'r', encoding='utf-8') as _f:
         APP_VERSION = _f.read().strip()
 except FileNotFoundError:
-    APP_VERSION = '2.11.0'
+    APP_VERSION = '0.0.0-unknown'
 app = Flask(__name__)
 # Home Assistant Check (Ingress usually sets headers, but we also check env)
 IS_HOMEASSISTANT = os.environ.get('SUPERVISOR_TOKEN') is not None or os.environ.get('HAS_INGRESS') == '1'
@@ -283,7 +283,8 @@ def rate_limit_exceeded(e):
     """Handle 429 Too Many Requests from Flask-Limiter."""
     app.logger.warning('Rate limit exceeded: %s', request.path)
     flash('Zu viele Versuche. Bitte 1 Minute warten.', 'warning')
-    return redirect(url_for('main.login')), 429
+    next_url = request.referrer or url_for('main.index')
+    return redirect(next_url), 429
 
 # Exempt auth routes from global CSRF (Flask-WTF 1.2.2 requires endpoint strings,
 # not function references — the protect() method matches against request.endpoint).
@@ -298,7 +299,8 @@ csrf.exempt('main.recover_pin')
 def before_request_metrics():
     """Start timer for request duration."""
     g.start_time = time.time()
-    ACTIVE_SESSIONS.inc()
+    if request.endpoint != 'static':
+        ACTIVE_SESSIONS.inc()
 
 
 @app.after_request
@@ -322,7 +324,8 @@ def after_request_metrics(response):
 
 @app.teardown_request
 def teardown_request_gauge(_exception=None):
-    ACTIVE_SESSIONS.dec()
+    if request.endpoint != 'static':
+        ACTIVE_SESSIONS.dec()
 
 # Database Session Cleanup (Prevent Connection Leaks)
 
