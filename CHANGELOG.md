@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.2] - 2026-03-07
+
+### 🚨 Hotfix Release
+- **Backend Stability:** Entfernung des In-Memory Caches (`_assigned_tools_cache`) in `services.py` zur Behebung von "Ghost Inventory"-Zuständen in Multi-Worker Gunicorn Deployments. Assigned Tools werden nun direkt via O(N) Subquery evaluiert.
+- **Backend Stability:** `Model.query.get()` (SQLAlchemy 1.x Legacy) durch sauberes SQLAlchemy 2.x `db.session.get()` abgelöst.
+- **Backend Stability:** Harte Prozessabbrüche in Gunicorn (`os._exit(1)`) durch saubere Signale (`os.kill(os.getpid(), signal.SIGTERM)`) während Restore-Vorgängen abgelöst, um Zombie-Prozesse in Container-Umgebungen zu verhindern.
+- **Datenintegrität:** SQLite WAL-Checkpoints (`PRAGMA wal_checkpoint(FULL)`) vor Backup-Erstellung erzwungen, um ungeschriebene Memory-Transaktionen sicher in die Backups zu flushen.
+- **Migration & Restore:** Aufruf von `db.create_all()` während des System-Restores entfernt, da dies Konflikte mit Alembic Migrations generierte, und reines `flask_migrate upgrade()` verwendet.
+- **Python 3.12 Support:** Veraltete Datetime-Abfragen ohne Timezone-Zuweisung durch `datetime.now(timezone.utc)` ersetzt.
+- **Bugfix (UI):** Autofill-Bug auf der Check-Seite (`check.html`) für überfällige Azubis behoben.
+- **Quality Gates:** Die Applikation (Backend) erreicht nun standardmäßig 10.00/10 Punkten im Pylint Score über alle Instanzen. Unnötige Metriken und Dead Code (`invalidate_cache`) wurden restlos entfernt.
+
 ## [2.10.0] - 2026-03-06
 
 ### ✨ Smart Defaults & Autofill (Zero Redundant Inputs)

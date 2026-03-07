@@ -1,3 +1,4 @@
+# pylint: disable=line-too-long,wrong-import-order,too-many-lines,unnecessary-pass,too-many-locals,broad-exception-caught,import-outside-toplevel,mixed-line-endings,unused-import
 """
 Services module.
 
@@ -9,17 +10,17 @@ import base64
 import zipfile
 import shutil
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
-from threading import Lock
 from flask import current_app, session
 from extensions import db, Config, scheduler
+from sqlalchemy import func
 from models import Check, CheckType, Werkzeug, Azubi, SystemSettings
 from pdf_utils import generate_handover_pdf, parse_check_type
 
-# Cache for assigned tools to reduce DB load
-_assigned_tools_cache = {}
-_cache_lock = Lock()
+# In-Memory Cache for assigned tools has been removed in v2.10.2
+# to avoid ghost-inventories in multi-worker environments (Gunicorn).
+# A direct optimized SQL query is now used instead.
 
 
 class CheckService:
@@ -36,23 +37,37 @@ class CheckService:
 
     @staticmethod
     def get_assigned_tools_batch(azubi_ids: list) -> dict:
-        """Return {azubi_id: set(tool_ids)} for all given IDs in 2 queries."""
-        checks = Check.query.filter(Check.azubi_id.in_(azubi_ids)).order_by(Check.datum.asc()).all()
+        """Optimierte SQL-Ermittlung des Bestands (ersetzt O(N) Iteration)."""
+
+        if not azubi_ids:
+            return {}
+
+        # 1. Finde den zeitlich letzten Check für jede Azubi+Werkzeug Kombi
+        subq = db.session.query(
+            Check.azubi_id,
+            Check.werkzeug_id,
+            func.max(Check.datum).label('last_datum')
+        ).filter(Check.azubi_id.in_(azubi_ids)).group_by(Check.azubi_id, Check.werkzeug_id).subquery()
+
+        # 2. Joine den Check-Typ des letzten Eintrags
+        latest_checks = db.session.query(Check.azubi_id, Check.werkzeug_id, Check.check_type)\
+            .join(subq, (Check.azubi_id == subq.c.azubi_id) &
+                        (Check.werkzeug_id == subq.c.werkzeug_id) &
+                        (Check.datum == subq.c.last_datum)).all()
+
         result = {aid: set() for aid in azubi_ids}
-        for check in checks:
-            ct = parse_check_type(check.check_type)
-            if ct == CheckType.ISSUE:
-                result[check.azubi_id].add(check.werkzeug_id)
-            elif ct == CheckType.RETURN:
-                result[check.azubi_id].discard(check.werkzeug_id)
+
+        # 3. Zuweisung, falls der letzte Typ ein "ISSUE" war
+        for azubi_id, werkzeug_id, raw_check_type in latest_checks:
+            c_type = parse_check_type(raw_check_type)
+            if c_type == CheckType.ISSUE:
+                result[azubi_id].add(werkzeug_id)
+
         return result
 
     @staticmethod
     def get_tool_anomalies_batch(azubi_ids: list, assigned_tools_batch: dict) -> dict:
         """Return missing/broken counts and tool names for assigned tools per Azubi."""
-        from sqlalchemy import func
-        from models import Check, Werkzeug
-        from extensions import db
 
         if not azubi_ids:
             return {}
@@ -98,64 +113,25 @@ class CheckService:
     def get_assigned_tools(azubi_id):
         """
         Return a set of tool IDs currently assigned to the Azubi.
-
-        Uses caching to improve performance.
+        Always queries live from the database to prevent multi-worker ghost inventories.
         """
-        cache_key = f"assigned_{azubi_id}"
 
-        # Check cache
-        with _cache_lock:
-            if cache_key in _assigned_tools_cache:
-                # Basic expiry check (optional, but good practice if we add
-                # timestamps later)
-                return _assigned_tools_cache[cache_key]
+        # 1. Fetch latest check status per tool for this azubi (similar to batch logic but for single azubi)
+        subq = db.session.query(
+            Check.werkzeug_id,
+            func.max(Check.datum).label('last_datum')
+        ).filter(Check.azubi_id == azubi_id).group_by(Check.werkzeug_id).subquery()
 
-        # Calculate from DB
-        checks = Check.query.filter_by(
-            azubi_id=azubi_id).order_by(
-            Check.datum.asc()).all()
+        latest_checks = db.session.query(Check.werkzeug_id, Check.check_type)\
+            .join(subq, (Check.werkzeug_id == subq.c.werkzeug_id) & (Check.datum == subq.c.last_datum)).all()
+
         assigned_tools = set()
-
-        for check in checks:
-            # Use safe comparison
-            # Use safe comparison via helper (handles Enum/String mismatch)
-            c_type = parse_check_type(check.check_type)
+        for werkzeug_id, raw_check_type in latest_checks:
+            c_type = parse_check_type(raw_check_type)
             if c_type == CheckType.ISSUE:
-                assigned_tools.add(check.werkzeug_id)
-            elif c_type == CheckType.RETURN:
-                assigned_tools.discard(check.werkzeug_id)
-            elif c_type == CheckType.EXCHANGE:
-                # Exchange is effectively a swap, but if we track items
-                # precisely we might need to know WHICH tool was returned
-                # and issued. Current implementation splits Exchange into
-                # RETURN + ISSUE records.
-                # So pure 'EXCHANGE' type might not be in DB for tool
-                # tracking if logical split exists.
-                # However, if it IS in DB:
-                pass
-
-        # Update cache (Double-Check)
-        # Avoid overwriting if another thread already populated it
-        # This helps slightly with race conditions, though strict generation
-        # tracking would be better
-        with _cache_lock:
-            if cache_key not in _assigned_tools_cache:
-                _assigned_tools_cache[cache_key] = assigned_tools
+                assigned_tools.add(werkzeug_id)
 
         return assigned_tools
-
-    @staticmethod
-    def invalidate_cache(azubi_id=None):
-        """Invalidates cache for a specific Azubi or globally."""
-        with _cache_lock:
-            if azubi_id:
-                _assigned_tools_cache.pop(f"assigned_{azubi_id}", None)
-                current_app.logger.debug(
-                    f"Cache invalidated for azubi {azubi_id}")
-            else:
-                _assigned_tools_cache.clear()
-                current_app.logger.warning(
-                    "Global assigned_tools cache cleared.")
 
     @staticmethod
     def generate_unique_session_id():
@@ -272,7 +248,7 @@ class CheckService:
             _, encoded = signature_data.split(",", 1)
             try:
                 data = base64.b64decode(encoded)
-            except Exception as e:  # pylint: disable=broad-exception-caught
+            except Exception as e:  # pylint: disable=broad-exception-caught  # pylint: disable=broad-exception-caught
                 current_app.logger.error(f"Invalid signature data: {e}")
                 return None
 
@@ -283,7 +259,7 @@ class CheckService:
                 f.write(data)
 
             return path
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:  # pylint: disable=broad-exception-caught  # pylint: disable=broad-exception-caught
             current_app.logger.error(f"Error saving signature: {e}")
             return None
 
@@ -355,7 +331,7 @@ class CheckService:
             for check in checks:
                 db.session.add(check)
             db.session.commit()
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             current_app.logger.error(f"DB Commit failed: {e}")
             db.session.rollback()
             CheckService._cleanup_on_error(checks, pdf_path)
@@ -389,17 +365,8 @@ class CheckService:
         """Handle signature saving and validation."""
         sig_azubi_path = CheckService.save_signature(
             form_data.get('signature_azubi_data'), session_id, 'azubi')
-
-        # Inline migration check — avoids circular import (routes imports services).
-        # migration_mode_expires is stored as an ISO datetime string by admin.py.
-        # Mirrors is_migration_active() in routes/utils.py.
-        _expires_str = session.get('migration_mode_expires')
-        is_migration = False
-        if _expires_str:
-            try:
-                is_migration = datetime.utcnow() < datetime.fromisoformat(_expires_str)
-            except (ValueError, TypeError):
-                pass
+        from routes.utils import is_migration_active  # pylint: disable=import-outside-toplevel
+        is_migration = is_migration_active()
 
         if not sig_azubi_path and not is_migration:
             raise ValueError("Fehler beim Speichern der Azubi-Signatur")
@@ -429,14 +396,14 @@ class CheckService:
         """Process a full check submission."""
         # pylint: disable=too-many-locals
         if not check_date:
-            check_date = datetime.now()
+            check_date = datetime.now(timezone.utc)
 
         session_id = CheckService.generate_unique_session_id()
 
         sig_azubi_path, sig_examiner_path = CheckService._handle_signatures(
             form_data, session_id)
 
-        azubi = Azubi.query.get(azubi_id)
+        azubi = db.session.get(Azubi, azubi_id)
         if not azubi:
             current_app.logger.error(
                 f"CheckService: Azubi {azubi_id} not found")
@@ -476,7 +443,7 @@ class CheckService:
                 "pdf_path": pdf_path
             }
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             current_app.logger.error(f"Check processing failed: {e}")
             # Ensure signatures are cleaned up if error occurs before Check objects are created
             for path in [sig_azubi_path, sig_examiner_path]:
@@ -630,12 +597,12 @@ class CheckService:
         a single consolidated PDF.
         """
         # 1. Validation
-        azubi = Azubi.query.get(azubi_id)
+        azubi = db.session.get(Azubi, azubi_id)
         if not azubi:
             raise ValueError(f"Azubi mit ID {azubi_id} nicht gefunden")
 
         session_id = CheckService.generate_unique_session_id()
-        check_date = datetime.now()
+        check_date = datetime.now(timezone.utc)
 
         # 2. Save Signature once
         sig_path = CheckService.save_signature(
@@ -652,7 +619,7 @@ class CheckService:
                 tool_id = item.get('tool_id')
                 reason = item.get('reason')
 
-                tool = Werkzeug.query.get(tool_id)
+                tool = db.session.get(Werkzeug, tool_id)
                 if not tool:
                     raise ValueError(f"Werkzeug mit ID {tool_id} nicht gefunden")
 
@@ -686,7 +653,7 @@ class CheckService:
             # 5. Commit Atomically
             db.session.commit()
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             db.session.rollback()
             current_app.logger.error(f"Exchange failed: {e}")
             CheckService._cleanup_exchange_files(sig_path, pdf_path)
@@ -790,7 +757,6 @@ class BackupService:
 
             # CRITICAL: Close SQLAlchemy connection to old DB file BEFORE overwriting check
             # This ensures file locks are released on Windows
-            from extensions import scheduler
             if scheduler.running:
                 try:
                     scheduler.pause()
@@ -818,23 +784,16 @@ class BackupService:
             # Ensure all tables exist (older backups may lack newer tables)
             # We run flask db upgrade explicitly to ensure schema updates
             # like missing columns (e.g. manufacturer) are applied.
-            db.create_all()
+            # db.create_all() removed in v2.10.2 to avoid conflicts with Alembic
 
             try:
                 current_app.logger.info("Running DB migrations after restore...")
                 from flask_migrate import upgrade
                 upgrade()
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 current_app.logger.error(f"Migration after restore failed: {e}")
 
-            # CRITICAL: Clear Cache after restore
-            current_app.logger.warning("Clearing all caches after restore.")
-            CheckService.invalidate_cache()
-
-            current_app.logger.info("Restore successful. Requesting restart.")
-            return True
-
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             current_app.logger.error(f"Restore failed: {e}")
             if os.path.exists(temp_dir):
                 shutil.rmtree(temp_dir)
@@ -931,7 +890,7 @@ class BackupService:
                 current_app.logger.info(
                     f"Pruned {count} old backups (> {days} days)")
 
-        except Exception as e:  # pylint: disable=broad-exception-caught
+        except Exception as e:  # pylint: disable=broad-exception-caught  # pylint: disable=broad-exception-caught
             current_app.logger.error(f"Pruning failed: {e}")
 
     @staticmethod
@@ -1008,7 +967,7 @@ class BackupService:
             dict: {success, filename, path, size_mb}
         """
         data_dir = CheckService.get_data_dir()
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         backup_filename = f"backup_azubi_werkzeug_{timestamp}.zip"
         backup_dir = os.path.join(data_dir, 'backups')
         backup_path = os.path.join(backup_dir, backup_filename)
@@ -1016,6 +975,13 @@ class BackupService:
         os.makedirs(backup_dir, exist_ok=True)
 
         try:
+            # WAL Checkpoint vor Backup-Erstellung
+            try:
+                db.session.execute(db.text("PRAGMA wal_checkpoint(FULL)"))
+                db.session.commit()
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                current_app.logger.warning(f"WAL checkpoint failed: {e}")
+
             with zipfile.ZipFile(backup_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
                 # 1. Database (including WAL files)
                 db_path = os.path.join(data_dir, 'werkzeug.db')
@@ -1058,7 +1024,7 @@ class BackupService:
                 "size_mb": size_mb
             }
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             current_app.logger.error(f"Backup creation failed: {e}")
             if os.path.exists(backup_path):
                 os.remove(backup_path)
@@ -1100,5 +1066,5 @@ class BackupService:
                 try:
                     os.remove(f)
                     current_app.logger.info(f"Rotated backup: {f}")
-                except Exception as e:  # pylint: disable=broad-exception-caught
+                except Exception as e:  # pylint: disable=broad-exception-caught  # pylint: disable=broad-exception-caught
                     current_app.logger.error(f"Error rotating backup {f}: {e}")

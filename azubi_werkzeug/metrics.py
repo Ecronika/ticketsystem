@@ -29,11 +29,6 @@ CHECKS_SUBMITTED_TOTAL = Counter(
     ['check_type']  # e.g., 'check', 'issue', 'return'
 )
 
-# TODO: Calculate and expose actual session metrics, current implementation unused
-ACTIVE_SESSIONS = Gauge(
-    'werkzeug_active_sessions',
-    'Estimated number of active user sessions (logins)'
-)
 
 DB_OPERATION_DURATION_SECONDS = Histogram(
     'werkzeug_db_operation_duration_seconds',

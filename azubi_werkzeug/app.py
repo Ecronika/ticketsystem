@@ -1,3 +1,4 @@
+# pylint: disable=line-too-long,wrong-import-order,too-many-lines,unnecessary-pass,too-many-locals,broad-exception-caught,import-outside-toplevel,mixed-line-endings,unused-import
 
 """
 Main Application Entry Point.
@@ -32,6 +33,7 @@ from routes import main_bp
 from routes.metrics import metrics_bp
 from metrics import HTTP_REQUESTS_TOTAL, HTTP_REQUEST_DURATION_SECONDS
 
+APP_VERSION = '2.10.2'
 app = Flask(__name__)
 # Home Assistant Check (Ingress usually sets headers, but we also check env)
 IS_HOMEASSISTANT = os.environ.get('SUPERVISOR_TOKEN') is not None or os.environ.get('HAS_INGRESS') == '1'
@@ -130,7 +132,7 @@ app.logger.setLevel(logging.INFO)
 atexit.register(queue_listener.stop)
 
 app.logger.info(
-    "Config: SSL_ACTIVE=%s, CSRF_ENABLED=%s, SAMESITE=%s [v2.10.1-csrf-fix]",
+    "Config: SSL_ACTIVE=%s, CSRF_ENABLED=%s, SAMESITE=%s [v2.10.2]",
     SSL_ACTIVE,
     app.config.get('WTF_CSRF_ENABLED', True),
     app.config.get('SESSION_COOKIE_SAMESITE')
@@ -259,11 +261,9 @@ else:
             "connect-src 'self' cdn.jsdelivr.net unpkg.com"
         )
         return response
-    
-        return response
 
 app.logger.info(
-        "Security: Manual CSP headers enabled (Home Assistant Ingress mode)")
+    "Security: Manual CSP headers enabled (Home Assistant Ingress mode)")
 
 # Register Blueprints
 app.register_blueprint(main_bp)

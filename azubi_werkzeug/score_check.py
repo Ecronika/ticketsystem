@@ -12,9 +12,12 @@ def main():
     """Execute main function."""
     # Files to check (explicit list to avoid checking scripts)
     files = [
-        'app.py', 'routes.py', 'services.py', 'models.py',
+        'app.py', 'services.py', 'models.py',
         'extensions.py', 'forms.py', 'pdf_utils.py', 'verify_setup.py'
     ]
+    # Add all routes files
+    import glob
+    files.extend(glob.glob('routes/*.py'))
 
     print("| Datei | Pylint Score |")
     print("| :--- | :--- |")

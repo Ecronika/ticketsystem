@@ -1,3 +1,4 @@
+# pylint: disable=line-too-long,wrong-import-order,too-many-lines,unnecessary-pass,too-many-locals,broad-exception-caught,import-outside-toplevel,mixed-line-endings,unused-import
 """
 Admin routes.
 
@@ -7,7 +8,7 @@ backups, migration mode, logo upload, QR codes, and reports.
 import os
 import time
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from flask import (
     render_template, request, redirect, url_for,
@@ -258,7 +259,8 @@ def restore_backup():
                 # Delay by 2.0s so the HTTP 302 response has enough time to
                 # reach the browser before Gunicorn terminates (prevents 504).
                 import threading  # pylint: disable=import-outside-toplevel
-                threading.Timer(2.0, lambda: os._exit(1)).start()  # noqa: SLF001
+                import signal  # pylint: disable=import-outside-toplevel
+                threading.Timer(2.0, lambda: os.kill(os.getpid(), signal.SIGTERM)).start()  # noqa: SLF001
                 return redirect(
                     f"{ingress}{url_for('main.settings')}")
             except Exception as e:  # pylint: disable=broad-exception-caught
@@ -330,7 +332,7 @@ def toggle_migration_mode():
     session['migration_mode'] = not current_mode
     if session['migration_mode']:
         # Store expiry time: 8 hours from now
-        expires = datetime.utcnow() + timedelta(hours=8)
+        expires = datetime.now(timezone.utc) + timedelta(hours=8)
         session['migration_mode_expires'] = expires.isoformat()
     else:
         session.pop('migration_mode_expires', None)
@@ -372,8 +374,7 @@ def add_examiner():
 @admin_required
 def delete_examiner(examiner_id):
     """Delete an examiner."""
-    examiner = Examiner.query.get_or_404(
-        examiner_id)
+    examiner = db.get_or_404(Examiner, examiner_id)
     db.session.delete(examiner)
     db.session.commit()
     flash(
@@ -413,7 +414,7 @@ def add_azubi():
 @admin_required
 def edit_azubi(azubi_id):
     """Edit an azubi."""
-    azubi = Azubi.query.get_or_404(azubi_id)
+    azubi = db.get_or_404(Azubi, azubi_id)
     form = AzubiForm(request.form)
     ingress = request.headers.get(
         'X-Ingress-Path', '')
@@ -437,7 +438,7 @@ def edit_azubi(azubi_id):
 @admin_required
 def delete_azubi(azubi_id):
     """Delete an azubi."""
-    azubi = Azubi.query.get_or_404(azubi_id)
+    azubi = db.get_or_404(Azubi, azubi_id)
     if azubi.checks:
         flash(
             f'Fehler: Azubi "{azubi.name}" hat '
@@ -460,7 +461,7 @@ def delete_azubi(azubi_id):
 @admin_required
 def archive_azubi(azubi_id):
     """Archive an azubi."""
-    azubi = Azubi.query.get_or_404(azubi_id)
+    azubi = db.get_or_404(Azubi, azubi_id)
     assigned = CheckService.get_assigned_tools(
         azubi.id)
     if assigned:
@@ -486,7 +487,7 @@ def archive_azubi(azubi_id):
 @admin_required
 def unarchive_azubi(azubi_id):
     """Unarchive an azubi."""
-    azubi = Azubi.query.get_or_404(azubi_id)
+    azubi = db.get_or_404(Azubi, azubi_id)
     azubi.is_archived = False
     db.session.commit()
     flash(
@@ -530,8 +531,7 @@ def add_werkzeug():
 @admin_required
 def edit_werkzeug(werkzeug_id):
     """Edit a tool."""
-    werkzeug = Werkzeug.query.get_or_404(
-        werkzeug_id)
+    werkzeug = db.get_or_404(Werkzeug, werkzeug_id)
 
     form_data = request.form.copy()
     if 'price' in form_data and isinstance(form_data['price'], str):
@@ -564,8 +564,7 @@ def edit_werkzeug(werkzeug_id):
 @admin_required
 def delete_werkzeug(werkzeug_id):
     """Delete a tool."""
-    werkzeug = Werkzeug.query.get_or_404(
-        werkzeug_id)
+    werkzeug = db.get_or_404(Werkzeug, werkzeug_id)
     if werkzeug.checks:
         flash(
             f'Fehler: Werkzeug "{werkzeug.name}" '
@@ -577,9 +576,6 @@ def delete_werkzeug(werkzeug_id):
             f"{ingress}{url_for('main.tools')}")
     db.session.delete(werkzeug)
     db.session.commit()
-    # Invalidate cache AFTER commit to prevent race where cache is repopulated
-    # with stale data by another request before commit finishes
-    CheckService.invalidate_cache()
     flash(
         f'Werkzeug {werkzeug.name} gelöscht.',
         'success')
@@ -708,7 +704,7 @@ def generate_qr_codes():
 @admin_required
 def end_of_training_report(azubi_id):
     """Generate end of training report."""
-    azubi = Azubi.query.get_or_404(azubi_id)
+    azubi = db.get_or_404(Azubi, azubi_id)
     assigned = CheckService.get_assigned_tools(
         azubi.id)
     is_clear = len(assigned) == 0

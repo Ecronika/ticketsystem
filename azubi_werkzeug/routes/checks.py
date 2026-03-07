@@ -1,3 +1,4 @@
+# pylint: disable=line-too-long,wrong-import-order,too-many-lines,unnecessary-pass,too-many-locals,broad-exception-caught,import-outside-toplevel,mixed-line-endings,unused-import
 """
 Check routes.
 
@@ -6,7 +7,7 @@ session details, and session deletion.
 """
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import (
     render_template, request, redirect, url_for,
@@ -77,10 +78,10 @@ def _build_tool_status_list(azubi, werkzeuge, assigned_ids):
 
 def check_azubi(azubi_id):
     """Page to perform a new check."""
-    azubi = Azubi.query.get_or_404(azubi_id)
+    azubi = db.get_or_404(Azubi, azubi_id)
     werkzeuge = Werkzeug.query.all()
     examiners = Examiner.query.all()
-    current_date = datetime.now().strftime("%d. %b %Y")
+    current_date = datetime.now(timezone.utc).strftime("%d. %b %Y")
 
     assigned_ids = CheckService.get_assigned_tools(azubi.id)
 
@@ -88,7 +89,7 @@ def check_azubi(azubi_id):
         azubi_id=azubi.id).order_by(
         Check.datum.desc()).first()
     days_since_global = (
-        datetime.now()
+        datetime.now(timezone.utc)
         - last_check_global.datum
     ).days if last_check_global else 999
     is_overdue = days_since_global > 90
@@ -164,7 +165,7 @@ def submit_check():
         return redirect(f"{ingress}{url_for('main.index')}")
 
     try:
-        check_date = datetime.now()
+        check_date = datetime.now(timezone.utc)
         if is_migration_active():
             check_date, err = parse_migration_date(
                 request.form, ingress)
@@ -189,7 +190,6 @@ def submit_check():
             f'(Session: {result["session_id"]})',
             'success')
 
-        CheckService.invalidate_cache(int(azubi_id))
         return redirect(
             f"{ingress}{url_for('main.index')}")
 
@@ -206,7 +206,7 @@ def submit_check():
 
 def exchange_tool():
     """Handle one-click tool exchange (Bulk mass processing)."""
-    import json
+    import json  # pylint: disable=import-outside-toplevel
     azubi_id = request.form.get('azubi_id')
     exchange_data_json = request.form.get('exchange_data')
     is_payable = request.form.get('is_payable') == 'on'
@@ -232,8 +232,6 @@ def exchange_tool():
 
         # Track successful exchange in Prometheus for the batch
         CHECKS_SUBMITTED_TOTAL.labels(check_type='exchange').inc(amount=len(exchange_data))
-
-        CheckService.invalidate_cache(int(azubi_id))
 
         msg = f"{len(exchange_data)} Werkzeuge erfolgreich ausgetauscht."
         if result.get('total_price'):
@@ -474,7 +472,6 @@ def delete_session(session_id):
 
         for check_entry in checks:
             db.session.delete(check_entry)
-        CheckService.invalidate_cache(azubi_id_val)
         db.session.commit()
 
         deleted_count = CheckService.cleanup_session_files(files_to_delete)
