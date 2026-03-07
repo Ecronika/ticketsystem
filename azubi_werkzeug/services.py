@@ -57,10 +57,10 @@ class CheckService:
 
         result = {aid: set() for aid in azubi_ids}
 
-        # 3. Zuweisung, falls der letzte Typ ein "ISSUE" war
+        # 3. Zuweisung, falls der letzte Typ nicht "RETURN" war
         for azubi_id, werkzeug_id, raw_check_type in latest_checks:
             c_type = parse_check_type(raw_check_type)
-            if c_type == CheckType.ISSUE:
+            if c_type != CheckType.RETURN:
                 result[azubi_id].add(werkzeug_id)
 
         return result
@@ -128,7 +128,7 @@ class CheckService:
         assigned_tools = set()
         for werkzeug_id, raw_check_type in latest_checks:
             c_type = parse_check_type(raw_check_type)
-            if c_type == CheckType.ISSUE:
+            if c_type != CheckType.RETURN:
                 assigned_tools.add(werkzeug_id)
 
         return assigned_tools
