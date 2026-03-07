@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.0] - 2026-03-07
+
+### ✨ B2B UI/UX & Barrierefreiheit (WCAG 2.2)
+- **Barrierefreiheit (WCAG 2.1.1):** Tastaturzugänglichkeit für Canvas-basierte Signature-Pads integriert (Eingabe über Enter/Leertaste möglich).
+- **Barrierefreiheit (WCAG 2.2 AA):** Kontrast für Warnmeldungen (z.B. `--color-warning`) im Light-Mode manuell für alle Themes auf über 4,5:1 rekalibriert.
+- **Agentic UX / Kognitive Last:** Breadcrumbs zur besseren prozessualen Navigation auf Detailansichten (Prüfung, Historien-Details) hinzugefügt.
+- **Agentic UX / Kognitive Last:** Flash-Messages auf Basis von Timeout-Skripten nach 5 Sekunden mit automatischem Dismissal (Auto-Dismiss) versehen.
+- **Agentic UX:** Semantische Statusanzeigen auf dem Dashboard ergänzt (klare Ikonografie für FÄLLIG und INFO Zustände statt reiner Farbkodierung nach WCAG 1.4.1).
+- **UX:** Globalen Footer (Version, Impressum, Datenschutz) in `base.html` integriert.
+
+### 🛠 Repository & Build Pipeline
+- **Pipeline:** Zentrale `VERSION`-Datei im Repository-Root etabliert; Flask `app.py` liest die Version nun dynamisch aus.
+- **Pipeline:** Git Pre-Commit Hook über `.gitattributes` implementiert, um serverseitiges LF Line-Ending für alle Checkout-Plattformen zu erzwingen.
+- **Monitoring:** Neue `ACTIVE_SESSIONS` Prometheus Metrik für die Überwachung von concurrent Request-Transaktionen implementiert.
+
 ## [2.10.2] - 2026-03-07
 
 ### 🚨 Hotfix Release

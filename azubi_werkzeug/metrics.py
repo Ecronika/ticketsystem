@@ -18,6 +18,11 @@ HTTP_REQUEST_DURATION_SECONDS = Histogram(
 )
 
 # Custom Application Metrics
+ACTIVE_SESSIONS = Gauge(
+    'werkzeug_active_sessions',
+    'Number of currently active HTTP requests (concurrent sessions)'
+)
+
 SCANS_TOTAL = Counter(
     'werkzeug_scans_total',
     'Total number of Azubi QR scans performed'

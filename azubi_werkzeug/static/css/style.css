@@ -69,10 +69,8 @@ small {
     --color-primary: #0d6efd;
     --color-success: #146c43;
 
-    /* Darker, forest-green for contrast on white */
-    --color-warning: #daa520;
-
-    /* Goldenrod for contrast on white */
+    /* Darker, bronze/brown for contrast on white (WCAG AA >= 4.5:1) */
+    --color-warning: #856404;
     --color-danger: #dc3545;
     --color-info: #0dcaf0;
 

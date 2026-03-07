@@ -111,14 +111,15 @@
                         </div>
                         {% elif azubi.status_class == 'warning' %}
                         <div class="d-flex flex-column align-items-md-end w-100">
-                            <span class="badge rounded-1 badge-subtle-warning status-label">PRÜFUNG
+                            <span class="badge rounded-1 badge-subtle-warning status-label"><i
+                                    class="bi bi-clock-history me-1"></i>PRÜFUNG
                                 FÄLLIG</span>
                             <span class="text-meta mt-2 fw-bold">&lt; 4
                                 WOCHEN</span>
                         </div>
                         {% else %}
                         <div class="d-flex flex-column align-items-md-end w-100">
-                            <span class="text-muted status-label p-0">{{
+                            <span class="text-muted status-label p-0"><i class="bi bi-info-circle me-1"></i>{{
                                 azubi.status|upper }}</span>
                         </div>
                         {% endif %}

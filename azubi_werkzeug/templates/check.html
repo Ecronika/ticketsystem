@@ -4,6 +4,14 @@
 <div class="row justify-content-center">
     <div class="col-lg-10"> <!-- Wider for Table/Signatures -->
 
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ ingress_path }}{{ url_for('main.index') }}"
+                        class="text-decoration-none">Dashboard</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Neue Prüfung</li>
+            </ol>
+        </nav>
+
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h3 class="fw-bold">Prüfung / Ausgabe: {{ azubi.name }}</h3>
@@ -242,20 +250,24 @@
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold small text-uppercase">Azubi: {{ azubi.name }}</label>
                             <div class="border rounded bg-light" style="height: 150px; position: relative;">
-                                <canvas id="canvasAzubi" aria-label="Unterschrift Azubi" role="img"
+                                <canvas id="canvasAzubi" aria-label="Unterschrift Azubi" role="img" tabindex="0"
                                     style="width: 100%; height: 100%; touch-action: none;"></canvas>
                             </div>
                             <button type="button" class="btn btn-sm btn-link text-muted"
                                 id="clearAzubi">Löschen</button>
+                            <small class="text-muted d-block mt-1">Tipp: Für Barrierefreiheit das Feld fokussieren und
+                                "Leertaste" drücken.</small>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold small text-uppercase">Prüfer / Ausbilder</label>
                             <div class="border rounded bg-light" style="height: 150px; position: relative;">
-                                <canvas id="canvasExaminer" aria-label="Unterschrift Ausbilder" role="img"
+                                <canvas id="canvasExaminer" aria-label="Unterschrift Ausbilder" role="img" tabindex="0"
                                     style="width: 100%; height: 100%; touch-action: none;"></canvas>
                             </div>
                             <button type="button" class="btn btn-sm btn-link text-muted"
                                 id="clearExaminer">Löschen</button>
+                            <small class="text-muted d-block mt-1">Tipp: Für Barrierefreiheit das Feld fokussieren und
+                                "Leertaste" drücken.</small>
                         </div>
                     </div>
                     {% if session.get('migration_mode') %}
@@ -345,6 +357,21 @@
 
         const padAzubi = new SignaturePad(canvasAzubi, padConfig);
         const padExaminer = new SignaturePad(canvasExaminer, padConfig);
+
+        // --- WCAG 2.1.1 Keyboard Accessibility ---
+        [{ canvas: canvasAzubi, pad: padAzubi, role: 'Azubi' }, { canvas: canvasExaminer, pad: padExaminer, role: 'Ausbilder' }].forEach(item => {
+            item.canvas.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    item.pad.clear();
+                    const ctx = this.getContext('2d');
+                    ctx.font = '24px "Segoe UI", Tahoma, sans-serif';
+                    ctx.fillStyle = getPadColors().pen;
+                    ctx.fillText('Gez. ' + item.role + ' (Tastatur)', 20, this.height / 2);
+                    item.pad._isEmpty = false;
+                }
+            });
+        });
 
         // Listen for Theme Changes
         window.addEventListener('themeChanged', () => {

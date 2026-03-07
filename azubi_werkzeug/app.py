@@ -31,9 +31,16 @@ from extensions import Config, csrf, db, limiter, scheduler
 from services import BackupService
 from routes import main_bp
 from routes.metrics import metrics_bp
-from metrics import HTTP_REQUESTS_TOTAL, HTTP_REQUEST_DURATION_SECONDS
+from metrics import HTTP_REQUESTS_TOTAL, HTTP_REQUEST_DURATION_SECONDS, ACTIVE_SESSIONS
 
-APP_VERSION = '2.10.2'
+import os
+# Read version dynamically
+_version_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'VERSION')
+try:
+    with open(_version_file, 'r', encoding='utf-8') as _f:
+        APP_VERSION = _f.read().strip()
+except FileNotFoundError:
+    APP_VERSION = '2.11.0'
 app = Flask(__name__)
 # Home Assistant Check (Ingress usually sets headers, but we also check env)
 IS_HOMEASSISTANT = os.environ.get('SUPERVISOR_TOKEN') is not None or os.environ.get('HAS_INGRESS') == '1'
@@ -132,10 +139,11 @@ app.logger.setLevel(logging.INFO)
 atexit.register(queue_listener.stop)
 
 app.logger.info(
-    "Config: SSL_ACTIVE=%s, CSRF_ENABLED=%s, SAMESITE=%s [v2.10.2]",
+    "Config: SSL_ACTIVE=%s, CSRF_ENABLED=%s, SAMESITE=%s [v%s]",
     SSL_ACTIVE,
     app.config.get('WTF_CSRF_ENABLED', True),
-    app.config.get('SESSION_COOKIE_SAMESITE')
+    app.config.get('SESSION_COOKIE_SAMESITE'),
+    APP_VERSION
 )
 
 # Database configuration (using data_dir from logging setup above)
