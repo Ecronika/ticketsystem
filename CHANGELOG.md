@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.2] - 2026-03-07
+
+### 🚨 Review-Feinschliff (WCAG Hotfix Follow-up)
+- **Bugfix (C.1):** Die `ACTIVE_SESSIONS` Metrik filtert nun korrekt statische Requests (`/static/`), um fehlerhafte Zähler in der Queue zu verhindern.
+- **UX (C.2):** Der HTTP `429 Too Many Requests` Handler leitet nun intelligent auf `request.referrer` um anstatt pauschal auf den Login-Screen.
+- **UX (C.3):** Der Fallback für die App-Version (`APP_VERSION`) wurde von einer statischen Version auf `0.0.0-unknown` gestellt, um Konfigurationsfehler sofort sichtbar zu machen.
+- **Barrierefreiheit (A-06):** In CSS `scroll-padding-top: 70px` auf `html` angewandt um zu verhindern, dass die fixierte Navbar Anker-Ziele (wie den Skip-Link) verdeckt.
+- **Barrierefreiheit (A-07):** Die Status-Badges im Dashboard ("Überfällig", etc.) verwenden nun anstelle von `span` semantische `<button type="button">` Tags, womit die `title`-Attribute auch für Screenreader aktiv in der Fokuskette vorgelesen werden.
+
 ## [2.11.1] - 2026-03-07
 
 ### 🚨 Hotfixes & Accessibility (WCAG 2.2 AA)
