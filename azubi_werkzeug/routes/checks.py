@@ -88,10 +88,15 @@ def check_azubi(azubi_id):
     last_check_global = Check.query.filter_by(
         azubi_id=azubi.id).order_by(
         Check.datum.desc()).first()
-    days_since_global = (
-        datetime.now(timezone.utc)
-        - last_check_global.datum
-    ).days if last_check_global else 999
+        
+    if last_check_global:
+        last_datum = last_check_global.datum
+        if last_datum and last_datum.tzinfo is None:
+            last_datum = last_datum.replace(tzinfo=timezone.utc)
+        days_since_global = (datetime.now(timezone.utc) - last_datum).days
+    else:
+        days_since_global = 999
+        
     is_overdue = days_since_global > 90
 
     presets_str = SystemSettings.get_setting(
