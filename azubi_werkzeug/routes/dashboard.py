@@ -148,7 +148,7 @@ def register_routes(bp):
 
         payload = {
             "status": "ok" if db_ok else "degraded",
-            "version": current_app.config.get("VERSION", "2.8.2"),
+            "version": current_app.config.get("VERSION", "2.11.0"),
             "uptime": round(time.time() - _dash_start_time, 2),
             "db_ok": db_ok,
         }
