@@ -1,7 +1,7 @@
 """
 Unit tests for CheckService.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 import pytest
 from services import CheckService
 from models import Check, CheckType, Azubi, Werkzeug
@@ -29,7 +29,7 @@ def test_check_submission_success(test_app):
             examiner_name="Test Examiner",
             tool_ids=[tool.id],
             form_data=form_data,
-            check_date=datetime.now(),
+            check_date=datetime.now(timezone.utc),
             check_type=CheckType.CHECK
         )
 
@@ -98,7 +98,11 @@ def test_check_submission_missing_azubi(test_app):
                 azubi_id=99999,
                 examiner_name="Test Examiner",
                 tool_ids=[tool.id],
-                form_data={'tool_' + str(tool.id): 'ok', 'signature_azubi_data': sig, 'signature_examiner_data': sig}
+                form_data={
+                    'tool_' + str(tool.id): 'ok',
+                    'signature_azubi_data': sig,
+                    'signature_examiner_data': sig
+                }
             )
 
 

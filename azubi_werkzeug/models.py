@@ -3,7 +3,7 @@ Models module.
 
 Defines SQLAlchemy database models for Apprentice, Tool, Check, etc.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from extensions import db
 
@@ -22,7 +22,7 @@ class SystemSettings(db.Model):
     def get_setting(key, default=None):
         """Retrieve a setting value."""
         try:
-            setting = SystemSettings.query.get(key)
+            setting = db.session.get(SystemSettings, key)
             return setting.value if setting else default
         except Exception:  # pylint: disable=broad-exception-caught
             return default
@@ -67,7 +67,7 @@ class Azubi(db.Model):
         """Compute dashboard status, CSS class, display text, sort order."""
         if not last_datum:
             return "Neu / Leer", "info", "Noch nie", 4
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         days_since = (now - last_datum).days
         if days_since >= 90:
             return (
@@ -133,7 +133,7 @@ class Check(db.Model):  # pylint: disable=too-few-public-methods
 
     id = db.Column(db.Integer, primary_key=True)
     session_id = db.Column(db.String(36), nullable=True, index=True)
-    datum = db.Column(db.DateTime, default=datetime.now, index=True)
+    datum = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     azubi_id = db.Column(db.Integer, db.ForeignKey('azubi.id'), nullable=False)
     werkzeug_id = db.Column(
         db.Integer,

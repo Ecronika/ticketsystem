@@ -1,6 +1,6 @@
 """API routes."""
 # pylint: disable=duplicate-code
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import request, jsonify, current_app
 from sqlalchemy.exc import SQLAlchemyError
@@ -94,7 +94,7 @@ def register_routes(bp):
         total_tools = Werkzeug.query.count()
         total_azubis = Azubi.query.filter_by(
             is_archived=False).count()
-        start_of_day = datetime.now().replace(
+        start_of_day = datetime.now(timezone.utc).replace(
             hour=0, minute=0, second=0, microsecond=0)
         checks_today = Check.query.filter(
             Check.datum >= start_of_day).count()
@@ -103,7 +103,7 @@ def register_routes(bp):
             'total_tools': total_tools,
             'total_azubis': total_azubis,
             'checks_today': checks_today,
-            'generated_at': datetime.now().isoformat()
+            'generated_at': datetime.now(timezone.utc).isoformat()
         })
 
     # Register new handler

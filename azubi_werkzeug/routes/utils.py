@@ -3,7 +3,7 @@ Route utilities module.
 
 Shared helpers used across route sub-modules.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import current_app, flash, redirect, session, url_for
 from extensions import db
 
@@ -20,7 +20,7 @@ def is_migration_active() -> bool:
     if expires_str:
         try:
             expires = datetime.fromisoformat(expires_str)
-            if datetime.utcnow() > expires:
+            if datetime.now(timezone.utc) > expires:
                 session.pop('migration_mode', None)
                 session.pop('migration_mode_expires', None)
                 current_app.logger.info(
@@ -80,7 +80,7 @@ def parse_migration_date(form_data, ingress):
     c_date = form_data.get('custom_date')
     c_time = form_data.get('custom_time')
     if not c_date:
-        return datetime.now(), None
+        return datetime.now(timezone.utc), None
     try:
         time_str = c_time if c_time else "12:00"
         check_date = datetime.strptime(

@@ -445,6 +445,9 @@
         // --- Smart Bemerkungsfeld auto-fill ---
         const bemerkungField = document.querySelector('textarea[name="bemerkung"]');
         if (bemerkungField) {
+            bemerkungField.addEventListener('input', () => {
+                bemerkungField.dataset.manuallyEdited = 'true';
+            });
             const _AUTO_TEXTS = [
                 'Erstausstattung komplett ausgehändigt.',
                 'Zusatzausstattung ausgehändigt.',
@@ -458,7 +461,7 @@
                 const assignedCount = [...toolRows].filter(
                     row => row.getAttribute('data-assigned') === 'true').length;
                 const currentText = bemerkungField.value.trim();
-                const isAutoFillable = currentText === '' || _AUTO_TEXTS.includes(currentText);
+                const isAutoFillable = !bemerkungField.dataset.manuallyEdited && (currentText === '' || _AUTO_TEXTS.includes(currentText));
                 if (isAutoFillable) {
                     if (type === 'issue') {
                         bemerkungField.value = assignedCount === 0
