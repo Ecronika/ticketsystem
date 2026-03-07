@@ -278,6 +278,13 @@ app.logger.info(
 app.register_blueprint(main_bp)
 app.register_blueprint(metrics_bp)
 
+@app.errorhandler(429)
+def rate_limit_exceeded(e):
+    """Handle 429 Too Many Requests from Flask-Limiter."""
+    app.logger.warning('Rate limit exceeded: %s', request.path)
+    flash('Zu viele Versuche. Bitte 1 Minute warten.', 'warning')
+    return redirect(url_for('main.login')), 429
+
 # Exempt auth routes from global CSRF (Flask-WTF 1.2.2 requires endpoint strings,
 # not function references — the protect() method matches against request.endpoint).
 # Login/recover_pin are protected by rate-limiting (5/min) + PIN hash check.
@@ -291,6 +298,7 @@ csrf.exempt('main.recover_pin')
 def before_request_metrics():
     """Start timer for request duration."""
     g.start_time = time.time()
+    ACTIVE_SESSIONS.inc()
 
 
 @app.after_request
@@ -311,6 +319,10 @@ def after_request_metrics(response):
         ).observe(request_latency)
 
     return response
+
+@app.teardown_request
+def teardown_request_gauge(_exception=None):
+    ACTIVE_SESSIONS.dec()
 
 # Database Session Cleanup (Prevent Connection Leaks)
 

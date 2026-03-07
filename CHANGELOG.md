@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.1] - 2026-03-07
+
+### 🚨 Hotfixes & Accessibility (WCAG 2.2 AA)
+- **Barrierefreiheit (A-01):** Skip-Navigation Link für Tastaturnavigation hinzugefügt (`#main-content`).
+- **Barrierefreiheit (A-02):** Fehlende `<main>` Landmarks im Dokument integriert.
+- **Barrierefreiheit (A-03):** Animationen und Transitions werden bei aktiven `prefers-reduced-motion` System-Einstellungen deaktiviert.
+- **Barrierefreiheit (A-04):** Lade-Meldungen im Werkzeugaustausch-Modal sind nun per `aria-live='polite'` für Screenreader wahrnehmbar.
+- **Barrierefreiheit (A-05):** Hierarchie der Überschriften korrigiert (versteckte `h1` im Dashboard).
+- **Kontrast (WCAG AA):** Kontrastfehler für `--color-danger` auf Light Mode `badge-subtle` behoben.
+- **Bugfix (E-01/E-02):** Die `ACTIVE_SESSIONS` Metric (Prometheus) ist nun sauber in der Request/Teardown-Logik eingebunden und ein `429 Too Many Requests` Error-Handler wurde integriert.
+
 ## [2.11.0] - 2026-03-07
 
 ### ✨ B2B UI/UX & Barrierefreiheit (WCAG 2.2)

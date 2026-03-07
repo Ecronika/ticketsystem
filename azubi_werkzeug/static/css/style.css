@@ -69,9 +69,10 @@ small {
     --color-primary: #0d6efd;
     --color-success: #146c43;
 
-    /* Darker, bronze/brown for contrast on white (WCAG AA >= 4.5:1) */
+    /* Goldenrod for contrast on white */
     --color-warning: #856404;
-    --color-danger: #dc3545;
+    --color-danger: #b91c1c;
+    /* 5.5:1 auf f8d7da - WCAG AA */
     --color-info: #0dcaf0;
 
     /* Status Backgrounds & Borders (Subtle) */
@@ -601,4 +602,17 @@ textarea:focus-visible {
 .bento-list-item:focus-within,
 .bento-list-item:hover {
     border-color: var(--color-primary, #0d6efd);
+}
+
+/* --- WCAG 2.3.3: Reduced Motion --- */
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }

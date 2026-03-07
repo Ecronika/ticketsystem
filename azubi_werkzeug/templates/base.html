@@ -12,6 +12,7 @@
 </head>
 
 <body class="d-flex flex-column min-vh-100">
+  <a href="#main-content" class="visually-hidden-focusable">Zum Hauptinhalt springen</a>
   <script>
     // Phase 2 + Phase 3: Theme Auto-Detect & Application Logic
     window.applyTheme = function (themeParam) {
@@ -102,7 +103,7 @@
     </div>
   </nav>
 
-  <div class="container-fluid px-4 py-4">
+  <main id="main-content" class="container-fluid px-4 py-4">
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <div class="position-fixed top-0 end-0 p-3" style="z-index: 1050" aria-live="polite" aria-atomic="true">
@@ -118,7 +119,7 @@
     {% endif %}
     {% endwith %}
     {% block content %}{% endblock %}
-  </div>
+  </main>
 
   <footer class="footer mt-auto py-3 border-top w-100" style="background-color: var(--bg-surface);">
     <div class="container text-center">
