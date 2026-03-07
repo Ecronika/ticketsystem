@@ -68,6 +68,11 @@ class Azubi(db.Model):
         if not last_datum:
             return "Neu / Leer", "info", "Noch nie", 4
         now = datetime.now(timezone.utc)
+        
+        # Ensure last_datum is offset-aware to avoid TypeError
+        if last_datum.tzinfo is None:
+            last_datum = last_datum.replace(tzinfo=timezone.utc)
+            
         days_since = (now - last_datum).days
         if days_since >= 90:
             return (
