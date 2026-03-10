@@ -34,13 +34,17 @@ from routes.metrics import metrics_bp
 from metrics import HTTP_REQUESTS_TOTAL, HTTP_REQUEST_DURATION_SECONDS, ACTIVE_SESSIONS
 
 import os
-# Read version dynamically
-_version_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'VERSION')
+# Read version dynamically from config.yaml
+_config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.yaml')
+APP_VERSION = '0.0.0-unknown'
 try:
-    with open(_version_file, 'r', encoding='utf-8') as _f:
-        APP_VERSION = _f.read().strip()
+    with open(_config_file, 'r', encoding='utf-8') as _f:
+        for line in _f:
+            if line.strip().startswith('version:'):
+                APP_VERSION = line.split(':', 1)[1].strip().strip('"').strip("'")
+                break
 except FileNotFoundError:
-    APP_VERSION = '0.0.0-unknown'
+    pass
 app = Flask(__name__)
 # Home Assistant Check (Ingress usually sets headers, but we also check env)
 IS_HOMEASSISTANT = os.environ.get('SUPERVISOR_TOKEN') is not None or os.environ.get('HAS_INGRESS') == '1'

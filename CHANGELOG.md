@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.4] - 2026-03-10
+
+### 🚨 Bugfixes
+- **Versioning:** Ein fehlender Dateiupload (`Dockerfile`, `app.py`) in Vorversion v2.11.3 verhinderte, dass die geplante Fehlerbehebung bei den Nutzern ankam. Die `config.yaml` wird nun wie vorgesehen in den Container geladen, wodurch `v0.0.0-unknown` final durch die korrekte Version ersetzt wird.
+
 ## [2.11.3] - 2026-03-07
 
 ### 🚨 Bugfixes

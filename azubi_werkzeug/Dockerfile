@@ -30,6 +30,7 @@ COPY templates templates/
 COPY static static/
 COPY metrics.py .
 COPY migrations/ migrations/
+COPY config.yaml .
 
 # Service-Skripte kopieren
 COPY rootfs /
