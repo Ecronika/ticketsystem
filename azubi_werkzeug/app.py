@@ -389,10 +389,19 @@ def request_entity_too_large(e):
 
 @app.errorhandler(400)
 def bad_request(e):
-    """Handle 400 Bad Request error (like CSRF failures)."""
+    """Handle 400 Bad Request error."""
     # pylint: disable=unused-argument
     if request.path.startswith('/api/'):
         return jsonify({'success': False, 'error': e.description or 'Bad Request'}), 400
+    return render_template('400.html', error=e.description), 400
+
+from flask_wtf.csrf import CSRFError
+@app.errorhandler(CSRFError)
+def handle_csrf_error(e):
+    """Handle CSRF errors specifically."""
+    app.logger.warning("CSRF Fehler: %s", e.description)
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'error': f'CSRF Fehler: {e.description}'}), 400
     return render_template('400.html', error=e.description), 400
 
 

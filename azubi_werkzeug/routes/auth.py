@@ -37,6 +37,10 @@ def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get('is_admin'):
+            if request.path.startswith('/api/'):
+                from flask import jsonify
+                return jsonify({'success': False, 'error': 'Nicht autorisiert. Bitte neu einloggen.'}), 401
+                
             flash('Bitte zuerst einloggen.', 'warning')
             ingress = request.headers.get('X-Ingress-Path', '')
             return redirect(

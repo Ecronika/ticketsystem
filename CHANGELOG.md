@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.8] - 2026-03-11
+
+### 🐛 Bug Fixes
+- **API Authentifizierung (JSON vs. HTML):** Falls eine Nutzersitzung abläuft (oder Cookies via HTTP/ohne SSL nicht sauber gesendet wurden), gab das Backend bei API-Aufrufen fälschlicherweise einen HTTP 302 Redirect zur Login-Seite (HTML) zurück, was vom Frontend als ungültiges JSON (`Unexpected token '<'`) interpretiert wurde. Der `@admin_required`-Decorator gibt für `/api/`-Pfade nun einen sauberen HTTP 401 JSON-Fehler zurück.
+- **CSRF-Handling:** `CSRFError` Exceptions aus `Flask-WTF` werden nun dediziert als JSON-Error beantwortet.
+- **Tools-Ansicht:** Die Fetch-Aufrufe beim Hinzufügen von Werkzeugen (`tools.html`) wurden nun ebenfalls um `credentials: 'same-origin'` ergänzt, damit Cookies zuverlässig übermittelt werden.
+
 ## [2.11.7] - 2026-03-11
 
 ### 🐛 Bug Fixes
