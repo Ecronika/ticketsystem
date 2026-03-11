@@ -12,10 +12,7 @@ body {
 
 /* Karten sollen leicht schweben */
 .card {
-    transition:
-        transform 0.2s ease,
-        box-shadow 0.2s ease,
-        background-color 0.3s ease;
+    transition: background-color 0.3s ease;
 }
 
 
@@ -26,13 +23,16 @@ body {
     padding-right: 1.2rem;
 }
 
-/* --- Phase 4: Presbyopia Font Sizes --- */
+/* =========================================
+   ACCESSIBILITY (Focus, Motion, Touch)
+   ========================================= */
 .small,
-small {
+small,
+.text-muted {
     font-size: max(0.875rem, 14px) !important;
 }
 
-/* --- Phase 4: Ergonomics & Touch (Thumb Zone / Hit Areas) --- */
+/* Touch Ergonomics & Form Elements */
 .btn,
 .form-control,
 .form-select {
@@ -56,7 +56,9 @@ small {
     }
 }
 
-/* --- Phase 1: CSS-Architektur & Custom Properties (Variablen) --- */
+/* =========================================
+   CSS ARCHITECTURE & TOKENS
+   ========================================= */
 
 /* Standard: Light Mode */
 :root {
@@ -67,8 +69,11 @@ small {
     --text-muted: #5c636a;
     --border-color: #dee2e6;
     --focus-ring: 3px solid #0d6efd;
-    --card-shadow: 0 4px 15px rgb(0 0 0 / 5%);
-    --card-shadow-hover: 0 10px 20px rgb(0 0 0 / 10%);
+    --btn-transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    --btn-soft-bg: #eef4ff;
+    --btn-soft-color: #1d4ed8;
+    --btn-soft-border: #2563eb;
+    --btn-warning-soft-bg: rgb(218 165 32 / 15%);
 
     /* Semantic Colors */
     --color-primary: #0d6efd;
@@ -100,8 +105,10 @@ small {
     --text-muted: #b5bcc7;
     --border-color: #333;
     --focus-ring: 3px solid #3b82f6;
-    --card-shadow: 0 4px 15px rgb(0 0 0 / 30%);
-    --card-shadow-hover: 0 10px 20px rgb(0 0 0 / 50%);
+    --btn-soft-bg: rgb(135 206 235 / 15%);
+    --btn-soft-color: #87ceeb;
+    --btn-soft-border: rgb(135 206 235 / 40%);
+    --btn-warning-soft-bg: rgb(241 196 15 / 15%);
 
     /* Semantic Colors (Adjusted for Dark Mode contrast) */
     --color-primary: #3b82f6;
@@ -122,8 +129,8 @@ small {
     --focus-shadow: 0 0 0 0.25rem rgb(59 130 246 / 25%);
 }
 
-/* Phase 4: Thicker card borders for Low Vision in Dark Mode */
-[data-theme="dark"] .border-start {
+/* Thicker borders for Low Vision in Dark Mode */
+[data-theme="dark"] .card .border-start {
     border-left-width: 4px !important;
 }
 
@@ -139,8 +146,10 @@ small {
     --focus-ring: 4px solid #0ff;
 
     /* Cyan für maximale Sichtbarkeit */
-    --card-shadow: none;
-    --card-shadow-hover: 0 0 0 2px #0ff;
+    --btn-soft-bg: transparent;
+    --btn-soft-color: #0ff;
+    --btn-soft-border: #0ff;
+    --btn-warning-soft-bg: transparent;
 
     /* Outline statt Shadow im HC Mode */
 
@@ -168,19 +177,12 @@ small {
     --focus-shadow: none;
 }
 
-/* --- Custom WCAG Buttons --- */
 .btn-primary-soft {
-    background-color: #eef4ff;
-
-    /* Light Mode: Phase 7 Light Blue Fill */
-    color: #1d4ed8;
-    border: 2px solid #2563eb;
+    background-color: var(--btn-soft-bg);
+    color: var(--btn-soft-color);
+    border: 2px solid var(--btn-soft-border);
     font-weight: 600;
-    transition:
-        background-color 0.2s ease,
-        color 0.2s ease,
-        border-color 0.2s ease,
-        box-shadow 0.2s ease;
+    transition: var(--btn-transition);
 }
 
 .btn-primary-soft:hover {
@@ -190,12 +192,6 @@ small {
 }
 
 /* Pastell / Sky Blue in Dark mode */
-[data-theme="dark"] .btn-primary-soft {
-    background-color: rgb(135 206 235 / 15%);
-    color: #87ceeb;
-    border: 1px solid rgb(135 206 235 / 40%);
-}
-
 [data-theme="dark"] .btn-primary-soft:hover {
     background-color: rgb(135 206 235 / 30%);
     color: #b0e0e6;
@@ -203,12 +199,6 @@ small {
 }
 
 /* High-Contrast friendly (Cyan) in HC mode */
-[data-theme="hc"] .btn-primary-soft {
-    background-color: transparent;
-    color: #0ff;
-    border: 2px solid #0ff;
-}
-
 [data-theme="hc"] .btn-primary-soft:hover {
     background-color: #0ff;
     color: #000;
@@ -219,23 +209,9 @@ small {
 .btn-outline-theme-warning {
     color: var(--color-warning);
     border: 2px solid var(--color-warning);
-    background-color: rgb(218 165 32 / 15%);
-
-    /* Light Mode Phase 7 Blur Fix */
+    background-color: var(--btn-warning-soft-bg);
     font-weight: 600;
-    transition:
-        background-color 0.2s ease,
-        color 0.2s ease,
-        border-color 0.2s ease,
-        box-shadow 0.2s ease;
-}
-
-[data-theme="dark"] .btn-outline-theme-warning {
-    background-color: rgb(241 196 15 / 15%);
-}
-
-[data-theme="hc"] .btn-outline-theme-warning {
-    background-color: transparent;
+    transition: var(--btn-transition);
 }
 
 .btn-outline-theme-warning:hover {
@@ -297,7 +273,7 @@ small {
 }
 
 [data-theme="dark"] .bg-theme-success {
-    color: #121212 !important;
+    color: var(--bg-body) !important;
 }
 
 .bg-theme-success-subtle {
@@ -321,7 +297,6 @@ small {
 /* Theme Switches                                                             */
 .text-muted {
     color: var(--text-muted) !important;
-    font-size: max(0.875rem, 14px) !important;
 }
 
 .card,
@@ -534,6 +509,14 @@ textarea:focus-visible {
 }
 
 /* === Typography Utilities === */
+.fs-check-status {
+    font-size: 1.1rem;
+}
+
+.bg-surface {
+    background-color: var(--bg-surface);
+}
+
 .tracking-tight {
     letter-spacing: -0.5px;
 }
