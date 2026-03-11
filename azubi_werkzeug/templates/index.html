@@ -99,10 +99,9 @@
                         </div>
                         {% elif azubi.status_class == 'success' %}
                         <div class="d-flex flex-column align-items-md-end w-100">
-                            <button type="button"
-                                class="badge rounded-pill bg-theme-success status-label cursor-help border-0"
+                            <span class="badge rounded-pill bg-theme-success status-label cursor-help border-0"
                                 title="{% if azubi.missing_count > 0 or azubi.broken_count > 0 %}Prüfung aktuell, aber Mängel vorhanden{% else %}Alle Werkzeuge vorhanden{% endif %}"><i
-                                    class="bi bi-check-circle-fill me-1"></i>GEPRÜFT</button>
+                                    class="bi bi-check-circle-fill me-1"></i>GEPRÜFT</span>
                             {% if azubi.missing_count > 0 or azubi.broken_count > 0 %}
                             <span class="text-theme-warning mt-2 fw-bold font-mono">MIT
                                 MÄNGELN</span>
@@ -154,11 +153,11 @@
 </div>
 
 <!-- Exchange Modal -->
-<div class="modal fade" id="exchangeModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="exchangeModal" tabindex="-1" aria-labelledby="exchangeModalTitle" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content rounded-4 shadow">
             <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-bold">Werkzeug austauschen</h5>
+                <h5 class="modal-title fw-bold" id="exchangeModalTitle">Werkzeug austauschen</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -248,11 +247,11 @@
 </div>
 
 <!-- Add Azubi Modal -->
-<div class="modal fade" id="addAzubiModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="addAzubiModal" tabindex="-1" aria-labelledby="addAzubiModalTitle" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Neuen Azubi hinzufügen</h5>
+                <h5 class="modal-title" id="addAzubiModalTitle">Neuen Azubi hinzufügen</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="{{ ingress_path }}{{ url_for('main.add_azubi') }}" method="POST">

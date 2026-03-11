@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% block title %}Prüfung für {{ azubi.name }}{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -43,7 +44,7 @@
                 <div class="card-body px-4">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label fw-bold">Art des Vorgangs</label>
+                            <label class="form-label fw-bold" for="checkTypeSelector">Art des Vorgangs</label>
                             <select class="form-select" name="check_type" id="checkTypeSelector" required>
                                 <option value="check" selected>Reguläre Prüfung (Bestand)</option>
                                 <option value="issue">Werkzeug-Ausgabe (Neu)</option>
@@ -55,24 +56,24 @@
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-bold">Name des Prüfers / Ausbilders</label>
+                            <label class="form-label fw-bold" for="examinerField">Name des Prüfers / Ausbilders</label>
                             {% if examiners %}
-                            <select class="form-select" name="examiner" required>
+                            <select class="form-select" name="examiner" id="examinerField" required>
                                 <option value="" disabled selected>Prüfer wählen...</option>
                                 {% for examiner in examiners %}
                                 <option value="{{ examiner.name }}">{{ examiner.name }}</option>
                                 {% endfor %}
                             </select>
                             {% else %}
-                            <input type="text" class="form-control" name="examiner" placeholder="Max Mustermann"
-                                required>
+                            <input type="text" class="form-control" name="examiner" id="examinerField"
+                                placeholder="Max Mustermann" required>
                             <div class="form-text text-warning"><i class="bi bi-exclamation-triangle"></i> Keine Prüfer
                                 angelegt.</div>
                             {% endif %}
                         </div>
                         <div class="col-12">
-                            <label class="form-label">Allgemeine Bemerkung</label>
-                            <textarea class="form-control" name="bemerkung" rows="2"
+                            <label class="form-label" for="bemerkungField">Allgemeine Bemerkung</label>
+                            <textarea class="form-control" name="bemerkung" id="bemerkungField" rows="2"
                                 placeholder="Optional..."></textarea>
                         </div>
                     </div>
@@ -82,13 +83,15 @@
                         <h6 class="fw-bold"><i class="bi bi-rewind-circle-fill"></i> Migration Modus (Backfill)</h6>
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label class="form-label small fw-bold">Datum der Prüfung (Manuell)</label>
-                                <input type="date" class="form-control" name="custom_date"
+                                <label class="form-label small fw-bold" for="customDateField">Datum der Prüfung
+                                    (Manuell)</label>
+                                <input type="date" class="form-control" name="custom_date" id="customDateField"
                                     value="{{ current_date[:10] }}" required>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label small fw-bold">Uhrzeit</label>
-                                <input type="time" class="form-control" name="custom_time" value="12:00" required>
+                                <label class="form-label small fw-bold" for="customTimeField">Uhrzeit</label>
+                                <input type="time" class="form-control" name="custom_time" id="customTimeField"
+                                    value="12:00" required>
                             </div>
                         </div>
                     </div>

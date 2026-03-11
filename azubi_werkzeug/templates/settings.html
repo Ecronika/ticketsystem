@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% block title %}Einstellungen{% endblock %}
 
 {% block content %}
 <div class="container-fluid mt-4">
@@ -130,14 +131,15 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                 <div class="row g-3 align-items-end">
                     <div class="col-md-4">
-                        <label class="form-label">Neuer PIN</label>
-                        <input type="password" name="new_pin" class="form-control" pattern="[0-9]*" inputmode="numeric"
-                            minlength="4" maxlength="10" placeholder="4-10 Ziffern" required>
+                        <label class="form-label" for="newPinInput">Neuer PIN</label>
+                        <input type="password" name="new_pin" id="newPinInput" class="form-control" pattern="[0-9]*"
+                            inputmode="numeric" minlength="4" maxlength="10" placeholder="4-10 Ziffern" required>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">Bestätigung</label>
-                        <input type="password" name="confirm_pin" class="form-control" pattern="[0-9]*"
-                            inputmode="numeric" minlength="4" maxlength="10" placeholder="Wiederholung" required>
+                        <label class="form-label" for="confirmPinInput">Bestätigung</label>
+                        <input type="password" name="confirm_pin" id="confirmPinInput" class="form-control"
+                            pattern="[0-9]*" inputmode="numeric" minlength="4" maxlength="10" placeholder="Wiederholung"
+                            required>
                     </div>
                     <div class="col-md-4">
                         <button type="submit" class="btn btn-danger w-100">
@@ -174,8 +176,8 @@
             <form action="{{ ingress_path }}{{ url_for('main.save_manufacturer_config') }}" method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                 <div class="mb-3">
-                    <label class="form-label">Hersteller (Kommagetrennt)</label>
-                    <textarea class="form-control" name="presets" rows="3"
+                    <label class="form-label" for="manufacturerPresets">Hersteller (Kommagetrennt)</label>
+                    <textarea class="form-control" name="presets" id="manufacturerPresets" rows="3"
                         placeholder="Wera, Wiha, Knipex...">{{ manufacturer_presets }}</textarea>
                     <div class="form-text">Diese Werte erscheinen im Dropdown bei der Prüfung.</div>
                 </div>
@@ -196,8 +198,8 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
                 <div class="col-md-3">
-                    <label class="form-label">Intervall</label>
-                    <select name="interval" class="form-select">
+                    <label class="form-label" for="backupInterval">Intervall</label>
+                    <select name="interval" id="backupInterval" class="form-select">
                         <option value="daily" {% if backup_interval=='daily' %}selected{% endif %}>Täglich</option>
                         <option value="weekly" {% if backup_interval=='weekly' %}selected{% endif %}>Wöchentlich (Mo)
                         </option>
@@ -206,13 +208,14 @@
                 </div>
 
                 <div class="col-md-3">
-                    <label class="form-label">Uhrzeit</label>
-                    <input type="time" name="time" class="form-control" value="{{ backup_time }}">
+                    <label class="form-label" for="backupTime">Uhrzeit</label>
+                    <input type="time" name="time" id="backupTime" class="form-control" value="{{ backup_time }}">
                 </div>
 
                 <div class="col-md-3">
-                    <label class="form-label">Aufbewahrung (Tage)</label>
-                    <input type="number" name="retention" class="form-control" value="{{ retention_days }}" min="0">
+                    <label class="form-label" for="backupRetention">Aufbewahrung (Tage)</label>
+                    <input type="number" name="retention" id="backupRetention" class="form-control"
+                        value="{{ retention_days }}" min="0">
                     <div class="form-text">0 = Nie löschen</div>
                 </div>
 
@@ -272,11 +275,11 @@
     </div>
 
     <!-- Restore Modal -->
-    <div class="modal fade" id="restoreModal" tabindex="-1">
+    <div class="modal fade" id="restoreModal" tabindex="-1" aria-labelledby="restoreModalTitle" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header border-danger">
-                    <h5 class="modal-title text-danger">⚠️ System Wiederherstellen</h5>
+                    <h5 class="modal-title text-danger" id="restoreModalTitle">⚠️ System Wiederherstellen</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <form action="{{ ingress_path }}{{ url_for('main.restore_backup') }}" method="POST"

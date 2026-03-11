@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% block title %}Personal{% endblock %}
 
 {% block content %}
 <div class="container-fluid mt-4">
@@ -35,8 +36,9 @@
                             </ul>
                         </div>
                         <div style="max-width: 200px;">
+                            <label for="searchAzubi" class="visually-hidden">Azubi suchen</label>
                             <input type="text" id="searchAzubi" class="form-control form-control-sm"
-                                placeholder="Suchen...">
+                                placeholder="Suchen..." aria-label="Azubi suchen">
                         </div>
                     </div>
                 </div>
@@ -47,12 +49,15 @@
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                         <div class="row g-2 align-items-center">
                             <div class="col-12 col-md-7">
-                                <input type="text" name="name" class="form-control form-control-sm" placeholder="Name"
-                                    required>
+                                <label for="azubiNameInput" class="visually-hidden">Name</label>
+                                <input type="text" name="name" id="azubiNameInput" class="form-control form-control-sm"
+                                    placeholder="Name" required>
                             </div>
                             <div class="col-6 col-md-3">
-                                <input type="number" name="lehrjahr" class="form-control form-control-sm"
-                                    placeholder="LJ" min="1" max="4" value="1" required>
+                                <label for="azubiLehrjahrInput" class="visually-hidden">Lehrjahr</label>
+                                <input type="number" name="lehrjahr" id="azubiLehrjahrInput"
+                                    class="form-control form-control-sm" placeholder="LJ" min="1" max="4" value="1"
+                                    required>
                             </div>
                             <div class="col-6 col-md-2 text-end">
                                 <button class="btn btn-primary btn-sm w-100" type="submit">
@@ -128,11 +133,12 @@
 
                                 <!-- Edit Azubi Modal -->
                                 <div class="modal fade" id="editAzubiModal{{ azubi.id }}" tabindex="-1"
-                                    aria-hidden="true">
+                                    aria-labelledby="editAzubiModalTitle{{ azubi.id }}" aria-hidden="true">
                                     <div class="modal-dialog modal-sm">
                                         <div class="modal-content">
                                             <div class="modal-header">
-                                                <h6 class="modal-title fw-bold">Azubi bearbeiten</h6>
+                                                <h6 class="modal-title fw-bold" id="editAzubiModalTitle{{ azubi.id }}">
+                                                    Azubi bearbeiten</h6>
                                                 <button type="button" class="btn-close"
                                                     data-bs-dismiss="modal"></button>
                                             </div>

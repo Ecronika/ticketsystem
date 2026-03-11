@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% block title %}Historie{% endblock %}
 
 {% block content %}
 <div class="row mb-4 align-items-center">
@@ -10,15 +11,14 @@
         <form method="GET" action="{{ ingress_path }}{{ url_for('main.history') }}"
             class="d-flex align-items-center gap-2">
             <label for="azubiFilter" class="form-label mb-0 text-nowrap">Filter:</label>
-            <select class="form-select form-select-sm" name="azubi_id" id="azubiFilter" onchange="this.form.submit()"
-                style="max-width: 200px;">
+            <select class="form-select form-select-sm" name="azubi_id" id="azubiFilter" style="max-width: 200px;">
                 <option value="all">Alle Azubis anzeigen</option>
                 {% for azubi in azubis %}
-                <option value="{{ azubi.id }}" {{ 'selected' if selected_azubi_id==azubi.id else '' }}>{{ azubi.name
-                    }}
+                <option value="{{ azubi.id }}" {{ 'selected' if selected_azubi_id==azubi.id else '' }}>{{ azubi.name }}
                 </option>
                 {% endfor %}
             </select>
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Filtern</button>
         </form>
     </div>
 </div>

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% block title %}Werkzeuge{% endblock %}
 
 {% block content %}
 <div class="container-fluid mt-4">
@@ -12,8 +13,9 @@
                         <p class="small mb-0">Inventarliste und technische Daten.</p>
                     </div>
                     <div style="max-width: 200px;">
+                        <label for="searchWerkzeug" class="visually-hidden">Werkzeug suchen</label>
                         <input type="text" id="searchWerkzeug" class="form-control form-control-sm"
-                            placeholder="Suchen..." value="{{ search_query }}">
+                            placeholder="Suchen..." value="{{ search_query }}" aria-label="Werkzeug suchen">
                     </div>
                 </div>
 
@@ -23,12 +25,13 @@
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                         <div class="row g-2 align-items-end">
                             <div class="col-12 col-md-3">
-                                <label class="form-label small">Bezeichnung</label>
-                                <input type="text" name="name" class="form-control form-control-sm" required>
+                                <label for="addWerkzeugName" class="form-label small">Bezeichnung</label>
+                                <input type="text" name="name" id="addWerkzeugName" class="form-control form-control-sm"
+                                    required>
                             </div>
                             <div class="col-12 col-md-2">
-                                <label class="form-label small">VDE Kategorie</label>
-                                <select name="material_category" class="form-select form-select-sm">
+                                <label for="addWerkzeugCat" class="form-label small">VDE Kategorie</label>
+                                <select name="material_category" id="addWerkzeugCat" class="form-select form-select-sm">
                                     <option value="standard">Standard</option>
                                     <option value="teilisoliert">Teilisoliert</option>
                                     <option value="vollisoliert">Vollisoliert (1000V)</option>
@@ -36,13 +39,14 @@
                                 </select>
                             </div>
                             <div class="col-12 col-md-3">
-                                <label class="form-label small">Tech. Daten</label>
-                                <input type="text" name="tech_param_label" class="form-control form-control-sm">
+                                <label for="addWerkzeugTech" class="form-label small">Tech. Daten</label>
+                                <input type="text" name="tech_param_label" id="addWerkzeugTech"
+                                    class="form-control form-control-sm">
                             </div>
                             <div class="col-12 col-md-2">
-                                <label class="form-label small">Preis (€)</label>
-                                <input type="text" inputmode="decimal" name="price" class="form-control form-control-sm"
-                                    placeholder="0.00">
+                                <label for="addWerkzeugPrice" class="form-label small">Preis (€)</label>
+                                <input type="text" inputmode="decimal" name="price" id="addWerkzeugPrice"
+                                    class="form-control form-control-sm" placeholder="0.00">
                             </div>
                             <div class="col-12 col-md-2 text-end">
                                 <button class="btn btn-primary btn-sm w-100" type="submit">
@@ -149,11 +153,12 @@
                     {% endif %}
 
                     <!-- Single Dynamic Edit Modal for ALL Werkzeuge -->
-                    <div class="modal fade" id="editWerkzeugModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal fade" id="editWerkzeugModal" tabindex="-1"
+                        aria-labelledby="editWerkzeugModalTitle" aria-hidden="true">
                         <div class="modal-dialog">
                             <div class="modal-content text-start">
                                 <div class="modal-header">
-                                    <h5 class="modal-title">Werkzeug bearbeiten</h5>
+                                    <h5 class="modal-title" id="editWerkzeugModalTitle">Werkzeug bearbeiten</h5>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal"
                                         aria-label="Close"></button>
                                 </div>

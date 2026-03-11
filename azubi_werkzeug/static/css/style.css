@@ -68,6 +68,7 @@ small,
     --text-main: #212529;
     --text-muted: #5c636a;
     --border-color: #dee2e6;
+    --input-border: #767676;
     --focus-ring: 3px solid #0d6efd;
     --btn-transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
     --btn-soft-bg: #eef4ff;
@@ -119,6 +120,7 @@ small,
     --text-main: #e0e0e0;
     --text-muted: #b5bcc7;
     --border-color: #333;
+    --input-border: #888888;
     --focus-ring: 3px solid #3b82f6;
     --btn-soft-bg: rgb(135 206 235 / 15%);
     --btn-soft-color: #87ceeb;
@@ -234,6 +236,14 @@ small,
     color: #000;
 }
 
+/* Fix missing focus ring for hidden radio buttons (WCAG 2.2) */
+.btn-check:focus-visible+.btn {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    /* Bootstrap Default Focus */
+    border-color: var(--color-primary);
+    z-index: 1;
+}
+
 /* --- Theme Application (Global Setup) --- */
 
 /* Custom Text Utilities to enforce Theme Colors */
@@ -333,7 +343,7 @@ small,
 .form-select {
     background-color: var(--bg-surface);
     color: var(--text-main);
-    border-color: var(--border-color);
+    border-color: var(--input-border, var(--border-color));
 }
 
 .form-control::placeholder {
