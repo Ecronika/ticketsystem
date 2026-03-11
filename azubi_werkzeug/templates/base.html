@@ -106,7 +106,7 @@
   <main id="main-content" class="container-fluid px-4 py-4">
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-    <div class="position-fixed top-0 end-0 p-3" style="z-index: 1050" aria-live="polite" aria-atomic="true">
+    <div class="position-fixed top-0 end-0 p-3 z-toast" aria-live="polite" aria-atomic="true">
       {% for category, message in messages %}
       <div
         class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show shadow auto-dismiss-alert"

@@ -95,6 +95,21 @@ small,
     --bg-info-subtle: #cff4fc;
     --border-info-subtle: #93c5fd;
     --focus-shadow: 0 0 0 0.25rem rgb(13 110 253 / 25%);
+
+    /* Radius-Skala */
+    --radius-sm: 0.375rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-pill: 9999px;
+
+    /* Layer z-index */
+    --z-toast: 1050;
+    --z-modal: 1055;
+
+    /* Max-Heights für Scroll-Container */
+    --h-exchange-list: 250px;
+    --h-logo-preview: 150px;
+    --h-qr-selector: 200px;
 }
 
 /* Dark Mode (Ergonomisch, kein reines Schwarz) */
@@ -422,7 +437,7 @@ textarea:focus-visible {
 }
 
 /* High Contrast Mode Overrides */
-[data-theme="hc"] .custom-reason-group .btn-check:checked+#globalReasonDefektLabel {
+[data-theme="hc"] .custom-reason-group .btn-check:checked+.reason-label-defekt {
     background-color: #000 !important;
     color: #0ff !important;
     border: 2px solid #0ff !important;
@@ -472,7 +487,7 @@ textarea:focus-visible {
     display: inline-flex;
     align-items: center;
     border: 1px solid transparent;
-    border-radius: 0.375rem;
+    border-radius: var(--radius-sm, 0.375rem);
     padding: 0.25em 0.5em;
     font-size: 0.75em;
     font-weight: 600;
@@ -563,6 +578,23 @@ textarea:focus-visible {
     font-family: var(--font-mono);
     font-size: 0.75rem;
     color: var(--text-muted);
+}
+
+/* Pulsierendes Grün nach AJAX-Insert (Theme-kompatibel) */
+.row-insert-flash {
+    background-color: var(--bg-success-subtle) !important;
+    transition: background-color 1s ease;
+}
+
+/* Scanner QR Viewport */
+.scanner-viewport {
+    width: 100%;
+    min-height: 300px;
+    border: 2px dashed var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg-surface);
 }
 
 /* --- Form & Touch Ergonomics (WCAG 2.5.5, 44px min) --- */

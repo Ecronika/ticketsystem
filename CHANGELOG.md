@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.6] - 2026-03-11
+
+### ✨ Design-System & Code-Wartbarkeit (Pt. 2)
+- **CSS-Tokens:** Erweiterung der CSS-Tokens (`--radius`, `--z-modal`, `--h-exchange-list`, etc.).
+- **Redundanzen reduziert:** Zusammenführung von 5 `.badge-subtle-*` Klassen in eine Basis-Klasse `.badge-subtle` mit ca. 25 Zeilen Ersparnis.
+- **Wartbarkeit CSS/JS:** Ersetzung hartkodierter Farben in JS nach AJAX-Inserts durch die neue CSS-Klasse `.row-insert-flash`.
+- **Inline-Styles:** Vollständige Bereinigung weiterer 16 Inline-Styles in Templates (z. B. `.scanner-viewport` in `scanner.html`, `.h-logo-preview` in `settings.html`).
+
 ## [2.11.5] - 2026-03-11
 
 ### ✨ Design-System & Code-Wartbarkeit

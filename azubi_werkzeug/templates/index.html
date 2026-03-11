@@ -141,7 +141,7 @@
     {% else %}
     <div class="col-12 text-center py-5">
         <div class="text-secondary mb-3 opacity-25">
-            <i class="bi bi-tools" style="font-size: 5rem;"></i>
+            <i class="bi bi-tools display-1"></i>
         </div>
         <h4 class="text-muted fw-bold">Noch keine Azubis angelegt.</h4>
         <p class="text-secondary">Starten Sie, indem Sie Ihren ersten Azubi hinzufügen.</p>
@@ -200,15 +200,14 @@
                     <div class="mb-4">
                         <label class="form-label fw-bold">2. Auszuwählende Werkzeuge (Mehrfachauswahl möglich)</label>
                         <!-- Container for dynamic checklist -->
-                        <div id="exchangeToolsList" class="rounded-3 p-1 overflow-auto custom-scrollbar"
-                            style="max-height: 250px; border: 1px solid var(--bs-border-color-translucent);">
+                        <div id="exchangeToolsList" class="rounded-3 p-1 overflow-auto custom-scrollbar border"
+                            style="max-height: var(--h-exchange-list); border-color: var(--bs-border-color-translucent) !important;">
                             <div class="text-center text-muted p-3">Lade Werkzeuge...</div>
                         </div>
                     </div>
 
                     <div class="mb-4 text-center p-3 rounded-3 bg-body-tertiary border">
-                        <span class="text-muted text-uppercase fw-bold"
-                            style="letter-spacing: 1px; font-size: 0.875rem;">Gesamtwert</span>
+                        <span class="text-muted text-uppercase fw-bold text-meta tracking-wide">Gesamtwert</span>
                         <h2 class="display-5 fw-bolder mb-0 mt-1 text-body-emphasis" id="exchangeTotalPriceDisplay">0,00
                             €</h2>
                     </div>

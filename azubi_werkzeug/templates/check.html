@@ -31,8 +31,7 @@
             <input type="hidden" name="signature_examiner_data" id="sigExaminerData">
 
             <!-- Validation Error Alert -->
-            <div id="validationError" class="alert alert-danger shadow-sm mb-4 fw-bold" style="display: none;"
-                role="alert">
+            <div id="validationError" class="alert alert-danger shadow-sm mb-4 fw-bold d-none" role="alert">
                 <i class="bi bi-exclamation-triangle-fill me-2"></i> <span id="errorText"></span>
             </div>
 
@@ -249,7 +248,7 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold small text-uppercase">Azubi: {{ azubi.name }}</label>
-                            <div class="border rounded bg-light" style="height: 150px; position: relative;">
+                            <div class="border rounded bg-light" style="min-height: 150px; position: relative;">
                                 <canvas id="canvasAzubi" aria-label="Unterschrift Azubi" role="img" tabindex="0"
                                     style="width: 100%; height: 100%; touch-action: none;"></canvas>
                             </div>
@@ -260,7 +259,7 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold small text-uppercase">Prüfer / Ausbilder</label>
-                            <div class="border rounded bg-light" style="height: 150px; position: relative;">
+                            <div class="border rounded bg-light" style="min-height: 150px; position: relative;">
                                 <canvas id="canvasExaminer" aria-label="Unterschrift Ausbilder" role="img" tabindex="0"
                                     style="width: 100%; height: 100%; touch-action: none;"></canvas>
                             </div>
@@ -294,7 +293,7 @@
     </div>
 </div>
 <!-- Spacer for sticky footer -->
-<div style="height: 80px;"></div>
+<div class="py-5"></div>
 
 </form>
 </div>

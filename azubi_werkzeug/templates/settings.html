@@ -11,8 +11,8 @@
         <div class="card-body">
             {% if logo_exists %}
             <p class="mb-3">Aktuelles Logo (max. 2MB, PNG/JPG):</p>
-            <img src="{{ ingress_path }}{{ url_for('main.serve_logo') }}?v={{ logo_version }}" style="max-height: 150px"
-                class="img-thumbnail mb-3" alt="Aktuelles Logo"
+            <img src="{{ ingress_path }}{{ url_for('main.serve_logo') }}?v={{ logo_version }}"
+                style="max-height: var(--h-logo-preview);" class="img-thumbnail mb-3" alt="Aktuelles Logo"
                 onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
             {% endif %}
 
@@ -70,7 +70,7 @@
                         </label>
                     </div>
                     {% if all_azubis %}
-                    <div class="row g-2" style="max-height: 200px; overflow-y: auto;">
+                    <div class="row g-2" style="max-height: var(--h-qr-selector); overflow-y: auto;">
                         {% for azubi in all_azubis %}
                         <div class="col-md-4 col-sm-6">
                             <div class="form-check">

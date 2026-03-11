@@ -361,11 +361,8 @@
                             button.innerHTML = '<i class="bi bi-plus-lg"></i> Hinzufügen';
 
                             // Show success visually
-                            newRow.style.backgroundColor = '#d1e7dd';
-                            setTimeout(() => {
-                                newRow.style.transition = 'background-color 1s';
-                                newRow.style.backgroundColor = '';
-                            }, 500);
+                            newRow.classList.add('row-insert-flash');
+                            setTimeout(() => newRow.classList.remove('row-insert-flash'), 1200);
                         } else {
                             alert('Fehler: ' + JSON.stringify(data.errors || data.error));
                             button.disabled = false;
@@ -433,11 +430,8 @@
                             button.disabled = false;
                             button.innerHTML = '<i class="bi bi-plus-lg"></i> Add';
 
-                            newRow.style.backgroundColor = '#d1e7dd';
-                            setTimeout(() => {
-                                newRow.style.transition = 'background-color 1s';
-                                newRow.style.backgroundColor = '';
-                            }, 500);
+                            newRow.classList.add('row-insert-flash');
+                            setTimeout(() => newRow.classList.remove('row-insert-flash'), 1200);
                         } else {
                             alert('Fehler: ' + JSON.stringify(data.errors || data.error));
                             button.disabled = false;
