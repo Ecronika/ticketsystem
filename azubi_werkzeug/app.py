@@ -18,7 +18,7 @@ from datetime import timedelta
 from logging.handlers import QueueHandler, QueueListener, RotatingFileHandler
 
 from flask import (
-    Flask, flash, redirect, render_template, request, url_for
+    Flask, flash, redirect, render_template, request, url_for, jsonify
 )
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
@@ -387,6 +387,15 @@ def request_entity_too_large(e):
     return redirect(url_for('main.index'))
 
 
+@app.errorhandler(400)
+def bad_request(e):
+    """Handle 400 Bad Request error (like CSRF failures)."""
+    # pylint: disable=unused-argument
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'error': e.description or 'Bad Request'}), 400
+    return render_template('400.html', error=e.description), 400
+
+
 @app.errorhandler(NotFound)
 def page_not_found(e):
     """Handle 404 Not Found error."""
@@ -398,6 +407,13 @@ def page_not_found(e):
 def handle_exception(e):
     """Handle standard exceptions."""
     # pylint: disable=unused-argument
+    
+    # Pass through HTTP errors (like 400 Bad Request, 405 Method Not Allowed)
+    # instead of turning them into 500 errors.
+    from werkzeug.exceptions import HTTPException
+    if isinstance(e, HTTPException):
+        return e
+
     app.logger.error("Unhandled Exception: %s", e, exc_info=True)
     return render_template('500.html'), 500
 

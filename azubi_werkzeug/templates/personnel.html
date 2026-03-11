@@ -299,7 +299,11 @@
 
                 fetch('{{ ingress_path }}{{ url_for("main.api_add_azubi") }}', {
                     method: 'POST',
-                    body: formData
+                    credentials: 'same-origin',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': formData.get('csrf_token') // Fallback explicitly for CSRF
+                    }
                 })
                     .then(response => response.json())
                     .then(data => {
@@ -390,7 +394,11 @@
 
                 fetch('{{ ingress_path }}{{ url_for("main.api_add_examiner") }}', {
                     method: 'POST',
-                    body: formData
+                    credentials: 'same-origin',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': formData.get('csrf_token') // Fallback explicitly for CSRF
+                    }
                 })
                     .then(response => response.json())
                     .then(data => {

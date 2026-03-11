@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.7] - 2026-03-11
+
+### 🐛 Bug Fixes
+- **Personal-API (Fetch):** Ein Bug wurde behoben, bei dem das Hinzufügen von Azubis oder Prüfern aufgrund fehlender Session/CSRF-Cookies im AJAX-Request serverseitig mit einem HTML-Fehler (500) quittiert wurde (`SyntaxError: Unexpected token '<'`).
+- **Error Handling:** Der globale Exception-Handler in `app.py` fängt keine HTTP-Exceptions (wie 400 Bad Request) mehr blind ab, wodurch API-Routen nun korrekte JSON-Fehlermeldungen statt generischer HTML-Seiten ausliefern.
+
 ## [2.11.6] - 2026-03-11
 
 ### ✨ Design-System & Code-Wartbarkeit (Pt. 2)
