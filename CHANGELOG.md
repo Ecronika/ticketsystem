@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.9] - 2026-03-11
+
+### ♿ Accessibility (WCAG 2.2 AA)
+- **Modals:** Aria-Labels (`aria-labelledby`) zu allen Modals hinzugefügt (Hinzufügen, Bearbeiten, Settings, Exchange).
+- **Formulare:** Fehlende `<label>` `for`-Verbindungen und `id`s in `check.html` und Einstellungsansichten ergänzt.
+- **Placeholder-Labels:** Aria- und visually-hidden Labels bei reinen Placeholder-Inputs (`personnel.html`, `tools.html`) eingefügt, um Screenreadern Kontext zu bieten.
+- **Tastaturfokus:** Sichtbaren Fokus (`:focus-visible`) für `.btn-check` Gruppen in `style.css` aktiviert.
+- **Navigation:** Dem Navbar-Toggler `aria-expanded` und `aria-label` für mobile Screenreader zugewiesen.
+- **Semantik:** `<button>` Status-Badges im Dashboard auf semantisch korrekte `<span>` Elemente umgestellt.
+- **Suchfelder:** `aria-label` an globale Table-Search-Inputs angehängt.
+- **Fokus-Wechsel (Reloading):** Das direkte Form-Submit-Verhalten (`onchange="this.form.submit()"`) des Historien-Filters durch einen expliziten Filter-Button ersetzt.
+- **Kontraste:** Den Input-Border-Kontrast in Light/Dark Themes (`--input-border`) auf ein WCAG-konformes Verhältnis (3:1) verstärkt.
+- **Seiten-Titel:** Einen dynamischen Jinja-Block eingefügt, um für alle Unterseiten spezifische `<title>`-Ausgaben zu ermöglichen.
+
 ## [2.11.8] - 2026-03-11
 
 ### 🐛 Bug Fixes
