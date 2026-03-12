@@ -169,6 +169,9 @@ def submit_check():
     tool_ids, error = _validate_check_submission(request.form)
     if error:
         flash(error[0], error[1])
+        # UX Fix: Redirect back to the check page if validation fails to keep context
+        if azubi_id:
+            return redirect(f"{ingress}{url_for('main.check_azubi', azubi_id=azubi_id)}")
         return redirect(f"{ingress}{url_for('main.index')}")
 
     try:
