@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.5] - 2026-03-13
+### Added
+- Timezone Localization: All timestamps in history, dashboard, and PDF reports are now localized to `Europe/Berlin`.
+- Signature Feedback: Improved form validation feedback if a signature is missing, including auto-scroll to the error message.
+
+### Fixed
+- Security: Closed CSRF validation gaps in AJAX API endpoints (`/api/werkzeug`, etc.).
+- Stability: Fixed unhandled `ValueError` exceptions by implementing safe integer casting (prevents 500 errors on manipulated requests).
+- DevOps: Corrected `rollback.py` target path logic to respect `DATA_DIR`, ensuring correct restoration in Docker/Home Assistant environments.
+- Bugfix: Resolved `NameError` for `timezone` in `app.py`.
+
 ## [2.12.4] - 2026-03-12
 ### Added
 - Error Template: New `400.html` and specific handling for session timeouts (CSRF) to prevent server crashes.
