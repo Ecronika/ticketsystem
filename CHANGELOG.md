@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.0] - 2026-03-12
+
+### ♿ Accessibility & Shopfloor UX (WCAG 2.2 AA Audit)
+- **Touch Targets (WCAG 2.5.5/2.5.8):** Sämtliche interaktiven Elemente (Buttons, Links, Checkboxen) auf eine Mindestgröße von **44x44 Pixeln** optimiert. Besonders kritische Bereiche wie "Löschen"-Buttons, Filter und Download-Links wurden vergrößert.
+- **Sichtbare Informationen (WCAG 1.4.13):** Native `title`-Tooltips, die auf Touch-Geräten nicht zugänglich sind, durch **Inline-Texte** ersetzt (z. B. Dashboard-Badges für fehlende/defekte Werkzeuge).
+- **Fehlerkommunikation (WCAG 3.3.1/4.1.3):** Native `alert()`-Aufrufe durch **globale Bootstrap Toasts** (`showUiAlert`) ersetzt. Diese sind nicht-blockierend und für Screenreader via `aria-live` wahrnehmbar.
+- **Aria-Labels & Semantik:** Alle dekorativen Icons mit `aria-hidden="true"` versehen. Form-Fehlermeldungen in `check.html` nutzen nun `aria-live="assertive"` für sofortiges Feedback.
+- **Design-System & Visuelle Ruhe:**
+    - Einführung von `.form-section-card` zur besseren Trennung von Eingabebereichen und Listen.
+    - **Kontrast (WCAG 1.4.3):** Kritische Status-Badges ("Überfällig") auf `.badge-solid-danger` umgestellt für bessere Lesbarkeit in hellen Werkstattumgebungen.
+    - **Empty States:** Tabellen ohne Einträge erhielten freundlichere Platzhalter mit klaren Handlungsaufforderungen.
+- **Scanner & Login:** Barrierefreiheit der Login-Maske und des QR-Scanners durch ARIA-Attribute und optimierte Button-Abstände verbessert.
+
 ## [2.11.9] - 2026-03-11
 
 ### ♿ Accessibility (WCAG 2.2 AA)

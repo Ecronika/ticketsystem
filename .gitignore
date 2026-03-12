@@ -58,3 +58,10 @@ azubi_werkzeug_beta/backups/*
 !azubi_werkzeug_beta/backups/.gitkeep
 
 azubi_werkzeug_beta/secret.key
+
+# Node / Tools
+node_modules/
+analyze_css.js
+analyze_css_full.js
+audit_results.json
+accessibility_audit_*.md

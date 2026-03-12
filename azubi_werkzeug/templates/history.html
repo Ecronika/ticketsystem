@@ -18,14 +18,14 @@
                 </option>
                 {% endfor %}
             </select>
-            <button type="submit" class="btn btn-sm btn-outline-secondary">Filtern</button>
+            <button type="submit" class="btn btn-outline-secondary">Filtern</button>
         </form>
     </div>
 </div>
 
 {% if pagination is defined and pagination and pagination.total > 0 %}
 <div class="alert alert-secondary py-2 small mb-3 border-0 bg-secondary-subtle">
-    <i class="bi bi-list-ol me-1"></i>
+    <i class="bi bi-list-ol me-1" aria-hidden="true"></i>
     Anzeige Prüfungen <strong>{{ pagination.first }}</strong> bis <strong>{{ pagination.last }}</strong>
     von insgesamt <strong>{{ pagination.total }}</strong>.
 </div>
@@ -42,11 +42,11 @@
                     <!-- Status Icon for the Session -->
                     {% if check_session.is_ok %}
                     <div class="rounded-circle bg-theme-success-subtle icon-box-lg mx-auto">
-                        <i class="bi bi-check-lg text-theme-success fs-4"></i>
+                        <i class="bi bi-check-lg text-theme-success fs-4" aria-hidden="true"></i>
                     </div>
                     {% else %}
                     <div class="rounded-circle bg-theme-warning-subtle icon-box-lg mx-auto">
-                        <i class="bi bi-exclamation-lg text-theme-warning fs-4"></i>
+                        <i class="bi bi-exclamation-lg text-theme-warning fs-4" aria-hidden="true"></i>
                     </div>
                     {% endif %}
                 </div>
@@ -69,12 +69,12 @@
                 <div class="text-theme-warning fw-bolder tracking-tight fs-check-status">
                     AUFFÄLLIGKEITEN</div>
                 {% endif %}
-                <i class="bi bi-chevron-right text-muted opacity-50"></i>
+                <i class="bi bi-chevron-right text-muted opacity-50" aria-hidden="true"></i>
             </div>
         </a>
         {% else %}
         <div class="text-center py-5">
-            <i class="bi bi-inbox text-muted display-4"></i>
+            <i class="bi bi-inbox text-muted display-4" aria-hidden="true"></i>
             <p class="mt-3 text-muted">Keine Einträge in der Historie.</p>
         </div>
         {% endfor %}
@@ -87,7 +87,7 @@
 <div class="text-center mt-4 mb-3">
     <button id="loadMoreBtn" class="btn btn-outline-secondary rounded-pill px-4"
         data-next-page="{{ pagination.next_num }}">
-        Weitere laden <i class="bi bi-arrow-down-short"></i>
+        Weitere laden <i class="bi bi-arrow-down-short" aria-hidden="true"></i>
     </button>
 </div>
 {% endif %}
@@ -168,22 +168,5 @@
             });
         }
     });
-
-    function showUiAlert(msg) {
-        let container = document.querySelector('.position-fixed.top-0.end-0.p-3');
-        if (!container) {
-            container = document.createElement('div');
-            container.className = 'position-fixed top-0 end-0 p-3';
-            container.style.zIndex = '1050';
-            document.body.appendChild(container);
-        }
-        const alertHtml = `
-            <div class="alert alert-danger alert-dismissible fade show shadow" role="alert">
-                ${msg}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        `;
-        container.insertAdjacentHTML('beforeend', alertHtml);
-    }
 </script>
 {% endblock %}
