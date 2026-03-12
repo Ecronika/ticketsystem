@@ -8,6 +8,7 @@ session details, and session deletion.
 import os
 import time
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from flask import (
     render_template, request, redirect, url_for,
@@ -339,9 +340,12 @@ def api_history():
 
         for session_item in sessions:
             dt = session_item['datum']
-            session_item['datum_formatted'] = dt.strftime('%d.%m.%Y')
-            session_item['time_formatted'] = dt.strftime('%H:%M')
-            session_item['datum'] = dt.isoformat()  # JSON serialization
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            dt_local = dt.astimezone(ZoneInfo('Europe/Berlin'))
+            session_item['datum_formatted'] = dt_local.strftime('%d.%m.%Y')
+            session_item['time_formatted'] = dt_local.strftime('%H:%M')
+            session_item['datum'] = dt_local.isoformat()  # JSON serialization
 
         return jsonify({
             'success': True,
@@ -403,10 +407,16 @@ def history_details(session_id):
     check_type = raw_type.value if hasattr(raw_type, 'value') else raw_type
     parsed_checks, global_bemerkung = _parse_session_checks(checks)
 
+    # Localize datum for template
+    dt = first_c.datum
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    dt_local = dt.astimezone(ZoneInfo('Europe/Berlin'))
+
     return render_template(
         'history_details.html',
         azubi=first_c.azubi,
-        datum=first_c.datum.strftime("%d. %b %Y %H:%M"),
+        datum=dt_local.strftime("%d. %b %Y %H:%M"),
         checks=parsed_checks,
         global_bemerkung=global_bemerkung,
         check_type=check_type,

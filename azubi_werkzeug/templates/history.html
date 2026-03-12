@@ -55,7 +55,7 @@
                     <h3 class="fw-bolder fs-4 mb-0 tracking-tight">{{
                         check_session.azubi_name }}</h3>
                     <div class="text-meta mt-1">
-                        {{ check_session.datum.strftime('%d.%m.%Y') }} &bull; {{ check_session.datum.strftime('%H:%M')
+                        {{ (check_session.datum | local_time).strftime('%d.%m.%Y') }} &bull; {{ (check_session.datum | local_time).strftime('%H:%M')
                         }} Uhr
                     </div>
                 </div>

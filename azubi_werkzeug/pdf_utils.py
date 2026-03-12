@@ -9,6 +9,7 @@ Handles creation of:
 import os
 import tempfile
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 import qrcode
 from fpdf import FPDF
 from flask import current_app
@@ -233,7 +234,8 @@ def generate_handover_pdf(
     pdf.set_font('Arial', 'B', 10)
     pdf.cell(20, h, "Datum:", 0, 0)
     pdf.set_font('Arial', '', 10)
-    pdf.cell(40, h, datetime.now(timezone.utc).strftime('%d.%m.%Y %H:%M'), 0, 0)
+    now = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Berlin'))
+    pdf.cell(40, h, now.strftime('%d.%m.%Y %H:%M'), 0, 0)
     pdf.set_font('Arial', 'B', 10)
     pdf.cell(15, h, "Azubi:", 0, 0)
     pdf.set_font('Arial', '', 10)
@@ -466,7 +468,8 @@ def _render_eot_header(pdf, azubi):
     pdf.set_font('Arial', 'B', 10)
     pdf.cell(20, h, "Datum:", 0, 0)
     pdf.set_font('Arial', '', 10)
-    pdf.cell(40, h, datetime.now(timezone.utc).strftime('%d.%m.%Y'), 0, 0)
+    now = datetime.now(timezone.utc).astimezone(ZoneInfo('Europe/Berlin'))
+    pdf.cell(40, h, now.strftime('%d.%m.%Y'), 0, 0)
 
     pdf.set_font('Arial', 'B', 10)
     pdf.cell(15, h, "Azubi:", 0, 0)

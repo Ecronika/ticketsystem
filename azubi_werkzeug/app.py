@@ -368,6 +368,18 @@ def setup_database():
             app.logger.error("Failed to seed default settings: %s", e)
 
 
+# --- Jinja Filters ---
+from zoneinfo import ZoneInfo
+@app.template_filter('local_time')
+def local_time_filter(dt):
+    """Localize UTC datetime to Europe/Berlin."""
+    if not dt:
+        return ""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(ZoneInfo('Europe/Berlin'))
+
+
 # --- Global Error Handlers ---
 @app.errorhandler(413)  # Payload Too Large
 def request_entity_too_large(e):

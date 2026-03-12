@@ -82,9 +82,11 @@ class Azubi(db.Model):
             return (
                 "Prüfung fällig (< 4 Wochen)", "warning",
                 f"Vor {days_since} Tagen", 2)
+        from zoneinfo import ZoneInfo
+        last_datum_local = last_datum.astimezone(ZoneInfo('Europe/Berlin'))
         return (
             "Geprüft", "success",
-            last_datum.strftime("%d. %b %Y"), 3)
+            last_datum_local.strftime("%d. %b %Y"), 3)
 
     def __repr__(self):
         """Return string representation."""
