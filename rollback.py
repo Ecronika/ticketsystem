@@ -8,7 +8,8 @@ import os
 import zipfile
 import sys
 
-BACKUP_DIR = 'backups'
+DATA_DIR = os.environ.get('DATA_DIR', 'azubi_werkzeug')
+BACKUP_DIR = os.path.join(DATA_DIR, 'backups')
 
 
 def rollback(backup_filename):
@@ -38,7 +39,7 @@ def rollback(backup_filename):
                 return False
 
             # Secure Extraction (Zip Slip Protection)
-            target_dir = os.path.abspath('.')
+            target_dir = os.path.abspath(DATA_DIR)
             for member in zipf.namelist():
                 dest_path = os.path.join(target_dir, member)
                 # Ensure the path is within the target directory by checking

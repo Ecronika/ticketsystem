@@ -114,7 +114,6 @@ def register_routes(bp):
 
     @bp.route('/api/werkzeug', methods=['POST'])
     @admin_required
-    @csrf.exempt
     def api_add_werkzeug():
         """AJAX endpoint for adding werkzeug."""
         try:
@@ -169,7 +168,6 @@ def register_routes(bp):
 
     @bp.route('/api/azubi', methods=['POST'])
     @admin_required
-    @csrf.exempt
     def api_add_azubi():
         """AJAX endpoint for adding azubi."""
         try:
@@ -213,7 +211,6 @@ def register_routes(bp):
 
     @bp.route('/api/examiner', methods=['POST'])
     @admin_required
-    @csrf.exempt
     def api_add_examiner():
         """AJAX endpoint for adding examiner."""
         try:

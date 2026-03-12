@@ -182,8 +182,14 @@ def submit_check():
             if err:
                 return err
 
+        try:
+            safe_azubi_id = int(azubi_id)
+        except (TypeError, ValueError):
+            flash('Ungültige Azubi ID.', 'error')
+            return redirect(f"{ingress}{url_for('main.index')}")
+
         result = CheckService.process_check_submission(
-            azubi_id=int(azubi_id),
+            azubi_id=safe_azubi_id,
             examiner_name=examiner,
             tool_ids=tool_ids,
             form_data=request.form,
@@ -233,8 +239,14 @@ def exchange_tool():
             flash('Fehler: Keine Werkzeuge ausgewählt.', 'error')
             return redirect(f"{ingress}{url_for('main.index')}")
 
+        try:
+            safe_azubi_id = int(azubi_id)
+        except (TypeError, ValueError):
+            flash('Ungültige Azubi ID.', 'error')
+            return redirect(f"{ingress}{url_for('main.index')}")
+
         result = CheckService.process_tool_exchange_batch(
-            azubi_id=int(azubi_id),
+            azubi_id=safe_azubi_id,
             exchange_data=exchange_data,
             is_payable=is_payable,
             signature_data=signature_data
@@ -300,16 +312,20 @@ def history():
             f"(q:{query_duration:.3f}s, "
             f"g:{group_duration:.3f}s)")
 
+        safe_selected_id = None
+        if azubi_id and azubi_id != 'all':
+            try:
+                safe_selected_id = int(azubi_id)
+            except (ValueError, TypeError):
+                safe_selected_id = None
+
         return render_template(
             'history.html',
             sessions=sessions,
             azubis=azubis,
             pagination=pagination,
             total_count=pagination.total,
-            selected_azubi_id=(
-                int(azubi_id)
-                if azubi_id and azubi_id != 'all'
-                else None))
+            selected_azubi_id=safe_selected_id)
 
     except SQLAlchemyError as e:
         current_app.logger.error(
@@ -333,7 +349,10 @@ def api_history():
     try:
         query = Check.query.order_by(Check.datum.desc())
         if azubi_id and azubi_id != 'all':
-            query = query.filter_by(azubi_id=int(azubi_id))
+            try:
+                query = query.filter_by(azubi_id=int(azubi_id))
+            except (ValueError, TypeError):
+                pass
 
         pagination = query.options(joinedload(Check.azubi)).paginate(
             page=page, per_page=100, error_out=False
