@@ -329,7 +329,10 @@ def generate_qr_codes_pdf(azubis):
         qr.make(fit=True)
         img = qr.make_image(fill_color="black", back_color="white")
 
-        temp_qr_path = os.path.join(tempfile.gettempdir(), f"qr_az_{azubi.id}.png")
+        # FIX: Sichere, eindeutige temporäre Dateien erzeugen
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+            temp_qr_path = tmp.name
+        
         img.save(temp_qr_path)
 
         # QR Image Centered

@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.4] - 2026-03-12
+### Added
+- Error Template: New `400.html` and specific handling for session timeouts (CSRF) to prevent server crashes.
+- Migration Mode: Added ISO-date pre-filling for HTML5 date inputs (`current_date_iso`).
+
+### Fixed
+- CLI Rollback: Improved path validation in `rollback.py` to be backward-compatible with older archive structures.
+- Race Conditions: Stabilized QR code generation using `tempfile.NamedTemporaryFile` for thread-safe PDF creation.
+- Code Cleanup: Removed dead multi-worker guard code from `app.py`.
+
 ## [2.12.3] - 2026-03-12
 ### Added
 - Accessible Global Modals: Replacing synchronous logic with async Bootstrap modals using event delegation.

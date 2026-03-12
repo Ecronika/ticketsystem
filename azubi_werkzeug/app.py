@@ -187,15 +187,7 @@ db.init_app(app)
 csrf.init_app(app)
 limiter.init_app(app)
 
-# C-5: Multi-Worker Guard — in-memory cache is process-local, unsafe for > 1 worker
-_configured_workers = int(os.environ.get('GUNICORN_WORKERS', 1))
-if _configured_workers > 1:
-    app.logger.critical(
-        "FATAL: GUNICORN_WORKERS=%d detected. The in-memory tool-assignment cache "
-        "(_assigned_tools_cache) is process-local and will cause inventory "
-        "inconsistencies with multiple workers. Set GUNICORN_WORKERS=1 or "
-        "migrate to a shared cache (e.g. Redis).", _configured_workers
-    )
+
 
 if not scheduler.running:
     scheduler.init_app(app)
@@ -390,7 +382,6 @@ def request_entity_too_large(e):
 @app.errorhandler(400)
 def bad_request(e):
     """Handle 400 Bad Request error."""
-    # pylint: disable=unused-argument
     if request.path.startswith('/api/'):
         return jsonify({'success': False, 'error': e.description or 'Bad Request'}), 400
     return render_template('400.html', error=e.description), 400
@@ -402,7 +393,7 @@ def handle_csrf_error(e):
     app.logger.warning("CSRF Fehler: %s", e.description)
     if request.path.startswith('/api/'):
         return jsonify({'success': False, 'error': f'CSRF Fehler: {e.description}'}), 400
-    return render_template('400.html', error=e.description), 400
+    return render_template('400.html', error=f"Sitzung abgelaufen (CSRF): {e.description}."), 400
 
 
 @app.errorhandler(NotFound)

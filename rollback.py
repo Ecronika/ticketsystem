@@ -31,8 +31,9 @@ def rollback(backup_filename):
         with zipfile.ZipFile(backup_path, 'r') as zipf:
             # Basic validation
             file_list = zipf.namelist()
-            if 'azubi_werkzeug/werkzeug.db' not in file_list and \
-               'azubi_werkzeug/config.yaml' not in file_list:
+            # FIX: Abwärtskompatibel - Datei muss nur auf '.db' oder 'yaml' enden, egal in welchem Unterordner
+            if not any(f.endswith('werkzeug.db') for f in file_list) and \
+               not any(f.endswith('config.yaml') for f in file_list):
                 print("FAILED: Invalid backup: Missing core files (db or config).")
                 return False
 

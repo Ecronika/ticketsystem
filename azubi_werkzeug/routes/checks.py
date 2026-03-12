@@ -116,6 +116,7 @@ def check_azubi(azubi_id):
         werkzeuge=mapped_werkzeuge,
         examiners=examiners,
         current_date=current_date,
+        current_date_iso=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
         is_overdue=is_overdue,
         manufacturer_presets=manufacturer_presets)
 
