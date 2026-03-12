@@ -163,14 +163,14 @@
                                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                                                 <div class="modal-body">
                                                     <div class="mb-2">
-                                                        <label class="form-label small">Name</label>
+                                                        <label class="form-label small" for="editName{{ azubi.id }}">Name</label>
                                                         <input type="text" class="form-control form-control-sm"
-                                                            name="name" value="{{ azubi.name }}" required>
+                                                            id="editName{{ azubi.id }}" name="name" value="{{ azubi.name }}" required>
                                                     </div>
                                                     <div class="mb-2">
-                                                        <label class="form-label small">Lehrjahr</label>
+                                                        <label class="form-label small" for="editLJ{{ azubi.id }}">Lehrjahr</label>
                                                         <input type="number" class="form-control form-control-sm"
-                                                            name="lehrjahr" value="{{ azubi.lehrjahr }}" min="1" max="4"
+                                                            id="editLJ{{ azubi.id }}" name="lehrjahr" value="{{ azubi.lehrjahr }}" min="1" max="4"
                                                             required>
                                                     </div>
                                                 </div>

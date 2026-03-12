@@ -709,3 +709,11 @@ textarea:focus-visible {
         scroll-behavior: auto !important;
     }
 }
+/* --- WCAG 2.5.5: Touch Target Size (Pagination) --- */
+.pagination .page-link {
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

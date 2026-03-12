@@ -133,13 +133,14 @@
                     <div class="col-md-4">
                         <label class="form-label" for="newPinInput">Neuer PIN</label>
                         <input type="password" name="new_pin" id="newPinInput" class="form-control" pattern="[0-9]*"
-                            inputmode="numeric" minlength="4" maxlength="10" placeholder="4-10 Ziffern" required>
+                            inputmode="numeric" minlength="4" maxlength="10" placeholder="4-10 Ziffern" required
+                            autocomplete="new-password">
                     </div>
                     <div class="col-md-4">
                         <label class="form-label" for="confirmPinInput">Bestätigung</label>
                         <input type="password" name="confirm_pin" id="confirmPinInput" class="form-control"
                             pattern="[0-9]*" inputmode="numeric" minlength="4" maxlength="10" placeholder="Wiederholung"
-                            required>
+                            required autocomplete="new-password">
                     </div>
                     <div class="col-md-4">
                         <button type="submit" class="btn btn-danger w-100 py-2" style="min-height: 44px">

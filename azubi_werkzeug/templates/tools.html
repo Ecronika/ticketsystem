@@ -180,12 +180,12 @@
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                                     <div class="modal-body">
                                         <div class="mb-3">
-                                            <label class="form-label">Bezeichnung</label>
+                                            <label class="form-label" for="modalWerkzeugName">Bezeichnung</label>
                                             <input type="text" class="form-control" id="modalWerkzeugName" name="name"
                                                 required>
                                         </div>
                                         <div class="mb-3">
-                                            <label class="form-label">VDE Kategorie</label>
+                                            <label class="form-label" for="modalWerkzeugCategory">VDE Kategorie</label>
                                             <select class="form-select" id="modalWerkzeugCategory"
                                                 name="material_category">
                                                 <option value="standard">Standard</option>
@@ -195,12 +195,12 @@
                                             </select>
                                         </div>
                                         <div class="mb-3">
-                                            <label class="form-label">Tech. Daten (Label)</label>
+                                            <label class="form-label" for="modalWerkzeugParam">Tech. Daten (Label)</label>
                                             <input type="text" class="form-control" id="modalWerkzeugParam"
                                                 name="tech_param_label">
                                         </div>
                                         <div class="mb-3">
-                                            <label class="form-label">Preis (€)</label>
+                                            <label class="form-label" for="modalWerkzeugPrice">Preis (€)</label>
                                             <input type="text" inputmode="decimal" class="form-control"
                                                 id="modalWerkzeugPrice" name="price" placeholder="0.00">
                                         </div>

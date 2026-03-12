@@ -195,7 +195,8 @@
                             <div class="mt-2 incident-div w-100" id="incident_div_{{ item.obj.id }}"
                                 {% if item.last_status in ('broken', 'missing') %}style="display: block;"{% else %}style="display: none;"{% endif %}>
                                 <select class="form-select border-danger text-theme-danger incident-select"
-                                    name="incident_reason_{{ item.obj.id }}" data-tool-id="{{ item.obj.id }}">
+                                    name="incident_reason_{{ item.obj.id }}" data-tool-id="{{ item.obj.id }}"
+                                    aria-label="Begründung für {{ item.obj.name }}">
                                     <option value="" disabled {% if not item.last_incident_reason %}selected{% endif %}>
                                         Grund wählen...</option>
 
