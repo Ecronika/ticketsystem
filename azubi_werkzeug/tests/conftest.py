@@ -2,14 +2,14 @@
 # pylint: disable=redefined-outer-name
 import os
 import sys
-import pytest
 
+# Add package folder to path before importing local modules
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+import pytest
 from models import Azubi, Werkzeug
 from extensions import db
 from app import app as flask_app
-
-# Add beta folder to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 
 @pytest.fixture

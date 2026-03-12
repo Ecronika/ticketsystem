@@ -279,6 +279,10 @@ class CheckService:
             status = form_data.get(f'tool_{tool_id}')
             tech_val = form_data.get(f'tech_param_{tool_id}')
             incident_reason = form_data.get(f'incident_reason_{tool_id}')
+            
+            # Hersteller aus den form_data auslesen
+            manufacturer = form_data.get(f'manufacturer_{tool_id}')
+            
             full_bemerkung = f"Status: {status}"
             if global_bemerkung:
                 full_bemerkung += f" | {global_bemerkung}"
@@ -289,6 +293,7 @@ class CheckService:
                 bemerkung=full_bemerkung,
                 tech_param_value=tech_val,
                 incident_reason=incident_reason,
+                manufacturer=manufacturer, # Im Check Model speichern
                 datum=check_context['check_date'],
                 check_type=check_context['check_type'].value,
                 examiner=check_context['examiner_name'],

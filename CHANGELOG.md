@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.3] - 2026-03-12
+### Added
+- Accessible Global Modals: Replacing synchronous logic with async Bootstrap modals using event delegation.
+- Manufacturer Tracking: Native select and conditional "Other" input for better mobile ergonomics and backend persistence.
+
+### Fixed
+- Backend persistence for tool manufacturer tracking during checks.
+- Focus visibility for Bento-Cards and hidden radio buttons (WCAG 2.2).
+- Performance: Lazy loading and async decoding for logo images.
+
 ## [2.12.2] - 2026-03-12
 
 ### ♿ Accessibility & WCAG 2.2 Fixes

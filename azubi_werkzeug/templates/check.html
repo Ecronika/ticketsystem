@@ -179,15 +179,32 @@
                                 </div>
 
                                 <div class="d-flex flex-wrap gap-2">
-                                    <input type="text" class="form-control tech-param-input"
-                                        name="manufacturer_{{ item.obj.id }}" list="manufacturerOptions"
-                                        placeholder="Hersteller" value="{{ item.last_manufacturer }}">
+                                    <div class="d-flex flex-column gap-2 flex-grow-1" style="min-width: 160px;">
+                                        <select class="form-select manufacturer-select" data-target="other_manufacturer_{{ item.obj.id }}"
+                                            aria-label="Hersteller für {{ item.obj.name }}">
+                                            <option value="" {% if not item.last_manufacturer %}selected{% endif %}>Hersteller wählen...</option>
+                                            {% for preset in manufacturer_presets %}
+                                            <option value="{{ preset }}" {% if item.last_manufacturer == preset %}selected{% endif %}>{{ preset }}</option>
+                                            {% endfor %}
+                                            <option value="other" {% if item.last_manufacturer and item.last_manufacturer not in manufacturer_presets %}selected{% endif %}>Andere...</option>
+                                        </select>
+                                        <input type="text" class="form-control manufacturer-other-input" 
+                                            id="other_manufacturer_{{ item.obj.id }}"
+                                            name="manufacturer_{{ item.obj.id }}" placeholder="Hersteller Name"
+                                            value="{{ item.last_manufacturer or '' }}"
+                                            {% if not (item.last_manufacturer and item.last_manufacturer not in manufacturer_presets) and item.last_manufacturer %}
+                                            style="display: none;" disabled
+                                            {% elif not item.last_manufacturer %}
+                                            style="display: none;" disabled
+                                            {% endif %}>
+                                    </div>
 
                                     {% if item.obj.tech_param_label %}
                                     <input type="number" class="form-control tech-param-input"
                                         name="tech_param_{{ item.obj.id }}"
                                         placeholder="{{ item.obj.tech_param_label }}"
-                                        value="{{ item.last_tech_val or '' }}">
+                                        value="{{ item.last_tech_val or '' }}"
+                                        style="max-width: 120px;">
                                     {% endif %}
                                 </div>
                             </div>
@@ -303,11 +320,6 @@
 </div>
 </div>
 
-<datalist id="manufacturerOptions">
-    {% for preset in manufacturer_presets %}
-    <option value="{{ preset }}">
-        {% endfor %}
-</datalist>
 
 <!-- Signature Pad JS -->
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
@@ -642,6 +654,29 @@
             const submitBtn = document.getElementById('submitBtn');
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Speichere...';
+        });
+
+        // --- Manufacturer Selection Logic ---
+        const manufacturerSelects = document.querySelectorAll('.manufacturer-select');
+        manufacturerSelects.forEach(select => {
+            select.addEventListener('change', function () {
+                const targetId = this.dataset.target;
+                const otherInput = document.getElementById(targetId);
+                if (this.value === 'other') {
+                    otherInput.style.display = 'block';
+                    otherInput.disabled = false;
+                    otherInput.value = ''; // Clear for fresh input
+                    otherInput.focus();
+                } else {
+                    otherInput.style.display = 'none';
+                    // We keep it enabled BUT hidden so the value is submitted
+                    // Wait, if it's native select, we could just put the name on the select?
+                    // But if it's "other", we want the text input value.
+                    // Robust way: always use the text input as the truthful source for the name.
+                    otherInput.disabled = false; 
+                    otherInput.value = this.value;
+                }
+            });
         });
     });
 </script>

@@ -258,6 +258,8 @@ small,
     /* Bootstrap Default Focus */
     border-color: var(--color-primary);
     z-index: 1;
+    outline: var(--focus-ring);
+    outline-offset: 2px;
 }
 
 /* --- Theme Application (Global Setup) --- */
@@ -690,11 +692,13 @@ textarea:focus-visible {
     margin-bottom: 0.5rem;
     padding: 1rem;
     transition: border-color 0.2s ease;
+    overflow: visible; /* WCAG: Prevent focus ring clipping */
 }
 
 .bento-list-item:focus-within,
 .bento-list-item:hover {
     border-color: var(--color-primary, #0d6efd);
+    box-shadow: var(--focus-shadow);
 }
 
 /* --- WCAG 2.3.3: Reduced Motion --- */

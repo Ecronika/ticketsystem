@@ -14,6 +14,7 @@
             <p class="mb-3">Aktuelles Logo (max. 2MB, PNG/JPG):</p>
             <img src="{{ ingress_path }}{{ url_for('main.serve_logo') }}?v={{ logo_version }}"
                 style="max-height: var(--h-logo-preview);" class="img-thumbnail mb-3" alt="Aktuelles Logo"
+                loading="lazy" decoding="async"
                 onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
             {% endif %}
 
@@ -158,7 +159,8 @@
                 <strong>Achtung:</strong> Die Erstellung neuer Tokens macht alle bisherigen Tokens ungültig!
             </p>
             <form action="{{ ingress_path }}{{ url_for('main.generate_recovery_tokens') }}" method="POST"
-                onsubmit="return confirm('Möchten Sie wirklich neue Tokens generieren? Alte Tokens werden dadurch ungültig!');">
+                data-confirm data-confirm-message="Möchten Sie wirklich neue Tokens generieren? Alte Tokens werden dadurch ungültig!"
+                data-confirm-title="Tokens zurücksetzen">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                 <button type="submit" class="btn btn-outline-danger px-4 py-2" style="min-height: 44px">
                     <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Neue Recovery-Tokens generieren

@@ -161,6 +161,96 @@
       }, 6000);
     };
 
+
+    // Promise-based Confirm Function
+    window.showConfirm = function(title, message, isDanger = true) {
+        return new Promise((resolve) => {
+            const modalEl = document.getElementById('globalConfirmModal');
+            const titleEl = document.getElementById('globalConfirmTitle');
+            const messageEl = document.getElementById('globalConfirmMessage');
+            const confirmBtn = document.getElementById('globalConfirmBtn');
+
+            titleEl.textContent = title || 'Bestätigung';
+            messageEl.innerHTML = message || 'Möchten Sie diese Aktion wirklich ausführen?';
+            
+            // Dynamically style the confirm button based on context
+            confirmBtn.className = isDanger ? 'btn btn-danger px-4 py-2' : 'btn btn-primary px-4 py-2';
+
+            const bsModal = new bootstrap.Modal(modalEl);
+
+            // One-time event handlers
+            const handleConfirm = () => {
+                bsModal.hide();
+                cleanup();
+                resolve(true);
+            };
+
+            const handleCancel = () => {
+                bsModal.hide();
+                cleanup();
+                resolve(false);
+            };
+
+            const cleanup = () => {
+                confirmBtn.removeEventListener('click', handleConfirm);
+                modalEl.removeEventListener('hidden.bs.modal', handleCancel);
+            };
+
+            confirmBtn.addEventListener('click', handleConfirm);
+            modalEl.addEventListener('hidden.bs.modal', handleCancel); // Triggers on ESC or outside click
+
+            bsModal.show();
+        });
+    };
+
+    // Event Delegation for Form Submissions
+    document.addEventListener('submit', async function(e) {
+        const form = e.target;
+        const submitter = e.submitter;
+        
+        // Check if the form OR the button that triggered it requires confirmation
+        const needsConfirm = form.hasAttribute('data-confirm') || (submitter && submitter.hasAttribute('data-confirm'));
+
+        if (needsConfirm) {
+            e.preventDefault(); // Stop immediate submission
+
+            const message = (submitter && submitter.getAttribute('data-confirm-message')) || 
+                            form.getAttribute('data-confirm-message') || 
+                            'Sind Sie sicher?';
+            const title = (submitter && submitter.getAttribute('data-confirm-title')) || 
+                          form.getAttribute('data-confirm-title') || 
+                          'Achtung';
+            
+            // Check if it's a destructive action (determines button color)
+            const isDanger = (submitter && (submitter.classList.contains('btn-danger') || submitter.classList.contains('text-danger'))) ||
+                             form.querySelector('.btn-danger, .text-danger') !== null;
+
+            const confirmed = await window.showConfirm(title, message, isDanger);
+
+            if (confirmed) {
+                // Remove the attributes to prevent infinite loops
+                form.removeAttribute('data-confirm');
+                if (submitter) submitter.removeAttribute('data-confirm');
+                
+                // If it was triggered by a specific button with a name/value (or formaction), 
+                // we should re-trigger that correctly. 
+                // form.submit() doesn't include the button data.
+                if (submitter && (submitter.name || submitter.hasAttribute('formaction'))) {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = submitter.name;
+                    hiddenInput.value = submitter.value;
+                    form.appendChild(hiddenInput);
+                    
+                    if (submitter.hasAttribute('formaction')) {
+                        form.action = submitter.getAttribute('formaction');
+                    }
+                }
+                form.submit();
+            }
+        }
+    });
+
     // Phase 3: Theme Toggle Logic (Navbar) & Flash Msg Auto-Dismiss
     document.addEventListener('DOMContentLoaded', () => {
       // Auto-Dismiss Flash Messages
@@ -195,6 +285,24 @@
       });
     });
   </script>
+
+  <div class="modal fade" id="globalConfirmModal" tabindex="-1" aria-labelledby="globalConfirmTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow">
+        <div class="modal-header border-bottom-0">
+          <h5 class="modal-title fw-bold" id="globalConfirmTitle">Bestätigung</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Abbrechen"></button>
+        </div>
+        <div class="modal-body py-4" id="globalConfirmMessage">
+          Möchten Sie diese Aktion wirklich ausführen?
+        </div>
+        <div class="modal-footer border-top-0">
+          <button type="button" class="btn btn-secondary px-4 py-2" data-bs-dismiss="modal" style="min-height: 44px">Abbrechen</button>
+          <button type="button" class="btn btn-danger px-4 py-2" id="globalConfirmBtn" style="min-height: 44px">Bestätigen</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 
 </html>
