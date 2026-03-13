@@ -217,10 +217,11 @@
 
                     <div class="mb-3">
                         <label class="form-label fw-bold">Unterschrift Azubi (Empfang)</label>
-                        <div class="border rounded bg-body-tertiary" style="height: 200px; position: relative;"
+                        <!-- Höhe 150px: konsistent mit check.html, optimal für Landscape-Modus + WebKit Canvas-Fix -->
+                        <div class="border rounded bg-body-tertiary" style="height: 150px; position: relative;"
                             id="signatureContainer">
                             <canvas id="signaturePadAzubi" aria-label="Unterschrift Azubi" role="img"
-                                class="w-100 h-100" style="touch-action: none;"></canvas>
+                                class="w-100 h-100" style="touch-action: none; display: block;"></canvas>
                             <div class="position-absolute bottom-0 end-0 p-2">
                                 <button type="button" class="btn btn-sm btn-outline-secondary mb-1 btn-clear-pad"
                                     onclick="clearPad('azubi')" style="opacity: 0.9;">
