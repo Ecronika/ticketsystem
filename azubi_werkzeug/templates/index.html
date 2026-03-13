@@ -150,7 +150,7 @@
 
 <!-- Exchange Modal -->
 <div class="modal fade" id="exchangeModal" tabindex="-1" aria-labelledby="exchangeModalTitle" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content rounded-4 shadow">
             <div class="modal-header border-0 pb-0">
                 <h5 class="modal-title fw-bold" id="exchangeModalTitle">Werkzeug austauschen</h5>
@@ -173,7 +173,7 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label fw-bold">1. Grund für den Austausch (Global)</label>
+                        <label class="form-label fw-bold">Grund</label>
                         <div class="btn-group w-100 shadow-sm custom-reason-group" role="group">
                             <input type="radio" class="btn-check" name="global_reason" id="globalReasonDefekt"
                                 value="Defekt" checked>
@@ -193,10 +193,10 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label fw-bold">2. Auszuwählende Werkzeuge (Mehrfachauswahl möglich)</label>
-                        <!-- Container for dynamic checklist -->
-                        <div id="exchangeToolsList" class="rounded-3 p-1 overflow-auto custom-scrollbar border"
-                            style="max-height: var(--h-exchange-list); border-color: var(--bs-border-color-translucent) !important;">
+                        <label class="form-label fw-bold">Werkzeuge</label>
+                        <!-- Container: kein max-height – modal-dialog-scrollable übernimmt das Scrollen (kein Scroll-Trap) -->
+                        <div id="exchangeToolsList" class="rounded-3 p-1 border"
+                            style="border-color: var(--bs-border-color-translucent) !important;">
                             <div class="text-center text-muted p-3">Lade Werkzeuge...</div>
                         </div>
                     </div>
@@ -401,24 +401,12 @@
                     return;
                 }
 
-                // Get the global reason
+                // Compile the JSON payload – global reason only, no per-tool override
                 const globalReason = document.querySelector('input[name="global_reason"]:checked').value;
-
-                const exchangeData = [];
-                checkboxes.forEach(cb => {
-                    const toolId = cb.value;
-                    // Check if this specific tool has a custom reason set
-                    const specificReasonSelect = document.getElementById(`reason_tool_${toolId}`);
-                    let reason = globalReason;
-                    if (specificReasonSelect && specificReasonSelect.value !== "") {
-                        reason = specificReasonSelect.value;
-                    }
-
-                    exchangeData.push({
-                        tool_id: parseInt(toolId),
-                        reason: reason
-                    });
-                });
+                const exchangeData = Array.from(checkboxes).map(cb => ({
+                    tool_id: parseInt(cb.value),
+                    reason: globalReason
+                }));
 
                 // Confirmation Dialog (S3)
                 e.preventDefault();
@@ -481,7 +469,7 @@
             if (!response.ok) throw new Error("Fehler beim Laden der Werkzeuge");
             const tools = await response.json();
 
-            document.getElementById('exchangeTotalPriceDisplay').innerText = "0,00 €"; // Reset price
+            document.getElementById('exchangeTotalPriceDisplay').innerText = "0,00 €";
 
             if (tools.length === 0) {
                 listContainer.innerHTML = '<div class="text-center text-muted p-3">Keine Werkzeuge zugewiesen.</div>';
@@ -489,58 +477,89 @@
                 return;
             }
 
-            let html = '';
-            tools.forEach(tool => {
+            // Zweistufige Liste: Frontend-Split anhand vorhandener Precheck-IDs
+            const precheck = window._exchangePrecheck || { missingIds: [], brokenIds: [] };
+            const problemIds = new Set([...precheck.missingIds, ...precheck.brokenIds]);
+            const primaryTools = tools.filter(t => problemIds.has(t.id));
+            const secondaryTools = tools.filter(t => !problemIds.has(t.id));
+
+            // Helper: rendert eine einzelne Werkzeug-Zeile
+            const renderToolRow = (tool, isPrimary) => {
                 const price = typeof tool.price === 'number' ? tool.price : 0.0;
                 const priceFormatted = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(price);
 
-                // Bento-Style Row with larger tap targets and transparent backgrounds
-                html += `
-                <div class="d-flex align-items-center justify-content-between bento-list-item">
+                let badgeHtml = '';
+                if (isPrimary) {
+                    if (precheck.missingIds.includes(tool.id)) {
+                        badgeHtml = `<span class="badge badge-subtle-danger ms-2"><i class="bi bi-x-circle-fill me-1"></i>FEHLT</span>`;
+                    } else if (precheck.brokenIds.includes(tool.id)) {
+                        badgeHtml = `<span class="badge badge-subtle-warning ms-2"><i class="bi bi-exclamation-triangle-fill me-1"></i>DEFEKT</span>`;
+                    }
+                }
+
+                const rowClass = isPrimary
+                    ? 'bento-list-item'
+                    : 'bento-list-item exchange-secondary-item';
+                const textClass = isPrimary ? '' : 'text-muted';
+
+                return `
+                <div class="d-flex align-items-center ${rowClass}">
                     <div class="form-check mb-0 flex-grow-1 d-flex align-items-center">
-                        <input class="form-check-input form-check-input-lg exchange-tool-checkbox" type="checkbox" value="${tool.id}" id="check_tool_${tool.id}" data-price="${price}">
-                        <label class="form-check-label fw-bold ms-3 cursor-pointer tracking-tight" for="check_tool_${tool.id}">
-                            ${tool.name}
+                        <input class="form-check-input form-check-input-lg exchange-tool-checkbox" type="checkbox"
+                               value="${tool.id}" id="check_tool_${tool.id}" data-price="${price}">
+                        <label class="form-check-label fw-bold ms-3 cursor-pointer tracking-tight ${textClass}" for="check_tool_${tool.id}">
+                            ${tool.name} ${badgeHtml}
                         </label>
-                        <span class="badge badge-subtle-secondary ms-3 font-mono">${priceFormatted}</span>
-                    </div>
-                    <div class="ms-3 flex-shrink-0" style="width: 160px;">
-                        <select class="form-select" id="reason_tool_${tool.id}" aria-label="Spezifischer Grund für ${tool.name}">
-                            <option value="">(Wie Global)</option>
-                            <option value="Defekt">Defekt</option>
-                            <option value="Verloren">Verloren</option>
-                            <option value="Verschlissen">Verschlissen</option>
-                        </select>
+                        <span class="badge badge-subtle-secondary ms-auto font-mono">${priceFormatted}</span>
                     </div>
                 </div>`;
-            });
+            };
+
+            let html = '';
+
+            if (primaryTools.length === 0) {
+                // Edge Case: Keine Problemwerkzeuge – direkt flache Liste, kein Akkordeon
+                html += `<div class="text-muted small fw-bold mb-2 text-uppercase tracking-wide px-2">Verfügbare Werkzeuge</div>`;
+                secondaryTools.forEach(t => { html += renderToolRow(t, false); });
+            } else {
+                // Regelfall: Problemwerkzeuge in der Primärliste
+                primaryTools.forEach(t => { html += renderToolRow(t, true); });
+
+                // Akkordeon für restliche Werkzeuge (WCAG 2.5.8: volle Zeile klickbar, min 44px)
+                if (secondaryTools.length > 0) {
+                    html += `
+                    <button class="btn btn-light w-100 text-start py-3 mt-2 mb-1 fw-semibold border-0 rounded-3"
+                            type="button" data-bs-toggle="collapse"
+                            data-bs-target="#secondaryToolsCollapse"
+                            aria-expanded="false"
+                            aria-controls="secondaryToolsCollapse">
+                        <i class="bi bi-plus-circle me-2" aria-hidden="true"></i>Weiteres Werkzeug hinzufügen
+                        <span class="badge badge-subtle-secondary ms-1">${secondaryTools.length}</span>
+                    </button>
+                    <div class="collapse" id="secondaryToolsCollapse">
+                        <div class="d-flex flex-column gap-1">
+                            ${secondaryTools.map(t => renderToolRow(t, false)).join('')}
+                        </div>
+                    </div>`;
+                }
+            }
 
             listContainer.innerHTML = html;
 
-            // Attach event listeners to the new checkboxes
-            const checkboxes = document.querySelectorAll('.exchange-tool-checkbox');
-            checkboxes.forEach(cb => {
+            // Event-Listener für Preisberechnung
+            document.querySelectorAll('.exchange-tool-checkbox').forEach(cb => {
                 cb.addEventListener('change', updateExchangeTotalPrice);
             });
 
-            // Context-Aware Pre-Check: pre-check defective/missing tools from dashboard
-            const precheck = window._exchangePrecheck || { missingIds: [], brokenIds: [] };
-            const allPrecheckIds = [...precheck.missingIds, ...precheck.brokenIds];
-            if (allPrecheckIds.length > 0) {
-                allPrecheckIds.forEach(toolId => {
+            // Problemwerkzeuge vorauswählen und Preis berechnen
+            if (problemIds.size > 0) {
+                problemIds.forEach(toolId => {
                     const cb = document.getElementById(`check_tool_${toolId}`);
-                    if (cb) {
-                        cb.checked = true;
-                        // Pre-select reason per tool
-                        const reasonSel = document.getElementById(`reason_tool_${toolId}`);
-                        if (reasonSel) {
-                            reasonSel.value = precheck.brokenIds.includes(toolId) ? 'Defekt' : 'Verloren';
-                        }
-                    }
+                    if (cb) cb.checked = true;
                 });
                 updateExchangeTotalPrice();
 
-                // If ALL defects/missing - also pre-select the global reason radio
+                // Globalen Grund vorauswählen
                 if (precheck.missingIds.length > 0 && precheck.brokenIds.length === 0) {
                     const radio = document.getElementById('globalReasonVerloren');
                     if (radio) radio.checked = true;

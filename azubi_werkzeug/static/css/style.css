@@ -705,6 +705,12 @@ textarea:focus-visible {
     overflow: visible; /* WCAG: Prevent focus ring clipping */
 }
 
+/* Sekundäre Werkzeugzeilen im Exchange-Modal: optisch zurückgesetzt, aber voll interaktiv (kein opacity!) */
+.exchange-secondary-item {
+    background-color: var(--bg-body, #f8f9fa);
+    border-color: var(--border-color);
+}
+
 /* Fix 2: :focus-within bleibt für Tastatur-Zugänglichkeit (WCAG) immer aktiv */
 .bento-list-item:focus-within {
     border-color: var(--color-primary, #0d6efd);
