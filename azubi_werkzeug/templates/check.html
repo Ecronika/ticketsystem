@@ -269,10 +269,10 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold small text-uppercase">Azubi: {{ azubi.name }}</label>
-                            <!-- Fix 1: height statt min-height – WebKit löst 'height: 100%' auf Kind-Elementen (Canvas) sonst nicht auf -->
+                            <!-- Fix 1: height statt min-height + display:block auf Canvas (WebKit Baseline-Gap Fix) -->
                             <div class="border rounded bg-light" style="height: 150px; position: relative;">
                                 <canvas id="canvasAzubi" aria-label="Unterschrift Azubi" role="img" tabindex="0"
-                                    style="width: 100%; height: 100%; touch-action: none;"></canvas>
+                                    style="width: 100%; height: 100%; touch-action: none; display: block;"></canvas>
                             </div>
                              <button type="button" class="btn btn-light text-muted w-100 mt-2 border-0" style="min-height: 44px"
                                 id="clearAzubi"><i class="bi bi-eraser me-1" aria-hidden="true"></i>Löschen</button>
@@ -281,10 +281,10 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold small text-uppercase">Prüfer / Ausbilder</label>
-                            <!-- Fix 1: height statt min-height – WebKit Canvas-Fix -->
+                            <!-- Fix 1: height statt min-height + display:block auf Canvas (WebKit Baseline-Gap Fix) -->
                             <div class="border rounded bg-light" style="height: 150px; position: relative;">
                                 <canvas id="canvasExaminer" aria-label="Unterschrift Ausbilder" role="img" tabindex="0"
-                                    style="width: 100%; height: 100%; touch-action: none;"></canvas>
+                                    style="width: 100%; height: 100%; touch-action: none; display: block;"></canvas>
                             </div>
                              <button type="button" class="btn btn-light text-muted w-100 mt-2 border-0" style="min-height: 44px"
                                 id="clearExaminer"><i class="bi bi-eraser me-1" aria-hidden="true"></i>Löschen</button>
@@ -550,6 +550,15 @@
             });
         });
 
+        // Fix 4: Helper für iOS UIPickerView-Bug – verhindert Optionsanzeige in nativen Scroll-Rädchen
+        // optgroup.disabled/hidden reicht iOS nicht – Kind-<option>s müssen explizit gesetzt werden.
+        function setOptgroupState(group, disabled) {
+            if (!group) return;
+            group.disabled = disabled;
+            group.hidden = disabled;
+            group.querySelectorAll('option').forEach(opt => { opt.disabled = disabled; });
+        }
+
         // --- Status & Incident Logic ---
         const statusRadios = document.querySelectorAll('.status-radio');
         statusRadios.forEach(radio => {
@@ -578,49 +587,19 @@
                     const brokenGroup = incidentSelect.querySelector('.broken-reasons');
                     const missingGroup = incidentSelect.querySelector('.missing-reasons');
 
-                    if (this.value === 'broken') {
-                        // Show defekt-gründe, hide fehlt-gründe
-                        if (brokenGroup) {
-                            brokenGroup.disabled = false; brokenGroup.hidden = false;
-                            // Fix 4: iOS UIPickerView – Optionen explizit aktivieren
-                            Array.from(brokenGroup.querySelectorAll('option')).forEach(opt => { opt.disabled = false; });
-                        }
-                        if (missingGroup) {
-                            missingGroup.disabled = true; missingGroup.hidden = true;
-                            // Fix 4: iOS UIPickerView – Optionen explizit deaktivieren
-                            Array.from(missingGroup.querySelectorAll('option')).forEach(opt => { opt.disabled = true; });
-                        }
-                    } else if (this.value === 'missing') {
-                        // Show fehlt-gründe, hide defekt-gründe
-                        if (brokenGroup) {
-                            brokenGroup.disabled = true; brokenGroup.hidden = true;
-                            // Fix 4: iOS UIPickerView – Optionen explizit deaktivieren
-                            Array.from(brokenGroup.querySelectorAll('option')).forEach(opt => { opt.disabled = true; });
-                        }
-                        if (missingGroup) {
-                            missingGroup.disabled = false; missingGroup.hidden = false;
-                            // Fix 4: iOS UIPickerView – Optionen explizit aktivieren
-                            Array.from(missingGroup.querySelectorAll('option')).forEach(opt => { opt.disabled = false; });
-                        }
-                    }
+                    // setOptgroupState aktiviert/deaktiviert optgroup + alle Kind-<option>s
+                    setOptgroupState(brokenGroup, this.value === 'missing');
+                    setOptgroupState(missingGroup, this.value === 'broken');
                 } else {
                     incidentDiv.style.display = 'none';
                     incidentSelect.removeAttribute('required');
                     incidentSelect.value = ""; // Reset value
 
-                    // Show all optgroups again when hidden (ok-Status)
+                    // Alle Optgroups beim Zurücksetzen auf OK wieder vollständig aktivieren
                     const brokenGroup = incidentSelect.querySelector('.broken-reasons');
                     const missingGroup = incidentSelect.querySelector('.missing-reasons');
-                    if (brokenGroup) {
-                        brokenGroup.disabled = false; brokenGroup.hidden = false;
-                        // Fix 4: iOS UIPickerView – alle Optionen zurücksetzen
-                        Array.from(brokenGroup.querySelectorAll('option')).forEach(opt => { opt.disabled = false; });
-                    }
-                    if (missingGroup) {
-                        missingGroup.disabled = false; missingGroup.hidden = false;
-                        // Fix 4: iOS UIPickerView – alle Optionen zurücksetzen
-                        Array.from(missingGroup.querySelectorAll('option')).forEach(opt => { opt.disabled = false; });
-                    }
+                    setOptgroupState(brokenGroup, false);
+                    setOptgroupState(missingGroup, false);
                 }
             });
         });
