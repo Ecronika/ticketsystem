@@ -153,7 +153,10 @@
     <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content rounded-4 shadow">
             <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-bold" id="exchangeModalTitle">Werkzeug austauschen</h5>
+                <h5 class="modal-title fw-bold" id="exchangeModalTitle">
+                    Werkzeug austauschen
+                    <span id="exchangeAzubiNameDisplay" class="text-muted fw-normal fs-6 ms-2"></span>
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -163,10 +166,7 @@
                     <input type="hidden" name="exchange_data" id="exchangeDataPayload">
                     <input type="hidden" name="signature_azubi_data" id="signatureAzubiData">
 
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Azubi</label>
-                        <input type="text" class="form-control-plaintext" id="exchangeAzubiName" readonly>
-                    </div>
+
 
                     <div class="mb-4">
                         <label class="form-label fw-bold">Grund</label>
@@ -337,7 +337,8 @@
                 const azubiName = button.getAttribute('data-azubi-name');
 
                 document.getElementById('exchangeAzubiId').value = azubiId;
-                document.getElementById('exchangeAzubiName').value = azubiName;
+                const nameDisplay = document.getElementById('exchangeAzubiNameDisplay');
+                if (nameDisplay) nameDisplay.textContent = `/ ${azubiName}`;
 
                 // Store context IDs for pre-check after AJAX load
                 const missingIds = JSON.parse(button.getAttribute('data-missing-ids') || '[]');
