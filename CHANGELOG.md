@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.6] - 2026-03-13
+### Fixed
+- WebKit/iOS: Canvas-Container nutzt nun `height` statt `min-height`, behebt fehlerhafte Zeichenkoordinaten im Signaturpad auf iPhone/iPad.
+- WebKit/iOS: `display: block` auf Canvas-Elementen verhindert Baseline-Gap-Problem in Safari.
+- WebKit/iOS: Signaturpad in `index.html` auf einheitliche Höhe von `150px` normiert (konsistent mit `check.html`).
+- WebKit/iOS: Sticky-Hover-Bug auf Touchscreens behoben – `.bento-list-item:hover` ist nun auf `@media (hover: hover) and (pointer: fine)` eingeschränkt.
+- WebKit/iOS: `min-height: 100dvh` als Progressive-Enhancement-Fallback für Safari URL-Bar-Kompensation.
+- WebKit/iOS: Native iOS-Picker zeigt keine deaktivierten Optionen mehr an (`setOptgroupState` Helper für bidirektionale Option-Aktivierung).
+
 ## [2.12.5] - 2026-03-13
 ### Added
 - Timezone Localization: All timestamps in history, dashboard, and PDF reports are now localized to `Europe/Berlin`.
