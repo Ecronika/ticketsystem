@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.7] - 2026-03-13
+### Changed
+- Austausch-Modal: Vollständiges UX-Redesign für Shopfloor/iPad-Einsatz.
+- Austausch-Modal: Fokus auf FEHLT/DEFEKT Werkzeuge (vorausgewählt), alle anderen in Akkordeon ausgelagert.
+- Austausch-Modal: Entfernung der prospektiven Grund-Dropdowns pro Werkzeug (nur noch globaler Grund).
+- Austausch-Modal: Reduzierung der kognitiven Last durch Entfernung redundanter Texte und Titel.
+
+### Fixed
+- WebKit/iOS: Behebung von Scroll-Traps im Austausch-Modal durch Umstellung auf `modal-dialog-scrollable` ohne innere `max-height`.
+- WebKit/iOS: Korrektur der CSS Level 4 Range-Syntax `(width <=768px)` auf `(max-width: 768px)` für Kompatibilität mit iOS < 16.4.
+- WebKit/iOS: Unterdrückung des grauen Tap-Flash auf Canvas-Elementen.
+- Visuals: Dynamisches Entfernen von (FEHLT)/(DEFEKT) Suffixen im Namen zugunsten von Status-Badges.
+
 ## [2.12.6] - 2026-03-13
 ### Fixed
 - WebKit/iOS: Canvas-Container nutzt nun `height` statt `min-height`, behebt fehlerhafte Zeichenkoordinaten im Signaturpad auf iPhone/iPad.
