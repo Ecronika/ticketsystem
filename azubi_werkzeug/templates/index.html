@@ -157,10 +157,6 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p class="text-muted small">Tauscht ein defektes/verlorenes Werkzeug gegen ein neues aus.
-                    <br>Bestand bleibt unverändert.
-                </p>
-
                 <form action="{{ ingress_path }}{{ url_for('main.exchange_tool') }}" method="POST" id="exchangeForm">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="azubi_id" id="exchangeAzubiId">
@@ -488,6 +484,9 @@
                 const price = typeof tool.price === 'number' ? tool.price : 0.0;
                 const priceFormatted = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(price);
 
+                // Redundantes Suffix aus dem Werkzeugnamen entfernen (Badge übernimmt die Info)
+                const displayName = tool.name.replace(/\s*\((FEHLT|DEFEKT|MISSING|BROKEN)\)\s*$/i, '').trim();
+
                 let badgeHtml = '';
                 if (isPrimary) {
                     if (precheck.missingIds.includes(tool.id)) {
@@ -508,7 +507,7 @@
                         <input class="form-check-input form-check-input-lg exchange-tool-checkbox" type="checkbox"
                                value="${tool.id}" id="check_tool_${tool.id}" data-price="${price}">
                         <label class="form-check-label fw-bold ms-3 cursor-pointer tracking-tight ${textClass}" for="check_tool_${tool.id}">
-                            ${tool.name} ${badgeHtml}
+                            ${displayName} ${badgeHtml}
                         </label>
                         <span class="badge badge-subtle-secondary ms-auto font-mono">${priceFormatted}</span>
                     </div>
