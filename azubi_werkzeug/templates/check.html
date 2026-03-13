@@ -269,7 +269,8 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold small text-uppercase">Azubi: {{ azubi.name }}</label>
-                            <div class="border rounded bg-light" style="min-height: 150px; position: relative;">
+                            <!-- Fix 1: height statt min-height – WebKit löst 'height: 100%' auf Kind-Elementen (Canvas) sonst nicht auf -->
+                            <div class="border rounded bg-light" style="height: 150px; position: relative;">
                                 <canvas id="canvasAzubi" aria-label="Unterschrift Azubi" role="img" tabindex="0"
                                     style="width: 100%; height: 100%; touch-action: none;"></canvas>
                             </div>
@@ -280,7 +281,8 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-bold small text-uppercase">Prüfer / Ausbilder</label>
-                            <div class="border rounded bg-light" style="min-height: 150px; position: relative;">
+                            <!-- Fix 1: height statt min-height – WebKit Canvas-Fix -->
+                            <div class="border rounded bg-light" style="height: 150px; position: relative;">
                                 <canvas id="canvasExaminer" aria-label="Unterschrift Ausbilder" role="img" tabindex="0"
                                     style="width: 100%; height: 100%; touch-action: none;"></canvas>
                             </div>
@@ -578,23 +580,47 @@
 
                     if (this.value === 'broken') {
                         // Show defekt-gründe, hide fehlt-gründe
-                        if (brokenGroup) { brokenGroup.disabled = false; brokenGroup.hidden = false; }
-                        if (missingGroup) { missingGroup.disabled = true; missingGroup.hidden = true; }
+                        if (brokenGroup) {
+                            brokenGroup.disabled = false; brokenGroup.hidden = false;
+                            // Fix 4: iOS UIPickerView – Optionen explizit aktivieren
+                            Array.from(brokenGroup.querySelectorAll('option')).forEach(opt => { opt.disabled = false; });
+                        }
+                        if (missingGroup) {
+                            missingGroup.disabled = true; missingGroup.hidden = true;
+                            // Fix 4: iOS UIPickerView – Optionen explizit deaktivieren
+                            Array.from(missingGroup.querySelectorAll('option')).forEach(opt => { opt.disabled = true; });
+                        }
                     } else if (this.value === 'missing') {
                         // Show fehlt-gründe, hide defekt-gründe
-                        if (brokenGroup) { brokenGroup.disabled = true; brokenGroup.hidden = true; }
-                        if (missingGroup) { missingGroup.disabled = false; missingGroup.hidden = false; }
+                        if (brokenGroup) {
+                            brokenGroup.disabled = true; brokenGroup.hidden = true;
+                            // Fix 4: iOS UIPickerView – Optionen explizit deaktivieren
+                            Array.from(brokenGroup.querySelectorAll('option')).forEach(opt => { opt.disabled = true; });
+                        }
+                        if (missingGroup) {
+                            missingGroup.disabled = false; missingGroup.hidden = false;
+                            // Fix 4: iOS UIPickerView – Optionen explizit aktivieren
+                            Array.from(missingGroup.querySelectorAll('option')).forEach(opt => { opt.disabled = false; });
+                        }
                     }
                 } else {
                     incidentDiv.style.display = 'none';
                     incidentSelect.removeAttribute('required');
                     incidentSelect.value = ""; // Reset value
 
-                    // Show all optgroups again when hidden
+                    // Show all optgroups again when hidden (ok-Status)
                     const brokenGroup = incidentSelect.querySelector('.broken-reasons');
                     const missingGroup = incidentSelect.querySelector('.missing-reasons');
-                    if (brokenGroup) { brokenGroup.disabled = false; brokenGroup.hidden = false; }
-                    if (missingGroup) { missingGroup.disabled = false; missingGroup.hidden = false; }
+                    if (brokenGroup) {
+                        brokenGroup.disabled = false; brokenGroup.hidden = false;
+                        // Fix 4: iOS UIPickerView – alle Optionen zurücksetzen
+                        Array.from(brokenGroup.querySelectorAll('option')).forEach(opt => { opt.disabled = false; });
+                    }
+                    if (missingGroup) {
+                        missingGroup.disabled = false; missingGroup.hidden = false;
+                        // Fix 4: iOS UIPickerView – alle Optionen zurücksetzen
+                        Array.from(missingGroup.querySelectorAll('option')).forEach(opt => { opt.disabled = false; });
+                    }
                 }
             });
         });
