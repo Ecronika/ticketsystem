@@ -57,7 +57,9 @@ small,
     /* Apple Human Interface Guidelines & WCAG 2.5.8 */
 }
 
-@media (width <=768px) {
+/* max-width statt CSS-Level-4-Range-Syntax: iOS < 16.4 ignoriert '(width <= 768px)' komplett,
+   was iOS-Zoom bei Inputs und die Body-Padding-Regel fuer den Sticky Footer bricht. */
+@media (max-width: 768px) {
 
     /* Prevent iOS text zooming on inputs */
     input,
@@ -70,6 +72,11 @@ small,
     body {
         padding-bottom: 100px;
     }
+}
+
+/* Low: Suppress iOS gray tap-flash on canvas signature pads */
+canvas {
+    -webkit-tap-highlight-color: transparent;
 }
 
 /* =========================================
