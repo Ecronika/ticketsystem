@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.9] - 2026-03-13
+
+### Refactoring & Performance
+- **Enhanced History View**: Redesigned history list with monochromatic "Visual Calm" design and session type badges (Icon + Text).
+- **N+1 Query Optimization**: Improved history loading performance by using joined loads for tool data.
+- **RBAC for Financials**: Price data in history is now strictly filtered server-side and only visible to administrators.
+- **Improved UX**: Implemented Skeleton Loading for pagination to prevent Cumulative Layout Shift (CLS).
+- **Accessibility**: WCAG 2.2 AA compliant badges and 44px touch targets.
+
 ## [2.12.8] - 2026-03-13
 ### Changed
 - Austausch-Modal: Name des Azubis in den Modal-Header verschoben (spart vertikalen Platz im Body).

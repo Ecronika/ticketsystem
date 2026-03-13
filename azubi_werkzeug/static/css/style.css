@@ -134,6 +134,18 @@ canvas {
     --h-exchange-list: 250px;
     --h-logo-preview: 150px;
     --h-qr-selector: 200px;
+
+    /* History Session Type Tokens (Visual Calm / Monochromatic by default) */
+    --hs-check-bg: #f2f2f2;
+    --hs-check-text: #6c757d;
+    --hs-issue-bg: #f2f2f2;
+    --hs-issue-text: #6c757d;
+    --hs-return-bg: #f2f2f2;
+    --hs-return-text: #6c757d;
+    --hs-exchange-bg: #e7f1ff; /* Attention: Primary Blue Soft */
+    --hs-exchange-text: #0d6efd;
+    --hs-payable-bg: #fff3cd; /* Attention: Warning Yellow Soft */
+    --hs-payable-text: #997404;
 }
 
 /* Dark Mode (Ergonomisch, kein reines Schwarz) */
@@ -149,6 +161,18 @@ canvas {
     --btn-soft-color: #87ceeb;
     --btn-soft-border: rgb(135 206 235 / 40%);
     --btn-warning-soft-bg: rgb(241 196 15 / 15%);
+
+    /* History Dark Mode Corrected Contrasts */
+    --hs-check-bg: #2d3238;
+    --hs-check-text: #adb5bd;
+    --hs-issue-bg: #2d3238;
+    --hs-issue-text: #adb5bd;
+    --hs-return-bg: #2d3238;
+    --hs-return-text: #adb5bd;
+    --hs-exchange-bg: #03285e;
+    --hs-exchange-text: #9ec5fe;
+    --hs-payable-bg: #332701;
+    --hs-payable-text: #ffda6a;
 
     /* Semantic Colors (Adjusted for Dark Mode contrast) */
     --color-primary: #3b82f6;
@@ -229,7 +253,7 @@ canvas {
    Hover-Regeln bleiben daher für alle Geräte aktiv (iPad + Magic Keyboard, Apple Pencil etc.) */
 .btn-primary-soft:hover {
     background-color: var(--color-primary);
-    color: #fff;
+   color: #fff;
     box-shadow: 0 4px 8px rgb(13 110 253 / 20%);
 }
 
@@ -753,4 +777,52 @@ textarea:focus-visible {
 .min-vh-100 {
     min-height: 100vh;
     min-height: 100dvh;
+}
+
+/* === History View Components === */
+.badge-subtle-history {
+    font-weight: 600;
+    padding: 0.4rem 0.8rem;
+    border-radius: var(--radius-md);
+    letter-spacing: -0.01em;
+    font-size: 0.8rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.history-badge-check { background-color: var(--hs-check-bg); color: var(--hs-check-text); }
+.history-badge-issue { background-color: var(--hs-issue-bg); color: var(--hs-issue-text); }
+.history-badge-return { background-color: var(--hs-return-bg); color: var(--hs-return-text); }
+.history-badge-exchange { background-color: var(--hs-exchange-bg); color: var(--hs-exchange-text); }
+.history-badge-payable { background-color: var(--hs-payable-bg); color: var(--hs-payable-text); }
+
+/* Skeleton Loading (CLS Prevention) */
+.skeleton {
+    background: linear-gradient(90deg, 
+        rgba(190, 190, 190, 0.1) 25%, 
+        rgba(190, 190, 190, 0.3) 50%, 
+        rgba(190, 190, 190, 0.1) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s infinite;
+    border-radius: var(--radius-sm);
+    display: inline-block;
+}
+
+[data-theme="dark"] .skeleton {
+    background: linear-gradient(90deg, 
+        rgba(255, 255, 255, 0.05) 25%, 
+        rgba(255, 255, 255, 0.1) 50%, 
+        rgba(255, 255, 255, 0.05) 75%);
+}
+
+@keyframes skeleton-loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.history-skeleton-row {
+    height: 110px;
+    width: 100%;
+    border-bottom: 1px solid var(--border-color);
 }

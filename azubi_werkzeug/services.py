@@ -167,7 +167,7 @@ class CheckService:
 
     @staticmethod
     def group_checks_into_sessions(all_checks):
-        """Group flat check list into session dicts."""
+        """Group flat check list into session dicts with advanced metadata."""
         sessions_dict = {}
         for check in all_checks:
             sid = check.session_id if check.session_id else (
@@ -180,21 +180,67 @@ class CheckService:
                     'datum': check.datum,
                     'azubi_name': check.azubi.name,
                     'checks': [],
-                    'is_ok': True}
-            sessions_dict[sid]['checks'].append(check)
-            if "Status: missing" in (check.bemerkung or "") or \
-               "Status: broken" in (check.bemerkung or ""):
-                sessions_dict[sid]['is_ok'] = False
-        return [
-            {
+                    'is_ok': True,
+                    'is_payable': False,
+                    'total_price': 0.0
+                }
+            
+            s = sessions_dict[sid]
+            s['checks'].append(check)
+            
+            # Detect Anomaly
+            bemerkung = (check.bemerkung or "")
+            if "Status: missing" in bemerkung or "Status: broken" in bemerkung:
+                s['is_ok'] = False
+            
+            # Detect Payable
+            if "(Kostenpflichtig)" in bemerkung:
+                s['is_payable'] = True
+
+        result = []
+        for sd in sessions_dict.values():
+            checks = sd['checks']
+            # Determine overall session type
+            raw_type = CheckService.detect_exchange_type(checks)
+            if not raw_type:
+                # If not exchange, fallback to the most dominant type in the session
+                types = [c.check_type for c in checks]
+                if all(t == CheckType.CHECK.value for t in types):
+                    raw_type = CheckType.CHECK
+                elif all(t == CheckType.RETURN.value for t in types):
+                    raw_type = CheckType.RETURN
+                elif all(t == CheckType.ISSUE.value for t in types):
+                    raw_type = CheckType.ISSUE
+                else:
+                    # Mixed but not exchange? Fallback to first one or 'check'
+                    raw_type = parse_check_type(checks[0].check_type)
+
+            # Aggregate price
+            # Logic: If it's an exchange, only count ISSUE (Neuteil) to avoid double counting
+            # If it's a single Issue session, count all.
+            total = 0.0
+            if sd['is_payable']:
+                for c in checks:
+                    c_type = parse_check_type(c.check_type)
+                    # In Exchange: only count Issue. In others: count all if they have a price
+                    if raw_type == CheckType.EXCHANGE:
+                        if c_type == CheckType.ISSUE and c.werkzeug.price:
+                            total += c.werkzeug.price
+                    else:
+                        if c.werkzeug.price:
+                            total += c.werkzeug.price
+
+            result.append({
                 'session_id': sd['session_id'],
                 'datum': sd['datum'],
                 'azubi_name': sd['azubi_name'],
                 'is_ok': sd['is_ok'],
-                'count': len(sd['checks'])
-            }
-            for sd in sessions_dict.values()
-        ]
+                'is_payable': sd['is_payable'],
+                'total_price': total,
+                'type': raw_type.value if hasattr(raw_type, 'value') else str(raw_type),
+                'count': len(checks)
+            })
+        return result
 
     @staticmethod
     def cleanup_session_files(files_to_delete):

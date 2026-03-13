@@ -288,7 +288,10 @@ def history():
         query_start = time.time()
 
         # New server-side pagination (100 items per page)
-        pagination = query.options(joinedload(Check.azubi)).paginate(
+        pagination = query.options(
+            joinedload(Check.azubi),
+            joinedload(Check.werkzeug)
+        ).paginate(
             page=page, per_page=100, error_out=False
         )
         all_checks = pagination.items
@@ -354,11 +357,22 @@ def api_history():
             except (ValueError, TypeError):
                 pass
 
-        pagination = query.options(joinedload(Check.azubi)).paginate(
+        pagination = query.options(
+            joinedload(Check.azubi),
+            joinedload(Check.werkzeug)
+        ).paginate(
             page=page, per_page=100, error_out=False
         )
         all_checks = pagination.items
         sessions = CheckService.group_checks_into_sessions(all_checks)
+
+        is_admin = session.get('is_admin', False)
+
+        for session_item in sessions:
+            # RBAC: Remove price if not admin
+            if not is_admin:
+                session_item['total_price'] = 0.0
+                session_item['is_payable'] = False # Optional: hide flag too
 
         for session_item in sessions:
             dt = session_item['datum']
