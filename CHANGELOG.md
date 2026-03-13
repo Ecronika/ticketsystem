@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - WebKit/iOS: Sticky-Hover-Bug auf Touchscreens behoben – `.bento-list-item:hover` ist nun auf `@media (hover: hover) and (pointer: fine)` eingeschränkt.
 - WebKit/iOS: `min-height: 100dvh` als Progressive-Enhancement-Fallback für Safari URL-Bar-Kompensation.
 - WebKit/iOS: Native iOS-Picker zeigt keine deaktivierten Optionen mehr an (`setOptgroupState` Helper für bidirektionale Option-Aktivierung).
+- WebKit/iOS: CSS Level 4 Range-Syntax `(width <=768px)` auf `(max-width: 768px)` korrigiert – verhindert stillen Fehler auf iOS < 16.4 (betraf Input-Zoom-Lock und `fixed-bottom`-Padding).
+- WebKit/iOS: `canvas { -webkit-tap-highlight-color: transparent }` ergänzt – unterdrückt unerwünschten grauen Tap-Flash auf Unterschriften-Pads.
 
 ## [2.12.5] - 2026-03-13
 ### Added
