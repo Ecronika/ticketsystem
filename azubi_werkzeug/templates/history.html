@@ -42,15 +42,19 @@
                     <!-- Session Type Icon Box -->
                     {% set type_icon = 'bi-search' %}
                     {% set type_class = 'history-badge-check' %}
+                    {% set type_label = 'Prüfung' %}
                     {% if check_session.type == 'exchange' %}
                         {% set type_icon = 'bi-arrow-left-right' %}
                         {% set type_class = 'history-badge-exchange' %}
+                        {% set type_label = 'Austausch' %}
                     {% elif check_session.type == 'issue' %}
                         {% set type_icon = 'bi-box-arrow-right' %}
                         {% set type_class = 'history-badge-issue' %}
+                        {% set type_label = 'Ausgabe' %}
                     {% elif check_session.type == 'return' %}
                         {% set type_icon = 'bi-box-arrow-in-left' %}
                         {% set type_class = 'history-badge-return' %}
+                        {% set type_label = 'Rückgabe' %}
                     {% endif %}
 
                     <div class="rounded-circle icon-box-lg mx-auto {{ type_class }} opacity-75">
@@ -63,7 +67,7 @@
                     <div class="d-flex align-items-center gap-2 mt-1">
                         <span class="badge-subtle-history {{ type_class }}">
                             <i class="bi {{ type_icon }}" aria-hidden="true"></i>
-                            {{ check_session.type | capitalize }}
+                            {{ type_label }}
                         </span>
                         
                         {% if session.is_admin and check_session.is_payable and check_session.total_price > 0 %}
