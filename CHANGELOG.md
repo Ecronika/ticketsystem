@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.18] - 2026-03-15
+
+### Fixed
+- **Standalone Docker 500 Fix**: Installation von `tzdata` im Docker-Image nachgeholt. Dies behebt Abstürze (500er Fehler) bei der Zeitzonen-Berechnung in schlanken Linux-Umgebungen.
+
 ## [2.12.17] - 2026-03-14
 
 ### Fixed
