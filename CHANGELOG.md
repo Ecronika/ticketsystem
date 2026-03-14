@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.15] - 2026-03-14
+
+### Fixed
+- **Datenbank-Migration Robustheit**: Verbesserung der automatischen Migrationen durch SQLite-Batch-Modus (`render_as_batch=True`).
+- **Self-Healing Startup**: Die App erkennt nun fehlende Migrations-Header in der Datenbank (Legacy-Übergang) und führt automatisch ein Reparaturskript (`stamp`) aus, um den "no such column: check.price" Fehler endgültig zu beheben.
+
 ## [2.12.14] - 2026-03-14
 
 ### Fixed

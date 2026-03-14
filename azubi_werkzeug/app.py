@@ -53,7 +53,11 @@ IS_HOMEASSISTANT = (not IS_STANDALONE) and (os.environ.get('SUPERVISOR_TOKEN') i
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 # Init Migrate
-migrate = Migrate(app, db)
+# Explicitly set the migrations directory to be relative to the app.py file
+# This ensures it is found regardless of the current working directory (e.g. HA run context)
+# render_as_batch=True is critical for SQLite schema changes (like adding columns)
+migrations_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'migrations')
+migrate = Migrate(app, db, directory=migrations_dir, render_as_batch=True)
 
 # Security: Session Configuration
 # SSL is active only if explicitly requested — this is the single source of truth
@@ -361,14 +365,27 @@ def setup_database():
     with app.app_context():
         # Auto-run Migrations (flask db upgrade)
         # This ensures the schema is always up-to-date even in HA/Standalone prod
-        from flask_migrate import upgrade as _db_upgrade
+        from flask_migrate import upgrade as _db_upgrade, stamp as _db_stamp
+        import sqlalchemy as sa
         try:
+            # Dispose engine to avoid lock conflicts during migration
+            db.engine.dispose()
+            
+            # Check if alembic_version exists
+            inspector = sa.inspect(db.engine)
+            tables = inspector.get_table_names()
+            
+            if 'alembic_version' not in tables and 'azubi' in tables:
+                # DB exists but no migration tracking yet (Legacy transition)
+                # Stamp it to the last known stable version before our new release.
+                # '3cefbb0dbee3' corresponds to v2.8.0 - v2.12.11 state.
+                app.logger.info("Database migration: No tracking table found. Stamping to v2.12 baseline.")
+                _db_stamp('3cefbb0dbee3')
+
             _db_upgrade()
             app.logger.info("Database migration: Check/Upgrade completed.")
         except Exception as e:
             app.logger.error("Critical: Database migration failed: %s", e)
-            # We don't exit here to allow app to start if schema is partially valid,
-            # but usually this is a fatal condition for the subsequent seeding.
 
         try:
             # Seed default settings (idempotent — only if key missing)
