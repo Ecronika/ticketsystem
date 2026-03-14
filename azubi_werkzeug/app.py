@@ -359,8 +359,16 @@ def _seed_default_settings():
 def setup_database():
     """Create database tables and seed default data."""
     with app.app_context():
-        # db.create_all() has been replaced by Alembic migrations (flask db upgrade).
-        # We only run seeding here. The actual schema is managed by Alembic.
+        # Auto-run Migrations (flask db upgrade)
+        # This ensures the schema is always up-to-date even in HA/Standalone prod
+        from flask_migrate import upgrade as _db_upgrade
+        try:
+            _db_upgrade()
+            app.logger.info("Database migration: Check/Upgrade completed.")
+        except Exception as e:
+            app.logger.error("Critical: Database migration failed: %s", e)
+            # We don't exit here to allow app to start if schema is partially valid,
+            # but usually this is a fatal condition for the subsequent seeding.
 
         try:
             # Seed default settings (idempotent — only if key missing)

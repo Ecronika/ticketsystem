@@ -252,6 +252,19 @@ class CheckService:
         Primarily used after updates or database restores.
         """
         from models import Check, db
+        import sqlalchemy as sa
+        
+        # Guard: Check if 'price' column even exists in the DB yet
+        # (Prevents crash if migration hasn't run or failed)
+        try:
+            inspector = sa.inspect(db.engine)
+            columns = [c['name'] for c in inspector.get_columns('check')]
+            if 'price' not in columns:
+                return 0
+        except Exception:
+            # If inspection fails (e.g. table not found), just abort backfill safely
+            return 0
+
         # Find records where price is NULL
         checks = Check.query.filter(Check.price == None).all()
         if not checks:

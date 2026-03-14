@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.14] - 2026-03-14
+
+### Fixed
+- **Datenbank-Migration**: Automatische Ausführung von `flask db upgrade` beim App-Start hinzugefügt (behebt "no such column: check.price" Absturz).
+- **Resilienz**: Backfill-Prozess gegen fehlende Datenbankspalten abgesichert um zyklische Abstürze zu verhindern.
+
 ## [2.12.13] - 2026-03-14
 
 ### Added
