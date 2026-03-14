@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  azubi-werkzeug:
+    container_name: azubi_werkzeug
+    build:
+      context: ./azubi_werkzeug # Verzeichnis in dem der Code und das Dockerfile liegen
+      dockerfile: Dockerfile.standalone
+    ports:
+      - "5000:5000"
+    volumes:
+      # Links: Pfad auf dem Mini PC (CasaOS Standard) | Rechts: Pfad im Container
+      - ./data:/data 
+    environment:
+      - DATA_DIR=/data
+      - FLASK_ENV=production
+      - STANDALONE_MODE=true
+    restart: unless-stopped

@@ -46,8 +46,9 @@ try:
 except FileNotFoundError:
     pass
 app = Flask(__name__)
+IS_STANDALONE = os.environ.get('STANDALONE_MODE') == 'true'
 # Home Assistant Check (Ingress usually sets headers, but we also check env)
-IS_HOMEASSISTANT = os.environ.get('SUPERVISOR_TOKEN') is not None or os.environ.get('HAS_INGRESS') == '1'
+IS_HOMEASSISTANT = (not IS_STANDALONE) and (os.environ.get('SUPERVISOR_TOKEN') is not None or os.environ.get('HAS_INGRESS') == '1')
 
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 

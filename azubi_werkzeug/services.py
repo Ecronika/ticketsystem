@@ -222,13 +222,16 @@ class CheckService:
             if sd['is_payable']:
                 for c in checks:
                     c_type = parse_check_type(c.check_type)
-                    # In Exchange: only count Issue. In others: count all if they have a price
+                    # PRIO: Snapshotted Price -> Current Master Price (Fallback for legacy)
+                    price_val = c.price if c.price is not None else (c.werkzeug.price if c.werkzeug else 0.0)
+                    
                     if raw_type == CheckType.EXCHANGE:
-                        if c_type == CheckType.ISSUE and c.werkzeug.price:
-                            total += c.werkzeug.price
+                        # In Exchange: only count Issue (Neuteil) to avoid double counting
+                        if c_type == CheckType.ISSUE:
+                            total += price_val
                     else:
-                        if c.werkzeug.price:
-                            total += c.werkzeug.price
+                        total += price_val
+
 
             result.append({
                 'session_id': sd['session_id'],
@@ -561,10 +564,16 @@ class CheckService:
             datum=check_date,
             tech_param_value='Austausch',
             signature_azubi=None,
-            report_path=None
+            report_path=None,
+            price=0.0 # Return records themselves don't carry the price in our aggregation logic
         )
 
         # Issue Entry
+        # Fetch current price from DB to snapshot it
+        from models import Werkzeug
+        werkzeug = Werkzeug.query.get(tool_id)
+        current_price = werkzeug.price if werkzeug else 0.0
+
         issue_entry = Check(
             session_id=session_id,
             azubi_id=azubi_id,
@@ -576,7 +585,8 @@ class CheckService:
             datum=check_date,
             tech_param_value='Neu',
             signature_azubi=sig_path,
-            report_path=None
+            report_path=None,
+            price=current_price if is_payable else 0.0
         )
         return ret_entry, issue_entry
 

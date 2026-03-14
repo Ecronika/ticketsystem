@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.12] - 2026-03-14
+
+### Added
+- **Standalone Mode**: Unterstützung für den Betrieb außerhalb von Home Assistant via `docker-compose.yml` und `Dockerfile.standalone`.
+- **Preissicherung**: Einführung eines Snapshots für Werkzeugpreise zum Zeitpunkt des Austauschs (behebt Inkonsistenzen bei nachträglichen Stammdatenänderungen).
+
+### Changed
+- **Modell-Update**: `Check`-Modell um Spalte `price` erweitert für dauerhafte Dokumentation der vereinbarten Summen.
+- **Environment Handling**: Verbesserte Erkennung der Laufzeitumgebung (`STANDALONE_MODE`) in `app.py`.
+
 ## [2.12.11] - 2026-03-13
 
 ### Fixed

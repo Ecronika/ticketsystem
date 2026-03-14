@@ -157,3 +157,4 @@ class Check(db.Model):  # pylint: disable=too-few-public-methods
     signature_examiner = db.Column(db.String(200), nullable=True)
     report_path = db.Column(db.String(200), nullable=True)
     manufacturer = db.Column(db.String(100), nullable=True)
+    price = db.Column(db.Float, nullable=True)
