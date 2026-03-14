@@ -246,6 +246,30 @@ class CheckService:
         return result
 
     @staticmethod
+    def ensure_price_backfill():
+        """
+        Ensure all Check records have a price snapshot.
+        Primarily used after updates or database restores.
+        """
+        from models import Check, db
+        # Find records where price is NULL
+        checks = Check.query.filter(Check.price == None).all()
+        if not checks:
+            return 0
+            
+        updated_count = 0
+        for check in checks:
+            # Fallback to current tool price
+            if check.werkzeug:
+                check.price = check.werkzeug.price
+            else:
+                check.price = 0.0
+            updated_count += 1
+            
+        db.session.commit()
+        return updated_count
+
+    @staticmethod
     def cleanup_session_files(files_to_delete):
         """Delete a list of file paths, return count of deleted."""
         deleted_count = 0
