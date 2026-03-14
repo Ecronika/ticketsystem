@@ -368,20 +368,33 @@ def setup_database():
         from flask_migrate import upgrade as _db_upgrade, stamp as _db_stamp
         import sqlalchemy as sa
         try:
-            # Dispose engine to avoid lock conflicts during migration
+            # 1. Dispose engine to avoid lock conflicts during migration
             db.engine.dispose()
             
-            # Check if alembic_version exists
+            # 2. Brute-Force Schema Validation (Check if 'price' exists in 'check' table)
             inspector = sa.inspect(db.engine)
             tables = inspector.get_table_names()
             
+            if 'check' in tables:
+                columns = [c['name'] for c in inspector.get_columns('check')]
+                if 'price' not in columns:
+                    app.logger.warning("Emergency Fix: Column 'price' missing in 'check' table. Patching via SQL...")
+                    try:
+                        with db.engine.connect() as conn:
+                            # We use raw SQL to add the column immediately
+                            conn.execute(sa.text('ALTER TABLE "check" ADD COLUMN price FLOAT'))
+                            conn.commit()
+                        app.logger.info("Emergency Fix: Column 'price' added successfully.")
+                    except Exception as e:
+                        app.logger.error("Emergency Fix failed: %s", e)
+
+            # 3. Alembic Tracking Sync
             if 'alembic_version' not in tables and 'azubi' in tables:
                 # DB exists but no migration tracking yet (Legacy transition)
-                # Stamp it to the last known stable version before our new release.
-                # '3cefbb0dbee3' corresponds to v2.8.0 - v2.12.11 state.
                 app.logger.info("Database migration: No tracking table found. Stamping to v2.12 baseline.")
                 _db_stamp('3cefbb0dbee3')
 
+            # 4. Standard Upgrade (Catching up on everything else)
             _db_upgrade()
             app.logger.info("Database migration: Check/Upgrade completed.")
         except Exception as e:
