@@ -194,7 +194,7 @@ class CheckService:
                 s['is_ok'] = False
             
             # Detect Payable
-            if "(Kostenpflichtig)" in bemerkung:
+            if "kostenpflichtig" in bemerkung.lower():
                 s['is_payable'] = True
 
         result = []

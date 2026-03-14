@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.17] - 2026-03-14
+
+### Fixed
+- **Historie Preis-Badge**: Korrektur der Anzeige des Preis-Badges in der Historie. Er ist nun für alle berechtigten Nutzer sichtbar, wenn ein Austausch als "kostenpflichtig" markiert wurde.
+- **Automatischer Backfill**: Die App führt nun beim Start automatisch ein Daten-Update durch, um fehlende Preis-Informationen in alten Datensätzen aus den Werkzeug-Stammdaten nachzutragen.
+
 ## [2.12.16] - 2026-03-14
 
 ### Fixed

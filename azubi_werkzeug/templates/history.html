@@ -70,7 +70,7 @@
                             {{ type_label }}
                         </span>
                         
-                        {% if session.is_admin and check_session.is_payable and check_session.total_price > 0 %}
+                        {% if check_session.is_payable and check_session.total_price > 0 %}
                         <span class="badge-subtle-history history-badge-payable">
                             <i class="bi bi-cash-stack" aria-hidden="true"></i>
                             {{ "%.2f"|format(check_session.total_price) }} €

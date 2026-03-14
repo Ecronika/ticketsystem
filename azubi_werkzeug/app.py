@@ -404,14 +404,13 @@ def setup_database():
             # Seed default settings (idempotent — only if key missing)
             _seed_default_settings()
             
-            # Backfill missing prices (idempotent — only for NULL prices)
-            # Ensures consistency after updates or backup restores.
-            from services import CheckService
+            # Ensure all checks have price snapshots (Backfill for legacy data)
+            from services import CheckService  # pylint: disable=import-outside-toplevel
             count = CheckService.ensure_price_backfill()
             if count > 0:
-                app.logger.info("Automated Backfill: Updated %d legacy price snapshots.", count)
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            app.logger.error("Failed to seed default settings or backfill: %s", e)
+                app.logger.info("Database: Backfilled price snapshots for %d legacy checks.", count)
+        except Exception as e:
+            app.logger.error("Failed to seed or backfill settings: %s", e)
 
 
 # --- Jinja Filters ---
