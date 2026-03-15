@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.36] - 2026-03-15
+
+### Fixed
+- **Restore-Resilienz (Transient Crash)**: `db.create_all()` wurde explizit in den Restore-Pfad in `services.py` integriert. Dies stellt sicher, dass alle Tabellen sofort nach dem Einspielen eines Backups physisch vorhanden sind, bevor der Worker-Neustart erfolgt. Dies verhindert den flüchtigen "no such table: azubi" Absturz bei der direkten Weiterleitung nach dem Restore.
+
 ## [2.12.35] - 2026-03-15
 
 ### Fixed

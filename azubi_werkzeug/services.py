@@ -876,13 +876,12 @@ class BackupService:
                 except Exception:
                     pass
 
-            # Ensure all tables exist (older backups may lack newer tables)
-            # We run flask db upgrade explicitly to ensure schema updates
-            # like missing columns (e.g. manufacturer) are applied.
-            # db.create_all() removed in v2.10.2 to avoid conflicts with Alembic
-
             try:
                 current_app.logger.info("Running DB migrations after restore...")
+                # Ensure all tables exist (critical after restore of an empty DB)
+                from extensions import db
+                db.create_all()
+                
                 from flask_migrate import upgrade
                 upgrade()
             except Exception as e:  # pylint: disable=broad-exception-caught
