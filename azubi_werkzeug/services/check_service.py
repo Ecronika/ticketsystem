@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from flask import current_app
 from sqlalchemy import func
 
+from dto import CheckSubmissionContext
 from enums import CheckType
 from exceptions import (
     AzubiWerkzeugError, ValidationError, SignatureError, DatabaseError
@@ -274,17 +275,17 @@ class CheckService:
 
             records.append(Check(
                 session_id=check_context['session_id'],
-                azubi_id=check_context['azubi'].id,
+                azubi_id=check_context.azubi_id,
                 werkzeug_id=werkzeug.id,
                 bemerkung=full_bemerkung,
                 tech_param_value=tech_val,
                 incident_reason=incident_reason,
                 manufacturer=manufacturer,
-                datum=check_context['check_date'],
-                check_type=check_context['check_type'].value,
-                examiner=check_context['examiner_name'],
-                signature_azubi=check_context['sig_azubi_path'],
-                signature_examiner=check_context['sig_examiner_path'],
+                datum=check_context.datum,
+                check_type=check_context.check_type.value,
+                examiner=check_context.examiner_name,
+                signature_azubi=check_context.sig_azubi_path,
+                signature_examiner=check_context.sig_examiner_path,
                 report_path=None
             ))
             selected_tools.append({
@@ -337,16 +338,19 @@ class CheckService:
         sig_azubi_path,
         sig_examiner_path
     ):
-        """Build check context dictionary."""
-        return {
-            'session_id': session_id,
-            'azubi': azubi,
-            'check_date': check_date,
-            'check_type': check_type,
-            'examiner_name': examiner_name,
-            'sig_azubi_path': sig_azubi_path,
-            'sig_examiner_path': sig_examiner_path
-        }
+        """Build check context DTO."""
+        from app_state import is_migration_active
+        return CheckSubmissionContext(
+            azubi_id=azubi.id,
+            azubi_name=azubi.name,
+            examiner_name=examiner_name,
+            datum=check_date,
+            check_type=check_type,
+            session_id=session_id,
+            sig_azubi_path=sig_azubi_path,
+            sig_examiner_path=sig_examiner_path,
+            is_migration=is_migration_active()
+        )
 
     @staticmethod
     def _fetch_tools_dict(tool_ids):
@@ -436,7 +440,7 @@ class CheckService:
 
             return {
                 'success': True,
-                'session_id': context['session_id'],
+                'session_id': context.session_id,
                 'pdf_path': pdf_path,
                 'count': len(reports_to_create)
             }
@@ -449,19 +453,19 @@ class CheckService:
     def _generate_submission_pdf(context, selected_tools):
         """Generate the handover PDF."""
         reports_dir = os.path.join(current_app.config['DATA_DIR'], 'reports')
-        name_clean = context['azubi'].name.replace(' ', '_')
-        date_str = context['check_date'].strftime('%Y%m%d_%H%M')
-        pdf_filename = f"Protokoll_{context['check_type'].value}_{name_clean}_{date_str}.pdf"
+        name_clean = context.azubi_name.replace(' ', '_')
+        date_str = context.datum.strftime('%Y%m%d_%H%M')
+        pdf_filename = f"Protokoll_{context.check_type.value}_{name_clean}_{date_str}.pdf"
         pdf_path = os.path.join(reports_dir, pdf_filename)
 
         generate_handover_pdf(
-            azubi_name=context['azubi'].name,
-            examiner_name=context['examiner_name'],
+            azubi_name=context.azubi_name,
+            examiner_name=context.examiner_name,
             tools=selected_tools,
-            check_type=context['check_type'],
+            check_type=context.check_type,
             signature_paths={
-                'azubi': context['sig_azubi_path'],
-                'examiner': context['sig_examiner_path']
+                'azubi': context.sig_azubi_path,
+                'examiner': context.sig_examiner_path
             },
             output_path=pdf_path
         )

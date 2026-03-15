@@ -229,7 +229,7 @@ def submit_check():
 
     except Exception as e:  # pylint: disable=broad-exception-caught
         current_app.logger.error(
-            f"Error in submit_check: {e}",
+            "Error in submit_check: %s", e,
             exc_info=True)
         flash(
             f'Fehler beim Speichern: {str(e)}',
@@ -325,8 +325,8 @@ def history():
 
         query_duration = time.time() - query_start
         current_app.logger.info(
-            f"History query (Page {page}): {len(all_checks)} checks "
-            f"in {query_duration:.3f}s")
+            "History query (Page %s): %s checks in %.3fs",
+            page, len(all_checks), query_duration)
 
         azubis = Azubi.query.order_by(Azubi.name).all()
 
@@ -338,9 +338,8 @@ def history():
 
         total_duration = time.time() - start_time
         current_app.logger.info(
-            f"History: {total_duration:.3f}s "
-            f"(q:{query_duration:.3f}s, "
-            f"g:{group_duration:.3f}s)")
+            "History: %.3fs (q:%.3fs, g:%.3fs)",
+            total_duration, query_duration, group_duration)
 
         safe_selected_id = None
         if azubi_id and azubi_id != 'all':
@@ -359,14 +358,14 @@ def history():
 
     except SQLAlchemyError as e:
         current_app.logger.error(
-            f"DB error in history: {e}",
+            "Error in tool exchange: %s", e,
             exc_info=True)
         flash('Fehler beim Laden der Historie',
               'danger')
         return redirect(url_for('main.index'))
     except Exception as e:  # pylint: disable=broad-exception-caught
         current_app.logger.error(
-            f"Error in history: {e}", exc_info=True)
+            "Error in history: %s", e, exc_info=True)
         flash(f'Fehler: {str(e)}', 'danger')
         return redirect(url_for('main.index'))
 
