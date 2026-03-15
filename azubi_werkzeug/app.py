@@ -142,7 +142,13 @@ if not IS_STANDALONE:
     app.logger.info("Logging: Async (QueueListener) enabled for HA.")
 else:
     # Standalone: Remove default handlers and add our own directly to root for maximum visibility
-    logging.getLogger().addHandler(console_handler)
+    # This ensures that underlying libraries (like alembic or gunicorn workers) 
+    # also output to stdout if they use the standard logging.
+    root_bridge = logging.getLogger()
+    root_bridge.setLevel(logging.INFO)
+    root_bridge.addHandler(console_handler)
+    
+    # Flask app logger
     app.logger.addHandler(console_handler)
     app.logger.addHandler(file_handler)
     app.logger.info("Logging: Sync (Direct) enabled for Standalone. [v%s]", APP_VERSION)
