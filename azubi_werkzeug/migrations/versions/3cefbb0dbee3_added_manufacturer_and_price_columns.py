@@ -16,6 +16,7 @@ branch_labels = None
 depends_on = None
 
 
+def upgrade():
     # Indexes are already handled by models or previous state
     with op.batch_alter_table('check', schema=None) as batch_op:
         batch_op.add_column(sa.Column('manufacturer', sa.String(length=100), nullable=True))
