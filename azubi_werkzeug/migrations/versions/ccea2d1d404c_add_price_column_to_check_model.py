@@ -19,11 +19,13 @@ depends_on = None
 def upgrade():
     conn = op.get_bind()
     inspector = sa.inspect(conn)
-    columns_check = [c['name'] for c in inspector.get_columns('check')]
+    tables = inspector.get_table_names()
     
-    if 'price' not in columns_check:
-        with op.batch_alter_table('check', schema=None) as batch_op:
-            batch_op.add_column(sa.Column('price', sa.Float(), nullable=True))
+    if 'check' in tables:
+        columns_check = [c['name'] for c in inspector.get_columns('check')]
+        if 'price' not in columns_check:
+            with op.batch_alter_table('check', schema=None) as batch_op:
+                batch_op.add_column(sa.Column('price', sa.Float(), nullable=True))
 
 
 def downgrade():
