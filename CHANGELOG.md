@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.31] - 2026-03-15
+
+### Fixed
+- **Migration Resilience (Check Table)**: Auch die Migration `ccea2d1d404c` (Hinzufügen der `price`-Spalte zur `check`-Tabelle) ist nun idempotent. Dies löst den letzten verbliebenen Konflikt beim Start.
+
 ## [2.12.30] - 2026-03-15
 
 ### Fixed
