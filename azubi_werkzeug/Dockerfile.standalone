@@ -32,4 +32,5 @@ EXPOSE 5000
 # --access-logfile - aktiviert Request-Logging in docker logs
 # --error-logfile - aktiviert Fehler-Logging in docker logs
 # --log-level info stellt sicher, dass alles Relevante ausgegeben wird
-CMD ["gunicorn", "--workers", "1", "--threads", "2", "--timeout", "120", "--bind", "0.0.0.0:5000", "--access-logfile", "-", "--error-logfile", "-", "--log-level", "info", "app:app"]
+# --capture-output und --enable-stdio-inheritance stellen sicher, dass stdout/stderr der App bei docker logs ankommt
+CMD ["gunicorn", "--workers", "1", "--threads", "2", "--timeout", "120", "--bind", "0.0.0.0:5000", "--access-logfile", "-", "--error-logfile", "-", "--log-level", "info", "--capture-output", "--enable-stdio-inheritance", "app:app"]

@@ -129,8 +129,8 @@ console_formatter = logging.Formatter(
 console_handler.setFormatter(console_formatter)
 
 # --- Logging Strategy ---
-# HA Add-on: Use Async (QueueListener) to prevent I/O blocking during startup synchronization
-# Standalone: Use Sync (Direct) to ensure all errors reach docker logs immediately
+# HA Add-on: Use Async (QueueListener)
+# Standalone: Use Sync (Direct) to avoid missed logs in docker logs
 if not IS_STANDALONE:
     log_queue = queue.Queue(-1)
     queue_listener = QueueListener(
@@ -141,9 +141,11 @@ if not IS_STANDALONE:
     atexit.register(queue_listener.stop)
     app.logger.info("Logging: Async (QueueListener) enabled for HA.")
 else:
-    app.logger.addHandler(file_handler)
+    # Standalone: Remove default handlers and add our own directly to root for maximum visibility
+    logging.getLogger().addHandler(console_handler)
     app.logger.addHandler(console_handler)
-    app.logger.info("Logging: Sync (Direct) enabled for Standalone.")
+    app.logger.addHandler(file_handler)
+    app.logger.info("Logging: Sync (Direct) enabled for Standalone. [v%s]", APP_VERSION)
 
 app.logger.setLevel(logging.INFO)
 
@@ -372,41 +374,38 @@ def setup_database():
             # 1. Dispose engine to avoid lock conflicts
             db.engine.dispose()
             
-            # 2. Inspect current state
-            inspector = sa.inspect(db.engine)
-            tables = inspector.get_table_names()
-            app.logger.info("Database: Tables found: %s", ", ".join(tables) if tables else "None")
-            
-            # 3. Emergency Patch for 'price' column (Brute-Force)
-            if 'check' in tables:
-                columns = [c['name'] for c in inspector.get_columns('check')]
-                if 'price' not in columns:
-                    app.logger.warning("Database: Column 'price' missing. Patching via SQL...")
-                    try:
-                        with db.engine.connect() as conn:
+            # 2. Inspect current state (Using context manager to ensure connection close)
+            with db.engine.connect() as conn:
+                inspector = sa.inspect(conn)
+                tables = inspector.get_table_names()
+                app.logger.info("Database: Initialization stage — Tables: %s", ", ".join(tables) if tables else "None")
+                
+                # 3. Emergency Patch for 'price' column (Brute-Force)
+                if 'check' in tables:
+                    columns = [c['name'] for c in inspector.get_columns('check')]
+                    if 'price' not in columns:
+                        app.logger.warning("Database: Column 'price' missing. Patching via SQL...")
+                        try:
                             conn.execute(sa.text('ALTER TABLE "check" ADD COLUMN price FLOAT'))
                             conn.commit()
-                        app.logger.info("Database: Column 'price' successfully added.")
-                    except Exception as e:
-                        app.logger.error("Database: Emergency patch failed: %s", e)
+                            app.logger.info("Database: Column 'price' successfully added.")
+                        except Exception as e:
+                            app.logger.error("Database: Emergency patch failed: %s", e)
 
-            # 4. Alembic Synchronization
+            # 4. Alembic Synchronization (Re-open fresh for Alembic)
             if 'alembic_version' not in tables:
                 if 'azubi' in tables:
-                    # Legacy transition: Stamp to baseline
-                    app.logger.info("Database: No tracking table. Stamping to v2.12 baseline.")
+                    app.logger.info("Database: Stamping legacy DB to v2.12 baseline.")
                     _db_stamp('3cefbb0dbee3')
                 else:
-                    # Fresh DB: Just create everything and stamp to head
-                    app.logger.info("Database: Fresh install. Creating all tables...")
+                    app.logger.info("Database: Fresh install. Initializing tables...")
                     db.create_all()
                     _db_stamp()
-                    app.logger.info("Database: Tables created and stamped to HEAD.")
+                    app.logger.info("Database: Fresh install finished.")
             else:
-                # Existing DB: Standard upgrade
                 app.logger.info("Database: Running migrations (upgrade)...")
                 _db_upgrade()
-                app.logger.info("Database: Migration completed.")
+                app.logger.info("Database: Migration finished.")
 
         except Exception as e:
             app.logger.error("Database: Critical error during setup: %s", e, exc_info=True)

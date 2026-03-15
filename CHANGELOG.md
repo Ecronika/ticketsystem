@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.22] - 2026-03-15
+
+### Fixed
+- **Logging Visibility**: Gunicorn wurde so konfiguriert, dass sämtliche Ausgaben der App (stdout/stderr) konsequent in die Docker-Logs weitergeleitet werden. 
+- **Database Initialize Fix**: Ein potenzieller Deadlock bei der Initialisierung (SQLite Lock) wurde durch sauberes Schließen der Inspektions-Verbindung behoben. Dies stellt sicher, dass das Seeding (PIN-Hash) immer abgeschlossen wird.
+
 ## [2.12.21] - 2026-03-15
 
 ### Fixed
