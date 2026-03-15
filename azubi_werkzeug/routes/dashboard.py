@@ -8,12 +8,10 @@ import os
 import time
 from datetime import datetime
 
-from flask import (
-    render_template, request, current_app, Response, jsonify
-)
+from flask import Response, current_app, jsonify, render_template, request
 from sqlalchemy import func
 
-from extensions import db, Config
+from extensions import Config, db
 from models import Azubi, Check
 from services import CheckService
 
@@ -61,7 +59,8 @@ def register_routes(bp):
 
         azubi_ids = [a.id for a, l in azubis_with_checks]
         assigned_tools_batch = CheckService.get_assigned_tools_batch(azubi_ids)
-        anomalies_batch = CheckService.get_tool_anomalies_batch(azubi_ids, assigned_tools_batch)
+        anomalies_batch = CheckService.get_tool_anomalies_batch(
+            azubi_ids, assigned_tools_batch)
 
         dashboard_data = []
         for azubi, last_datum in azubis_with_checks:
@@ -89,7 +88,8 @@ def register_routes(bp):
 
         dashboard_data.sort(
             key=lambda x: (-1 if x['status_class'] == 'danger' else 0,
-                           -1 if (x['missing_count'] > 0 or x['broken_count'] > 0) else 0,
+                           -1 if (x['missing_count'] >
+                                  0 or x['broken_count'] > 0) else 0,
                            x['sort_order'],
                            x['name']))
 
@@ -133,17 +133,17 @@ def register_routes(bp):
                 }
             )
         except Exception as e:  # pylint: disable=broad-exception-caught
-            current_app.logger.error(f"Error reading logo: {e}")
+            current_app.logger.error("Error reading logo: %s", e)
             return "Error reading logo", 500
 
     @bp.route('/health')
     def health_check():
-        """Lightweight healthcheck endpoint — returns JSON."""
+        """Lightweight healthcheck endpoint â€” returns JSON."""
         try:
             db.session.execute(db.text('SELECT 1')).fetchone()
             db_ok = True
         except Exception as e:  # pylint: disable=broad-exception-caught
-            current_app.logger.error(f"Healthcheck DB failed: {e}")
+            current_app.logger.error("Healthcheck DB failed: %s", e)
             db_ok = False
 
         payload = {

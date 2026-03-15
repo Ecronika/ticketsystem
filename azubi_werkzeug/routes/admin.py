@@ -1,4 +1,3 @@
-# pylint: disable=line-too-long,wrong-import-order,too-many-lines,unnecessary-pass,too-many-locals,broad-exception-caught,import-outside-toplevel,mixed-line-endings,unused-import
 """
 Admin routes.
 
@@ -6,31 +5,36 @@ Handles personnel management, tool management, settings,
 backups, migration mode, logo upload, QR codes, and reports.
 """
 import os
-import time
 import secrets
+import time
 from datetime import datetime, timedelta, timezone
 
 from flask import (
-    render_template, request, redirect, url_for,
-    flash, current_app, session, make_response,
-    send_from_directory
+    current_app,
+    flash,
+    make_response,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    session,
+    url_for,
 )
-from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash
+from werkzeug.utils import secure_filename
 
+from exceptions import BackupError, ValidationError
 from extensions import db, limiter
-from models import Azubi, Werkzeug, Examiner, Check, SystemSettings
 from forms import AzubiForm, ExaminerForm, WerkzeugForm
-from services import CheckService, BackupService
-from pdf_utils import (
-    generate_qr_codes_pdf, generate_end_of_training_report
-)
+from models import Azubi, Check, Examiner, SystemSettings, Werkzeug
+from pdf_utils import generate_end_of_training_report, generate_qr_codes_pdf
 from routes.auth import admin_required
 from routes.utils import get_data_dir
+from services import BackupService, CheckService
 
 
 def manage():
-    """Redirect /manage → /tools for backward compat."""
+    """Redirect /manage â†’ /tools for backward compat."""
     return redirect(url_for('main.tools'))
 
 
@@ -149,11 +153,11 @@ def change_pin():
     ingress = request.headers.get('X-Ingress-Path', '')
 
     if not new_pin or not confirm_pin:
-        flash('Bitte beide Felder ausfüllen.', 'error')
+        flash('Bitte beide Felder ausfÃ¼llen.', 'error')
         return redirect(f"{ingress}{url_for('main.settings')}")
 
     if new_pin != confirm_pin:
-        flash('PINs stimmen nicht überein.', 'error')
+        flash('PINs stimmen nicht Ã¼berein.', 'error')
         return redirect(f"{ingress}{url_for('main.settings')}")
 
     if len(new_pin) < 4 or len(new_pin) > 10 or not new_pin.isdigit():
@@ -164,7 +168,7 @@ def change_pin():
     pin_hash = generate_password_hash(new_pin)
     SystemSettings.set_setting('admin_pin_hash', pin_hash)
 
-    flash('PIN erfolgreich geändert.', 'success')
+    flash('PIN erfolgreich geÃ¤ndert.', 'success')
     return redirect(f"{ingress}{url_for('main.settings')}")
 
 
@@ -172,7 +176,8 @@ def change_pin():
 def generate_recovery_tokens():
     """Generate 5 single-use recovery tokens."""
     # Generate 5 raw tokens
-    raw_tokens = [f"RT-{secrets.token_hex(4)}-{secrets.token_hex(4)}".upper() for _ in range(5)]
+    raw_tokens = [
+        f"RT-{secrets.token_hex(4)}-{secrets.token_hex(4)}".upper() for _ in range(5)]
     # Hash them for storage
     hashed_tokens = [generate_password_hash(t) for t in raw_tokens]
 
@@ -232,13 +237,13 @@ def restore_backup():
     ingress = request.headers.get(
         'X-Ingress-Path', '')
     if 'backup_file' not in request.files:
-        flash('Keine Datei ausgewählt.', 'error')
+        flash('Keine Datei ausgewÃ¤hlt.', 'error')
         return redirect(
             f"{ingress}{url_for('main.settings')}")
 
     file = request.files['backup_file']
     if file.filename == '':
-        flash('Keine Datei ausgewählt.', 'error')
+        flash('Keine Datei ausgewÃ¤hlt.', 'error')
         return redirect(
             f"{ingress}{url_for('main.settings')}")
 
@@ -255,21 +260,22 @@ def restore_backup():
                     'wiederhergestellt. System startet neu...',
                     'success')
                 # os._exit() terminates at OS level without raising SystemExit.
-                # callbacks catch and log as CRITICAL — os._exit avoids that.
+                # callbacks catch and log as CRITICAL â€” os._exit avoids that.
                 # Delay by 2.0s so the HTTP 302 response has enough time to
                 # reach the browser before Gunicorn terminates (prevents 504).
-                import threading  # pylint: disable=import-outside-toplevel
                 import signal  # pylint: disable=import-outside-toplevel
+                import threading  # pylint: disable=import-outside-toplevel
                 threading.Timer(2.0, lambda: os.kill(os.getpid(), signal.SIGTERM)).start()  # noqa: SLF001
                 return redirect(
                     f"{ingress}{url_for('main.settings')}")
+            except (ValidationError, BackupError) as e:
+                flash(f'Fehler bei Wiederherstellung: {e}', 'error')
+                return redirect(f"{ingress}{url_for('main.settings')}")
             except Exception as e:  # pylint: disable=broad-exception-caught
-                flash(
-                    f'Fehler bei Wiederherstellung: '
-                    f'{str(e)}', 'error')
-                return redirect(
-                    f"{ingress}"
-                    f"{url_for('main.settings')}")
+                flash(f'Systemfehler bei Wiederherstellung: {str(e)}', 'error')
+                current_app.logger.error(
+                    "Restore system error: %s", e, exc_info=True)
+                return redirect(f"{ingress}{url_for('main.settings')}")
             finally:
                 if os.path.exists(temp_path):
                     try:
@@ -285,7 +291,7 @@ def restore_backup():
                 f"{url_for('main.settings')}")
 
     flash(
-        'Ungültiges Dateiformat. Nur .zip erlaubt.',
+        'UngÃ¼ltiges Dateiformat. Nur .zip erlaubt.',
         'error')
     return redirect(
         f"{ingress}{url_for('main.settings')}")
@@ -359,7 +365,7 @@ def add_examiner():
         db.session.add(new_examiner)
         db.session.commit()
         flash(
-            f'Prüfer {form.name.data} hinzugefügt.',
+            f'PrÃ¼fer {form.name.data} hinzugefÃ¼gt.',
             'success')
     else:
         for field, errors in form.errors.items():
@@ -378,7 +384,7 @@ def delete_examiner(examiner_id):
     db.session.delete(examiner)
     db.session.commit()
     flash(
-        f'Prüfer {examiner.name} gelöscht.',
+        f'PrÃ¼fer {examiner.name} gelÃ¶scht.',
         'success')
     ingress = request.headers.get(
         'X-Ingress-Path', '')
@@ -399,7 +405,7 @@ def add_azubi():
         db.session.add(new_azubi)
         db.session.commit()
         flash(
-            f'Azubi {form.name.data} hinzugefügt.',
+            f'Azubi {form.name.data} hinzugefÃ¼gt.',
             'success')
     else:
         for field, errors in form.errors.items():
@@ -442,7 +448,7 @@ def delete_azubi(azubi_id):
     if azubi.checks:
         flash(
             f'Fehler: Azubi "{azubi.name}" hat '
-            'Historie und kann nicht gelöscht '
+            'Historie und kann nicht gelÃ¶scht '
             'werden.', 'error')
         ingress = request.headers.get(
             'X-Ingress-Path', '')
@@ -451,7 +457,7 @@ def delete_azubi(azubi_id):
     db.session.delete(azubi)
     db.session.commit()
     flash(
-        f'Azubi {azubi.name} gelöscht.', 'success')
+        f'Azubi {azubi.name} gelÃ¶scht.', 'success')
     ingress = request.headers.get(
         'X-Ingress-Path', '')
     return redirect(
@@ -468,7 +474,7 @@ def archive_azubi(azubi_id):
         flash(
             f'Warnung: {azubi.name} hat noch '
             f'{len(assigned)} Werkzeuge im Besitz! '
-            'Bitte erst zurückgeben.', 'danger')
+            'Bitte erst zurÃ¼ckgeben.', 'danger')
         ingress = request.headers.get(
             'X-Ingress-Path', '')
         return redirect(
@@ -516,7 +522,7 @@ def add_werkzeug():
         db.session.add(new_werkzeug)
         db.session.commit()
         flash(
-            f'Werkzeug {form.name.data} hinzugefügt.',
+            f'Werkzeug {form.name.data} hinzugefÃ¼gt.',
             'success')
     else:
         for field, errors in form.errors.items():
@@ -569,7 +575,7 @@ def delete_werkzeug(werkzeug_id):
         flash(
             f'Fehler: Werkzeug "{werkzeug.name}" '
             'wird in Protokollen verwendet und '
-            'kann nicht gelöscht werden.', 'error')
+            'kann nicht gelÃ¶scht werden.', 'error')
         ingress = request.headers.get(
             'X-Ingress-Path', '')
         return redirect(
@@ -577,7 +583,7 @@ def delete_werkzeug(werkzeug_id):
     db.session.delete(werkzeug)
     db.session.commit()
     flash(
-        f'Werkzeug {werkzeug.name} gelöscht.',
+        f'Werkzeug {werkzeug.name} gelÃ¶scht.',
         'success')
     ingress = request.headers.get(
         'X-Ingress-Path', '')
@@ -592,13 +598,13 @@ def upload_logo():
     ingress = request.headers.get(
         'X-Ingress-Path', '')
     if 'logo' not in request.files:
-        flash('Keine Datei ausgewählt', 'danger')
+        flash('Keine Datei ausgewÃ¤hlt', 'danger')
         return redirect(
             f"{ingress}{url_for('main.settings')}")
 
     file = request.files['logo']
     if file.filename == '':
-        flash('Keine Datei ausgewählt', 'danger')
+        flash('Keine Datei ausgewÃ¤hlt', 'danger')
         return redirect(
             f"{ingress}{url_for('main.settings')}")
 
@@ -607,7 +613,7 @@ def upload_logo():
             '.', 1)[-1].lower()
         if ext not in ['png']:
             flash(
-                'Ungültige Dateiendung '
+                'UngÃ¼ltige Dateiendung '
                 '(Nur .png erlaubt).', 'error')
             return redirect(
                 f"{ingress}"
@@ -623,7 +629,7 @@ def upload_logo():
 
         if not is_png:
             flash(
-                'Ungültiges Format oder beschädigte Datei '
+                'UngÃ¼ltiges Format oder beschÃ¤digte Datei '
                 '(Nur valide PNG erlaubt).', 'error')
             return redirect(
                 f"{ingress}"
@@ -634,7 +640,7 @@ def upload_logo():
         file.seek(0)
         if size > 2 * 1024 * 1024:
             flash(
-                'Datei zu groß (max. 2MB).', 'error')
+                'Datei zu groÃŸ (max. 2MB).', 'error')
             return redirect(
                 f"{ingress}"
                 f"{url_for('main.settings')}")
@@ -660,7 +666,7 @@ def generate_qr_codes():
     if request.method == 'POST':
         azubi_ids = request.form.getlist('azubi_ids')
         if not azubi_ids:
-            flash('Keine Azubis ausgewählt.', 'warning')
+            flash('Keine Azubis ausgewÃ¤hlt.', 'warning')
             ingress = request.headers.get('X-Ingress-Path', '')
             return redirect(f"{ingress}{url_for('main.settings')}")
         all_azubis = Azubi.query.filter(Azubi.id.in_(azubi_ids)).order_by(

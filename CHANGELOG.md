@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.12.39] - 2026-03-15
+
+### Added
+- **Architektur-Evolution**: Einführung von `ExchangeService` und `HistoryService` zur Entkoppelung komplexer Geschäftslogik von den Basis-Services.
+- **Enums & DTOs**: Einführung von `enums.py` und `dto.py` zur Vermeidung zirkulärer Importe und für saubere Type-Hints.
+
+### Changed
+- **Code Quality (Gates)**: Erreichung eines perfekten Pylint-Scores von 10.0/10.0.
+- **Wartbarkeit**: Steigerung des Maintainability Index (Radon) auf Grad A und Reduzierung der zyklomatischen Komplexität (Xenon) auf Grad B für alle Kernmodule.
+- **Dokumentation**: Vollständige pydocstyle (PEP 257) Compliance für alle öffentlichen APIs (außer Migrations/Tests).
+- **Deployment**: `Dockerfile` für das Home Assistant Add-on auf die neue Modulstruktur migriert.
+
+### Fixed
+- **Linter-Compliance**: Auflösung sämtlicher Flake8-Verletzungen und ungenutzter Importe in den Service- und Route-Layern.
+- **Mechanische Fixes**: Entfernung von UTF-8 BOM-Headern aus Python-Dateien.
 ## [2.12.38] - 2026-03-15
 
 ### Changed

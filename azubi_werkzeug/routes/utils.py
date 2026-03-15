@@ -4,34 +4,10 @@ Route utilities module.
 Shared helpers used across route sub-modules.
 """
 from datetime import datetime, timezone
-from flask import current_app, flash, redirect, session, url_for
+
+from flask import current_app, flash, redirect, url_for
+
 from extensions import db
-
-
-def is_migration_active() -> bool:
-    """Return True only if migration mode is enabled and has not yet expired.
-
-    Migration mode auto-expires 8 hours after activation.
-    Silently clears the session flags when the time has elapsed.
-    """
-    if not session.get('migration_mode', False):
-        return False
-    expires_str = session.get('migration_mode_expires')
-    if expires_str:
-        try:
-            expires = datetime.fromisoformat(expires_str)
-            if datetime.now(timezone.utc) > expires:
-                session.pop('migration_mode', None)
-                session.pop('migration_mode_expires', None)
-                current_app.logger.info(
-                    "Migration mode auto-expired and was cleared.")
-                return False
-        except (ValueError, TypeError):
-            # Malformed timestamp — clear to be safe
-            session.pop('migration_mode', None)
-            session.pop('migration_mode_expires', None)
-            return False
-    return True
 
 
 def handle_db_error(
@@ -58,7 +34,7 @@ def handle_db_error(
     else:
         flash(
             'Ein Datenbankfehler ist aufgetreten. '
-            'Bitte versuchen Sie es später erneut.',
+            'Bitte versuchen Sie es spÃƒÂ¤ter erneut.',
             'danger')
 
     return redirect(url_for(redirect_route))
@@ -74,7 +50,7 @@ def parse_migration_date(form_data, ingress):
     """Parse and validate custom date from migration mode form data.
 
     Returns:
-        tuple: (check_date, error_redirect) — error_redirect is None
+        tuple: (check_date, error_redirect) Ã¢â‚¬â€ error_redirect is None
                on success.
     """
     c_date = form_data.get('custom_date')
@@ -88,7 +64,7 @@ def parse_migration_date(form_data, ingress):
         return check_date, None
     except ValueError:
         flash(
-            'Fehler: Ungültiges Datumsformat im Migrations-Modus.',
+            'Fehler: UngÃƒÂ¼ltiges Datumsformat im Migrations-Modus.',
             'error')
         current_app.logger.warning(
             f"Invalid migration date format: {c_date} {c_time}")

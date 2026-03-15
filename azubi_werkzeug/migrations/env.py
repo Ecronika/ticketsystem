@@ -1,9 +1,9 @@
+"""Alembic environment configuration."""
 import logging
 from logging.config import fileConfig
 
-from flask import current_app
-
 from alembic import context
+from flask import current_app
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -16,6 +16,7 @@ logger = logging.getLogger('alembic.env')
 
 
 def get_engine():
+    """Get the database engine."""
     try:
         # this works with Flask-SQLAlchemy<3 and Alchemical
         return current_app.extensions['migrate'].db.get_engine()
@@ -25,6 +26,7 @@ def get_engine():
 
 
 def get_engine_url():
+    """Get the database engine URL."""
     try:
         return get_engine().url.render_as_string(hide_password=False).replace(
             '%', '%%')
@@ -46,6 +48,7 @@ target_db = current_app.extensions['migrate'].db
 
 
 def get_metadata():
+    """Get the metadata from the database model."""
     if hasattr(target_db, 'metadatas'):
         return target_db.metadatas[None]
     return target_db.metadata
@@ -77,9 +80,7 @@ def run_migrations_online():
 
     In this scenario we need to create an Engine
     and associate a connection with the context.
-
     """
-
     # this callback is used to prevent an auto-migration from being generated
     # when there are no changes to the schema
     # reference: http://alembic.zzzcomputing.com/en/latest/cookbook.html

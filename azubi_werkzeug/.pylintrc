@@ -1,0 +1,36 @@
+[MAIN]
+fail-under=10.0
+ignore=migrations,tests
+
+[MESSAGES CONTROL]
+# Disable warnings that are not actionable or are SQLAlchemy-specific
+disable=
+    too-few-public-methods,
+    too-many-positional-arguments,
+    import-outside-toplevel,
+    fixme
+
+[TYPECHECK]
+ignored-modules=alembic.op,playwright.sync_api
+
+[FORMAT]
+max-line-length=120
+
+[BASIC]
+good-names=i,j,k,ex,Run,_,dt,e,op,revision,down_revision,branch_labels,depends_on
+
+[DESIGN]
+max-args=8
+max-locals=20
+max-returns=8
+max-attributes=10
+max-branches=15
+max-public-methods=25
+max-statements=60
+max-bool-expr=6
+
+[SIMILARITIES]
+min-similarity-lines=8
+
+[LOGGING]
+logging-format-style=old

@@ -1,4 +1,4 @@
-
+"""E2E tests for core functionality."""
 import pytest
 from playwright.sync_api import Page, expect
 
@@ -8,7 +8,7 @@ BASE_URL = "http://localhost:5000"
 
 @pytest.fixture(scope="session")
 def setup_playwright():
-    """Setup any necessary pre-conditions for the E2E tests."""
+    """Initialize necessary pre-conditions for the E2E tests."""
     pass
 
 

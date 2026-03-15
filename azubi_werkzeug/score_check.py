@@ -3,9 +3,9 @@ Score check script.
 
 Checks Pylint scores for core files.
 """
-import subprocess
-import re
 import os
+import re
+import subprocess
 
 
 def main():
@@ -32,7 +32,8 @@ def main():
             text=True,
             check=False
         )
-        match = re.search(r"Your code has been rated at (-?\d+\.\d+)/10", proc.stdout)
+        match = re.search(
+            r"Your code has been rated at (-?\d+\.\d+)/10", proc.stdout)
 
         score = match.group(1) if match else "N/A"
 

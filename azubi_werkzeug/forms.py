@@ -4,8 +4,8 @@ Forms module.
 Defines WTForms for the application.
 """
 from flask_wtf import FlaskForm
-from wtforms import StringField, IntegerField, SelectField, FloatField
-from wtforms.validators import DataRequired, Length, Regexp, Optional, NumberRange
+from wtforms import FloatField, IntegerField, SelectField, StringField
+from wtforms.validators import DataRequired, Length, NumberRange, Optional, Regexp
 
 
 class AzubiForm(FlaskForm):
@@ -20,8 +20,8 @@ class AzubiForm(FlaskForm):
                 max=50,
                 message="Name muss zwischen 2 und 50 Zeichen lang sein."),
             Regexp(
-                r'^[\w\säöüÄÖÜß\-\.]+$',
-                message="Name enthält ungültige Zeichen.")])
+                r'^[\w\sÃ¤Ã¶Ã¼Ã„Ã–ÃœÃŸ\-\.]+$',
+                message="Name enthÃ¤lt ungÃ¼ltige Zeichen.")])
     lehrjahr = IntegerField(
         'Lehrjahr',
         validators=[
@@ -44,8 +44,8 @@ class ExaminerForm(FlaskForm):
                 max=50,
                 message="Name muss zwischen 2 und 50 Zeichen lang sein."),
             Regexp(
-                r'^[\w\säöüÄÖÜß\-\.]+$',
-                message="Name enthält ungültige Zeichen.")])
+                r'^[\w\sÃ¤Ã¶Ã¼Ã„Ã–ÃœÃŸ\-\.]+$',
+                message="Name enthÃ¤lt ungÃ¼ltige Zeichen.")])
 
 
 class WerkzeugForm(FlaskForm):
@@ -69,7 +69,7 @@ class WerkzeugForm(FlaskForm):
         Length(max=50),
         Optional()
     ])
-    price = FloatField('Preis (€)', [
+    price = FloatField('Preis (â‚¬)', [
         Optional()
     ], default=0.0)
     tech_param_value = StringField('Tech. Parameter (Wert)', validators=[

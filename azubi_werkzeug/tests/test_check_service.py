@@ -1,14 +1,15 @@
-"""
-Unit tests for CheckService.
-"""
+"""Unit tests for CheckService."""
 from datetime import datetime, timezone
+
 import pytest
+
+from enums import CheckType
+from models import Azubi, Check, Werkzeug
 from services import CheckService
-from models import Check, CheckType, Azubi, Werkzeug
 
 
 def test_check_submission_success(test_app):
-    """Test successful check submission"""
+    """Test successful check submission."""
     with test_app.test_request_context():
         # Setup data
         azubi = Azubi.query.first()
@@ -45,7 +46,7 @@ def test_check_submission_success(test_app):
 
 
 def test_check_date_override(test_app):
-    """Test custom date handling"""
+    """Test manual date override for check submission."""
     with test_app.test_request_context():
         azubi = Azubi.query.first()
         tool = Werkzeug.query.first()
@@ -77,14 +78,14 @@ def test_check_date_override(test_app):
 
 
 def test_exchange_enum_handling():
-    """Verify CheckType Enum works correctly"""
+    """Test proper Enum handling for exchange types."""
     assert CheckType.ISSUE.value == 'issue'
     assert CheckType.RETURN.value == 'return'
     assert CheckType.EXCHANGE.value == 'exchange'
 
 
 def test_check_submission_missing_azubi(test_app):
-    """Test submission with invalid Azubi ID"""
+    """Expect ValidationError when Azubi ID is missing."""
     with test_app.test_request_context():
         tool = Werkzeug.query.first()
 
@@ -93,7 +94,8 @@ def test_check_submission_missing_azubi(test_app):
             "EUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
             "+A8AAQUBAScY42YAAAAASUVORK5CYII="
         )
-        with pytest.raises(ValueError, match="Azubi mit ID 99999 nicht gefunden"):
+        from exceptions import ValidationError
+        with pytest.raises(ValidationError, match="Azubi mit ID 99999 nicht gefunden"):
             CheckService.process_check_submission(
                 azubi_id=99999,
                 examiner_name="Test Examiner",
@@ -107,12 +109,12 @@ def test_check_submission_missing_azubi(test_app):
 
 
 def test_check_submission_invalid_tool(test_app):
-    """Test submission with invalid Tool ID"""
+    """Expect ValidationError when tool ID is missing."""
     with test_app.test_request_context():
         azubi = Azubi.query.first()
 
         sig = (
-            "data:image/png;base64,iVBORw0KGgoAAAANSUh"
+            "data:image/png;base66,iVBORw0KGgoAAAANSUh"
             "EUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
             "+A8AAQUBAScY42YAAAAASUVORK5CYII="
         )

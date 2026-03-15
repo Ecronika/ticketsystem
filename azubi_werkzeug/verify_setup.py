@@ -4,15 +4,16 @@ Verify setup script.
 Checks if the application environment and database are correctly configured.
 """
 import sys
-from app import app, setup_database
+
+from app import app
+from database_init import init_database
 
 
 def verify_setup():
     """Run verification checks on the setup."""
     print("Verifying Setup...")
     # Ensure DB is created
-    with app.app_context():
-        setup_database()
+    init_database(app)
 
     client = app.test_client()
 

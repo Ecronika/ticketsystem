@@ -1,5 +1,5 @@
 """
-Tests for backup security — Zip Slip protection.
+Tests for backup security â€” Zip Slip protection.
 
 Verifies that BackupService.restore_backup() rejects ZIP archives that
 contain path-traversal entries (../../etc/passwd etc.).
@@ -23,7 +23,7 @@ def _make_zip_with_traversal() -> bytes:
 
 
 def test_zip_slip_rejected(test_app, tmp_path):
-    """BackupService must reject ZIP files containing path-traversal entries."""
+    """Verify that restoration rejects ZIP files containing path-traversal entries."""
     malicious_zip = _make_zip_with_traversal()
 
     with test_app.app_context():

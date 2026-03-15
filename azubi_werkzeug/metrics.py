@@ -1,5 +1,5 @@
 """Prometheus metrics definitions for Azubi Werkzeug Tracker."""
-from prometheus_client import Counter, Histogram, Gauge
+from prometheus_client import Counter, Gauge, Histogram
 
 # --- Prometheus Metrics Definitions ---
 

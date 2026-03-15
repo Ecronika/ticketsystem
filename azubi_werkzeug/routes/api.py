@@ -2,15 +2,15 @@
 # pylint: disable=duplicate-code
 from datetime import datetime, timezone
 
-from flask import request, jsonify, current_app
-from sqlalchemy.exc import SQLAlchemyError
+from flask import current_app, jsonify, request
 from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 
-from extensions import db, limiter, csrf
-from models import Azubi, Werkzeug, Examiner, Check
+from extensions import csrf, db, limiter
 from forms import AzubiForm, ExaminerForm, WerkzeugForm
-from services import CheckService
+from models import Azubi, Check, Examiner, Werkzeug
 from routes.auth import admin_required
+from services import CheckService
 
 
 def _map_tool_status_for_api(tool, last_entry):
@@ -79,7 +79,7 @@ def get_assigned_tools(azubi_id):
         return jsonify(result)
 
     except Exception as e:  # pylint: disable=broad-exception-caught
-        current_app.logger.error(f"API Error: {e}")
+        current_app.logger.error("API Error: %s", e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -154,7 +154,7 @@ def register_routes(bp):
             return jsonify({
                 'success': False,
                 'error': 'Datenbankfehler beim '
-                         'Hinzufügen des Werkzeugs'
+                         'HinzufÃ¼gen des Werkzeugs'
             }), 500
         except Exception as e:  # pylint: disable=broad-exception-caught
             db.session.rollback()
@@ -197,7 +197,7 @@ def register_routes(bp):
             return jsonify({
                 'success': False,
                 'error': 'Datenbankfehler beim '
-                         'Hinzufügen des Azubis'
+                         'HinzufÃ¼gen des Azubis'
             }), 500
         except Exception as e:  # pylint: disable=broad-exception-caught
             db.session.rollback()
@@ -237,7 +237,7 @@ def register_routes(bp):
             return jsonify({
                 'success': False,
                 'error': 'Datenbankfehler beim '
-                         'Hinzufügen des Prüfers'
+                         'HinzufÃ¼gen des PrÃ¼fers'
             }), 500
         except Exception as e:  # pylint: disable=broad-exception-caught
             db.session.rollback()

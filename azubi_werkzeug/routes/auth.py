@@ -4,14 +4,13 @@ Authentication routes.
 Handles admin authentication and session management.
 """
 from functools import wraps
-from urllib.parse import urlparse, urljoin
-from flask import (
-    render_template, request, redirect, url_for,
-    flash, session
-)
+from urllib.parse import urljoin, urlparse
+
+from flask import flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash
-from models import SystemSettings
+
 from extensions import limiter
+from models import SystemSettings
 
 
 def _is_safe_redirect(target: str) -> bool:
@@ -40,7 +39,7 @@ def admin_required(f):
             if request.path.startswith('/api/'):
                 from flask import jsonify
                 return jsonify({'success': False, 'error': 'Nicht autorisiert. Bitte neu einloggen.'}), 401
-                
+
             flash('Bitte zuerst einloggen.', 'warning')
             ingress = request.headers.get('X-Ingress-Path', '')
             return redirect(
@@ -67,7 +66,8 @@ def _login_view():
             flash('Erfolgreich eingeloggt.', 'success')
             raw_next = request.args.get('next') or request.form.get('next')
             ingress = request.headers.get('X-Ingress-Path', '')
-            next_url = raw_next if (raw_next and _is_safe_redirect(raw_next)) else None
+            next_url = raw_next if (
+                raw_next and _is_safe_redirect(raw_next)) else None
             return redirect(next_url or f"{ingress}{url_for('main.index')}")
 
         flash('Falscher PIN.', 'error')
@@ -89,7 +89,8 @@ def _recover_pin_view():
         token = request.form.get('token', '').strip().upper()
 
         # Load existing hashes
-        saved_hashes_str = SystemSettings.get_setting('recovery_tokens_hash', '')
+        saved_hashes_str = SystemSettings.get_setting(
+            'recovery_tokens_hash', '')
         if not saved_hashes_str:
             flash('Keine Recovery-Tokens im System hinterlegt.', 'error')
             return render_template('recover_pin.html')
@@ -105,15 +106,17 @@ def _recover_pin_view():
         if valid_index >= 0:
             # Valid token found! Remove it from the list
             hashed_tokens.pop(valid_index)
-            SystemSettings.set_setting('recovery_tokens_hash', ','.join(hashed_tokens))
+            SystemSettings.set_setting(
+                'recovery_tokens_hash', ','.join(hashed_tokens))
 
             session['is_admin'] = True
             session.permanent = True
-            flash('Erfolgreich eingeloggt. Bitte ändern Sie jetzt sofort Ihren PIN!', 'success')
+            flash(
+                'Erfolgreich eingeloggt. Bitte Ã¤ndern Sie jetzt sofort Ihren PIN!', 'success')
             ingress = request.headers.get('X-Ingress-Path', '')
             return redirect(f"{ingress}{url_for('main.settings')}")
 
-        flash('Ungültiger oder bereits verwendeter Token.', 'error')
+        flash('UngÃ¼ltiger oder bereits verwendeter Token.', 'error')
 
     return render_template('recover_pin.html')
 
@@ -131,4 +134,5 @@ def register_routes(bp):
 
     recover_pin_view = limiter.limit("5 per minute")(_recover_pin_view)
     recover_pin_view.__name__ = 'recover_pin'
-    bp.add_url_rule('/recover_pin', view_func=recover_pin_view, methods=['GET', 'POST'])
+    bp.add_url_rule('/recover_pin', view_func=recover_pin_view,
+                    methods=['GET', 'POST'])

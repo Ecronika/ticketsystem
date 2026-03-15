@@ -7,9 +7,10 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import pytest
-from models import Azubi, Werkzeug
-from extensions import db
+
 from app import app as flask_app
+from extensions import db
+from models import Azubi, Werkzeug
 
 
 @pytest.fixture

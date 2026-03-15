@@ -1,4 +1,3 @@
-# pylint: disable=line-too-long,wrong-import-order,too-many-lines,unnecessary-pass,too-many-locals,broad-exception-caught,import-outside-toplevel,mixed-line-endings,unused-import
 """
 Check routes.
 
@@ -11,19 +10,30 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 from flask import (
-    render_template, request, redirect, url_for,
-    flash, current_app, send_from_directory, abort, jsonify, session
+    abort,
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    session,
+    url_for,
 )
 from sqlalchemy import func
-from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import joinedload
 
 from extensions import db
-from models import Azubi, Werkzeug, Examiner, Check, CheckType, SystemSettings
-from services import CheckService
-from routes.utils import get_data_dir, parse_migration_date, is_migration_active
-from routes.auth import admin_required
 from metrics import CHECKS_SUBMITTED_TOTAL, SCANS_TOTAL
+from models import Azubi, Check, Examiner, SystemSettings, Werkzeug
+from enums import CheckType
+from exceptions import AzubiWerkzeugError, ValidationError
+from app_state import is_migration_active
+from routes.auth import admin_required
+from routes.utils import get_data_dir, parse_migration_date
+from services import CheckService, HistoryService, ExchangeService
 
 
 def _parse_last_entry_status(last_entry):
@@ -89,7 +99,7 @@ def check_azubi(azubi_id):
     last_check_global = Check.query.filter_by(
         azubi_id=azubi.id).order_by(
         Check.datum.desc()).first()
-        
+
     if last_check_global:
         last_datum = last_check_global.datum
         if last_datum and last_datum.tzinfo is None:
@@ -97,7 +107,7 @@ def check_azubi(azubi_id):
         days_since_global = (datetime.now(timezone.utc) - last_datum).days
     else:
         days_since_global = 999
-        
+
     is_overdue = days_since_global > 90
 
     presets_str = SystemSettings.get_setting(
@@ -140,10 +150,10 @@ def _validate_check_submission(form):
     try:
         CheckType(check_type_str)
     except ValueError:
-        return None, ('Fehler: Ungültiger Prüfungstyp.', 'error')
+        return None, ('Fehler: UngÃƒÂ¼ltiger PrÃƒÂ¼fungstyp.', 'error')
 
     if not azubi_id or not examiner:
-        return None, ('Fehler: Azubi und Prüfer müssen angegeben werden.', 'error')
+        return None, ('Fehler: Azubi und PrÃƒÂ¼fer mÃƒÂ¼ssen angegeben werden.', 'error')
 
     sig_error = _validate_signatures(form, is_migration_active())
     if sig_error:
@@ -151,7 +161,7 @@ def _validate_check_submission(form):
 
     tool_ids = CheckService.collect_tool_ids(form)
     if not tool_ids:
-        return None, ('Keine Werkzeuge ausgewählt', 'warning')
+        return None, ('Keine Werkzeuge ausgewÃƒÂ¤hlt', 'warning')
 
     return tool_ids, None
 
@@ -185,29 +195,37 @@ def submit_check():
         try:
             safe_azubi_id = int(azubi_id)
         except (TypeError, ValueError):
-            flash('Ungültige Azubi ID.', 'error')
+            flash('UngÃƒÂ¼ltige Azubi ID.', 'error')
             return redirect(f"{ingress}{url_for('main.index')}")
 
-        result = CheckService.process_check_submission(
-            azubi_id=safe_azubi_id,
-            examiner_name=examiner,
-            tool_ids=tool_ids,
-            form_data=request.form,
-            check_date=check_date,
-            check_type=CheckType(check_type_str)
-        )
+        try:
+            result = CheckService.process_check_submission(
+                azubi_id=safe_azubi_id,
+                examiner_name=examiner,
+                tool_ids=tool_ids,
+                form_data=request.form,
+                check_date=check_date,
+                check_type=CheckType(check_type_str)
+            )
 
-        # Track successful check submission in Prometheus
-        CHECKS_SUBMITTED_TOTAL.labels(check_type=check_type_str).inc()
+            # Track successful check submission in Prometheus
+            CHECKS_SUBMITTED_TOTAL.labels(check_type=check_type_str).inc()
 
-        flash(
-            f'{check_type_str.capitalize()} erfolgreich '
-            f'gespeichert! '
-            f'(Session: {result["session_id"]})',
-            'success')
+            flash(
+                f'{check_type_str.capitalize()} erfolgreich '
+                f'gespeichert! '
+                f'(Session: {result["session_id"]})',
+                'success')
 
-        return redirect(
-            f"{ingress}{url_for('main.index')}")
+            return redirect(
+                f"{ingress}{url_for('main.index')}")
+        except ValidationError as e:
+            flash(str(e), "error")
+            return redirect(f"{ingress}{url_for('checks.submit_check', azubi_id=azubi_id, type=check_type_str)}")
+        except AzubiWerkzeugError as e:
+            flash(f"Fehler: {e}", "error")
+            current_app.logger.error("Check submission error: %s", e)
+            return redirect(f"{ingress}{url_for('main.index')}")
 
     except Exception as e:  # pylint: disable=broad-exception-caught
         current_app.logger.error(
@@ -230,43 +248,52 @@ def exchange_tool():
     ingress = request.headers.get('X-Ingress-Path', '')
 
     if not all([azubi_id, exchange_data_json, signature_data]):
-        flash('Fehler: Unvollständige Daten für Austausch.', 'error')
+        flash('Fehler: UnvollstÃƒÂ¤ndige Daten fÃƒÂ¼r Austausch.', 'error')
         return redirect(f"{ingress}{url_for('main.index')}")
 
     try:
         exchange_data = json.loads(exchange_data_json)
         if not exchange_data:
-            flash('Fehler: Keine Werkzeuge ausgewählt.', 'error')
+            flash('Fehler: Keine Werkzeuge ausgewÃƒÂ¤hlt.', 'error')
             return redirect(f"{ingress}{url_for('main.index')}")
 
         try:
             safe_azubi_id = int(azubi_id)
         except (TypeError, ValueError):
-            flash('Ungültige Azubi ID.', 'error')
+            flash('UngÃƒÂ¼ltige Azubi ID.', 'error')
             return redirect(f"{ingress}{url_for('main.index')}")
 
-        result = CheckService.process_tool_exchange_batch(
-            azubi_id=safe_azubi_id,
-            exchange_data=exchange_data,
-            is_payable=is_payable,
-            signature_data=signature_data
-        )
+        try:
+            result = ExchangeService.process_tool_exchange_batch(
+                azubi_id=safe_azubi_id,
+                exchange_data=exchange_data,
+                is_payable=is_payable,
+                signature_data=signature_data
+            )
 
-        # Track successful exchange in Prometheus for the batch
-        CHECKS_SUBMITTED_TOTAL.labels(check_type='exchange').inc(amount=len(exchange_data))
+            # Track successful exchange in Prometheus for the batch
+            CHECKS_SUBMITTED_TOTAL.labels(
+                check_type='exchange').inc(amount=len(exchange_data))
 
-        msg = f"{len(exchange_data)} Werkzeuge erfolgreich ausgetauscht."
-        if result.get('total_price'):
-            msg += f" (Geschätzte Kosten: {result['total_price']:.2f} EUR)"
+            msg = f"{len(exchange_data)} Werkzeuge erfolgreich ausgetauscht."
+            if result.get('total_price'):
+                msg += f" (GeschÃƒÂ¤tzte Kosten: {result['total_price']:.2f} EUR)"
 
-        flash(msg, 'success')
-        return redirect(f"{ingress}{url_for('main.index')}")
+            flash(msg, 'success')
+            return redirect(f"{ingress}{url_for('main.index')}")
+        except ValidationError as e:
+            flash(str(e), "error")
+            return redirect(f"{ingress}{url_for('main.index')}")
+        except AzubiWerkzeugError as e:
+            flash(f"Fehler beim Austausch: {e}", "error")
+            current_app.logger.error("Exchange error: %s", e)
+            return redirect(f"{ingress}{url_for('main.index')}")
 
     except Exception as e:  # pylint: disable=broad-exception-caught
         current_app.logger.error(
-            f"Exchange failed: {e}", exc_info=True)
+            f"Error in exchange_tool: {e}", exc_info=True)
         flash(
-            f'Fehler beim Austausch: {str(e)}',
+            f'Systemfehler beim Austausch: {str(e)}',
             'error')
         return redirect(
             f"{ingress}{url_for('main.index')}")
@@ -305,7 +332,7 @@ def history():
 
         group_start = time.time()
         sessions = (
-            CheckService.group_checks_into_sessions(
+            HistoryService.group_checks_into_sessions(
                 all_checks))
         group_duration = time.time() - group_start
 
@@ -345,7 +372,7 @@ def history():
 
 
 def api_history():
-    """API endpoint for history 'Load More'."""
+    """Serve history 'Load More' data via API."""
     azubi_id = request.args.get('azubi_id')
     page = request.args.get('page', 1, type=int)
 
@@ -359,12 +386,11 @@ def api_history():
 
         pagination = query.options(
             joinedload(Check.azubi),
-            joinedload(Check.werkzeug)
         ).paginate(
             page=page, per_page=100, error_out=False
         )
         all_checks = pagination.items
-        sessions = CheckService.group_checks_into_sessions(all_checks)
+        sessions = HistoryService.group_checks_into_sessions(all_checks)
 
         is_admin = session.get('is_admin', False)
 
@@ -372,7 +398,7 @@ def api_history():
             # RBAC: Remove price if not admin
             if not is_admin:
                 session_item['total_price'] = 0.0
-                session_item['is_payable'] = False # Optional: hide flag too
+                session_item['is_payable'] = False  # Optional: hide flag too
 
         for session_item in sessions:
             dt = session_item['datum']
@@ -391,7 +417,7 @@ def api_history():
             'total': pagination.total
         })
 
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         current_app.logger.error(f"Error in api_history: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -434,7 +460,7 @@ def history_details(session_id):
             joinedload(Check.azubi)).all()
 
     if not checks:
-        flash('Prüfung nicht gefunden.', 'error')
+        flash('PrÃƒÂ¼fung nicht gefunden.', 'error')
         ingress = request.headers.get('X-Ingress-Path', '')
         return redirect(f"{ingress}{url_for('main.history')}")
 
@@ -499,18 +525,19 @@ def delete_session(session_id):
     if not is_migration_active():
         current_app.logger.warning(
             "Delete session attempted WITHOUT migration mode: %s", session_id)
-        flash('⚠️ Session-Löschung nur im Migration-Modus erlaubt!', 'danger')
+        flash('Ã¢Å¡Â Ã¯Â¸Â Session-LÃƒÂ¶schung nur im Migration-Modus erlaubt!', 'danger')
         return redirect(f"{ingress}{url_for('main.history')}")
 
     try:
         if session_id.startswith("LEGACY_"):
-            flash('Legacy-Sessions können noch nicht gelöscht werden.', 'warning')
+            flash('Legacy-Sessions kÃƒÂ¶nnen noch nicht gelÃƒÂ¶scht werden.', 'warning')
             return redirect(f"{ingress}{url_for('main.history')}")
 
         checks = Check.query.filter_by(session_id=session_id).all()
 
         if not checks:
-            current_app.logger.warning("Delete session not found: %s", session_id)
+            current_app.logger.warning(
+                "Delete session not found: %s", session_id)
             flash('Session nicht gefunden.', 'warning')
             return redirect(f"{ingress}{url_for('main.history')}")
 
@@ -532,7 +559,7 @@ def delete_session(session_id):
             datum, examiner, check_count, deleted_count)
 
         flash(
-            f'Session gelöscht. {check_count} Einträge '
+            f'Session gelÃƒÂ¶scht. {check_count} EintrÃƒÂ¤ge '
             f'entfernt. {deleted_count} Dateien bereinigt.', 'success')
         return redirect(f"{ingress}{url_for('main.history')}")
 
@@ -541,7 +568,7 @@ def delete_session(session_id):
         db.session.remove()
         current_app.logger.error(
             "DB error deleting session %s: %s", session_id, e, exc_info=True)
-        flash('Datenbankfehler beim Löschen.', 'danger')
+        flash('Datenbankfehler beim LÃƒÂ¶schen.', 'danger')
         return redirect(
             f"{ingress}{url_for('main.history_details', session_id=session_id)}")
     except Exception as e:  # pylint: disable=broad-exception-caught
@@ -549,7 +576,7 @@ def delete_session(session_id):
         db.session.remove()
         current_app.logger.error(
             "Error deleting session %s: %s", session_id, e, exc_info=True)
-        flash(f'❌ Fehler beim Löschen: {str(e)}', 'danger')
+        flash(f'Ã¢ÂÅ’ Fehler beim LÃƒÂ¶schen: {str(e)}', 'danger')
         return redirect(
             f"{ingress}{url_for('main.history_details', session_id=session_id)}")
 

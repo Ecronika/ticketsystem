@@ -1,11 +1,9 @@
-# pylint: disable=line-too-long,wrong-import-order,too-many-lines,unnecessary-pass,too-many-locals,broad-exception-caught,import-outside-toplevel,mixed-line-endings,unused-import
 
 """
 Main Application Entry Point.
 
 Configures and initializes the Flask application.
 """
-from flask import g
 import atexit
 import logging
 import os
@@ -16,39 +14,43 @@ import sys
 import time
 from datetime import timedelta, timezone
 from logging.handlers import QueueHandler, QueueListener, RotatingFileHandler
+from zoneinfo import ZoneInfo
 
-from flask import (
-    Flask, flash, redirect, render_template, request, url_for, jsonify
-)
+from flask import Flask, flash, g, jsonify, redirect, render_template, request, url_for
+from flask_migrate import Migrate
+from flask_wtf.csrf import CSRFError
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
-from werkzeug.exceptions import NotFound
-from werkzeug.security import generate_password_hash
+from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.middleware.proxy_fix import ProxyFix
-from flask_migrate import Migrate
 
+from database_init import init_database
 from extensions import Config, csrf, db, limiter, scheduler
-from services import BackupService
+from metrics import ACTIVE_SESSIONS, HTTP_REQUEST_DURATION_SECONDS, HTTP_REQUESTS_TOTAL
 from routes import main_bp
 from routes.metrics import metrics_bp
-from metrics import HTTP_REQUESTS_TOTAL, HTTP_REQUEST_DURATION_SECONDS, ACTIVE_SESSIONS
+from services import BackupService
 
-import os
 # Read version dynamically from config.yaml
-_config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.yaml')
+_config_file = os.path.join(os.path.dirname(
+    os.path.abspath(__file__)), 'config.yaml')
 APP_VERSION = '0.0.0-unknown'
 try:
     with open(_config_file, 'r', encoding='utf-8') as _f:
         for line in _f:
             if line.strip().startswith('version:'):
-                APP_VERSION = line.split(':', 1)[1].strip().strip('"').strip("'")
+                APP_VERSION = line.split(
+                    ':', 1)[1].strip().strip('"').strip("'")
                 break
 except FileNotFoundError:
     pass
 app = Flask(__name__)
 IS_STANDALONE = os.environ.get('STANDALONE_MODE') == 'true'
 # Home Assistant Check (Ingress usually sets headers, but we also check env)
-IS_HOMEASSISTANT = (not IS_STANDALONE) and (os.environ.get('SUPERVISOR_TOKEN') is not None or os.environ.get('HAS_INGRESS') == '1')
+IS_HOMEASSISTANT = (not IS_STANDALONE) and (
+    os.environ.get('SUPERVISOR_TOKEN') is not None or os.environ.get(
+        'HAS_INGRESS') == '1'
+)
 
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
@@ -56,11 +58,12 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 # Explicitly set the migrations directory to be relative to the app.py file
 # This ensures it is found regardless of the current working directory (e.g. HA run context)
 # render_as_batch=True is critical for SQLite schema changes (like adding columns)
-migrations_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'migrations')
+migrations_dir = os.path.join(os.path.dirname(
+    os.path.abspath(__file__)), 'migrations')
 migrate = Migrate(app, db, directory=migrations_dir, render_as_batch=True)
 
 # Security: Session Configuration
-# SSL is active only if explicitly requested — this is the single source of truth
+# SSL is active only if explicitly requested ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â this is the single source of truth
 # for cookie security. SameSite=None requires HTTPS+Secure; plain HTTP must use Lax.
 SSL_ACTIVE = os.environ.get('REQUIRE_HTTPS', '0') == '1'
 
@@ -70,19 +73,19 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_PATH='/',  # Force root path to avoid Ingress/ProxyFix prefix issues
     # SameSite=None allows cookies inside iframes (HA Ingress), BUT browsers
-    # strictly require Secure=True when SameSite=None — so this only applies over HTTPS.
+    # strictly require Secure=True when SameSite=None ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â so this only applies over HTTPS.
     # Over plain HTTP we fall back to Lax (works everywhere except cross-site iframes).
     SESSION_COOKIE_SAMESITE='None' if SSL_ACTIVE else 'Lax',
     MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB Upload Limit
     # 7 Days Validity (Prevent expiry in long sessions)
     WTF_CSRF_TIME_LIMIT=604800,
-    # Disable strict HTTPS referer check — required for both plain HTTP and proxied setups
+    # Disable strict HTTPS referer check ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â required for both plain HTTP and proxied setups
     WTF_CSRF_SSL_STRICT=False,
     # CSRF cookie SameSite must match session cookie policy
     WTF_CSRF_SAMESITE='None' if SSL_ACTIVE else 'Lax',
     # Auto-logout after 8 hours
     PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
-    # Secure flag ONLY when SSL is actually active — critical for plain HTTP operation
+    # Secure flag ONLY when SSL is actually active ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â critical for plain HTTP operation
     SESSION_COOKIE_SECURE=SSL_ACTIVE,
     # CSRF protection re-enabled now that session cookies bypass browser isolation
     WTF_CSRF_ENABLED=True,
@@ -149,13 +152,15 @@ else:
         app.logger.setLevel(gunicorn_logger.level)
         # Also add file handler for persistent logs
         app.logger.addHandler(file_handler)
-        app.logger.info("Logging: Gunicorn integration enabled. [v%s]", APP_VERSION)
+        app.logger.info(
+            "Logging: Gunicorn integration enabled. [v%s]", APP_VERSION)
     else:
         # Standard console logging (e.g. running app.py directly)
         app.logger.addHandler(console_handler)
         app.logger.addHandler(file_handler)
-        app.logger.info("Logging: Direct console output enabled. [v%s]", APP_VERSION)
-    
+        app.logger.info(
+            "Logging: Direct console output enabled. [v%s]", APP_VERSION)
+
     # Ensure root logger also reaches the console for libraries like Alembic
     # but clear existing ones first to avoid duplicates if Gunicorn already did it
     root = logging.getLogger()
@@ -208,7 +213,6 @@ else:
 db.init_app(app)
 csrf.init_app(app)
 limiter.init_app(app)
-
 
 
 if not scheduler.running:
@@ -298,16 +302,18 @@ else:
 app.register_blueprint(main_bp)
 app.register_blueprint(metrics_bp)
 
+
 @app.errorhandler(429)
-def rate_limit_exceeded(e):
+def rate_limit_exceeded(_e):
     """Handle 429 Too Many Requests from Flask-Limiter."""
     app.logger.warning('Rate limit exceeded: %s', request.path)
     flash('Zu viele Versuche. Bitte 1 Minute warten.', 'warning')
     next_url = request.referrer or url_for('main.index')
     return redirect(next_url), 429
 
+
 # Exempt auth routes from global CSRF (Flask-WTF 1.2.2 requires endpoint strings,
-# not function references — the protect() method matches against request.endpoint).
+# not function references ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the protect() method matches against request.endpoint).
 # Login/recover_pin are protected by rate-limiting (5/min) + PIN hash check.
 csrf.exempt('main.login')
 csrf.exempt('main.recover_pin')
@@ -342,8 +348,10 @@ def after_request_metrics(response):
 
     return response
 
+
 @app.teardown_request
 def teardown_request_gauge(_exception=None):
+    """Decrease active sessions gauge on request teardown."""
     if request.endpoint != 'static':
         ACTIVE_SESSIONS.dec()
 
@@ -363,73 +371,10 @@ def remove_session(_exception=None):
     """
     db.session.remove()
 
-# --- Helper to create DB and Seed Data ---
-
-
-def _seed_default_settings():
-    """Seed default system settings if not already present."""
-    from models import SystemSettings  # pylint: disable=import-outside-toplevel
-    defaults = {
-        'manufacturer_presets': 'Wera,Wiha,Knipex,Hazet,Stahlwille,Gedore,NWS',
-        'admin_pin_hash': generate_password_hash("0000"),
-    }
-    for key, value in defaults.items():
-        if SystemSettings.get_setting(key) is None:
-            SystemSettings.set_setting(key, value)
-            app.logger.info("Seeded default setting: %s", key)
-
-
-def setup_database():
-    """Create database tables and seed default data."""
-    with app.app_context():
-        app.logger.info("Database: Initialization started...")
-        from flask_migrate import upgrade as _db_upgrade, stamp as _db_stamp
-        import sqlalchemy as sa
-        
-        # 1. Dispose engine to avoid lock conflicts
-        db.engine.dispose()
-        
-        # 2. Inspect current state
-        inspector = sa.inspect(db.engine)
-        tables = inspector.get_table_names()
-        alembic_exists = 'alembic_version' in tables
-        core_tables_exist = 'azubi' in tables
-        
-        app.logger.info("Database: Initialization stage — Tables: %s", ", ".join(tables) if tables else "None")
-        
-        # 3. Fresh Install vs. Existing logic
-        if not core_tables_exist:
-            # Absolut frische Installation oder kompletter Restore ohne Tabellen
-            app.logger.info("Database: Core tables missing. Initializing via create_all...")
-            db.create_all()
-            _db_stamp()  # Alembic auf HEAD setzen
-            app.logger.info("Database: Fresh install / Restore initialized.")
-        elif not alembic_exists:
-            # Legacy-Datenbank ohne Alembic-Historie
-            app.logger.info("Database: Legacy DB without history. Stamping to baseline.")
-            _db_stamp()
-        
-        # 4. In ALLEN Fällen upgrade aufrufen — migrations are now becoming standard again
-        app.logger.info("Database: Running migrations (upgrade)...")
-        _db_upgrade()
-        app.logger.info("Database: Migration finished.")
-
-        # 5. Seeding & Backfilling (Failures here are logged but not critical for startup)
-        try:
-            app.logger.info("Database: Starting seeding and backfill...")
-            _seed_default_settings()
-            
-            from services import CheckService  # pylint: disable=import-outside-toplevel
-            count = CheckService.ensure_price_backfill()
-            if count > 0:
-                app.logger.info("Database: Backfilled %d checks.", count)
-            app.logger.info("Database: Initialization finished successfully.")
-        except Exception as e:
-            app.logger.error("Database: Seeding/Backfill failed: %s", e)
-
 
 # --- Jinja Filters ---
-from zoneinfo import ZoneInfo
+
+
 @app.template_filter('local_time')
 def local_time_filter(dt):
     """Localize UTC datetime to Europe/Berlin."""
@@ -446,7 +391,7 @@ def request_entity_too_large(e):
     """Handle 413 Payload Too Large error."""
     # pylint: disable=unused-argument
     app.logger.warning("File upload too large: %s", request.content_length)
-    flash('Datei zu groß (max. 2MB).', 'error')
+    flash('Datei zu groÃƒÆ’Ã…Â¸ (max. 2MB).', 'error')
     # fallback to index if manage is not available or context is unclear
     return redirect(url_for('main.index'))
 
@@ -458,7 +403,7 @@ def bad_request(e):
         return jsonify({'success': False, 'error': e.description or 'Bad Request'}), 400
     return render_template('400.html', error=e.description), 400
 
-from flask_wtf.csrf import CSRFError
+
 @app.errorhandler(CSRFError)
 def handle_csrf_error(e):
     """Handle CSRF errors specifically."""
@@ -479,10 +424,9 @@ def page_not_found(e):
 def handle_exception(e):
     """Handle standard exceptions."""
     # pylint: disable=unused-argument
-    
+
     # Pass through HTTP errors (like 400 Bad Request, 405 Method Not Allowed)
     # instead of turning them into 500 errors.
-    from werkzeug.exceptions import HTTPException
     if isinstance(e, HTTPException):
         return e
 
@@ -498,15 +442,18 @@ if 'pytest' not in sys.modules:
     with app.app_context():
         # Only run if not in a special context (like alembic, though we use manual migrations)
         # Checks are idempotent (safe to run multiple times)
-        setup_database()
+        init_database(app)
 
 
 if __name__ == '__main__':
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     require_https = os.environ.get('REQUIRE_HTTPS', '0') == '1'
     if require_https:
-        app.logger.info("Starte Server mit Ad-hoc-SSL-Zertifikat (REQUIRE_HTTPS=1)...")
-        app.run(host='0.0.0.0', port=5000, debug=debug_mode, ssl_context='adhoc')
+        app.logger.info(
+            "Starte Server mit Ad-hoc-SSL-Zertifikat (REQUIRE_HTTPS=1)...")
+        app.run(host='0.0.0.0', port=5000,
+                debug=debug_mode, ssl_context='adhoc')
     else:
-        app.logger.info("Starte Server ohne SSL (plain HTTP) - setze REQUIRE_HTTPS=1 für HTTPS.")
+        app.logger.info(
+            "Starte Server ohne SSL (plain HTTP) - setze REQUIRE_HTTPS=1 fÃƒÆ’Ã‚Â¼r HTTPS.")
         app.run(host='0.0.0.0', port=5000, debug=debug_mode)

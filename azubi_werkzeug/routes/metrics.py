@@ -1,5 +1,7 @@
+"""Metrics routes."""
 from flask import Blueprint, Response
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
 from routes.auth import admin_required
 
 metrics_bp = Blueprint('metrics', __name__)

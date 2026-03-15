@@ -4,7 +4,8 @@ Models module.
 Defines SQLAlchemy database models for Apprentice, Tool, Check, etc.
 """
 from datetime import datetime, timezone
-from enum import Enum
+
+from enums import CheckType
 from extensions import db
 
 
@@ -45,15 +46,6 @@ class SystemSettings(db.Model):
             raise
 
 
-class CheckType(Enum):  # pylint: disable=too-few-public-methods
-    """Enumeration of check types."""
-
-    CHECK = 'check'
-    ISSUE = 'issue'
-    RETURN = 'return'
-    EXCHANGE = 'exchange'
-
-
 class Azubi(db.Model):
     """Model representing an apprentice."""
 
@@ -68,24 +60,24 @@ class Azubi(db.Model):
         if not last_datum:
             return "Neu / Leer", "info", "Noch nie", 4
         now = datetime.now(timezone.utc)
-        
+
         # Ensure last_datum is offset-aware to avoid TypeError
         if last_datum.tzinfo is None:
             last_datum = last_datum.replace(tzinfo=timezone.utc)
-            
+
         days_since = (now - last_datum).days
         if days_since >= 90:
             return (
-                "Überfällig (> 3 Mon.)", "danger",
+                "ÃƒÅ“berfÃƒÂ¤llig (> 3 Mon.)", "danger",
                 f"Vor {days_since} Tagen", 1)
         if days_since >= 62:
             return (
-                "Prüfung fällig (< 4 Wochen)", "warning",
+                "PrÃƒÂ¼fung fÃƒÂ¤llig (< 4 Wochen)", "warning",
                 f"Vor {days_since} Tagen", 2)
         from zoneinfo import ZoneInfo
         last_datum_local = last_datum.astimezone(ZoneInfo('Europe/Berlin'))
         return (
-            "Geprüft", "success",
+            "GeprÃƒÂ¼ft", "success",
             last_datum_local.strftime("%d. %b %Y"), 3)
 
     def __repr__(self):
@@ -140,7 +132,8 @@ class Check(db.Model):  # pylint: disable=too-few-public-methods
 
     id = db.Column(db.Integer, primary_key=True)
     session_id = db.Column(db.String(36), nullable=True, index=True)
-    datum = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    datum = db.Column(db.DateTime, default=lambda: datetime.now(
+        timezone.utc), index=True)
     azubi_id = db.Column(db.Integer, db.ForeignKey('azubi.id'), nullable=False)
     werkzeug_id = db.Column(
         db.Integer,

@@ -3,10 +3,10 @@ Final polish script.
 
 Runs pylint and autopep8 on all python files.
 """
-import subprocess
-import re
 import glob
 import os
+import re
+import subprocess
 
 
 def get_pylint_score(filepath):
@@ -23,7 +23,8 @@ def get_pylint_score(filepath):
             check=False
         )
         # Extract score using regex
-        match = re.search(r"Your code has been rated at (-?\d+\.\d+)/10", result.stdout)
+        match = re.search(
+            r"Your code has been rated at (-?\d+\.\d+)/10", result.stdout)
         if match:
             return float(match.group(1))
     except Exception as e:  # pylint: disable=broad-exception-caught
@@ -37,7 +38,8 @@ def run_autopep8(filepath):
     try:
         # Try running as module first (more reliable)
         subprocess.run(
-            ["python", "-m", "autopep8", "--in-place", "--aggressive", "--aggressive", filepath],
+            ["python", "-m", "autopep8", "--in-place",
+                "--aggressive", "--aggressive", filepath],
             capture_output=True,
             check=False
         )
@@ -51,7 +53,8 @@ def main():
     files = glob.glob("*.py") + glob.glob("tests/*.py")
 
     # Exclude scripts that are not part of the app logic if desired
-    files = [f for f in files if f not in ("final_polish.py", "score_check.py")]
+    files = [f for f in files if f not in (
+        "final_polish.py", "score_check.py")]
 
     print("| File | Pre-Fix Score | Post-Fix Score | Delta | Status |")
     print("| :--- | :--- | :--- | :--- | :--- |")
@@ -79,7 +82,8 @@ def main():
         else:
             status_code = "LOW"
 
-        print(f"| `{f}` | {pre_score:.2f} | {post_score:.2f} | {delta_str} | {status_code} |")
+        print(
+            f"| `{f}` | {pre_score:.2f} | {post_score:.2f} | {delta_str} | {status_code} |")
 
 
 if __name__ == "__main__":

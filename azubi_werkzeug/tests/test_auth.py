@@ -1,14 +1,14 @@
 """
-Tests for authentication routes — rate limiting and open redirect.
+Tests for authentication routes â€” rate limiting and open redirect.
 
 Covers:
-- Rate limit on /login (6th attempt → 429)
+- Rate limit on /login (6th attempt â†’ 429)
 - Open redirect blocked (next=https://evil.com rejected)
 """
 import pytest
+from werkzeug.security import generate_password_hash
 
 from models import SystemSettings
-from werkzeug.security import generate_password_hash
 
 
 def _set_pin(app, pin='1234'):
