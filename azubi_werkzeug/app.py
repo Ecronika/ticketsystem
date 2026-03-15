@@ -408,20 +408,20 @@ def setup_database():
                         except Exception as e:
                             app.logger.error("Database: Emergency patch failed: %s", e)
 
-            # 4. Alembic Synchronization (Re-open fresh for Alembic)
-            if 'alembic_version' not in tables:
-                if 'azubi' in tables:
-                    app.logger.info("Database: Stamping legacy DB to v2.12 baseline.")
-                    _db_stamp('3cefbb0dbee3')
-                else:
-                    app.logger.info("Database: Fresh install. Initializing tables...")
-                    db.create_all()
+            # 4. Alembic Synchronization & Table Creation
+            if 'azubi' not in tables:
+                app.logger.info("Database: Core tables missing. Initializing via create_all...")
+                db.create_all()
+                if 'alembic_version' not in tables:
                     _db_stamp()
                     app.logger.info("Database: Fresh install finished.")
-            else:
-                app.logger.info("Database: Running migrations (upgrade)...")
-                _db_upgrade()
-                app.logger.info("Database: Migration finished.")
+                else:
+                    app.logger.info("Database: Legacy history found. Tables restored.")
+            
+            # Always try to upgrade (idempotent migrations will handle existing columns)
+            app.logger.info("Database: Running migrations (upgrade)...")
+            _db_upgrade()
+            app.logger.info("Database: Migration finished.")
 
         except Exception as e:
             app.logger.error("Database: Critical error during setup: %s", e, exc_info=True)

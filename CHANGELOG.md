@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.33] - 2026-03-15
+
+### Fixed
+- **Restore-Resilienz (Initialisierung)**: `app.py` prüft nun primär auf die Existenz der Kerntabelle `azubi` anstatt nur auf die Migrations-Historie. Dies stellt sicher, dass nach einem Restore alle Tabellen per `create_all` initialisiert werden, selbst wenn die `alembic_version` bereits vorhanden ist.
+
 ## [2.12.32] - 2026-03-15
 
 ### Fixed
