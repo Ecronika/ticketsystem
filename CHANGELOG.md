@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.30] - 2026-03-15
+
+### Fixed
+- **Migration Idempotency**: Migration `3cefbb0dbee3` wurde so umgebaut, dass sie vor dem Hinzufügen von Spalten prüft, ob diese bereits existieren. Dies verhindert Start-Fehler in Docker-Umgebungen, in denen die Datenbank bereits manuell oder durch frühere Versionen gepatcht wurde.
+
 ## [2.12.29] - 2026-03-15
 
 ### Fixed

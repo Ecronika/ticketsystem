@@ -17,12 +17,20 @@ depends_on = None
 
 
 def upgrade():
-    # Indexes are already handled by models or previous state
-    with op.batch_alter_table('check', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('manufacturer', sa.String(length=100), nullable=True))
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    
+    # Check table 'check'
+    columns_check = [c['name'] for c in inspector.get_columns('check')]
+    if 'manufacturer' not in columns_check:
+        with op.batch_alter_table('check', schema=None) as batch_op:
+            batch_op.add_column(sa.Column('manufacturer', sa.String(length=100), nullable=True))
 
-    with op.batch_alter_table('werkzeug', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('price', sa.Float(), nullable=True))
+    # Check table 'werkzeug'
+    columns_werkzeug = [c['name'] for c in inspector.get_columns('werkzeug')]
+    if 'price' not in columns_werkzeug:
+        with op.batch_alter_table('werkzeug', schema=None) as batch_op:
+            batch_op.add_column(sa.Column('price', sa.Float(), nullable=True))
 
 
 def downgrade():
