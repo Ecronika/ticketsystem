@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.20] - 2026-03-15
+
+### Fixed
+- **Standalone Security Fix**: Flask-Talisman Konfiguration korrigiert. `force_https`, `session_cookie_secure` und `strict_transport_security` hängen nun vom globalen `SSL_ACTIVE` Flag ab. Dies behebt Session-Verluste (400er Fehler beim Login) und Redirect-Schleifen im reinen HTTP-Betrieb.
+
 ## [2.12.19] - 2026-03-15
 
 ### Fixed

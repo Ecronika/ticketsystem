@@ -239,7 +239,9 @@ if not IS_HOMEASSISTANT:
     # Standalone deployment: Use Flask-Talisman
     from flask_talisman import Talisman
     Talisman(app,
-             force_https=(os.environ.get('REQUIRE_HTTPS', '0') == '1'),  # Redirect to HTTPS if enforced
+             force_https=SSL_ACTIVE,
+             session_cookie_secure=SSL_ACTIVE,
+             strict_transport_security=SSL_ACTIVE,
              content_security_policy={
                  'default-src': "'self'",
                  'script-src': ["'self'", 'cdn.jsdelivr.net', 'unpkg.com', "'unsafe-inline'"],
@@ -250,7 +252,8 @@ if not IS_HOMEASSISTANT:
              }
              )
     app.logger.info(
-        "Security: Flask-Talisman enabled (CSP + Security Headers)")
+        "Security: Flask-Talisman enabled (CSP + Security Headers, "
+        "SSL_ACTIVE=%s)", SSL_ACTIVE)
 else:
     # Home Assistant Ingress: Talisman breaks X-Ingress-Path, use manual
     # headers
