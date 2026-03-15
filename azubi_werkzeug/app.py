@@ -102,17 +102,13 @@ if not os.environ.get('DATA_DIR'):
 # thread handles disk I/O
 
 # Determine log file location based on DATA_DIR
-# Note: We need to get DATA_DIR early for logging setup
 data_dir = Config.get_data_dir()
 if not os.path.exists(data_dir):
     os.makedirs(data_dir)
 db_path = Config.get_db_path()
 log_file = os.path.join(data_dir, 'app.log')
 
-# Create log queue for async processing
-log_queue = queue.Queue(-1)  # Unlimited size
-
-# File handler - runs in BACKGROUND THREAD (non-blocking)
+# File handler
 file_handler = RotatingFileHandler(
     log_file,
     maxBytes=10_000_000,  # 10MB
@@ -124,7 +120,7 @@ file_formatter = logging.Formatter(
 )
 file_handler.setFormatter(file_formatter)
 
-# Console handler - also in background thread
+# Console handler
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setLevel(logging.INFO)
 console_formatter = logging.Formatter(
@@ -132,21 +128,24 @@ console_formatter = logging.Formatter(
 )
 console_handler.setFormatter(console_formatter)
 
-# Queue listener - processes log queue in background thread
-queue_listener = QueueListener(
-    log_queue, file_handler, console_handler, respect_handler_level=True
-)
-queue_listener.start()
+# --- Logging Strategy ---
+# HA Add-on: Use Async (QueueListener) to prevent I/O blocking during startup synchronization
+# Standalone: Use Sync (Direct) to ensure all errors reach docker logs immediately
+if not IS_STANDALONE:
+    log_queue = queue.Queue(-1)
+    queue_listener = QueueListener(
+        log_queue, file_handler, console_handler, respect_handler_level=True
+    )
+    queue_listener.start()
+    app.logger.addHandler(QueueHandler(log_queue))
+    atexit.register(queue_listener.stop)
+    app.logger.info("Logging: Async (QueueListener) enabled for HA.")
+else:
+    app.logger.addHandler(file_handler)
+    app.logger.addHandler(console_handler)
+    app.logger.info("Logging: Sync (Direct) enabled for Standalone.")
 
-# Queue handler - writes to queue (NON-BLOCKING, instant!)
-queue_handler = QueueHandler(log_queue)
-
-# App logger uses queue (no I/O blocking!)
-app.logger.addHandler(queue_handler)
 app.logger.setLevel(logging.INFO)
-
-# Ensure listener stops cleanly on shutdown
-atexit.register(queue_listener.stop)
 
 app.logger.info(
     "Config: SSL_ACTIVE=%s, CSRF_ENABLED=%s, SAMESITE=%s [v%s]",
@@ -271,9 +270,8 @@ else:
             "connect-src 'self' cdn.jsdelivr.net unpkg.com"
         )
         return response
-
-app.logger.info(
-    "Security: Manual CSP headers enabled (Home Assistant Ingress mode)")
+    app.logger.info(
+        "Security: Manual CSP headers enabled (Home Assistant Ingress mode)")
 
 # Register Blueprints
 app.register_blueprint(main_bp)

@@ -21,10 +21,12 @@ COPY . .
 ENV DATA_DIR=/data
 ENV FLASK_ENV=production
 ENV STANDALONE_MODE=true 
+ENV DEBIAN_FRONTEND=noninteractive
 
 RUN mkdir -p /data
 
 EXPOSE 5000
 
 # App direkt über gunicorn starten (ohne s6-overlay)
-CMD ["gunicorn", "--workers", "1", "--threads", "2", "--timeout", "120", "--bind", "0.0.0.0:5000", "app:app"]
+# --access-logfile - aktiviert Request-Logging in docker logs
+CMD ["gunicorn", "--workers", "1", "--threads", "2", "--timeout", "120", "--bind", "0.0.0.0:5000", "--access-logfile", "-", "app:app"]

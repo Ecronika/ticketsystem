@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.19] - 2026-03-15
+
+### Fixed
+- **Logging Stability**: Im Standalone-Modus wird nun synchron geloggt. Dies verhindert, dass kritische Fehlermeldungen bei Abstürzen im Hintergrund-Thread verschlucken werden.
+- **Docker Access Logs**: Gunicorn loggt nun jeden Zugriff direkt in die Docker-Logs.
+
 ## [2.12.18] - 2026-03-15
 
 ### Fixed
