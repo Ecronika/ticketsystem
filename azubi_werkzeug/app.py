@@ -364,54 +364,71 @@ def _seed_default_settings():
 def setup_database():
     """Create database tables and seed default data."""
     with app.app_context():
-        # Auto-run Migrations (flask db upgrade)
-        # This ensures the schema is always up-to-date even in HA/Standalone prod
+        app.logger.info("Database: Initialization started...")
         from flask_migrate import upgrade as _db_upgrade, stamp as _db_stamp
         import sqlalchemy as sa
+        
         try:
-            # 1. Dispose engine to avoid lock conflicts during migration
+            # 1. Dispose engine to avoid lock conflicts
             db.engine.dispose()
             
-            # 2. Brute-Force Schema Validation (Check if 'price' exists in 'check' table)
+            # 2. Inspect current state
             inspector = sa.inspect(db.engine)
             tables = inspector.get_table_names()
+            app.logger.info("Database: Tables found: %s", ", ".join(tables) if tables else "None")
             
+            # 3. Emergency Patch for 'price' column (Brute-Force)
             if 'check' in tables:
                 columns = [c['name'] for c in inspector.get_columns('check')]
                 if 'price' not in columns:
-                    app.logger.warning("Emergency Fix: Column 'price' missing in 'check' table. Patching via SQL...")
+                    app.logger.warning("Database: Column 'price' missing. Patching via SQL...")
                     try:
                         with db.engine.connect() as conn:
-                            # We use raw SQL to add the column immediately
                             conn.execute(sa.text('ALTER TABLE "check" ADD COLUMN price FLOAT'))
                             conn.commit()
-                        app.logger.info("Emergency Fix: Column 'price' added successfully.")
+                        app.logger.info("Database: Column 'price' successfully added.")
                     except Exception as e:
-                        app.logger.error("Emergency Fix failed: %s", e)
+                        app.logger.error("Database: Emergency patch failed: %s", e)
 
-            # 3. Alembic Tracking Sync
-            if 'alembic_version' not in tables and 'azubi' in tables:
-                # DB exists but no migration tracking yet (Legacy transition)
-                app.logger.info("Database migration: No tracking table found. Stamping to v2.12 baseline.")
-                _db_stamp('3cefbb0dbee3')
+            # 4. Alembic Synchronization
+            if 'alembic_version' not in tables:
+                if 'azubi' in tables:
+                    # Legacy transition: Stamp to baseline
+                    app.logger.info("Database: No tracking table. Stamping to v2.12 baseline.")
+                    _db_stamp('3cefbb0dbee3')
+                else:
+                    # Fresh DB: Just create everything and stamp to head
+                    app.logger.info("Database: Fresh install. Creating all tables...")
+                    db.create_all()
+                    _db_stamp()
+                    app.logger.info("Database: Tables created and stamped to HEAD.")
+            else:
+                # Existing DB: Standard upgrade
+                app.logger.info("Database: Running migrations (upgrade)...")
+                _db_upgrade()
+                app.logger.info("Database: Migration completed.")
 
-            # 4. Standard Upgrade (Catching up on everything else)
-            _db_upgrade()
-            app.logger.info("Database migration: Check/Upgrade completed.")
         except Exception as e:
-            app.logger.error("Critical: Database migration failed: %s", e)
+            app.logger.error("Database: Critical error during setup: %s", e, exc_info=True)
+            # Try fallback: create_all
+            try:
+                app.logger.info("Database: Attempting fallback (create_all)...")
+                db.create_all()
+            except Exception as e2:
+                app.logger.error("Database: Fallback also failed: %s", e2)
 
+        # 5. Seeding & Backfilling (Always try, even if migration failed)
         try:
-            # Seed default settings (idempotent — only if key missing)
+            app.logger.info("Database: Starting seeding and backfill...")
             _seed_default_settings()
             
-            # Ensure all checks have price snapshots (Backfill for legacy data)
             from services import CheckService  # pylint: disable=import-outside-toplevel
             count = CheckService.ensure_price_backfill()
             if count > 0:
-                app.logger.info("Database: Backfilled price snapshots for %d legacy checks.", count)
+                app.logger.info("Database: Backfilled %d checks.", count)
+            app.logger.info("Database: Initialization finished successfully.")
         except Exception as e:
-            app.logger.error("Failed to seed or backfill settings: %s", e)
+            app.logger.error("Database: Seeding/Backfill failed: %s", e)
 
 
 # --- Jinja Filters ---

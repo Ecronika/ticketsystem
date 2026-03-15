@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.21] - 2026-03-15
+
+### Fixed
+- **Database Resilience**: Der Initialisierungs-Prozess (`setup_database`) wurde komplett überarbeitet. Er ist nun deutlich robuster gegen Locks, erkennt frische Installationen automatisch und loggt jeden Schritt detailliert. Dies behebt den "Hash nicht gefunden" Fehler.
+- **Logging Stability**: Unbuffered Output aktiviert, damit Logs sofort in der Docker-Konsole erscheinen. Gunicorn loggt nun auch Fehler direkt nach stdout.
+
 ## [2.12.20] - 2026-03-15
 
 ### Fixed
