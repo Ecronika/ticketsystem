@@ -386,53 +386,35 @@ def setup_database():
         from flask_migrate import upgrade as _db_upgrade, stamp as _db_stamp
         import sqlalchemy as sa
         
-        try:
-            # 1. Dispose engine to avoid lock conflicts
-            db.engine.dispose()
-            
-            # 2. Inspect current state (Using context manager to ensure connection close)
-            with db.engine.connect() as conn:
-                inspector = sa.inspect(conn)
-                tables = inspector.get_table_names()
-                app.logger.info("Database: Initialization stage — Tables: %s", ", ".join(tables) if tables else "None")
-                
-                # 3. Emergency Patch for 'price' column (Brute-Force)
-                if 'check' in tables:
-                    columns = [c['name'] for c in inspector.get_columns('check')]
-                    if 'price' not in columns:
-                        app.logger.warning("Database: Column 'price' missing. Patching via SQL...")
-                        try:
-                            conn.execute(sa.text('ALTER TABLE "check" ADD COLUMN price FLOAT'))
-                            conn.commit()
-                            app.logger.info("Database: Column 'price' successfully added.")
-                        except Exception as e:
-                            app.logger.error("Database: Emergency patch failed: %s", e)
+        # 1. Dispose engine to avoid lock conflicts
+        db.engine.dispose()
+        
+        # 2. Inspect current state
+        inspector = sa.inspect(db.engine)
+        tables = inspector.get_table_names()
+        alembic_exists = 'alembic_version' in tables
+        core_tables_exist = 'azubi' in tables
+        
+        app.logger.info("Database: Initialization stage — Tables: %s", ", ".join(tables) if tables else "None")
+        
+        # 3. Fresh Install vs. Existing logic
+        if not core_tables_exist:
+            # Absolut frische Installation oder kompletter Restore ohne Tabellen
+            app.logger.info("Database: Core tables missing. Initializing via create_all...")
+            db.create_all()
+            _db_stamp()  # Alembic auf HEAD setzen
+            app.logger.info("Database: Fresh install / Restore initialized.")
+        elif not alembic_exists:
+            # Legacy-Datenbank ohne Alembic-Historie
+            app.logger.info("Database: Legacy DB without history. Stamping to baseline.")
+            _db_stamp()
+        
+        # 4. In ALLEN Fällen upgrade aufrufen — migrations are now becoming standard again
+        app.logger.info("Database: Running migrations (upgrade)...")
+        _db_upgrade()
+        app.logger.info("Database: Migration finished.")
 
-            # 4. Alembic Synchronization & Table Creation
-            if 'azubi' not in tables:
-                app.logger.info("Database: Core tables missing. Initializing via create_all...")
-                db.create_all()
-                if 'alembic_version' not in tables:
-                    _db_stamp()
-                    app.logger.info("Database: Fresh install finished.")
-                else:
-                    app.logger.info("Database: Legacy history found. Tables restored.")
-            
-            # Always try to upgrade (idempotent migrations will handle existing columns)
-            app.logger.info("Database: Running migrations (upgrade)...")
-            _db_upgrade()
-            app.logger.info("Database: Migration finished.")
-
-        except Exception as e:
-            app.logger.error("Database: Critical error during setup: %s", e, exc_info=True)
-            # Try fallback: create_all
-            try:
-                app.logger.info("Database: Attempting fallback (create_all)...")
-                db.create_all()
-            except Exception as e2:
-                app.logger.error("Database: Fallback also failed: %s", e2)
-
-        # 5. Seeding & Backfilling (Always try, even if migration failed)
+        # 5. Seeding & Backfilling (Failures here are logged but not critical for startup)
         try:
             app.logger.info("Database: Starting seeding and backfill...")
             _seed_default_settings()

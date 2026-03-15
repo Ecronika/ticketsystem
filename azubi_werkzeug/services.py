@@ -249,24 +249,22 @@ class CheckService:
     def ensure_price_backfill():
         """
         Ensure all Check records have a price snapshot.
-        Primarily used after updates or database restores.
+        Optimized with early exit.
         """
         from models import Check, db
         import sqlalchemy as sa
         
-        # Guard: Check if 'price' column even exists in the DB yet
-        # (Prevents crash if migration hasn't run or failed)
+        # 1. Early exit if no records need backfill
         try:
-            inspector = sa.inspect(db.engine)
-            columns = [c['name'] for c in inspector.get_columns('check')]
-            if 'price' not in columns:
+            count_needed = Check.query.filter(Check.price.is_(None)).limit(1).count()
+            if count_needed == 0:
                 return 0
         except Exception:
-            # If inspection fails (e.g. table not found), just abort backfill safely
+            # Table or column might not exist yet
             return 0
 
-        # Find records where price is NULL
-        checks = Check.query.filter(Check.price == None).all()
+        # 2. Fetch records where price is NULL
+        checks = Check.query.filter(Check.price.is_(None)).all()
         if not checks:
             return 0
             
@@ -607,8 +605,7 @@ class CheckService:
 
         # Issue Entry
         # Fetch current price from DB to snapshot it
-        from models import Werkzeug
-        werkzeug = Werkzeug.query.get(tool_id)
+        werkzeug = db.session.get(Werkzeug, tool_id)
         current_price = werkzeug.price if werkzeug else 0.0
 
         issue_entry = Check(

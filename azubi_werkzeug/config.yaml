@@ -1,5 +1,5 @@
 name: "Azubi Werkzeug Tracker"
-version: "2.12.33"
+version: "2.12.34"
 slug: "azubi_werkzeug"
 description: "Manage and track tools assigned to apprentices."
 url: "https://github.com/Ecronika/azubi_werkzeug"

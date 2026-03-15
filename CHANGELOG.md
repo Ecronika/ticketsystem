@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.34] - 2026-03-15
+
+### Changed
+- **Architektur-Cleanup**: Redundante "Emergency-Patches" aus `app.py` entfernt.
+- **SQL-Optimierung**: `ensure_price_backfill` in `services.py` mit Early-Exit-Logik beschleunigt.
+- **SQLAlchemy 2.x**: Deprecated `query.get()` durch `db.session.get()` ersetzt.
+- **Migrations-Cleanup**: Defensive Check-Logik aus Migrations-Scripts entfernt, da die Grundstabilität nun durch `setup_database` garantiert ist.
+
+### Fixed
+- **Startup-Resilienz**: Fehler in der DB-Initialisierung werden nicht mehr still geschluckt, um inkonsistente Zustände zu vermeiden.
+
 ## [2.12.33] - 2026-03-15
 
 ### Fixed
