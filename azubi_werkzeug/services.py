@@ -879,7 +879,6 @@ class BackupService:
             try:
                 current_app.logger.info("Running DB migrations after restore...")
                 # Ensure all tables exist (critical after restore of an empty DB)
-                from extensions import db
                 db.create_all()
                 
                 from flask_migrate import upgrade
