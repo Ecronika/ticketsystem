@@ -141,17 +141,27 @@ if not IS_STANDALONE:
     atexit.register(queue_listener.stop)
     app.logger.info("Logging: Async (QueueListener) enabled for HA.")
 else:
-    # Standalone: Remove default handlers and add our own directly to root for maximum visibility
-    # This ensures that underlying libraries (like alembic or gunicorn workers) 
-    # also output to stdout if they use the standard logging.
-    root_bridge = logging.getLogger()
-    root_bridge.setLevel(logging.INFO)
-    root_bridge.addHandler(console_handler)
+    # Standalone: Check if running under Gunicorn
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    if gunicorn_logger.handlers:
+        # Inherit Gunicorn's handlers and level for seamless integration
+        app.logger.handlers = gunicorn_logger.handlers
+        app.logger.setLevel(gunicorn_logger.level)
+        # Also add file handler for persistent logs
+        app.logger.addHandler(file_handler)
+        app.logger.info("Logging: Gunicorn integration enabled. [v%s]", APP_VERSION)
+    else:
+        # Standard console logging (e.g. running app.py directly)
+        app.logger.addHandler(console_handler)
+        app.logger.addHandler(file_handler)
+        app.logger.info("Logging: Direct console output enabled. [v%s]", APP_VERSION)
     
-    # Flask app logger
-    app.logger.addHandler(console_handler)
-    app.logger.addHandler(file_handler)
-    app.logger.info("Logging: Sync (Direct) enabled for Standalone. [v%s]", APP_VERSION)
+    # Ensure root logger also reaches the console for libraries like Alembic
+    # but clear existing ones first to avoid duplicates if Gunicorn already did it
+    root = logging.getLogger()
+    if not root.handlers:
+        root.addHandler(console_handler)
+        root.setLevel(logging.INFO)
 
 app.logger.setLevel(logging.INFO)
 

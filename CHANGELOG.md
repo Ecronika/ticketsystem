@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.24] - 2026-03-15
+
+### Fixed
+- **Logging Integration**: Der Flask-Logger wurde direkt mit dem Gunicorn-Logger synchronisiert. Zusammen mit den Gunicorn-Flags `--capture-output` und `--enable-stdio-inheritance` kommen nun wirklich alle Meldungen (App, Alembic, Worker) zuverlässig in `docker logs` an.
+
 ## [2.12.23] - 2026-03-15
 
 ### Fixed
