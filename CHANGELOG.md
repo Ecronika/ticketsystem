@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.26] - 2026-03-15
+
+### Fixed
+- **Access Logs**: Alembic's `fileConfig()` wurde mit `disable_existing_loggers=False` 
+  aufgerufen. Der Default-Wert `True` hat beim Start alle Gunicorn-Logger 
+  (`gunicorn.access`, `gunicorn.error`) deaktiviert, sodass nach dem DB-Upgrade 
+  keine HTTP-Requests mehr in `docker logs` erschienen.
+
 ## [2.12.25] - 2026-03-15
 
 ### Fixed
