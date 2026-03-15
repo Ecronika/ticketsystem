@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [2.12.38] - 2026-03-15
+
+### Changed
+- **Performance**: `ensure_price_backfill` nutzt nun einen Bulk-SQL-Update statt einer Python-Schleife, was die Initialisierung bei großen Datenbanken massiv beschleunigt.
+- **Projekt-Cleanup**: Debug-Skripte und hartkodierte Test-Scripte (`test_api.py`, `verify_history.py` etc.) wurden aus dem Repository entfernt.
+
 ## [2.12.37] - 2026-03-15
 
 ### Fixed

@@ -249,36 +249,44 @@ class CheckService:
     def ensure_price_backfill():
         """
         Ensure all Check records have a price snapshot.
-        Optimized with early exit.
+        Optimized with bulk SQL update for performance.
         """
-        from models import Check, db
+        from models import Check, Werkzeug, db
         import sqlalchemy as sa
         
         # 1. Early exit if no records need backfill
         try:
-            count_needed = Check.query.filter(Check.price.is_(None)).limit(1).count()
+            # SQLAlchemy 2.0 style count check
+            stmt = sa.select(sa.func.count()).select_from(Check).where(Check.price.is_(None)).limit(1)
+            count_needed = db.session.execute(stmt).scalar() or 0
             if count_needed == 0:
                 return 0
         except Exception:
-            # Table or column might not exist yet
+            # Table or column might not exist yet during migration phase
             return 0
 
-        # 2. Fetch records where price is NULL
-        checks = Check.query.filter(Check.price.is_(None)).all()
-        if not checks:
+        # 2. Bulk Update using subquery (SQL instead of Python loop)
+        try:
+            # Scalar subquery to fetch price from associated Werkzeug
+            price_subquery = sa.select(sa.func.coalesce(Werkzeug.price, 0.0))\
+                .where(Werkzeug.id == Check.werkzeug_id)\
+                .scalar_subquery()
+            
+            result = db.session.execute(
+                sa.update(Check)
+                .where(Check.price.is_(None))
+                .values(price=price_subquery)
+            )
+            db.session.commit()
+            
+            count = result.rowcount
+            if count > 0:
+                current_app.logger.info(f"Database: Bulk-backfilled {count} checks.")
+            return count
+        except Exception as e:
+            current_app.logger.error(f"Price backfill failed: {e}")
+            db.session.rollback()
             return 0
-            
-        updated_count = 0
-        for check in checks:
-            # Fallback to current tool price
-            if check.werkzeug:
-                check.price = check.werkzeug.price
-            else:
-                check.price = 0.0
-            updated_count += 1
-            
-        db.session.commit()
-        return updated_count
 
     @staticmethod
     def cleanup_session_files(files_to_delete):
