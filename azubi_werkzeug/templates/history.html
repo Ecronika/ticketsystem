@@ -139,6 +139,7 @@
                 
                 this.classList.add('opacity-50');
                 this.disabled = true;
+                historyListGroup.setAttribute('aria-busy', 'true');
 
                 try {
                     const response = await fetch(`${apiHistoryUrl}?page=${nextPage}&azubi_id=${azubiId}`);
@@ -212,16 +213,19 @@
                         } else {
                             this.remove();
                         }
+                        historyListGroup.setAttribute('aria-busy', 'false');
                     } else {
                         console.error("Failed to load more history:", data.error);
                         this.classList.remove('opacity-50');
                         this.disabled = false;
+                        historyListGroup.setAttribute('aria-busy', 'false');
                         showUiAlert("Fehler beim Laden weiterer Einträge.");
                     }
                 } catch (err) {
                     console.error("Fetch error:", err);
                     this.innerHTML = originalText;
                     this.disabled = false;
+                    historyListGroup.setAttribute('aria-busy', 'false');
                     showUiAlert("Verbindungsfehler. Bitte versuchen Sie es erneut.");
                 }
             });

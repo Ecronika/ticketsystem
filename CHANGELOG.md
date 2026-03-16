@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [2.13.3] - 2026-03-16
+### Fixed
+- **Accessibility (WCAG 2.2)**: Korrektur der Überschriften-Hierarchie in den Einstellungen (h2 -> h1/h2).
+- **Accessibility (WCAG 2.2)**: `aria-live` und `aria-busy` Feedback für dynamisch geladene Historien-Einträge hinzugefügt.
+- **Accessibility (WCAG 2.2)**: Fehlendes `aria-label` für verstecktes Hersteller-Feld in der Prüfung ergänzt.
+- **UI/UX Consistency**: Breadcrumbs zur besseren Navigation in Werkzeugen, Personal und Einstellungen hinzugefügt.
+- **UI/UX Consistency**: Vereinheitlichung der Modal-Footer (Abbrechen-Buttons) im Austausch- und Personal-Bereich.
+- **UI/UX Consistency**: Standardisierung der Backup-Tabelle und Entfernung von `table-sm` für bessere Touch-Ergonomie (V2, V3).
+- **UI/UX Consistency**: Visuelle Icons für leere Backup-Zustände hinzugefügt.
+- **Bugfixes**: Fehlendes Suchfeld `searchExaminer` in der Personalverwaltung ergänzt.
+- **Sicherheit**: Admin-Guard für den Backup-Link auf der 500er-Fehlerseite implementiert.
 ## [2.13.2] - 2026-03-16
 ### Fixed
 - **HA Add-on Startup**: Behebung von Startproblemen durch fehlendes `database_init.py` und Port-Konflikte (NGINX).

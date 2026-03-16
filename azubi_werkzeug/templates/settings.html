@@ -3,11 +3,17 @@
 
 {% block content %}
 <div class="container-fluid mt-4">
-    <h2>System-Einstellungen</h2>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ ingress_path }}{{ url_for('main.index') }}">Dashboard</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Einstellungen</li>
+        </ol>
+    </nav>
+    <h1 class="h2 mb-4">System-Einstellungen</h1>
 
     <div class="card shadow-sm">
         <div class="card-header">
-            <h5>Firmenlogo</h5>
+            <h2 class="h5 mb-0">Firmenlogo</h2>
         </div>
         <div class="card-body">
             {% if logo_exists %}
@@ -33,7 +39,7 @@
     <!-- Appearance Card -->
     <div class="card shadow-sm mt-4">
         <div class="card-header">
-            <h5>Erscheinungsbild</h5>
+            <h2 class="h5 mb-0">Erscheinungsbild</h2>
         </div>
         <div class="card-body">
             <p>Wählen Sie das Standard-Design für die Anwendung.</p>
@@ -57,7 +63,7 @@
     <!-- QR Codes Card -->
     <div class="card shadow-sm mt-4">
         <div class="card-header">
-            <h5>QR-Codes generieren</h5>
+            <h2 class="h5 mb-0">QR-Codes generieren</h2>
         </div>
         <div class="card-body">
             <p>Wählen Sie die Azubis aus, für die QR-Codes generiert werden sollen.</p>
@@ -101,7 +107,7 @@
     <!-- Migration Mode Card -->
     <div class="card shadow-sm mt-4">
         <div class="card-header">
-            <h5>Migration Modus</h5>
+            <h2 class="h5 mb-0">Migration Modus</h2>
         </div>
         <div class="card-body">
             <p>Ermöglicht das Hinzufügen von Werkzeugen ohne Validierung (für Datenimport).</p>
@@ -124,7 +130,7 @@
     <!-- Security Card -->
     <div class="card shadow-sm mt-4 border-danger">
         <div class="card-header border-danger">
-            <h5 class="text-danger">Admin-Sicherheit</h5>
+            <h2 class="h5 mb-0 text-danger">Admin-Sicherheit</h2>
         </div>
         <div class="card-body">
             <h6 class="card-subtitle mb-3">PIN ändern</h6>
@@ -172,7 +178,7 @@
     <!-- Manufacturer Settings Card -->
     <div class="card shadow-sm mt-4">
         <div class="card-header">
-            <h5>Werkzeug-Hersteller</h5>
+            <h2 class="h5 mb-0">Werkzeug-Hersteller</h2>
         </div>
         <div class="card-body">
             <h6 class="card-subtitle mb-3">Vordefinierte Liste</h6>
@@ -192,7 +198,7 @@
     <!-- Backup Manager Card -->
     <div class="card shadow-sm mt-4">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h5>Backup & Wiederherstellung</h5>
+            <h2 class="h5 mb-0">Backup & Wiederherstellung</h2>
         </div>
         <div class="card-body">
             <h6 class="card-subtitle mb-3">Konfiguration</h6>
@@ -245,7 +251,7 @@
 
             {% if backups %}
             <div class="table-responsive">
-                <table class="table table-hover table-sm">
+                <table class="table table-hover">
                     <thead>
                         <tr>
                             <th>Dateiname</th>
@@ -261,11 +267,13 @@
                             <td>{{ backup.date }}</td>
                             <td>{{ backup.size_mb }} MB</td>
                             <td>
-                                 <a href="{{ ingress_path }}{{ url_for('main.download_backup', filename=backup.filename) }}"
-                                    class="btn btn-outline-primary d-inline-flex align-items-center justify-content-center"
-                                    style="width: 44px; height: 44px;" aria-label="Backup herunterladen">
-                                    <i class="bi bi-download" aria-hidden="true"></i>
-                                </a>
+                                <div class="d-flex gap-2 justify-content-end">
+                                    <a href="{{ ingress_path }}{{ url_for('main.download_backup', filename=backup.filename) }}"
+                                        class="btn btn-primary-soft d-inline-flex align-items-center justify-content-center"
+                                        style="width: 44px; height: 44px;" aria-label="Backup herunterladen">
+                                        <i class="bi bi-download" aria-hidden="true"></i>
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -273,7 +281,9 @@
                 </table>
             </div>
             {% else %}
-            <div class="alert alert-info">Keine Backups vorhanden.</div>
+            <div class="alert alert-info d-flex align-items-center gap-2">
+                <i class="bi bi-info-circle" aria-hidden="true"></i> Keine Backups vorhanden.
+            </div>
             {% endif %}
         </div>
     </div>

@@ -3,6 +3,12 @@
 
 {% block content %}
 <div class="container-fluid mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ ingress_path }}{{ url_for('main.index') }}">Dashboard</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Werkzeuge</li>
+        </ol>
+    </nav>
     <div class="row">
         <div class="col-12">
             <div class="card shadow-sm border-0 rounded-4">
