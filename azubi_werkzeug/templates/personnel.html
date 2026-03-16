@@ -90,7 +90,7 @@
                                         {% endif %}
                                     </td>
                                     <td class="text-center">
-                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ azubi.lehrjahr }}. LJ</span>
+                                        <span class="badge-subtle-info">{{ azubi.lehrjahr }}. LJ</span>
                                     </td>
                                     <td class="text-end">
                                         <form
@@ -404,7 +404,7 @@
 
                             const lehrjahrCell = document.createElement('td');
                             lehrjahrCell.className = 'text-center';
-                            lehrjahrCell.innerHTML = `<span class="badge bg-primary-subtle text-primary border border-primary-subtle">${azubi.lehrjahr}. LJ</span>`;
+                            lehrjahrCell.innerHTML = `<span class="badge-subtle-info">${azubi.lehrjahr}. LJ</span>`;
 
                             const actionCell = document.createElement('td');
                             actionCell.className = 'text-end';
@@ -525,14 +525,14 @@
                             tbody.insertBefore(newRow, tbody.firstChild);
                             addFormExaminer.reset();
                             button.disabled = false;
-                            button.innerHTML = '<i class="bi bi-plus-lg"></i> Add';
+                            button.innerHTML = '<i class="bi bi-plus-lg"></i> Hinzufügen';
 
                             newRow.classList.add('row-insert-flash');
                             setTimeout(() => newRow.classList.remove('row-insert-flash'), 1200);
                         } else {
                             showUiAlert('Fehler beim Hinzufügen: ' + JSON.stringify(data.errors || data.error));
                             button.disabled = false;
-                            button.innerHTML = '<i class="bi bi-plus-lg"></i> Add';
+                            button.innerHTML = '<i class="bi bi-plus-lg"></i> Hinzufügen';
                         }
                     })
                     .catch(error => {

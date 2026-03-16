@@ -179,7 +179,7 @@ canvas {
     --color-success: #2ecc71;
     --color-warning: #f1c40f;
     --color-danger: #e74c3c;
-    --color-info: #3498db;
+    --color-info: #6ccff6; /* Lightened cyan for >4.5:1 on #1e1e1e */
 
     /* Status Backgrounds & Borders (Subtle - Darker but with stronger borders for blur) */
     --bg-success-subtle: rgb(46 204 113 / 20%);
@@ -188,8 +188,8 @@ canvas {
     --border-warning-subtle: rgb(241 196 15 / 80%);
     --bg-danger-subtle: rgb(231 76 60 / 20%);
     --border-danger-subtle: rgb(231 76 60 / 80%);
-    --bg-info-subtle: rgb(52 152 219 / 20%);
-    --border-info-subtle: rgb(52 152 219 / 80%);
+    --bg-info-subtle: rgb(108 207 246 / 15%); /* Adjusted to match new color-info */
+    --border-info-subtle: rgb(108 207 246 / 50%);
     --focus-shadow: 0 0 0 0.25rem rgb(59 130 246 / 25%);
 }
 
