@@ -12,10 +12,10 @@
                 <li class="breadcrumb-item active" aria-current="page">Neue Prüfung</li>
             </ol>
         </nav>
-
-        <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="visually-hidden">Neue Prüfung – {{ azubi.name }}</h1>
+    <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h3 class="fw-bold">Prüfung / Ausgabe: {{ azubi.name }}</h3>
+                <h2 class="h3 fw-bold mb-0">Prüfung / Ausgabe: {{ azubi.name }}</h2>
                 <span class="text-muted">Datum: {{ current_date }}</span>
             </div>
             {% if is_overdue %}
@@ -25,7 +25,7 @@
             {% endif %}
         </div>
 
-        <form action="{{ ingress_path }}{{ url_for('main.submit_check') }}" method="POST" id="checkForm">
+        <form action="{{ ingress_path }}{{ url_for('main.save_check', azubi_id=azubi.id) }}" method="POST" id="checkForm" novalidate>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             <input type="hidden" name="azubi_id" value="{{ azubi.id }}">
             <input type="hidden" name="signature_azubi_data" id="sigAzubiData">
@@ -624,7 +624,13 @@
             const skipSig = document.getElementById('skipSignature');
             const isSkip = skipSig && skipSig.checked;
 
-            if (!isSkip && (padAzubi.isEmpty() || padExaminer.isEmpty())) {
+            const examinerVal = document.querySelector('select[name="examiner"]');
+            if (valid && (!examinerVal || !examinerVal.value)) {
+                valid = false;
+                errorMsg = "Bitte einen Prüfer / Ausbilder auswählen.";
+            }
+
+            if (valid && !isSkip && (padAzubi.isEmpty() || padExaminer.isEmpty())) {
                 valid = false;
                 errorMsg = "Bitte beide Unterschriften leisten!";
             } else {

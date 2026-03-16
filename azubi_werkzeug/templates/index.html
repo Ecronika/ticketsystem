@@ -191,15 +191,15 @@
                     <div class="mb-4">
                         <label class="form-label fw-bold">Werkzeuge</label>
                         <!-- Container: kein max-height – modal-dialog-scrollable übernimmt das Scrollen (kein Scroll-Trap) -->
-                        <div id="exchangeToolsList" class="rounded-3 p-1 border"
+                        <ul id="exchangeToolsList" class="rounded-3 p-1 border list-unstyled mb-0"
                             aria-live="polite"
                             aria-busy="false"
                             aria-label="Werkzeugliste für Austausch"
                             style="border-color: var(--bs-border-color-translucent) !important;">
-                            <div class="text-center text-muted p-3">
+                            <li class="text-center text-muted p-3">
                                 <i class="bi bi-hourglass-split me-2" aria-hidden="true"></i>Werkzeuge laden...
-                            </div>
-                        </div>
+                            </li>
+                        </ul>
                     </div>
 
                     <div class="mb-4 text-center p-3 rounded-3 bg-body-tertiary border">
@@ -508,7 +508,7 @@
                 const textClass = isPrimary ? '' : 'text-muted';
 
                 return `
-                <div class="d-flex align-items-center ${rowClass}">
+                <li class="d-flex align-items-center ${rowClass}">
                     <div class="form-check mb-0 flex-grow-1 d-flex align-items-center">
                         <input class="form-check-input form-check-input-lg exchange-tool-checkbox" type="checkbox"
                                value="${tool.id}" id="check_tool_${tool.id}" data-price="${price}">
@@ -517,7 +517,7 @@
                         </label>
                         <span class="badge badge-subtle-secondary ms-auto font-mono">${priceFormatted}</span>
                     </div>
-                </div>`;
+                </li>`;
             };
 
             let html = '';
@@ -542,9 +542,9 @@
                         <span class="badge badge-subtle-secondary ms-1">${secondaryTools.length}</span>
                     </button>
                     <div class="collapse" id="secondaryToolsCollapse">
-                        <div class="d-flex flex-column gap-1">
+                        <ul class="d-flex flex-column gap-1 list-unstyled mb-0">
                             ${secondaryTools.map(t => renderToolRow(t, false)).join('')}
-                        </div>
+                        </ul>
                     </div>`;
                 }
             }

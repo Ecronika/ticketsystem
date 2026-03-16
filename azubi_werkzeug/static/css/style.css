@@ -69,9 +69,11 @@ small,
     }
 
     /* Stack sticky footer actions if needed or ensure enough padding */
-    body {
-        padding-bottom: 100px;
-    }
+    /* REMOVED @media restriction to ensure 400% zoom on desktop also gets padding */
+}
+
+body {
+    padding-bottom: 100px;
 }
 
 /* Low: Suppress iOS gray tap-flash on canvas signature pads */
@@ -128,7 +130,7 @@ canvas {
     --radius-pill: 9999px;
 
     /* Layer z-index */
-    --z-toast: 1050;
+    --z-toast: 1090;
     --z-modal: 1055;
 
     /* Max-Heights für Scroll-Container */
@@ -138,15 +140,19 @@ canvas {
 
     /* History Session Type Tokens (Visual Calm / Monochromatic by default) */
     --hs-check-bg: #f2f2f2;
-    --hs-check-text: #6c757d;
+    --hs-check-text: #495057;   /* #495057 auf #f2f2f2 = 5.9:1 ✓ AA */
     --hs-issue-bg: #f2f2f2;
-    --hs-issue-text: #6c757d;
+    --hs-issue-text: #495057;
     --hs-return-bg: #f2f2f2;
-    --hs-return-text: #6c757d;
+    --hs-return-text: #495057;
     --hs-exchange-bg: #e7f1ff; /* Attention: Primary Blue Soft */
     --hs-exchange-text: #0d6efd;
     --hs-payable-bg: #fff3cd; /* Attention: Warning Yellow Soft */
     --hs-payable-text: #997404;
+}
+
+.z-toast {
+    z-index: var(--z-toast) !important;
 }
 
 /* Dark Mode (Ergonomisch, kein reines Schwarz) */

@@ -9,6 +9,7 @@
             <li class="breadcrumb-item active" aria-current="page">Personal</li>
         </ol>
     </nav>
+    <h1 class="visually-hidden">Personalverwaltung</h1>
     <div class="row">
         <!-- Azubi Management -->
         <div class="col-md-6 mb-4">
@@ -497,6 +498,14 @@
 
                             // Show success visually
                             newRow.classList.add('row-insert-flash');
+                            
+                            // Screen Reader Announcement
+                            const announcer = document.getElementById('ajaxStatusAnnouncer');
+                            if (announcer) {
+                                announcer.textContent = `Azubi "${azubi.name}" wurde erfolgreich hinzugefügt.`;
+                                setTimeout(() => announcer.textContent = '', 3000);
+                            }
+
                             setTimeout(() => newRow.classList.remove('row-insert-flash'), 1200);
                         } else {
                             showUiAlert('Fehler beim Hinzufügen: ' + JSON.stringify(data.errors || data.error));
@@ -604,6 +613,14 @@
                             button.innerHTML = '<i class="bi bi-plus-lg"></i> Hinzufügen';
 
                             newRow.classList.add('row-insert-flash');
+                            
+                            // Screen Reader Announcement
+                            const announcer = document.getElementById('ajaxStatusAnnouncer');
+                            if (announcer) {
+                                announcer.textContent = `Prüfer "${examiner.name}" wurde erfolgreich hinzugefügt.`;
+                                setTimeout(() => announcer.textContent = '', 3000);
+                            }
+
                             setTimeout(() => newRow.classList.remove('row-insert-flash'), 1200);
                         } else {
                             showUiAlert('Fehler beim Hinzufügen: ' + JSON.stringify(data.errors || data.error));
@@ -622,4 +639,7 @@
     });
 </script>
 <div id="dynamicModalsContainer"></div>
+
+<!-- AJAX Status Announcer for Screen Readers -->
+<div id="ajaxStatusAnnouncer" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
 {% endblock %}

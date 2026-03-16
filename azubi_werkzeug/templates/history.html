@@ -4,7 +4,8 @@
 {% block content %}
 <div class="row mb-4 align-items-center">
     <div class="col-12 col-md-6 mb-3 mb-md-0">
-        <h2 class="fw-bold text-secondary mb-0">Historie</h2>
+        <h1 class="visually-hidden">Historie</h1>
+        <h2 class="h3 fw-bold text-secondary mb-0">Historie</h2>
         <p class="text-muted mb-0">Vergangene Prüfungen</p>
     </div>
     <div class="col-12 col-md-6 d-flex justify-content-md-end">
@@ -32,7 +33,7 @@
 {% endif %}
 
 <div class="card shadow-sm border-0 rounded-4">
-    <div class="list-group list-group-flush rounded-4" id="historyListGroup">
+    <div class="list-group list-group-flush rounded-4" id="historyListGroup" aria-live="polite">
         {% for check_session in sessions %}
         <a href="{{ ingress_path }}{{ url_for('main.history_details', session_id=check_session.session_id) }}"
             class="list-group-item list-group-item-action p-4 d-flex justify-content-between align-items-center">

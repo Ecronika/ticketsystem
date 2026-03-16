@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [2.13.5] - 2026-03-16
+### Fixed
+- WCAG 2.2 AA Contrast: History badges contrast improved to 5.9:1.
+- Accessibility: Standardized header hierarchy (H1/H2) across all views.
+- Accessibility: Added ARIA Live regions for AJAX content loads (Personnel, Tools, History).
+- Accessibility: Improved touch targets for QR selection in Settings.
+- Accessibility: Semantic list roles (UL/LI) in Exchange Modal.
+- UI Consistency: Standardized modal footers and button colors across all management views.
+- Bugfix: Added missing `.z-toast` class to prevent flash messages disappearing behind modals.
+- Bugfix: Added sticky bar padding global fix for 400% zoom.
+- Bugfix: Added manual examiner validation in `check.html` for `novalidate` forms.
+
 ## [2.13.4] - 2026-03-16
 ### Fixed
 - **UI/UX Consistency**: Hotfix für fehlendes Suchfeld (Prüfer) und Abbrechen-Buttons in Modals, die in der Vorversion v2.13.3 fälschlicherweise nicht enthalten waren.
