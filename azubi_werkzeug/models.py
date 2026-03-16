@@ -68,16 +68,16 @@ class Azubi(db.Model):
         days_since = (now - last_datum).days
         if days_since >= 90:
             return (
-                "ÃƒÅ“berfÃƒÂ¤llig (> 3 Mon.)", "danger",
+                "Überfällig (> 3 Mon.)", "danger",
                 f"Vor {days_since} Tagen", 1)
         if days_since >= 62:
             return (
-                "PrÃƒÂ¼fung fÃƒÂ¤llig (< 4 Wochen)", "warning",
+                "Prüfung fällig (< 4 Wochen)", "warning",
                 f"Vor {days_since} Tagen", 2)
         from zoneinfo import ZoneInfo
         last_datum_local = last_datum.astimezone(ZoneInfo('Europe/Berlin'))
         return (
-            "GeprÃƒÂ¼ft", "success",
+            "Geprüft", "success",
             last_datum_local.strftime("%d. %b %Y"), 3)
 
     def __repr__(self):

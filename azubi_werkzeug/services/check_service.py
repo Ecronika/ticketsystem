@@ -274,7 +274,7 @@ class CheckService:
                 full_bemerkung += f" | {global_bemerkung}"
 
             records.append(Check(
-                session_id=check_context['session_id'],
+                session_id=check_context.session_id,
                 azubi_id=check_context.azubi_id,
                 werkzeug_id=werkzeug.id,
                 bemerkung=full_bemerkung,
@@ -386,6 +386,7 @@ class CheckService:
 
     @staticmethod
     def process_check_submission(
+        *,
         azubi_id,
         examiner_name,
         tool_ids,

@@ -154,7 +154,7 @@ def register_routes(bp):
             return jsonify({
                 'success': False,
                 'error': 'Datenbankfehler beim '
-                         'HinzufÃ¼gen des Werkzeugs'
+                         'Hinzufügen des Werkzeugs'
             }), 500
         except Exception as e:  # pylint: disable=broad-exception-caught
             db.session.rollback()
@@ -197,7 +197,7 @@ def register_routes(bp):
             return jsonify({
                 'success': False,
                 'error': 'Datenbankfehler beim '
-                         'HinzufÃ¼gen des Azubis'
+                         'Hinzufügen des Azubis'
             }), 500
         except Exception as e:  # pylint: disable=broad-exception-caught
             db.session.rollback()
@@ -237,7 +237,7 @@ def register_routes(bp):
             return jsonify({
                 'success': False,
                 'error': 'Datenbankfehler beim '
-                         'HinzufÃ¼gen des PrÃ¼fers'
+                         'Hinzufügen des Prüfers'
             }), 500
         except Exception as e:  # pylint: disable=broad-exception-caught
             db.session.rollback()

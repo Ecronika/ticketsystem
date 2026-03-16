@@ -16,7 +16,7 @@ csrf = CSRFProtect()
 scheduler = APScheduler()
 limiter = Limiter(
     key_func=get_remote_address,
-    storage_uri="memory://"  # Explizit fÃ¼r Single-Worker-Setup
+    storage_uri="memory://"  # Explizit für Single-Worker-Setup
 )
 
 

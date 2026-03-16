@@ -67,7 +67,7 @@
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="collapse navbar-collapse" id="navbarNav">
-        <ul class="navbar-nav ms-auto">
+        <ul class="navbar-nav ms-auto align-items-center">
           <li class="nav-item">
             <a class="nav-link {{ 'active' if request.endpoint and request.endpoint == 'main.index' else '' }}"
               href="{{ ingress_path }}{{ url_for('main.index') }}" {% if request.endpoint and
@@ -93,12 +93,34 @@
               href="{{ ingress_path }}{{ url_for('main.settings') }}" {% if request.endpoint and
               request.endpoint=='main.settings' %}aria-current="page" {% endif %}>Einstellungen</a>
           </li>
+          
+          {% if session.get('is_admin') %}
+          <li class="nav-item ms-lg-2">
+            <span class="badge-subtle-success d-flex align-items-center gap-1" aria-label="Administrator eingeloggt">
+              <i class="bi bi-shield-check" aria-hidden="true"></i>
+              <span class="d-none d-md-inline small fw-semibold">Admin</span>
+            </span>
+          </li>
+          {% endif %}
+          
           <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
             <button class="btn btn-outline-light btn-sm" id="themeToggle" title="Theme wechseln"
               aria-label="Theme umschalten">
               <i class="bi bi-moon-stars" id="themeIcon" aria-hidden="true"></i>
             </button>
           </li>
+
+          {% if session.get('is_admin') %}
+          <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
+            <form action="{{ ingress_path }}{{ url_for('auth.logout') }}" method="POST" class="m-0 p-0 d-inline-flex align-items-center">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-outline-light btn-sm d-flex align-items-center gap-1" style="min-height: 44px;" aria-label="Abmelden">
+                <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                <span class="d-lg-none d-xl-inline">Abmelden</span>
+              </button>
+            </form>
+          </li>
+          {% endif %}
         </ul>
       </div>
     </div>

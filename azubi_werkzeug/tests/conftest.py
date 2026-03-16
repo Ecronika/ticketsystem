@@ -6,11 +6,11 @@ import sys
 # Add package folder to path before importing local modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-import pytest
+import pytest  # noqa: E402
 
-from app import app as flask_app
-from extensions import db
-from models import Azubi, Werkzeug
+from app import app as flask_app  # noqa: E402
+from extensions import db  # noqa: E402
+from models import Azubi, Werkzeug  # noqa: E402
 
 
 @pytest.fixture
@@ -27,13 +27,12 @@ def test_app():
         db.create_all()
 
         # Seed basic data
-        # Was created in verify_setup.py or earlier? No, seed here
-        azubi = Azubi.query.first()
+        azubi = db.session.get(Azubi, 1) or Azubi.query.first()
         if not azubi:
             azubi = Azubi(name="Test Azubi", lehrjahr=1)
             db.session.add(azubi)
 
-        tool = Werkzeug.query.first()
+        tool = db.session.get(Werkzeug, 1) or Werkzeug.query.first()
         if not tool:
             tool = Werkzeug(name="Test Tool", material_category="standard")
             db.session.add(tool)

@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.41] - 2026-03-16
+
+### Added
+- **Security (POST-Logout)**: Umstellung des Logouts von GET auf POST zur Verhinderung von Prefetching und Erhöhung der CSRF-Sicherheit.
+- **Accessibility (WCAG 2.2)**: Integration von ARIA-Labels und 44px Touch-Targets für den Logout-Button.
+
+### Changed
+- **UI/UX (Navbar)**: Optimierung des Headers durch serverseitiges Rendering des Admin-Badges. Das Badge ist nun Teil eines Flexbox-Clusters (`ms-auto`), was Layout Shifts (CLS) beim Login/Logout verhindert.
+- **Service Layer (DTO)**: Behebung einer Regression bei der DTO-Integration. Der Zugriff auf `CheckSubmissionContext` erfolgt nun einheitlich über Attribute statt Mixed-Mode.
+
+### Fixed
+- **Systematischer Encoding-Fix (Mojibake)**: Behebung von UTF-8 Darstellungsfehlern (wie `Ã¼`, `Ã¤` etc.) im gesamten Projekt. 
+- **PDF-Handling**: Sonderregelung für Euro-Zeichen in Protokollen (`EUR` statt `€`) zur Sicherstellung der Kompatibilität mit Standard-Schriften (FPDF).
+
 ## [2.12.40] - 2026-03-15
 
 ### Changed

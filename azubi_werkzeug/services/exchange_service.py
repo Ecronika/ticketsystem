@@ -10,13 +10,15 @@ from exceptions import ValidationError, SignatureError, DatabaseError
 from pdf_utils import generate_handover_pdf
 
 
-class ExchangeService:
+class ExchangeService:  # pylint: disable=too-few-public-methods
     """Service for handling Tool Exchange logic."""
 
     @staticmethod
-    def process_tool_exchange_batch(azubi_id, exchange_data, is_payable, signature_data):
+    def process_tool_exchange_batch(
+        azubi_id, exchange_data, is_payable, signature_data
+    ):  # pylint: disable=too-many-locals
         """Atomic batch processing for multiple tool exchanges."""
-        from .check_service import CheckService
+        from .check_service import CheckService  # pylint: disable=import-outside-toplevel
         azubi = db.session.get(Azubi, azubi_id)
         if not azubi:
             raise ValidationError(f"Azubi mit ID {azubi_id} nicht gefunden")
@@ -41,7 +43,10 @@ class ExchangeService:
                     total_price += tool.price
 
                 ret_entry, issue_entry = ExchangeService._create_exchange_records(
-                    session_id, azubi_id, tool_id, reason, is_payable, check_date, sig_path)
+                    session_id=session_id, azubi_id=azubi_id, tool_id=tool_id,
+                    reason=reason, is_payable=is_payable, check_date=check_date,
+                    sig_path=sig_path
+                )
                 db.session.add(ret_entry)
                 db.session.add(issue_entry)
                 items.append({'tool': tool, 'reason': reason,
@@ -71,8 +76,8 @@ class ExchangeService:
 
     @staticmethod
     def _create_exchange_records(
-        session_id, azubi_id, tool_id, reason, is_payable, check_date, sig_path
-    ):
+        *, session_id, azubi_id, tool_id, reason, is_payable, check_date, sig_path
+    ):  # pylint: disable=too-many-arguments
         """Create Return and Issue records for exchange."""
         ret_entry = Check(
             session_id=session_id,
@@ -121,7 +126,7 @@ class ExchangeService:
                 'status': 'Ausgabe (Neu)'
             })
 
-        from extensions import Config
+        from extensions import Config  # pylint: disable=import-outside-toplevel
         data_dir = Config.get_data_dir()
         pdf_filename = f"austausch_{session_id}.pdf"
         pdf_path = os.path.join(data_dir, 'reports', pdf_filename)

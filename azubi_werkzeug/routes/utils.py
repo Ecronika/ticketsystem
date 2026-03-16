@@ -34,7 +34,7 @@ def handle_db_error(
     else:
         flash(
             'Ein Datenbankfehler ist aufgetreten. '
-            'Bitte versuchen Sie es spÃƒÂ¤ter erneut.',
+            'Bitte versuchen Sie es später erneut.',
             'danger')
 
     return redirect(url_for(redirect_route))
@@ -50,7 +50,7 @@ def parse_migration_date(form_data, ingress):
     """Parse and validate custom date from migration mode form data.
 
     Returns:
-        tuple: (check_date, error_redirect) Ã¢â‚¬â€ error_redirect is None
+        tuple: (check_date, error_redirect) — error_redirect is None
                on success.
     """
     c_date = form_data.get('custom_date')
@@ -64,7 +64,7 @@ def parse_migration_date(form_data, ingress):
         return check_date, None
     except ValueError:
         flash(
-            'Fehler: UngÃƒÂ¼ltiges Datumsformat im Migrations-Modus.',
+            'Fehler: Ungültiges Datumsformat im Migrations-Modus.',
             'error')
         current_app.logger.warning(
             f"Invalid migration date format: {c_date} {c_time}")

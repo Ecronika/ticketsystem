@@ -153,11 +153,11 @@ def change_pin():
     ingress = request.headers.get('X-Ingress-Path', '')
 
     if not new_pin or not confirm_pin:
-        flash('Bitte beide Felder ausfÃ¼llen.', 'error')
+        flash('Bitte beide Felder ausfüllen.', 'error')
         return redirect(f"{ingress}{url_for('main.settings')}")
 
     if new_pin != confirm_pin:
-        flash('PINs stimmen nicht Ã¼berein.', 'error')
+        flash('PINs stimmen nicht überein.', 'error')
         return redirect(f"{ingress}{url_for('main.settings')}")
 
     if len(new_pin) < 4 or len(new_pin) > 10 or not new_pin.isdigit():
@@ -168,7 +168,7 @@ def change_pin():
     pin_hash = generate_password_hash(new_pin)
     SystemSettings.set_setting('admin_pin_hash', pin_hash)
 
-    flash('PIN erfolgreich geÃ¤ndert.', 'success')
+    flash('PIN erfolgreich geändert.', 'success')
     return redirect(f"{ingress}{url_for('main.settings')}")
 
 
@@ -237,13 +237,13 @@ def restore_backup():
     ingress = request.headers.get(
         'X-Ingress-Path', '')
     if 'backup_file' not in request.files:
-        flash('Keine Datei ausgewÃ¤hlt.', 'error')
+        flash('Keine Datei ausgewählt.', 'error')
         return redirect(
             f"{ingress}{url_for('main.settings')}")
 
     file = request.files['backup_file']
     if file.filename == '':
-        flash('Keine Datei ausgewÃ¤hlt.', 'error')
+        flash('Keine Datei ausgewählt.', 'error')
         return redirect(
             f"{ingress}{url_for('main.settings')}")
 
@@ -291,7 +291,7 @@ def restore_backup():
                 f"{url_for('main.settings')}")
 
     flash(
-        'UngÃ¼ltiges Dateiformat. Nur .zip erlaubt.',
+        'Ungültiges Dateiformat. Nur .zip erlaubt.',
         'error')
     return redirect(
         f"{ingress}{url_for('main.settings')}")
@@ -365,7 +365,7 @@ def add_examiner():
         db.session.add(new_examiner)
         db.session.commit()
         flash(
-            f'PrÃ¼fer {form.name.data} hinzugefÃ¼gt.',
+            f'Prüfer {form.name.data} hinzugefügt.',
             'success')
     else:
         for field, errors in form.errors.items():
@@ -384,7 +384,7 @@ def delete_examiner(examiner_id):
     db.session.delete(examiner)
     db.session.commit()
     flash(
-        f'PrÃ¼fer {examiner.name} gelÃ¶scht.',
+        f'Prüfer {examiner.name} gelöscht.',
         'success')
     ingress = request.headers.get(
         'X-Ingress-Path', '')
@@ -405,7 +405,7 @@ def add_azubi():
         db.session.add(new_azubi)
         db.session.commit()
         flash(
-            f'Azubi {form.name.data} hinzugefÃ¼gt.',
+            f'Azubi {form.name.data} hinzugefügt.',
             'success')
     else:
         for field, errors in form.errors.items():
@@ -448,7 +448,7 @@ def delete_azubi(azubi_id):
     if azubi.checks:
         flash(
             f'Fehler: Azubi "{azubi.name}" hat '
-            'Historie und kann nicht gelÃ¶scht '
+            'Historie und kann nicht gelöscht '
             'werden.', 'error')
         ingress = request.headers.get(
             'X-Ingress-Path', '')
@@ -457,7 +457,7 @@ def delete_azubi(azubi_id):
     db.session.delete(azubi)
     db.session.commit()
     flash(
-        f'Azubi {azubi.name} gelÃ¶scht.', 'success')
+        f'Azubi {azubi.name} gelöscht.', 'success')
     ingress = request.headers.get(
         'X-Ingress-Path', '')
     return redirect(
@@ -474,7 +474,7 @@ def archive_azubi(azubi_id):
         flash(
             f'Warnung: {azubi.name} hat noch '
             f'{len(assigned)} Werkzeuge im Besitz! '
-            'Bitte erst zurÃ¼ckgeben.', 'danger')
+            'Bitte erst zurückgeben.', 'danger')
         ingress = request.headers.get(
             'X-Ingress-Path', '')
         return redirect(
@@ -522,7 +522,7 @@ def add_werkzeug():
         db.session.add(new_werkzeug)
         db.session.commit()
         flash(
-            f'Werkzeug {form.name.data} hinzugefÃ¼gt.',
+            f'Werkzeug {form.name.data} hinzugefügt.',
             'success')
     else:
         for field, errors in form.errors.items():
@@ -575,7 +575,7 @@ def delete_werkzeug(werkzeug_id):
         flash(
             f'Fehler: Werkzeug "{werkzeug.name}" '
             'wird in Protokollen verwendet und '
-            'kann nicht gelÃ¶scht werden.', 'error')
+            'kann nicht gelöscht werden.', 'error')
         ingress = request.headers.get(
             'X-Ingress-Path', '')
         return redirect(
@@ -583,7 +583,7 @@ def delete_werkzeug(werkzeug_id):
     db.session.delete(werkzeug)
     db.session.commit()
     flash(
-        f'Werkzeug {werkzeug.name} gelÃ¶scht.',
+        f'Werkzeug {werkzeug.name} gelöscht.',
         'success')
     ingress = request.headers.get(
         'X-Ingress-Path', '')
@@ -598,13 +598,13 @@ def upload_logo():
     ingress = request.headers.get(
         'X-Ingress-Path', '')
     if 'logo' not in request.files:
-        flash('Keine Datei ausgewÃ¤hlt', 'danger')
+        flash('Keine Datei ausgewählt', 'danger')
         return redirect(
             f"{ingress}{url_for('main.settings')}")
 
     file = request.files['logo']
     if file.filename == '':
-        flash('Keine Datei ausgewÃ¤hlt', 'danger')
+        flash('Keine Datei ausgewählt', 'danger')
         return redirect(
             f"{ingress}{url_for('main.settings')}")
 
@@ -613,7 +613,7 @@ def upload_logo():
             '.', 1)[-1].lower()
         if ext not in ['png']:
             flash(
-                'UngÃ¼ltige Dateiendung '
+                'Ungültige Dateiendung '
                 '(Nur .png erlaubt).', 'error')
             return redirect(
                 f"{ingress}"
@@ -629,7 +629,7 @@ def upload_logo():
 
         if not is_png:
             flash(
-                'UngÃ¼ltiges Format oder beschÃ¤digte Datei '
+                'Ungültiges Format oder beschädigte Datei '
                 '(Nur valide PNG erlaubt).', 'error')
             return redirect(
                 f"{ingress}"
@@ -640,7 +640,7 @@ def upload_logo():
         file.seek(0)
         if size > 2 * 1024 * 1024:
             flash(
-                'Datei zu groÃŸ (max. 2MB).', 'error')
+                'Datei zu groß (max. 2MB).', 'error')
             return redirect(
                 f"{ingress}"
                 f"{url_for('main.settings')}")
@@ -666,7 +666,7 @@ def generate_qr_codes():
     if request.method == 'POST':
         azubi_ids = request.form.getlist('azubi_ids')
         if not azubi_ids:
-            flash('Keine Azubis ausgewÃ¤hlt.', 'warning')
+            flash('Keine Azubis ausgewählt.', 'warning')
             ingress = request.headers.get('X-Ingress-Path', '')
             return redirect(f"{ingress}{url_for('main.settings')}")
         all_azubis = Azubi.query.filter(Azubi.id.in_(azubi_ids)).order_by(

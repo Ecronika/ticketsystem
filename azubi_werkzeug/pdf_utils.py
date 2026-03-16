@@ -257,8 +257,8 @@ def generate_handover_pdf(
     if extra_lines:
         pdf.set_font('Arial', 'B', 10)
         for line in extra_lines:
-            # Fix: Replace Ã¢â€šÂ¬ with EUR to prevent encoding errors in standard fonts
-            safe_line = line.replace('Ã¢â€šÂ¬', 'EUR')
+            # Fix: Replace EUR with EUR to prevent encoding errors in standard fonts
+            safe_line = line.replace('EUR', 'EUR')
             pdf.cell(0, 6, safe_line, 0, 1, 'R')
         pdf.ln(5)
 
@@ -333,7 +333,7 @@ def generate_qr_codes_pdf(azubis):
         qr.make(fit=True)
         img = qr.make_image(fill_color="black", back_color="white")
 
-        # FIX: Sichere, eindeutige temporÃƒÂ¤re Dateien erzeugen
+        # FIX: Sichere, eindeutige temporäre Dateien erzeugen
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
             temp_qr_path = tmp.name
 
@@ -392,7 +392,7 @@ def _render_history_row(pdf, entry, type_map, h_row):
     """Render a single history row in the end-of-training report."""
     date_str = entry.datum.strftime('%d.%m.%Y')
     c_type_enum = parse_check_type(entry.check_type)
-    type_str = type_map.get(c_type_enum, 'PrÃƒÂ¼fung')
+    type_str = type_map.get(c_type_enum, 'Prüfung')
     examiner = entry.examiner or "-"
     tool_name = entry.werkzeug.name if entry.werkzeug else "Unbekannt"
 
@@ -445,7 +445,7 @@ def generate_end_of_training_report(
     # --- Kopfdaten ---
     _render_eot_header(pdf, azubi)
 
-    # --- Status WerkzeugrÃƒÂ¼ckgabe ---
+    # --- Status Werkzeugrückgabe ---
     _render_eot_status(pdf, is_inventory_clear)
 
     # --- Historie Zusammenfassung ---

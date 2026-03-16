@@ -3,7 +3,7 @@ from enums import CheckType
 from pdf_utils import parse_check_type
 
 
-class HistoryService:
+class HistoryService:  # pylint: disable=too-few-public-methods
     """Service for handling History aggregation and session grouping."""
 
     @staticmethod
@@ -61,7 +61,7 @@ class HistoryService:
     @staticmethod
     def _determine_session_type(checks):
         """Determine the overall type of a check session."""
-        from services.check_service import CheckService
+        from services.check_service import CheckService  # pylint: disable=import-outside-toplevel
         raw_type = CheckService.detect_exchange_type(checks)
         if raw_type:
             return raw_type

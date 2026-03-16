@@ -150,10 +150,10 @@ def _validate_check_submission(form):
     try:
         CheckType(check_type_str)
     except ValueError:
-        return None, ('Fehler: UngÃƒÂ¼ltiger PrÃƒÂ¼fungstyp.', 'error')
+        return None, ('Fehler: Ungültiger Prüfungstyp.', 'error')
 
     if not azubi_id or not examiner:
-        return None, ('Fehler: Azubi und PrÃƒÂ¼fer mÃƒÂ¼ssen angegeben werden.', 'error')
+        return None, ('Fehler: Azubi und Prüfer müssen angegeben werden.', 'error')
 
     sig_error = _validate_signatures(form, is_migration_active())
     if sig_error:
@@ -161,7 +161,7 @@ def _validate_check_submission(form):
 
     tool_ids = CheckService.collect_tool_ids(form)
     if not tool_ids:
-        return None, ('Keine Werkzeuge ausgewÃƒÂ¤hlt', 'warning')
+        return None, ('Keine Werkzeuge ausgewählt', 'warning')
 
     return tool_ids, None
 
@@ -195,7 +195,7 @@ def submit_check():
         try:
             safe_azubi_id = int(azubi_id)
         except (TypeError, ValueError):
-            flash('UngÃƒÂ¼ltige Azubi ID.', 'error')
+            flash('Ungültige Azubi ID.', 'error')
             return redirect(f"{ingress}{url_for('main.index')}")
 
         try:
@@ -248,19 +248,19 @@ def exchange_tool():
     ingress = request.headers.get('X-Ingress-Path', '')
 
     if not all([azubi_id, exchange_data_json, signature_data]):
-        flash('Fehler: UnvollstÃƒÂ¤ndige Daten fÃƒÂ¼r Austausch.', 'error')
+        flash('Fehler: Unvollständige Daten für Austausch.', 'error')
         return redirect(f"{ingress}{url_for('main.index')}")
 
     try:
         exchange_data = json.loads(exchange_data_json)
         if not exchange_data:
-            flash('Fehler: Keine Werkzeuge ausgewÃƒÂ¤hlt.', 'error')
+            flash('Fehler: Keine Werkzeuge ausgewählt.', 'error')
             return redirect(f"{ingress}{url_for('main.index')}")
 
         try:
             safe_azubi_id = int(azubi_id)
         except (TypeError, ValueError):
-            flash('UngÃƒÂ¼ltige Azubi ID.', 'error')
+            flash('Ungültige Azubi ID.', 'error')
             return redirect(f"{ingress}{url_for('main.index')}")
 
         try:
@@ -277,7 +277,7 @@ def exchange_tool():
 
             msg = f"{len(exchange_data)} Werkzeuge erfolgreich ausgetauscht."
             if result.get('total_price'):
-                msg += f" (GeschÃƒÂ¤tzte Kosten: {result['total_price']:.2f} EUR)"
+                msg += f" (Geschätzte Kosten: {result['total_price']:.2f} EUR)"
 
             flash(msg, 'success')
             return redirect(f"{ingress}{url_for('main.index')}")
@@ -459,7 +459,7 @@ def history_details(session_id):
             joinedload(Check.azubi)).all()
 
     if not checks:
-        flash('PrÃƒÂ¼fung nicht gefunden.', 'error')
+        flash('Prüfung nicht gefunden.', 'error')
         ingress = request.headers.get('X-Ingress-Path', '')
         return redirect(f"{ingress}{url_for('main.history')}")
 
@@ -524,12 +524,12 @@ def delete_session(session_id):
     if not is_migration_active():
         current_app.logger.warning(
             "Delete session attempted WITHOUT migration mode: %s", session_id)
-        flash('Ã¢Å¡Â Ã¯Â¸Â Session-LÃƒÂ¶schung nur im Migration-Modus erlaubt!', 'danger')
+        flash('⚠️ Session-Löschung nur im Migration-Modus erlaubt!', 'danger')
         return redirect(f"{ingress}{url_for('main.history')}")
 
     try:
         if session_id.startswith("LEGACY_"):
-            flash('Legacy-Sessions kÃƒÂ¶nnen noch nicht gelÃƒÂ¶scht werden.', 'warning')
+            flash('Legacy-Sessions können noch nicht gelöscht werden.', 'warning')
             return redirect(f"{ingress}{url_for('main.history')}")
 
         checks = Check.query.filter_by(session_id=session_id).all()
@@ -558,7 +558,7 @@ def delete_session(session_id):
             datum, examiner, check_count, deleted_count)
 
         flash(
-            f'Session gelÃƒÂ¶scht. {check_count} EintrÃƒÂ¤ge '
+            f'Session gelöscht. {check_count} Einträge '
             f'entfernt. {deleted_count} Dateien bereinigt.', 'success')
         return redirect(f"{ingress}{url_for('main.history')}")
 
@@ -567,7 +567,7 @@ def delete_session(session_id):
         db.session.remove()
         current_app.logger.error(
             "DB error deleting session %s: %s", session_id, e, exc_info=True)
-        flash('Datenbankfehler beim LÃƒÂ¶schen.', 'danger')
+        flash('Datenbankfehler beim Löschen.', 'danger')
         return redirect(
             f"{ingress}{url_for('main.history_details', session_id=session_id)}")
     except Exception as e:  # pylint: disable=broad-exception-caught
@@ -575,7 +575,7 @@ def delete_session(session_id):
         db.session.remove()
         current_app.logger.error(
             "Error deleting session %s: %s", session_id, e, exc_info=True)
-        flash(f'Ã¢ÂÅ’ Fehler beim LÃƒÂ¶schen: {str(e)}', 'danger')
+        flash(f'Ã¢ÂÅ’ Fehler beim Löschen: {str(e)}', 'danger')
         return redirect(
             f"{ingress}{url_for('main.history_details', session_id=session_id)}")
 

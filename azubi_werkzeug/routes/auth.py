@@ -112,11 +112,11 @@ def _recover_pin_view():
             session['is_admin'] = True
             session.permanent = True
             flash(
-                'Erfolgreich eingeloggt. Bitte Ã¤ndern Sie jetzt sofort Ihren PIN!', 'success')
+                'Erfolgreich eingeloggt. Bitte ändern Sie jetzt sofort Ihren PIN!', 'success')
             ingress = request.headers.get('X-Ingress-Path', '')
             return redirect(f"{ingress}{url_for('main.settings')}")
 
-        flash('UngÃ¼ltiger oder bereits verwendeter Token.', 'error')
+        flash('Ungültiger oder bereits verwendeter Token.', 'error')
 
     return render_template('recover_pin.html')
 
@@ -130,7 +130,7 @@ def register_routes(bp):
 
     logout_view = _logout_view
     logout_view.__name__ = 'logout'
-    bp.add_url_rule('/logout', view_func=logout_view)
+    bp.add_url_rule('/logout', view_func=logout_view, methods=['POST'])
 
     recover_pin_view = limiter.limit("5 per minute")(_recover_pin_view)
     recover_pin_view.__name__ = 'recover_pin'

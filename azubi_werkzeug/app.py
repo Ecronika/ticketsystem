@@ -63,7 +63,7 @@ migrations_dir = os.path.join(os.path.dirname(
 migrate = Migrate(app, db, directory=migrations_dir, render_as_batch=True)
 
 # Security: Session Configuration
-# SSL is active only if explicitly requested ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â this is the single source of truth
+# SSL is active only if explicitly requested ÃƒÂ¢€Ã¢â‚¬Â this is the single source of truth
 # for cookie security. SameSite=None requires HTTPS+Secure; plain HTTP must use Lax.
 SSL_ACTIVE = os.environ.get('REQUIRE_HTTPS', '0') == '1'
 
@@ -73,19 +73,19 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_PATH='/',  # Force root path to avoid Ingress/ProxyFix prefix issues
     # SameSite=None allows cookies inside iframes (HA Ingress), BUT browsers
-    # strictly require Secure=True when SameSite=None ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â so this only applies over HTTPS.
+    # strictly require Secure=True when SameSite=None ÃƒÂ¢€Ã¢â‚¬Â so this only applies over HTTPS.
     # Over plain HTTP we fall back to Lax (works everywhere except cross-site iframes).
     SESSION_COOKIE_SAMESITE='None' if SSL_ACTIVE else 'Lax',
     MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB Upload Limit
     # 7 Days Validity (Prevent expiry in long sessions)
     WTF_CSRF_TIME_LIMIT=604800,
-    # Disable strict HTTPS referer check ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â required for both plain HTTP and proxied setups
+    # Disable strict HTTPS referer check ÃƒÂ¢€Ã¢â‚¬Â required for both plain HTTP and proxied setups
     WTF_CSRF_SSL_STRICT=False,
     # CSRF cookie SameSite must match session cookie policy
     WTF_CSRF_SAMESITE='None' if SSL_ACTIVE else 'Lax',
     # Auto-logout after 8 hours
     PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
-    # Secure flag ONLY when SSL is actually active ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â critical for plain HTTP operation
+    # Secure flag ONLY when SSL is actually active ÃƒÂ¢€Ã¢â‚¬Â critical for plain HTTP operation
     SESSION_COOKIE_SECURE=SSL_ACTIVE,
     # CSRF protection re-enabled now that session cookies bypass browser isolation
     WTF_CSRF_ENABLED=True,
@@ -313,7 +313,7 @@ def rate_limit_exceeded(_e):
 
 
 # Exempt auth routes from global CSRF (Flask-WTF 1.2.2 requires endpoint strings,
-# not function references ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the protect() method matches against request.endpoint).
+# not function references ÃƒÂ¢€Ã¢â‚¬Â the protect() method matches against request.endpoint).
 # Login/recover_pin are protected by rate-limiting (5/min) + PIN hash check.
 csrf.exempt('main.login')
 csrf.exempt('main.recover_pin')

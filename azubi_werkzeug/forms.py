@@ -20,8 +20,8 @@ class AzubiForm(FlaskForm):
                 max=50,
                 message="Name muss zwischen 2 und 50 Zeichen lang sein."),
             Regexp(
-                r'^[\w\sÃ¤Ã¶Ã¼Ã„Ã–ÃœÃŸ\-\.]+$',
-                message="Name enthÃ¤lt ungÃ¼ltige Zeichen.")])
+                r'^[\w\säöüÄÖÜß\-\.]+$',
+                message="Name enthält ungültige Zeichen.")])
     lehrjahr = IntegerField(
         'Lehrjahr',
         validators=[
@@ -44,8 +44,8 @@ class ExaminerForm(FlaskForm):
                 max=50,
                 message="Name muss zwischen 2 und 50 Zeichen lang sein."),
             Regexp(
-                r'^[\w\sÃ¤Ã¶Ã¼Ã„Ã–ÃœÃŸ\-\.]+$',
-                message="Name enthÃ¤lt ungÃ¼ltige Zeichen.")])
+                r'^[\w\säöüÄÖÜß\-\.]+$',
+                message="Name enthält ungültige Zeichen.")])
 
 
 class WerkzeugForm(FlaskForm):
