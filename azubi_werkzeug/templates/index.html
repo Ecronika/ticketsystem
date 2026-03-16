@@ -192,8 +192,13 @@
                         <label class="form-label fw-bold">Werkzeuge</label>
                         <!-- Container: kein max-height – modal-dialog-scrollable übernimmt das Scrollen (kein Scroll-Trap) -->
                         <div id="exchangeToolsList" class="rounded-3 p-1 border"
+                            aria-live="polite"
+                            aria-busy="false"
+                            aria-label="Werkzeugliste für Austausch"
                             style="border-color: var(--bs-border-color-translucent) !important;">
-                            <div class="text-center text-muted p-3">Lade Werkzeuge...</div>
+                            <div class="text-center text-muted p-3">
+                                <i class="bi bi-hourglass-split me-2" aria-hidden="true"></i>Werkzeuge laden...
+                            </div>
                         </div>
                     </div>
 
@@ -451,7 +456,6 @@
     // Helper to load assigned tools into the checkbox list
     async function loadAssignedTools(azubiId) {
         const listContainer = document.getElementById('exchangeToolsList');
-        listContainer.setAttribute('aria-live', 'polite');
         listContainer.setAttribute('aria-busy', 'true');
 
         if (!azubiId) {

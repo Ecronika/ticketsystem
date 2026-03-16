@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [2.13.2] - 2026-03-16
+### Fixed
+- **HA Add-on Startup**: Behebung von Startproblemen durch fehlendes `database_init.py` und Port-Konflikte (NGINX).
+- **Accessibility (WCAG 2.2 AA)**: Systemweite Durchsetzung von 44x44px Touch-Targets und Korrektur von Kontrastfehlern (`badge-subtle-info`).
+- **UI/UX**: Korrektur der invertierten Farbsemantik für FEHLT/DEFEKT Zustände in der Historie.
+- **Stability**: Behebung eines `ReferenceError` beim Nachladen der Historie und Korrektur von Modal-Abbruch-Buttons.
+- **Security**: Backup-Link auf der Fehlerseite (500) ist nun auf Administratoren beschränkt.
 
 ## [2.13.1] - 2026-03-16
 ### Changed

@@ -60,7 +60,7 @@
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
     <div class="container">
       <a class="navbar-brand fw-bold" href="{{ ingress_path }}{{ url_for('main.index') }}">
-        <i class="bi bi-tools"></i> WerkzeugMaster
+        <i class="bi bi-tools" aria-hidden="true"></i> WerkzeugMaster
       </a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
         aria-controls="navbarNav" aria-expanded="false" aria-label="Navigation umschalten">
@@ -114,7 +114,7 @@
           <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
             <form action="{{ ingress_path }}{{ url_for('main.logout') }}" method="POST" class="m-0 p-0 d-inline-flex align-items-center">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn btn-outline-light btn-sm d-flex align-items-center gap-1" style="min-height: 44px;" aria-label="Abmelden">
+              <button type="submit" class="btn btn-outline-light btn-sm d-flex align-items-center gap-1" aria-label="Abmelden">
                 <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
                 <span class="d-lg-none d-xl-inline">Abmelden</span>
               </button>
@@ -171,7 +171,7 @@
       }
       const id = 'ui-alert-' + Date.now();
       const alertHtml = `
-        <div id="${id}" class="alert alert-${type} alert-dismissible fade show shadow" role="alert">
+        <div id="${id}" class="alert alert-${type} alert-dismissible fade show shadow" role="alert" aria-atomic="true">
           <i class="bi bi-exclamation-triangle-fill me-2" aria-hidden="true"></i>${msg}
           <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Schließen"></button>
         </div>`;
@@ -319,8 +319,8 @@
           Möchten Sie diese Aktion wirklich ausführen?
         </div>
         <div class="modal-footer border-top-0">
-          <button type="button" class="btn btn-secondary px-4 py-2" data-bs-dismiss="modal" style="min-height: 44px">Abbrechen</button>
-          <button type="button" class="btn btn-danger px-4 py-2" id="globalConfirmBtn" style="min-height: 44px">Bestätigen</button>
+          <button type="button" class="btn btn-secondary px-4 py-2" data-bs-dismiss="modal">Abbrechen</button>
+          <button type="button" class="btn btn-danger px-4 py-2" id="globalConfirmBtn">Bestätigen</button>
         </div>
       </div>
     </div>

@@ -107,11 +107,13 @@
 {% if pagination is defined and pagination and pagination.has_next %}
 <div class="text-center mt-4 mb-3">
     <button id="loadMoreBtn" class="btn btn-outline-secondary rounded-pill px-4"
-        data-next-page="{{ pagination.next_num }}">
+        data-next-page="{{ pagination.next_num }}"
+        aria-label="Weitere Einträge laden">
         Weitere laden <i class="bi bi-arrow-down-short" aria-hidden="true"></i>
     </button>
 </div>
 {% endif %}
+
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -126,6 +128,7 @@
         const azubiId = urlParams.get('azubi_id') || 'all';
 
         if (loadMoreBtn && historyListGroup) {
+            const originalText = loadMoreBtn.innerHTML;
             loadMoreBtn.addEventListener('click', async function () {
                 const nextPage = this.getAttribute('data-next-page');
                 if (!nextPage) return;

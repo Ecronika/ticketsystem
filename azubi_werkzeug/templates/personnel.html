@@ -100,14 +100,14 @@
                                             <div class="d-flex justify-content-end gap-2">
                                                 <a href="{{ ingress_path }}{{ url_for('main.end_of_training_report', azubi_id=azubi.id) }}"
                                                     class="btn btn-light text-primary border-0 d-inline-flex align-items-center justify-content-center"
-                                                    style="min-height: 44px; min-width: 44px;"
+                                                    style="min-width: 44px;"
                                                     aria-label="Ausbildungsende-Protokoll für {{ azubi.name }}"
                                                     title="Ausbildungsende-Protokoll">
                                                     <i class="bi bi-file-earmark-pdf fs-5" aria-hidden="true"></i>
                                                 </a>
                                                 <button type="button"
                                                     class="btn btn-light text-secondary border-0 d-inline-flex align-items-center justify-content-center"
-                                                    style="min-height: 44px; min-width: 44px;"
+                                                    style="min-width: 44px;"
                                                     data-bs-toggle="modal"
                                                     data-bs-target="#editAzubiModal{{ azubi.id }}" 
                                                     aria-label="{{ azubi.name }} bearbeiten"
@@ -118,7 +118,7 @@
                                                 <button type="submit"
                                                     formaction="{{ ingress_path }}{{ url_for('main.unarchive_azubi', azubi_id=azubi.id) }}"
                                                     class="btn btn-light text-success border-0 d-inline-flex align-items-center justify-content-center"
-                                                    style="min-height: 44px; min-width: 44px;"
+                                                    style="min-width: 44px;"
                                                     aria-label="{{ azubi.name }} wiederherstellen"
                                                     title="Wiederherstellen">
                                                     <i class="bi bi-arrow-counterclockwise fs-5" aria-hidden="true"></i>
@@ -127,7 +127,7 @@
                                                 <button type="submit"
                                                     formaction="{{ ingress_path }}{{ url_for('main.archive_azubi', azubi_id=azubi.id) }}"
                                                     class="btn btn-light text-warning border-0 d-inline-flex align-items-center justify-content-center"
-                                                    style="min-height: 44px; min-width: 44px;"
+                                                    style="min-width: 44px;"
                                                     aria-label="{{ azubi.name }} archivieren"
                                                     title="Archivieren"
                                                     data-confirm data-confirm-message="Azubi archivieren? (Nur möglich wenn alle Werkzeuge zurückgegeben sind)">
@@ -135,7 +135,7 @@
                                                 </button>
                                                 {% endif %}
                                                 <button type="submit" class="btn btn-light text-danger border-0 d-inline-flex align-items-center justify-content-center"
-                                                    style="min-height: 44px; min-width: 44px;"
+                                                    style="min-width: 44px;"
                                                     aria-label="{{ azubi.name }} löschen"
                                                     title="Löschen"
                                                     data-confirm data-confirm-message="Wirklich löschen?">
@@ -205,7 +205,8 @@
                         <ul class="pagination pagination-sm justify-content-center">
                             <li class="page-item {% if azubi_pagination.page == 1 %}disabled{% endif %}">
                                 <a class="page-link"
-                                    href="{{ ingress_path }}{{ url_for('main.personnel', azubi_page=azubi_pagination.page-1, show_archived=1 if show_archived else 0) }}">Zurück</a>
+                                    href="{{ ingress_path }}{{ url_for('main.personnel', azubi_page=azubi_pagination.page-1, show_archived=1 if show_archived else 0) }}"
+                                    aria-label="Vorherige Seite">Zurück</a>
                             </li>
                             <li class="page-item disabled">
                                 <span class="page-link">{{ azubi_pagination.page }} / {{ azubi_pagination.pages
@@ -214,7 +215,8 @@
                             <li
                                 class="page-item {% if azubi_pagination.page == azubi_pagination.pages %}disabled{% endif %}">
                                 <a class="page-link"
-                                    href="{{ ingress_path }}{{ url_for('main.personnel', azubi_page=azubi_pagination.page+1, show_archived=1 if show_archived else 0) }}">Weiter</a>
+                                    href="{{ ingress_path }}{{ url_for('main.personnel', azubi_page=azubi_pagination.page+1, show_archived=1 if show_archived else 0) }}"
+                                    aria-label="Nächste Seite">Weiter</a>
                             </li>
                         </ul>
                         <p class="text-center small">{{ azubi_pagination.total }} Azubis insgesamt</p>
@@ -241,7 +243,8 @@
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                         <div class="row g-2 align-items-center">
                             <div class="col-8 col-md-9">
-                                <input type="text" name="name" class="form-control form-control-sm" placeholder="Name"
+                                <label for="examinerNameInput" class="visually-hidden">Name</label>
+                                <input type="text" name="name" id="examinerNameInput" class="form-control form-control-sm" placeholder="Name"
                                     required>
                             </div>
                             <div class="col-4 col-md-3 text-end">
@@ -272,7 +275,7 @@
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                                             <div class="d-flex justify-content-end gap-2">
                                                 <button type="button" class="btn btn-light text-secondary border-0 d-inline-flex align-items-center justify-content-center"
-                                                    style="min-height: 44px; min-width: 44px;"
+                                                    style="min-width: 44px;"
                                                     data-bs-toggle="modal"
                                                     data-bs-target="#editExaminerModal{{ examiner.id }}" 
                                                     aria-label="{{ examiner.name }} bearbeiten"
@@ -280,7 +283,7 @@
                                                     <i class="bi bi-pencil fs-5" aria-hidden="true"></i>
                                                 </button>
                                                 <button type="submit" class="btn btn-light text-danger border-0 d-inline-flex align-items-center justify-content-center"
-                                                    style="min-height: 44px; min-width: 44px;"
+                                                    style="min-width: 44px;"
                                                     aria-label="{{ examiner.name }} löschen"
                                                     title="Löschen">
                                                     <i class="bi bi-trash fs-5" aria-hidden="true"></i>
@@ -539,7 +542,7 @@
                         showUiAlert('Verbindungsfehler oder Server-Problem aufgetreten.');
                         console.error('AJAX Error:', error);
                         button.disabled = false;
-                        button.innerHTML = '<i class="bi bi-plus-lg"></i> Add';
+                        button.innerHTML = '<i class="bi bi-plus-lg"></i> Hinzufügen';
                     });
             });
         }

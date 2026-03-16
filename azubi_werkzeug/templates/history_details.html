@@ -24,7 +24,10 @@
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item"><a href="{{ ingress_path }}{{ url_for('main.history') }}"
                             class="text-decoration-none">Historie</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Vorgangsdetails</li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        {% if check_type == 'issue' %}Ausgabe{% elif check_type == 'return' %}Rückgabe{% elif check_type == 'exchange' %}Austausch{% else %}Prüfung{% endif %} 
+                        – {{ azubi.name }}
+                    </li>
                 </ol>
             </nav>
             <a href="{{ ingress_path }}{{ url_for('main.history') }}"
@@ -81,13 +84,13 @@
                     {% if item.status == 'ok' %}
                     <i class="bi bi-check-circle-fill text-success fs-4 me-3" aria-hidden="true"></i>
                     {% elif item.status == 'missing' %}
-                    <i class="bi bi-exclamation-octagon-fill text-warning fs-4 me-3" aria-hidden="true"></i>
+                    <i class="bi bi-x-circle-fill text-theme-danger fs-4 me-3" aria-hidden="true"></i>
                     {% elif item.status == 'broken' %}
-                    <i class="bi bi-x-circle-fill text-danger fs-4 me-3" aria-hidden="true"></i>
+                    <i class="bi bi-exclamation-triangle-fill text-theme-warning fs-4 me-3" aria-hidden="true"></i>
                     {% elif item.status == 'not_issued' %}
                     <i class="bi bi-dash-circle-fill text-secondary fs-4 me-3" aria-hidden="true"></i>
                     {% else %}
-                    <i class="bi bi-question-circle text-secondary fs-4 me-3"></i>
+                    <i class="bi bi-question-circle text-secondary fs-4 me-3" aria-hidden="true"></i>
                     {% endif %}
 
                     <div>
@@ -108,12 +111,12 @@
 
                 <div class="text-end">
                     {% if item.status == 'ok' %}
-                    <span class="badge badge-subtle-success"><i class="bi bi-check-circle-fill me-1"></i>OK</span>
+                    <span class="badge badge-subtle-success"><i class="bi bi-check-circle-fill me-1" aria-hidden="true"></i>OK</span>
                     {% elif item.status == 'missing' %}
-                    <span class="badge badge-subtle-warning"><i class="bi bi-x-circle-fill me-1"></i>FEHLT</span>
+                    <span class="badge badge-subtle-danger"><i class="bi bi-x-circle-fill me-1" aria-hidden="true"></i>FEHLT</span>
                     {% elif item.status == 'broken' %}
-                    <span class="badge badge-subtle-danger"><i
-                            class="bi bi-exclamation-triangle-fill me-1"></i>DEFEKT</span>
+                    <span class="badge badge-subtle-warning"><i
+                            class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>DEFEKT</span>
                     {% elif item.status == 'not_issued' %}
                     <span class="badge badge-subtle-secondary">Nicht
                         ausg.</span>
@@ -158,7 +161,7 @@
                 </ul>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary px-4 py-2" data-bs-toggle="modal" style="min-height: 44px">
+                <button type="button" class="btn btn-secondary px-4 py-2" data-bs-dismiss="modal">
                     <i class="bi bi-x-circle" aria-hidden="true"></i> Abbrechen
                 </button>
                 <form action="{{ ingress_path }}{{ url_for('main.delete_session', session_id=session_id) }}"

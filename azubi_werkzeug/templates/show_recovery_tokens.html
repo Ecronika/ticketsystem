@@ -25,7 +25,7 @@
                     </ul>
 
                     <div class="d-grid gap-2 d-md-flex justify-content-md-center">
-                        <button class="btn btn-outline-secondary" onclick="window.print()">
+                        <button class="btn btn-outline-secondary" id="printTokensBtn">
                             <i class="bi bi-printer"></i> Drucken
                         </button>
                         <a href="{{ ingress_path }}{{ url_for('main.settings') }}" class="btn btn-primary">
@@ -37,4 +37,12 @@
         </div>
     </div>
 </div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const printBtn = document.getElementById('printTokensBtn');
+        if (printBtn) {
+            printBtn.addEventListener('click', () => window.print());
+        }
+    });
+</script>
 {% endblock %}

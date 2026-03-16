@@ -84,6 +84,8 @@ EOF
 fi
 
 bashio::log.info "Starte NGINX im Hintergrund..."
+# Beende eventuell hängende NGINX-Prozesse von einem vorherigen Absturz (Port-Konflikt verhindern)
+pkill nginx || true
 # suppress warning about running as root if any
 nginx -g "daemon off;" 2>&1 &
 
