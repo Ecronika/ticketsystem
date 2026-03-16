@@ -90,7 +90,7 @@
                                         {% endif %}
                                     </td>
                                     <td class="text-center">
-                                        <span class="badge border">{{ azubi.lehrjahr }}. LJ</span>
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ azubi.lehrjahr }}. LJ</span>
                                     </td>
                                     <td class="text-end">
                                         <form
@@ -246,7 +246,7 @@
                             </div>
                             <div class="col-4 col-md-3 text-end">
                                 <button class="btn btn-primary btn-sm w-100" type="submit">
-                                    <i class="bi bi-plus-lg"></i> Add
+                                    <i class="bi bi-plus-lg"></i> Hinzufügen
                                 </button>
                             </div>
                         </div>
@@ -271,6 +271,14 @@
                                             class="d-inline">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                                             <div class="d-flex justify-content-end gap-2">
+                                                <button type="button" class="btn btn-light text-secondary border-0 d-inline-flex align-items-center justify-content-center"
+                                                    style="min-height: 44px; min-width: 44px;"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#editExaminerModal{{ examiner.id }}" 
+                                                    aria-label="{{ examiner.name }} bearbeiten"
+                                                    title="Bearbeiten">
+                                                    <i class="bi bi-pencil fs-5" aria-hidden="true"></i>
+                                                </button>
                                                 <button type="submit" class="btn btn-light text-danger border-0 d-inline-flex align-items-center justify-content-center"
                                                     style="min-height: 44px; min-width: 44px;"
                                                     aria-label="{{ examiner.name }} löschen"
@@ -279,6 +287,37 @@
                                                 </button>
                                             </div>
                                         </form>
+
+                                        <!-- Edit Examiner Modal -->
+                                        <div class="modal fade" id="editExaminerModal{{ examiner.id }}" tabindex="-1"
+                                            aria-labelledby="editExaminerModalTitle{{ examiner.id }}" aria-hidden="true">
+                                            <div class="modal-dialog modal-sm">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h6 class="modal-title fw-bold" id="editExaminerModalTitle{{ examiner.id }}">
+                                                            Prüfer bearbeiten</h6>
+                                                        <button type="button" class="btn-close"
+                                                            data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <form
+                                                        action="{{ ingress_path }}{{ url_for('main.edit_examiner', examiner_id=examiner.id) }}"
+                                                        method="POST">
+                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                                        <div class="modal-body">
+                                                            <div class="mb-2">
+                                                                <label class="form-label small" for="editExName{{ examiner.id }}">Name</label>
+                                                                <input type="text" class="form-control form-control-sm"
+                                                                    id="editExName{{ examiner.id }}" name="name" value="{{ examiner.name }}" required>
+                                                            </div>
+                                                        </div>
+                                                        <div class="modal-footer p-1">
+                                                            <button type="submit"
+                                                                class="btn btn-primary btn-sm w-100">Speichern</button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% else %}
@@ -365,7 +404,7 @@
 
                             const lehrjahrCell = document.createElement('td');
                             lehrjahrCell.className = 'text-center';
-                            lehrjahrCell.innerHTML = `<span class="badge border">${azubi.lehrjahr}. LJ</span>`;
+                            lehrjahrCell.innerHTML = `<span class="badge bg-primary-subtle text-primary border border-primary-subtle">${azubi.lehrjahr}. LJ</span>`;
 
                             const actionCell = document.createElement('td');
                             actionCell.className = 'text-end';
@@ -464,6 +503,9 @@
                                     <form action="{{ ingress_path }}/delete_examiner/${examiner.id}" method="POST" data-confirm data-confirm-message="Wirklich löschen?" class="d-inline">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                                         <div class="d-flex justify-content-end gap-2">
+                                            <button type="button" class="btn btn-light text-secondary border-0" data-bs-toggle="modal" data-bs-target="#editExaminerModal${examiner.id}" aria-label="${examiner.name} bearbeiten" title="Bearbeiten">
+                                                <i class="bi bi-pencil fs-5" aria-hidden="true"></i>
+                                            </button>
                                             <button type="submit" class="btn btn-light text-danger border-0" aria-label="${examiner.name} löschen" title="Löschen">
                                                 <i class="bi bi-trash fs-5" aria-hidden="true"></i>
                                             </button>

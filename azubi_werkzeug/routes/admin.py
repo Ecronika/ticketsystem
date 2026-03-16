@@ -393,6 +393,23 @@ def delete_examiner(examiner_id):
 
 
 @admin_required
+def edit_examiner(examiner_id):
+    """Edit an examiner."""
+    examiner = db.get_or_404(Examiner, examiner_id)
+    form = ExaminerForm(request.form)
+    ingress = request.headers.get('X-Ingress-Path', '')
+    if form.validate():
+        examiner.name = form.name.data
+        db.session.commit()
+        flash(f'Prüfer {examiner.name} aktualisiert.', 'success')
+    else:
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(f"Fehler bei {field}: {error}", 'error')
+    return redirect(f"{ingress}{url_for('main.personnel')}")
+
+
+@admin_required
 def add_azubi():
     """Add a new azubi."""
     form = AzubiForm(request.form)
@@ -782,6 +799,9 @@ def register_routes(bp):
     bp.add_url_rule(
         '/delete_examiner/<int:examiner_id>',
         view_func=delete_examiner, methods=['POST'])
+    bp.add_url_rule(
+        '/edit_examiner/<int:examiner_id>',
+        view_func=edit_examiner, methods=['POST'])
 
     # Azubi CRUD
     bp.add_url_rule(
