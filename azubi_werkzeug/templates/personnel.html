@@ -431,6 +431,37 @@
                                     </form>
                             `;
 
+                            // Inject missing Modal HTML for editing
+                            const modalHtml = `
+                                <div class="modal fade" id="editAzubiModal${azubi.id}" tabindex="-1" aria-labelledby="editAzubiModalTitle${azubi.id}" aria-hidden="true">
+                                    <div class="modal-dialog modal-sm">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h6 class="modal-title fw-bold" id="editAzubiModalTitle${azubi.id}">Azubi bearbeiten</h6>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <form action="{{ ingress_path }}/edit_azubi/${azubi.id}" method="POST">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                                <div class="modal-body">
+                                                    <div class="mb-2">
+                                                        <label class="form-label small" for="editName${azubi.id}">Name</label>
+                                                        <input type="text" class="form-control form-control-sm" id="editName${azubi.id}" name="name" value="${azubi.name}" required>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <label class="form-label small" for="editLJ${azubi.id}">Lehrjahr</label>
+                                                        <input type="number" class="form-control form-control-sm" id="editLJ${azubi.id}" name="lehrjahr" value="${azubi.lehrjahr}" min="1" max="4" required>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer p-1">
+                                                    <button type="submit" class="btn btn-primary btn-sm w-100">Speichern</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            document.getElementById('dynamicModalsContainer').insertAdjacentHTML('beforeend', modalHtml);
+
                             // CRITICAL FIX: Append cells to row!
                             newRow.appendChild(nameCell);
                             newRow.appendChild(lehrjahrCell);
@@ -516,6 +547,33 @@
                                     </form>
                             `;
 
+                            // Inject missing Modal HTML for editing
+                            const modalHtml = `
+                                <div class="modal fade" id="editExaminerModal${examiner.id}" tabindex="-1" aria-labelledby="editExaminerModalTitle${examiner.id}" aria-hidden="true">
+                                    <div class="modal-dialog modal-sm">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h6 class="modal-title fw-bold" id="editExaminerModalTitle${examiner.id}">Prüfer bearbeiten</h6>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <form action="{{ ingress_path }}/edit_examiner/${examiner.id}" method="POST">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                                <div class="modal-body">
+                                                    <div class="mb-2">
+                                                        <label class="form-label small" for="editExName${examiner.id}">Name</label>
+                                                        <input type="text" class="form-control form-control-sm" id="editExName${examiner.id}" name="name" value="${examiner.name}" required>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer p-1">
+                                                    <button type="submit" class="btn btn-primary btn-sm w-100">Speichern</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            document.getElementById('dynamicModalsContainer').insertAdjacentHTML('beforeend', modalHtml);
+
                             // CRITICAL FIX: Append cells to row!
                             newRow.appendChild(nameCell);
                             newRow.appendChild(actionCell);
@@ -548,4 +606,5 @@
         }
     });
 </script>
+<div id="dynamicModalsContainer"></div>
 {% endblock %}
