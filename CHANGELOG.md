@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [2.13.9] - 2026-03-17
+
+### UI & UX Optimierungen (Phase 3)
+- **Responsive Tabellen:** Implementierung eines Card-basierten Fallbacks für die Werkzeug- und Personalverwaltung auf Mobilgeräten (< 768px).
+- **Suche:**
+  - "Löschen"-Buttons (X) für alle Suchfelder hinzugefügt.
+  - Lade-Spinner und Deckkraft-Animationen (Opacity) während der Filterung integriert.
+  - Verbesserte "Keine Treffer"-Zustände mit Icons und kontextuellen Nachrichten.
+-   **Sitzungs-Management:**
+    -   Modal-Warnung 5 Minuten vor Sitzungsablauf mit "Verlängern"-Button hinzugefügt.
+    -   Neuer API-Endpunkt `/api/session/refresh` zur Sitzungserneuerung.
+-   **Formular-Validierung:** Interaktion zwischen globalen Bestätigungs-Modals und nativer HTML5-Validierung korrigiert (`base.html`).
+-   **Signatur:** Visuelles Feedback (Flash-Animation) beim Löschen der Unterschriften-Canvas hinzugefügt.
+-   **Bugs:** Fix für fehlende `data-label` Attribute bei dynamisch über AJAX hinzugefügten Tabellenzeilen.
+
 ## [2.13.8] - 2026-03-17
 
 ### Barrierefreiheit (Audit Phase 2 Resolution)

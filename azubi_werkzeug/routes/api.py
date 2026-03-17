@@ -248,3 +248,11 @@ def register_routes(bp):
                 'error': 'Ein unbekannter Fehler '
                          'ist aufgetreten.'
             }), 500
+    @bp.route('/api/session/refresh')
+    def api_session_refresh():
+        """Refresh session by accessing it."""
+        # Just accessing the session is usually enough for Flask-Session
+        # but we can also set a dummy value to be sure.
+        from flask import session
+        session['last_refresh'] = datetime.now(timezone.utc).isoformat()
+        return jsonify({'success': True, 'message': 'Session refreshed'})

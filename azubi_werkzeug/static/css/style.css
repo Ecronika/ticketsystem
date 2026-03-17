@@ -445,6 +445,47 @@ canvas {
     --bs-table-hover-bg: rgb(255 255 255 / 7.5%);
 }
 
+/* === UX Phase 3: Responsive Table-to-Cards Fallback === */
+@media (max-width: 768px) {
+    .table-responsive-cards thead {
+        display: none;
+    }
+
+    .table-responsive-cards tbody tr {
+        display: block;
+        margin-bottom: 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        background-color: var(--bg-surface);
+        padding: 0.5rem;
+    }
+
+    .table-responsive-cards tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: right;
+        border-bottom: 1px solid var(--border-color);
+        padding: 0.75rem 0.5rem;
+    }
+
+    .table-responsive-cards tbody td:last-child {
+        border-bottom: 0;
+        justify-content: center;
+    }
+
+    .table-responsive-cards tbody td::before {
+        content: attr(data-label);
+        font-weight: bold;
+        text-align: left;
+        padding-right: 1rem;
+        flex-shrink: 0;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        font-size: 0.75rem;
+    }
+}
+
 .table> :not(caption)>*>* {
     background-color: var(--bs-table-bg);
     color: var(--bs-table-color);
@@ -833,4 +874,14 @@ textarea:focus-visible {
     height: 110px;
     width: 100%;
     border-bottom: 1px solid var(--border-color);
+}
+
+/* Signature Canvas Flash Feedback */
+@keyframes canvas-flash {
+    0% { background-color: rgba(255, 255, 255, 0.8); }
+    100% { background-color: var(--bg-light); }
+}
+
+.canvas-clear-flash {
+    animation: canvas-flash 0.5s ease-out;
 }

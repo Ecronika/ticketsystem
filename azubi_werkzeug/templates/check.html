@@ -427,8 +427,20 @@
         });
 
         // Event Listeners for Clear Buttons (Avoids Global Scope)
-        document.getElementById('clearAzubi').addEventListener('click', () => padAzubi.clear());
-        document.getElementById('clearExaminer').addEventListener('click', () => padExaminer.clear());
+        document.getElementById('clearAzubi').addEventListener('click', () => {
+            padAzubi.clear();
+            const container = canvasAzubi.parentElement;
+            container.classList.remove('canvas-clear-flash');
+            void container.offsetWidth; // Trigger reflow
+            container.classList.add('canvas-clear-flash');
+        });
+        document.getElementById('clearExaminer').addEventListener('click', () => {
+            padExaminer.clear();
+            const container = canvasExaminer.parentElement;
+            container.classList.remove('canvas-clear-flash');
+            void container.offsetWidth; // Trigger reflow
+            container.classList.add('canvas-clear-flash');
+        });
 
         // --- Action Type Logic ---
         const checkTypeSelector = document.getElementById('checkTypeSelector');

@@ -42,10 +42,20 @@
                                 </li>
                             </ul>
                         </div>
-                        <div style="max-width: 200px;">
-                            <label for="searchAzubi" class="visually-hidden">Azubi suchen</label>
-                            <input type="text" id="searchAzubi" class="form-control form-control-sm"
-                                placeholder="Suchen..." aria-label="Azubi suchen">
+                        <div style="max-width: 300px;">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-transparent border-end-0">
+                                    <i class="bi bi-search text-muted" aria-hidden="true"></i>
+                                </span>
+                                <input type="text" id="searchAzubi" class="form-control border-start-0 ps-1"
+                                    placeholder="Suchen..." aria-label="Azubi suchen" autofocus>
+                                <span class="input-group-text bg-transparent border-start-0 border-end-0 d-none" id="azubiSearchSpinner">
+                                    <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+                                </span>
+                                <button class="btn btn-outline-secondary border-start-0" type="button" id="clearAzubiSearch" title="Suche löschen">
+                                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -79,7 +89,7 @@
                     </form>
 
                     <div class="table-responsive">
-                        <table id="azubiTable" class="table table-hover table-striped align-middle">
+                        <table id="azubiTable" class="table table-hover table-striped align-middle table-responsive-cards">
                             <thead>
                                 <tr>
                                     <th scope="col" class="w-50">Name</th>
@@ -89,17 +99,17 @@
                             </thead>
                             <tbody>
                                 {% for azubi in azubis %}
-                                <tr>
-                                    <td class="fw-bold">
+                                <tr class="azubi-row">
+                                    <td class="fw-bold" data-label="Name">
                                         {{ azubi.name }}
                                         {% if azubi.is_archived %}
                                         <span class="badge bg-secondary ms-1">Archiviert</span>
                                         {% endif %}
                                     </td>
-                                    <td class="text-center">
+                                    <td class="text-center" data-label="Lehrjahr">
                                         <span class="badge-subtle-info">{{ azubi.lehrjahr }}. LJ</span>
                                     </td>
-                                    <td class="text-end">
+                                    <td class="text-end" data-label="Aktion">
                                         <form
                                             action="{{ ingress_path }}{{ url_for('main.delete_azubi', azubi_id=azubi.id) }}"
                                             method="POST" class="d-inline">
@@ -236,10 +246,20 @@
                         <h2 class="card-title fw-bold mb-0 h4">Prüfer verwalten</h2>
                         <p class="small mb-0">Liste der Prüfer / Ausbilder.</p>
                     </div>
-                    <div style="max-width: 200px;">
-                        <label for="searchExaminer" class="visually-hidden">Prüfer suchen</label>
-                        <input type="text" id="searchExaminer" class="form-control form-control-sm"
-                            placeholder="Suchen..." aria-label="Prüfer suchen">
+                    <div style="max-width: 300px;">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-transparent border-end-0">
+                                <i class="bi bi-search text-muted" aria-hidden="true"></i>
+                            </span>
+                            <input type="text" id="searchExaminer" class="form-control border-start-0 ps-1"
+                                placeholder="Suchen..." aria-label="Prüfer suchen">
+                            <span class="input-group-text bg-transparent border-start-0 border-end-0 d-none" id="examinerSearchSpinner">
+                                <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+                            </span>
+                            <button class="btn btn-outline-secondary border-start-0" type="button" id="clearExaminerSearch" title="Suche löschen">
+                                <i class="bi bi-x-lg" aria-hidden="true"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body px-4">
@@ -265,7 +285,7 @@
                     </form>
 
                     <div class="table-responsive">
-                        <table id="examinerTable" class="table table-hover table-striped align-middle">
+                        <table id="examinerTable" class="table table-hover table-striped align-middle table-responsive-cards">
                             <thead>
                                 <tr>
                                     <th>Name</th>
@@ -274,9 +294,9 @@
                             </thead>
                             <tbody>
                                 {% for examiner in examiners %}
-                                <tr>
-                                    <td class="fw-bold">{{ examiner.name }}</td>
-                                    <td class="text-end">
+                                <tr class="examiner-row">
+                                    <td class="fw-bold" data-label="Name">{{ examiner.name }}</td>
+                                    <td class="text-end" data-label="Aktion">
                                         <form
                                             action="{{ ingress_path }}{{ url_for('main.delete_examiner', examiner_id=examiner.id) }}"
                                             method="POST" data-confirm data-confirm-message="Wirklich löschen?"
@@ -354,31 +374,73 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         // Table search filter
-        function filterTable(inputId, tableId) {
+        function filterTable(inputId, tableId, clearBtnId, spinnerId) {
             const input = document.getElementById(inputId);
             const table = document.getElementById(tableId);
+            const clearBtn = document.getElementById(clearBtnId);
+            const spinner = document.getElementById(spinnerId);
             if (!input || !table) return;
+
+            // Add clear button logic
+            if (clearBtn) {
+                clearBtn.addEventListener('click', () => {
+                    input.value = '';
+                    if (spinner) spinner.classList.remove('d-none');
+                    input.dispatchEvent(new Event('keyup'));
+                    input.focus();
+                });
+            }
 
             let debounceTimer;
             input.addEventListener('keyup', function () {
                 clearTimeout(debounceTimer);
                 table.style.opacity = '0.5';
+                if (spinner) spinner.classList.remove('d-none');
+                
                 const filter = this.value.toLowerCase();
                 debounceTimer = setTimeout(() => {
-                    const rows = table.getElementsByTagName('tr');
-                    for (let i = 1; i < rows.length; i++) {
-                        const row = rows[i];
-                        if (row.cells.length < 2 && row.cells[0].getAttribute('colspan')) continue;
+                    const rows = table.querySelectorAll('tbody tr:not(.empty-state-row)');
+                    let visibleCount = 0;
+                    rows.forEach(row => {
                         const text = row.textContent || row.innerText;
-                        row.style.display = text.toLowerCase().indexOf(filter) > -1 ? "" : "none";
+                        const match = text.toLowerCase().indexOf(filter) > -1;
+                        row.style.display = match ? "" : "none";
+                        if (match) visibleCount++;
+                    });
+
+                    // Handle Empty State Row
+                    let emptyRow = table.querySelector('.empty-state-row');
+                    if (visibleCount === 0 && filter !== '') {
+                        if (!emptyRow) {
+                            const colCount = table.querySelectorAll('thead th').length;
+                            emptyRow = document.createElement('tr');
+                            emptyRow.className = 'empty-state-row';
+                            emptyRow.innerHTML = `
+                                <td colspan="${colCount}" class="text-center py-4">
+                                    <div class="text-muted small">
+                                        <i class="bi bi-search d-block mb-1 fs-4" aria-hidden="true"></i>
+                                        Keine Treffer für "${filter}"
+                                    </div>
+                                </td>`;
+                            table.querySelector('tbody').appendChild(emptyRow);
+                        } else {
+                            emptyRow.querySelector('td div').innerHTML = `
+                                <i class="bi bi-search d-block mb-1 fs-4" aria-hidden="true"></i>
+                                Keine Treffer für "${filter}"`;
+                            emptyRow.style.display = '';
+                        }
+                    } else if (emptyRow) {
+                        emptyRow.style.display = 'none';
                     }
+
                     table.style.opacity = '1';
-                }, 200);
+                    if (spinner) spinner.classList.add('d-none');
+                }, 400);
             });
         }
 
-        filterTable('searchAzubi', 'azubiTable');
-        filterTable('searchExaminer', 'examinerTable');
+        filterTable('searchAzubi', 'azubiTable', 'clearAzubiSearch', 'azubiSearchSpinner');
+        filterTable('searchExaminer', 'examinerTable', 'clearExaminerSearch', 'examinerSearchSpinner');
 
         // AJAX Add Azubi with dynamic row insertion
         const addFormAzubi = document.getElementById('addAzubiForm');
@@ -406,18 +468,22 @@
                             const azubi = data.azubi;
 
                             const newRow = document.createElement('tr');
+                            newRow.className = 'azubi-row';
 
                             // SECURITY FIX #13: Use textContent for user data to prevent XSS
                             const nameCell = document.createElement('td');
                             nameCell.className = 'fw-bold';
+                            nameCell.setAttribute('data-label', 'Name');
                             nameCell.textContent = azubi.name;  // Auto-escaped!
 
                             const lehrjahrCell = document.createElement('td');
                             lehrjahrCell.className = 'text-center';
+                            lehrjahrCell.setAttribute('data-label', 'Lehrjahr');
                             lehrjahrCell.innerHTML = `<span class="badge-subtle-info">${azubi.lehrjahr}. LJ</span>`;
 
                             const actionCell = document.createElement('td');
                             actionCell.className = 'text-end';
+                            actionCell.setAttribute('data-label', 'Aktion');
                             actionCell.innerHTML = `
                                     <form action="{{ ingress_path }}/delete_azubi/${azubi.id}" method="POST" class="d-inline">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
@@ -540,14 +606,17 @@
                             const examiner = data.examiner;
 
                             const newRow = document.createElement('tr');
+                            newRow.className = 'examiner-row';
 
                             // SECURITY FIX #13: Use textContent for user data to prevent XSS
                             const nameCell = document.createElement('td');
                             nameCell.className = 'fw-bold';
+                            nameCell.setAttribute('data-label', 'Name');
                             nameCell.textContent = examiner.name;  // Auto-escaped!
 
                             const actionCell = document.createElement('td');
                             actionCell.className = 'text-end';
+                            actionCell.setAttribute('data-label', 'Aktion');
                             actionCell.innerHTML = `
                                     <form action="{{ ingress_path }}/delete_examiner/${examiner.id}" method="POST" data-confirm data-confirm-message="Wirklich löschen?" class="d-inline">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />

@@ -19,10 +19,21 @@
                         <h2 class="card-title fw-bold mb-0 h4">Werkzeuge verwalten</h2>
                         <p class="small mb-0">Inventarliste und technische Daten.</p>
                     </div>
-                    <div style="max-width: 200px;">
-                        <label for="searchWerkzeug" class="visually-hidden">Werkzeug suchen</label>
-                        <input type="text" id="searchWerkzeug" class="form-control form-control-sm"
-                            placeholder="Suchen..." value="{{ search_query }}" aria-label="Werkzeug suchen">
+                    <div style="max-width: 300px;">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-transparent border-end-0">
+                                <i class="bi bi-search text-muted" aria-hidden="true"></i>
+                            </span>
+                            <input type="text" id="searchWerkzeug" class="form-control border-start-0 ps-1"
+                                placeholder="Werkzeug suchen..." aria-label="Werkzeug suchen"
+                                value="{{ search_query }}" autofocus>
+                            <span class="input-group-text bg-transparent border-start-0 border-end-0 d-none" id="searchSpinner">
+                                <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+                            </span>
+                            <button class="btn btn-outline-secondary border-start-0" type="button" id="clearSearch" title="Suche löschen">
+                                <i class="bi bi-x-lg" aria-hidden="true"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -68,7 +79,7 @@
                     </form>
 
                     <div class="table-responsive">
-                        <table id="werkzeugTable" class="table table-hover table-striped align-middle">
+                        <table id="werkzeugTable" class="table table-hover table-striped align-middle table-responsive-cards">
                             <thead>
                                 <tr>
                                     <th scope="col">Bezeichnung</th>
@@ -80,12 +91,12 @@
                             </thead>
                             <tbody>
                                 {% for werkzeug in werkzeuge %}
-                                <tr>
-                                    <td>
+                                <tr class="werkzeug-row">
+                                    <td data-label="Werkzeug">
                                         <div class="fw-bolder fs-5 tracking-tight">{{
                                             werkzeug.name }}</div>
                                     </td>
-                                    <td class="d-none d-md-table-cell">
+                                    <td class="d-none d-md-table-cell" data-label="Kategorie">
                                         {% if werkzeug.material_category == 'standard' %}
                                         <span
                                             class="badge badge-subtle-secondary text-uppercase fw-bold tracking-wide">Standard</span>
@@ -100,14 +111,14 @@
                                             class="badge badge-subtle-info text-uppercase fw-bold tracking-wide">Vollkunststoff</span>
                                         {% endif %}
                                     </td>
-                                    <td class="d-none d-md-table-cell">
+                                    <td class="d-none d-md-table-cell" data-label="Parameter">
                                         <span class="small text-muted font-mono">{{
                                             werkzeug.tech_param_label or '-' }}</span>
                                     </td>
-                                    <td class="d-none d-md-table-cell text-muted fw-bold font-mono">
+                                    <td class="d-none d-md-table-cell text-muted fw-bold font-mono" data-label="Preis">
                                         {{ "%.2f"|format(werkzeug.price or 0.0) }} &euro;
                                     </td>
-                                    <td class="text-end">
+                                    <td class="text-end" data-label="Aktion">
                                         <form
                                             action="{{ ingress_path }}{{ url_for('main.delete_werkzeug', werkzeug_id=werkzeug.id) }}"
                                             method="POST" data-confirm data-confirm-message="Wirklich löschen?"
@@ -136,10 +147,14 @@
                                     <td colspan="5">
                                         <div class="text-center py-5">
                                             <div class="text-secondary mb-3 opacity-25">
-                                                <i class="bi bi-tools display-3" aria-hidden="true"></i>
+                                                <i class="bi bi-{{ 'search' if request.args.get('q') else 'tools' }} display-3" aria-hidden="true"></i>
                                             </div>
-                                            <p class="text-muted fw-bold mb-0">Keine Werkzeuge angelegt.</p>
-                                            <p class="text-secondary small">Fügen Sie oben ein erstes Werkzeug hinzu.</p>
+                                            <p class="text-muted fw-bold mb-0">
+                                                {{ 'Keine Treffer gefunden.' if request.args.get('q') else 'Keine Werkzeuge angelegt.' }}
+                                            </p>
+                                            <p class="text-secondary small">
+                                                {{ 'Passen Sie Ihre Suche oder Filter an.' if request.args.get('q') else 'Fügen Sie oben ein erstes Werkzeug hinzu.' }}
+                                            </p>
                                         </div>
                                     </td>
                                 </tr>
@@ -232,13 +247,26 @@
         const table = document.getElementById('werkzeugTable');
 
         if (searchInput && table) {
+            const clearBtn = document.getElementById('clearSearch');
+            const spinner = document.getElementById('searchSpinner');
+
+            if (clearBtn) {
+                clearBtn.addEventListener('click', () => {
+                    searchInput.value = '';
+                    params.set('q', '');
+                    params.set('page', '1');
+                    table.style.opacity = '0.5';
+                    if (spinner) spinner.classList.remove('d-none');
+                    window.location.search = params.toString();
+                });
+            }
+
             let debounceTimer;
             searchInput.addEventListener('keyup', function (e) {
                 const currentVal = this.value;
                 const params = new URLSearchParams(window.location.search);
                 const queryVal = params.get('q') || '';
 
-                // If it's the exact same string, skip triggering a reload to prevent endless loops on meta keys
                 if (currentVal === queryVal) return;
 
                 if (e.key === 'Enter') {
@@ -246,11 +274,13 @@
                     params.set('q', currentVal);
                     params.set('page', '1');
                     table.style.opacity = '0.5';
+                    if (spinner) spinner.classList.remove('d-none');
                     window.location.search = params.toString();
                     return;
                 }
 
                 clearTimeout(debounceTimer);
+                if (spinner) spinner.classList.remove('d-none');
                 debounceTimer = setTimeout(() => {
                     params.set('q', currentVal);
                     params.set('page', '1');
@@ -259,7 +289,7 @@
                 }, 800);
             });
 
-            // Set cursor to the end of the input field so the user can seamlessly continue typing
+            // Set cursor to the end
             if (searchInput.value) {
                 searchInput.focus();
                 const val = searchInput.value;
@@ -343,9 +373,11 @@
                             }
 
                             const newRow = document.createElement('tr');
+                            newRow.className = 'werkzeug-row';
 
                             // 1. Name Cell
                             const nameCell = document.createElement('td');
+                            nameCell.setAttribute('data-label', 'Werkzeug');
                             const nameBold = document.createElement('div');
                             nameBold.className = 'fw-bold';
                             nameBold.textContent = werkzeug.name;
@@ -354,16 +386,19 @@
                             // 2. Category Cell
                             const categoryCell = document.createElement('td');
                             categoryCell.className = 'd-none d-md-table-cell';
+                            categoryCell.setAttribute('data-label', 'Kategorie');
                             categoryCell.innerHTML = categoryBadge;
 
                             // 3. Param Cell
                             const paramCell = document.createElement('td');
                             paramCell.className = 'd-none d-md-table-cell';
+                            paramCell.setAttribute('data-label', 'Parameter');
                             paramCell.textContent = werkzeug.param || '-';
 
                             // 4. Price Cell (Added)
                             const priceCell = document.createElement('td');
                             priceCell.className = 'd-none d-md-table-cell';
+                            priceCell.setAttribute('data-label', 'Preis');
                             // Format price safely if possible, or just raw for now
                             // Backend sends just 'werkzeug' object, likely raw float/dec
                             // We can try to format it simply
@@ -373,6 +408,7 @@
                             // 5. Action Cell
                             const actionCell = document.createElement('td');
                             actionCell.className = 'text-end';
+                            actionCell.setAttribute('data-label', 'Aktion');
 
                             // Create button safely to avoid XSS in data attributes
                             const form = document.createElement('form');

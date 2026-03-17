@@ -234,7 +234,13 @@
         const needsConfirm = form.hasAttribute('data-confirm') || (submitter && submitter.hasAttribute('data-confirm'));
 
         if (needsConfirm) {
-            e.preventDefault(); // Stop immediate submission
+            // NEW: Check native HTML5 validity BEFORE intercepting
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return; // Exit and let browser show bubbles
+            }
+
+            e.preventDefault(); // Only stop if form is valid and needs confirm
 
             const message = (submitter && submitter.getAttribute('data-confirm-message')) || 
                             form.getAttribute('data-confirm-message') || 
@@ -306,15 +312,41 @@
         }
       });
       
-      // Session Timeout Warning (SC 2.2.1)
-      // Permanent Session is 8h. Warn user 5 minutes before expiration.
+      {% if session.get('is_admin') %}
       const SESSION_TIMEOUT = 8 * 60 * 60 * 1000; // 8 hours
       const WARN_BEFORE = 5 * 60 * 1000; // 5 minutes
       
-      {% if session.get('is_admin') %}
-      setTimeout(() => {
-          window.showUiAlert("Ihre Sitzung läuft in 5 Minuten ab. Bitte speichern Sie Ihre Arbeit.", "warning");
-      }, SESSION_TIMEOUT - WARN_BEFORE);
+      let timeoutTimer;
+      
+      function startSessionTimer() {
+          if (timeoutTimer) clearTimeout(timeoutTimer);
+          timeoutTimer = setTimeout(() => {
+              const modal = new bootstrap.Modal(document.getElementById('sessionWarningModal'));
+              modal.show();
+          }, SESSION_TIMEOUT - WARN_BEFORE);
+      }
+      
+      startSessionTimer();
+
+      document.getElementById('refreshSessionBtn')?.addEventListener('click', function() {
+          const btn = this;
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+          
+          fetch('{{ ingress_path }}/api/session/refresh')
+              .then(response => response.json())
+              .then(data => {
+                  if (data.success) {
+                      bootstrap.Modal.getInstance(document.getElementById('sessionWarningModal')).hide();
+                      startSessionTimer();
+                      showUiAlert("Sitzung erfolgreich verlängert.", "success");
+                  }
+              })
+              .finally(() => {
+                  btn.disabled = false;
+                  btn.textContent = 'Sitzung verlängern';
+              });
+      });
       {% endif %}
     });
   </script>
@@ -336,6 +368,27 @@
       </div>
     </div>
   </div>
-</body>
+  <!-- Session Warning Modal -->
+  <div class="modal fade" id="sessionWarningModal" tabindex="-1" aria-labelledby="sessionWarningTitle" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content shadow-lg border-0 rounded-4">
+        <div class="modal-header border-bottom-0 pb-0">
+          <h5 class="modal-title fw-bold" id="sessionWarningTitle">Sitzung läuft ab</h5>
+        </div>
+        <div class="modal-body py-3 text-center">
+          <div class="mb-3 text-warning">
+            <i class="bi bi-clock-history display-4"></i>
+          </div>
+          <p class="mb-0">Ihre Sitzung läuft in Kürze ab. Möchten Sie sie verlängern?</p>
+        </div>
+        <div class="modal-footer border-top-0 p-2 gap-2">
+          <button type="button" class="btn btn-light btn-sm flex-fill text-muted" data-bs-dismiss="modal">Abbrechen</button>
+          <button type="button" class="btn btn-primary btn-sm flex-fill" id="refreshSessionBtn">Sitzung verlängern</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
+  <div id="ajaxStatusAnnouncer" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
+</body>
 </html>
