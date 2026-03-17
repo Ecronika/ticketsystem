@@ -204,7 +204,7 @@
 
                     <div class="mb-4 text-center p-3 rounded-3 bg-body-tertiary border">
                         <span class="text-muted text-uppercase fw-bold text-meta tracking-wide">Gesamtwert</span>
-                        <h2 class="display-5 fw-bolder mb-0 mt-1 text-body-emphasis" id="exchangeTotalPriceDisplay">0,00
+                        <h2 class="display-5 fw-bolder mb-0 mt-1 text-primary" id="exchangeTotalPriceDisplay">0,00
                             €</h2>
                     </div>
 
@@ -221,7 +221,7 @@
                         <!-- Höhe 150px: konsistent mit check.html, optimal für Landscape-Modus + WebKit Canvas-Fix -->
                         <div class="border rounded bg-body-tertiary" style="height: 150px; position: relative;"
                             id="signatureContainer">
-                            <canvas id="signaturePadAzubi" aria-label="Unterschrift Azubi" role="img"
+                            <canvas id="signaturePadAzubi" aria-label="Unterschrift Azubi" role="application"
                                 class="w-100 h-100" style="touch-action: none; display: block;"></canvas>
                             <div class="position-absolute bottom-0 end-0 p-2">
                                 <button type="button" class="btn btn-sm btn-outline-secondary mb-1 btn-clear-pad"
@@ -233,13 +233,13 @@
                         <small class="text-muted">Bestätigt den Empfang des Ersatzwerkzeugs.</small>
                     </div>
 
-                    <div class="modal-footer border-0 pt-0 gap-2">
-                        <button type="button" class="btn btn-light rounded-pill flex-fill" data-bs-dismiss="modal">Abbrechen</button>
-                        <button type="submit" id="exchangeSubmitBtn" class="btn btn-primary rounded-pill flex-fill">
-                            <i class="bi bi-arrow-repeat"></i> Werkzeug austauschen
-                        </button>
-                    </div>
                 </form>
+            </div>
+            <div class="modal-footer border-0 pt-0 gap-2">
+                <button type="button" class="btn btn-light btn-sm flex-fill" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="submit" form="exchangeForm" id="exchangeSubmitBtn" class="btn btn-primary btn-sm flex-fill">
+                    <i class="bi bi-arrow-repeat"></i> Werkzeug austauschen
+                </button>
             </div>
         </div>
     </div>
@@ -266,9 +266,9 @@
                             value="1" required>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary">Hinzufügen</button>
+                <div class="modal-footer p-2 gap-2">
+                    <button type="button" class="btn btn-light btn-sm flex-fill" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary btn-sm flex-fill">Hinzufügen</button>
                 </div>
             </form>
         </div>

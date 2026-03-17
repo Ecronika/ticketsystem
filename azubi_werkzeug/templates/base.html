@@ -305,6 +305,17 @@
           themeSelect.value = newTheme;
         }
       });
+      
+      // Session Timeout Warning (SC 2.2.1)
+      // Permanent Session is 8h. Warn user 5 minutes before expiration.
+      const SESSION_TIMEOUT = 8 * 60 * 60 * 1000; // 8 hours
+      const WARN_BEFORE = 5 * 60 * 1000; // 5 minutes
+      
+      {% if session.get('is_admin') %}
+      setTimeout(() => {
+          window.showUiAlert("Ihre Sitzung läuft in 5 Minuten ab. Bitte speichern Sie Ihre Arbeit.", "warning");
+      }, SESSION_TIMEOUT - WARN_BEFORE);
+      {% endif %}
     });
   </script>
 
@@ -318,9 +329,9 @@
         <div class="modal-body py-4" id="globalConfirmMessage">
           Möchten Sie diese Aktion wirklich ausführen?
         </div>
-        <div class="modal-footer border-top-0">
-          <button type="button" class="btn btn-secondary px-4 py-2" data-bs-dismiss="modal">Abbrechen</button>
-          <button type="button" class="btn btn-danger px-4 py-2" id="globalConfirmBtn">Bestätigen</button>
+        <div class="modal-footer border-top-0 px-2 py-2 gap-2">
+          <button type="button" class="btn btn-light btn-sm flex-fill" data-bs-dismiss="modal">Abbrechen</button>
+          <button type="button" class="btn btn-danger btn-sm flex-fill" id="globalConfirmBtn">Bestätigen</button>
         </div>
       </div>
     </div>

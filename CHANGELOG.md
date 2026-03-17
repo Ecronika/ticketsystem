@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [2.13.7] - 2026-03-17
+
+### Behobene Fehler (Audit Resolution v2.13.6)
+- **Kritisch (check.html):** Fehlerhafter Formular-Endpunkt (`save_check` -> `submit_check`) behoben; Kern-Workflow wieder funktionsfähig.
+- **Kritisch (Datenbank):** Automatische Reparatur fehlender Spalten (`price`) und Korrektur der Alembic-Stempel-Logik für Legacy-Datenbanken implementiert.
+- **Sicherheit:** Sitzungs-Timeout-Warnung (8h Laufzeit, Warnung 5 Min. vor Ablauf) in `base.html` integriert (WCAG SC 2.2.1).
+
+### Barrierefreiheit (WCAG 2.2 AA)
+- **Überschriften:** Semantisch korrekte Hierarchie (`h1` -> `h2` -> `h3`) in allen Hauptansichten (`personnel.html`, `tools.html`, `check.html`) sichergestellt.
+- **ARIA & Labels:**
+  - Redundante `title`-Attribute auf Tabellen-Buttons durch zugängliche `aria-label`s ersetzt (SC 1.4.13).
+  - Kontext-Informationen (Werkzeugname) zu Status-Radiogruppen in `check.html` hinzugefügt (SC 1.3.1, 4.1.2).
+  - Visuell versteckte Labels für Hersteller-Auswahlfelder in `check.html` ergänzt.
+- **Rollen:** Interaktive Unterschriftsfelder (`canvas`) von `role="img"` auf `role="application"` umgestellt.
+
+### UI & UX Konsistenz
+- Austausch-Modal (`index.html`): Sticky-Footer korrigiert, sodass Buttons auch bei langem Inhalt immer sichtbar bleiben.
+- Einheitliche "Abbrechen"-Buttons und Modal-Footer-Styling im gesamten System.
+- Suchfelder in Tabellen mit klaren `aria-label`s für Screenreader versehen.
+- `500.html`: Admin-Link zu den Einstellungen jetzt nur für Administratoren sichtbar.
+
 ## [2.13.5] - 2026-03-16
 ### Fixed
 - WCAG 2.2 AA Contrast: History badges contrast improved to 5.9:1.

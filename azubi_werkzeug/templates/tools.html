@@ -16,7 +16,7 @@
                 <div
                     class="card-header border-bottom-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <div>
-                        <h4 class="card-title fw-bold mb-0">Werkzeuge verwalten</h4>
+                        <h2 class="card-title fw-bold mb-0 h4">Werkzeuge verwalten</h2>
                         <p class="small mb-0">Inventarliste und technische Daten.</p>
                     </div>
                     <div style="max-width: 200px;">
@@ -120,13 +120,11 @@
                                                     data-category="{{ werkzeug.material_category }}"
                                                     data-param="{{ werkzeug.tech_param_label or '' }}"
                                                     data-price="{{ '%.2f'|format(werkzeug.price or 0.0) }}"
-                                                    aria-label="{{ werkzeug.name }} bearbeiten"
-                                                    title="Bearbeiten">
+                                                    aria-label="{{ werkzeug.name }} bearbeiten">
                                                     <i class="bi bi-pencil fs-5" aria-hidden="true"></i>
                                                 </button>
                                                 <button type="submit" class="btn btn-light text-danger border-0"
-                                                    aria-label="{{ werkzeug.name }} löschen"
-                                                    title="Löschen">
+                                                    aria-label="{{ werkzeug.name }} löschen">
                                                     <i class="bi bi-trash fs-5" aria-hidden="true"></i>
                                                 </button>
                                             </div>
@@ -179,7 +177,7 @@
                         <div class="modal-dialog">
                             <div class="modal-content text-start">
                                 <div class="modal-header">
-                                    <h5 class="modal-title" id="editWerkzeugModalTitle">Werkzeug bearbeiten</h5>
+                                    <h2 class="modal-title h5" id="editWerkzeugModalTitle">Werkzeug bearbeiten</h2>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal"
                                         aria-label="Close"></button>
                                 </div>
@@ -395,8 +393,8 @@
 
                             const editBtn = document.createElement('button');
                             editBtn.type = 'button';
-                            editBtn.className = 'btn btn-light text-secondary border-0';
-                            editBtn.title = 'Bearbeiten';
+                            editBtn.className = 'btn btn-light text-secondary border-0 d-inline-flex align-items-center justify-content-center';
+                            editBtn.style.minWidth = '44px';
                             editBtn.setAttribute('aria-label', werkzeug.name + ' bearbeiten');
                             editBtn.setAttribute('data-bs-toggle', 'modal');
                             editBtn.setAttribute('data-bs-target', '#editWerkzeugModal');
@@ -412,8 +410,8 @@
 
                             const deleteBtn = document.createElement('button');
                             deleteBtn.type = 'submit';
-                            deleteBtn.className = 'btn btn-light text-danger border-0';
-                            deleteBtn.title = 'Löschen';
+                            deleteBtn.className = 'btn btn-light text-danger border-0 d-inline-flex align-items-center justify-content-center';
+                            deleteBtn.style.minWidth = '44px';
                             deleteBtn.setAttribute('aria-label', werkzeug.name + ' löschen');
                             deleteBtn.innerHTML = '<i class="bi bi-trash fs-5" aria-hidden="true"></i>';
                             btnGroup.appendChild(deleteBtn);
