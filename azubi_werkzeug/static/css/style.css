@@ -461,7 +461,7 @@ canvas {
     }
 
     .table-responsive-cards tbody td {
-        display: flex;
+        display: flex !important; /* Force visibility even if d-none on desktop */
         justify-content: space-between;
         align-items: center;
         text-align: right;

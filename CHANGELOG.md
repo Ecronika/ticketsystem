@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [2.13.10] - 2026-03-17
+
+### UI & Bugfixes (Hotfix)
+- **Funktionalität:** Fehler beim Hinzufügen von Personal (missing POST method/JS syntax error) behoben.
+- **Suche:** Suchlogik in der Personalverwaltung wiederhergestellt.
+- **Mobile Optimierung:** Sichtbarkeit technischer Daten in der Werkzeug-Kartenansicht auf Mobilgeräten sichergestellt (CSS `!important` Fix).
+- **Design:** Visuelle Glättung der Suchfelder ("zerstückeltes" Design unterbunden) und verbesserte Header-Ausrichtung.
+
 ## [2.13.9] - 2026-03-17
 
 ### UI & UX Optimierungen (Phase 3)

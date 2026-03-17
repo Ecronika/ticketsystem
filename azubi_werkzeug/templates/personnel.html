@@ -20,40 +20,40 @@
                         <h2 class="card-title fw-bold mb-0 h4">Azubis verwalten</h2>
                         <p class="small mb-0">Verwaltung der Auszubildenden.</p>
                     </div>
-                    <div class="d-flex gap-2 align-items-center flex-grow-1 justify-content-end">
+                    <div class="d-flex align-items-center gap-2">
                         <!-- Archive Filter -->
                         <div class="dropdown">
-                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-sm d-flex align-items-center gap-1" type="button"
                                 data-bs-toggle="dropdown">
-                                <i class="bi bi-filter"></i> Filter
+                                <i class="bi bi-filter"></i> <span class="d-none d-sm-inline">Filter</span>
                             </button>
-                            <ul class="dropdown-menu">
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0">
                                 <li>
-                                    <a class="dropdown-item {{ 'active' if not show_archived else '' }}"
+                                    <a class="dropdown-item {{ 'active' if not show_archived else '' }} d-flex align-items-center gap-2"
                                         href="{{ ingress_path }}{{ url_for('main.personnel', show_archived=0) }}">
-                                        Aktive anzeigen
+                                        <i class="bi bi-person-check"></i> Aktive anzeigen
                                     </a>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item {{ 'active' if show_archived else '' }}"
+                                    <a class="dropdown-item {{ 'active' if show_archived else '' }} d-flex align-items-center gap-2"
                                         href="{{ ingress_path }}{{ url_for('main.personnel', show_archived=1) }}">
-                                        Archiv anzeigen
+                                        <i class="bi bi-archive"></i> Archiv anzeigen
                                     </a>
                                 </li>
                             </ul>
                         </div>
-                        <div style="max-width: 300px;">
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text bg-transparent border-end-0">
-                                    <i class="bi bi-search text-muted" aria-hidden="true"></i>
+                        <div style="width: 260px;">
+                            <div class="input-group input-group-sm bg-body shadow-sm rounded-pill border overflow-hidden d-flex align-items-center px-2">
+                                <span class="bg-transparent border-0 text-muted">
+                                    <i class="bi bi-search" aria-hidden="true"></i>
                                 </span>
-                                <input type="text" id="searchAzubi" class="form-control border-start-0 ps-1"
+                                <input type="text" id="searchAzubi" class="form-control border-0 bg-transparent shadow-none"
                                     placeholder="Suchen..." aria-label="Azubi suchen" autofocus>
-                                <span class="input-group-text bg-transparent border-start-0 border-end-0 d-none" id="azubiSearchSpinner">
+                                <span class="bg-transparent border-0 d-none" id="azubiSearchSpinner">
                                     <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
                                 </span>
-                                <button class="btn btn-outline-secondary border-start-0" type="button" id="clearAzubiSearch" title="Suche löschen">
-                                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                                <button class="btn btn-link text-muted border-0 p-0 ms-1" type="button" id="clearAzubiSearch" title="Suche löschen">
+                                    <i class="bi bi-x-circle-fill" aria-hidden="true"></i>
                                 </button>
                             </div>
                         </div>
@@ -62,7 +62,7 @@
 
                 <div class="card-body px-4">
                     <!-- Add Azubi Form -->
-                    <form id="addAzubiForm" class="mb-4 p-3 form-section-card">
+                    <form id="addAzubiForm" method="POST" class="mb-4 p-3 form-section-card">
                         <div class="d-flex align-items-center mb-3">
                             <i class="bi bi-person-plus-fill text-primary me-2" aria-hidden="true"></i>
                             <span class="fw-bold text-muted small text-uppercase tracking-wide">Neuen Azubi hinzufügen</span>
@@ -246,25 +246,25 @@
                         <h2 class="card-title fw-bold mb-0 h4">Prüfer verwalten</h2>
                         <p class="small mb-0">Liste der Prüfer / Ausbilder.</p>
                     </div>
-                    <div style="max-width: 300px;">
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-transparent border-end-0">
-                                <i class="bi bi-search text-muted" aria-hidden="true"></i>
+                    <div style="width: 260px;">
+                        <div class="input-group input-group-sm bg-body shadow-sm rounded-pill border overflow-hidden d-flex align-items-center px-2">
+                            <span class="bg-transparent border-0 text-muted">
+                                <i class="bi bi-search" aria-hidden="true"></i>
                             </span>
-                            <input type="text" id="searchExaminer" class="form-control border-start-0 ps-1"
+                            <input type="text" id="searchExaminer" class="form-control border-0 bg-transparent shadow-none"
                                 placeholder="Suchen..." aria-label="Prüfer suchen">
-                            <span class="input-group-text bg-transparent border-start-0 border-end-0 d-none" id="examinerSearchSpinner">
+                            <span class="bg-transparent border-0 d-none" id="examinerSearchSpinner">
                                 <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
                             </span>
-                            <button class="btn btn-outline-secondary border-start-0" type="button" id="clearExaminerSearch" title="Suche löschen">
-                                <i class="bi bi-x-lg" aria-hidden="true"></i>
+                            <button class="btn btn-link text-muted border-0 p-0 ms-1" type="button" id="clearExaminerSearch" title="Suche löschen">
+                                <i class="bi bi-x-circle-fill" aria-hidden="true"></i>
                             </button>
                         </div>
                     </div>
                 </div>
                 <div class="card-body px-4">
                     <!-- Add Examiner Form -->
-                    <form id="addExaminerForm" class="mb-4 p-3 form-section-card">
+                    <form id="addExaminerForm" method="POST" class="mb-4 p-3 form-section-card">
                         <div class="d-flex align-items-center mb-3">
                             <i class="bi bi-shield-lock-fill text-primary me-2" aria-hidden="true"></i>
                             <span class="fw-bold text-muted small text-uppercase tracking-wide">Prüfer hinzufügen</span>
@@ -505,7 +505,8 @@
                             `;
 
                             // Inject missing Modal HTML for editing
-                                                     <div class="modal fade" id="editAzubiModal${azubi.id}" tabindex="-1" aria-labelledby="editAzubiModalTitle${azubi.id}" aria-hidden="true">
+                            const modalHtml = `
+                                <div class="modal fade" id="editAzubiModal${azubi.id}" tabindex="-1" aria-labelledby="editAzubiModalTitle${azubi.id}" aria-hidden="true">
                                     <div class="modal-dialog modal-sm">
                                         <div class="modal-content">
                                             <div class="modal-header border-bottom-0 pb-0">
@@ -532,7 +533,7 @@
                                         </div>
                                     </div>
                                 </div>
-                            `;                          `;
+                            `;
                             document.getElementById('dynamicModalsContainer').insertAdjacentHTML('beforeend', modalHtml);
 
                             // CRITICAL FIX: Append cells to row!

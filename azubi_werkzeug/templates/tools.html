@@ -19,19 +19,19 @@
                         <h2 class="card-title fw-bold mb-0 h4">Werkzeuge verwalten</h2>
                         <p class="small mb-0">Inventarliste und technische Daten.</p>
                     </div>
-                    <div style="max-width: 300px;">
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-transparent border-end-0">
-                                <i class="bi bi-search text-muted" aria-hidden="true"></i>
+                    <div style="width: 260px;">
+                        <div class="input-group input-group-sm bg-body shadow-sm rounded-pill border overflow-hidden d-flex align-items-center px-2">
+                            <span class="bg-transparent border-0 text-muted">
+                                <i class="bi bi-search" aria-hidden="true"></i>
                             </span>
-                            <input type="text" id="searchWerkzeug" class="form-control border-start-0 ps-1"
+                            <input type="text" id="searchWerkzeug" class="form-control border-0 bg-transparent shadow-none"
                                 placeholder="Werkzeug suchen..." aria-label="Werkzeug suchen"
                                 value="{{ search_query }}" autofocus>
-                            <span class="input-group-text bg-transparent border-start-0 border-end-0 d-none" id="searchSpinner">
+                            <span class="bg-transparent border-0 d-none" id="searchSpinner">
                                 <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
                             </span>
-                            <button class="btn btn-outline-secondary border-start-0" type="button" id="clearSearch" title="Suche löschen">
-                                <i class="bi bi-x-lg" aria-hidden="true"></i>
+                            <button class="btn btn-link text-muted border-0 p-0 ms-1" type="button" id="clearSearch" title="Suche löschen">
+                                <i class="bi bi-x-circle-fill" aria-hidden="true"></i>
                             </button>
                         </div>
                     </div>
