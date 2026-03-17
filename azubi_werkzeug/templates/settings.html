@@ -292,9 +292,11 @@
     <div class="modal fade" id="restoreModal" tabindex="-1" aria-labelledby="restoreModalTitle" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header border-danger">
-                    <h5 class="modal-title text-danger" id="restoreModalTitle">⚠️ System Wiederherstellen</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="modal-header border-bottom-0 pb-0 border-danger">
+                    <h5 class="modal-title text-danger fw-bold" id="restoreModalTitle">
+                        <i class="bi bi-exclamation-triangle-fill me-2" aria-hidden="true"></i> System Wiederherstellen
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
                 </div>
                 <form action="{{ ingress_path }}{{ url_for('main.restore_backup') }}" method="POST"
                     enctype="multipart/form-data">
@@ -310,8 +312,8 @@
                             <input type="file" name="backup_file" class="form-control" accept=".zip" required>
                         </div>
                     </div>
-                    <div class="modal-footer p-2 gap-2">
-                        <button type="button" class="btn btn-light btn-sm flex-fill" data-bs-dismiss="modal">Abbrechen</button>
+                    <div class="modal-footer p-2 gap-2 border-top-0">
+                        <button type="button" class="btn btn-light btn-sm flex-fill text-muted" data-bs-dismiss="modal">Abbrechen</button>
                         <button type="submit" class="btn btn-danger btn-sm flex-fill">Wiederherstellen & Neustart</button>
                     </div>
                 </form>

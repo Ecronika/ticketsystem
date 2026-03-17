@@ -13,13 +13,13 @@
         <div class="d-flex gap-2">
             <a href="{{ ingress_path }}{{ url_for('main.personnel') }}?show_archived=1"
                 class="btn btn-outline-secondary">
-                <i class="bi bi-archive me-2"></i>Archiv
+                <i class="bi bi-archive me-2" aria-hidden="true"></i>Archiv
             </a>
             <a href="{{ ingress_path }}{{ url_for('main.scanner') }}" class="btn btn-primary">
-                <i class="bi bi-qr-code-scan me-2"></i>QR Scannen
+                <i class="bi bi-qr-code-scan me-2" aria-hidden="true"></i>QR Scannen
             </a>
             <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addAzubiModal">
-                <i class="bi bi-person-plus-fill me-2"></i>Neuer Azubi
+                <i class="bi bi-person-plus-fill me-2" aria-hidden="true"></i>Neuer Azubi
             </button>
         </div>
     </div>
@@ -152,12 +152,12 @@
 <div class="modal fade" id="exchangeModal" tabindex="-1" aria-labelledby="exchangeModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content rounded-4 shadow">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-bold" id="exchangeModalTitle">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h2 class="modal-title fw-bold h5" id="exchangeModalTitle">
                     Werkzeug austauschen
                     <span id="exchangeAzubiNameDisplay" class="text-muted fw-normal fs-6 ms-2"></span>
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
             </div>
             <div class="modal-body">
                 <form action="{{ ingress_path }}{{ url_for('main.exchange_tool') }}" method="POST" id="exchangeForm">
@@ -235,10 +235,10 @@
 
                 </form>
             </div>
-            <div class="modal-footer border-0 pt-0 gap-2">
-                <button type="button" class="btn btn-light btn-sm flex-fill" data-bs-dismiss="modal">Abbrechen</button>
+            <div class="modal-footer border-top-0 p-2 gap-2">
+                <button type="button" class="btn btn-light btn-sm flex-fill text-muted" data-bs-dismiss="modal">Abbrechen</button>
                 <button type="submit" form="exchangeForm" id="exchangeSubmitBtn" class="btn btn-primary btn-sm flex-fill">
-                    <i class="bi bi-arrow-repeat"></i> Werkzeug austauschen
+                    <i class="bi bi-arrow-repeat" aria-hidden="true"></i> Werkzeug austauschen
                 </button>
             </div>
         </div>
@@ -249,9 +249,9 @@
 <div class="modal fade" id="addAzubiModal" tabindex="-1" aria-labelledby="addAzubiModalTitle" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="addAzubiModalTitle">Neuen Azubi hinzufügen</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-header border-bottom-0 pb-0">
+                <h2 class="modal-title fw-bold h5" id="addAzubiModalTitle">Neuen Azubi hinzufügen</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
             </div>
             <form action="{{ ingress_path }}{{ url_for('main.add_azubi') }}" method="POST">
                 <div class="modal-body">

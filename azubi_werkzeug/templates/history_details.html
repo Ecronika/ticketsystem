@@ -134,13 +134,13 @@
 <div class="modal fade" id="deleteSessionModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title" id="deleteModalLabel">
-                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <div class="modal-header border-bottom-0 pb-0 bg-danger text-white">
+                <h5 class="modal-title fw-bold" id="deleteModalLabel">
+                    <i class="bi bi-exclamation-triangle-fill me-2" aria-hidden="true"></i>
                     Session wirklich löschen?
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-                    aria-label="Close"></button>
+                    aria-label="Schließen"></button>
             </div>
             <div class="modal-body">
                 <p class="fw-bold text-danger">⚠️ WARNUNG: Diese Aktion kann nicht rückgängig gemacht werden!</p>
@@ -161,8 +161,8 @@
                     </li>
                 </ul>
             </div>
-            <div class="modal-footer p-2 gap-2">
-                <button type="button" class="btn btn-light btn-sm flex-fill" data-bs-dismiss="modal">
+            <div class="modal-footer p-2 gap-2 border-top-0">
+                <button type="button" class="btn btn-light btn-sm flex-fill text-muted" data-bs-dismiss="modal">
                     <i class="bi bi-x-circle" aria-hidden="true"></i> Abbrechen
                 </button>
                 <form action="{{ ingress_path }}{{ url_for('main.delete_session', session_id=session_id) }}"

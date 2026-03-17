@@ -153,11 +153,11 @@
                                     aria-labelledby="editAzubiModalTitle{{ azubi.id }}" aria-hidden="true">
                                     <div class="modal-dialog modal-sm">
                                         <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h2 class="modal-title h6 fw-bold" id="editAzubiModalTitle{{ azubi.id }}">
+                                            <div class="modal-header border-bottom-0 pb-0">
+                                                <h2 class="modal-title h5 fw-bold" id="editAzubiModalTitle{{ azubi.id }}">
                                                     Azubi bearbeiten</h2>
                                                 <button type="button" class="btn-close"
-                                                    data-bs-dismiss="modal"></button>
+                                                    data-bs-dismiss="modal" aria-label="Schließen"></button>
                                             </div>
                                             <form
                                                 action="{{ ingress_path }}{{ url_for('main.edit_azubi', azubi_id=azubi.id) }}"
@@ -176,8 +176,8 @@
                                                             required>
                                                     </div>
                                                 </div>
-                                                <div class="modal-footer p-2 gap-2">
-                                                    <button type="button" class="btn btn-light btn-sm flex-fill" data-bs-dismiss="modal">Abbrechen</button>
+                                                <div class="modal-footer p-2 gap-2 border-top-0">
+                                                    <button type="button" class="btn btn-light btn-sm flex-fill text-muted" data-bs-dismiss="modal">Abbrechen</button>
                                                     <button type="submit" class="btn btn-primary btn-sm flex-fill">Speichern</button>
                                                 </div>
                                             </form>
@@ -303,11 +303,11 @@
                                             aria-labelledby="editExaminerModalTitle{{ examiner.id }}" aria-hidden="true">
                                             <div class="modal-dialog modal-sm">
                                                 <div class="modal-content">
-                                                    <div class="modal-header">
-                                                        <h2 class="modal-title h6 fw-bold" id="editExaminerModalTitle{{ examiner.id }}">
+                                                    <div class="modal-header border-bottom-0 pb-0">
+                                                        <h2 class="modal-title h5 fw-bold" id="editExaminerModalTitle{{ examiner.id }}">
                                                             Prüfer bearbeiten</h2>
                                                         <button type="button" class="btn-close"
-                                                            data-bs-dismiss="modal"></button>
+                                                            data-bs-dismiss="modal" aria-label="Schließen"></button>
                                                     </div>
                                                     <form
                                                         action="{{ ingress_path }}{{ url_for('main.edit_examiner', examiner_id=examiner.id) }}"
@@ -320,8 +320,8 @@
                                                                     id="editExName{{ examiner.id }}" name="name" value="{{ examiner.name }}" required>
                                                             </div>
                                                         </div>
-                                                        <div class="modal-footer p-2 gap-2">
-                                                            <button type="button" class="btn btn-light btn-sm flex-fill" data-bs-dismiss="modal">Abbrechen</button>
+                                                        <div class="modal-footer p-2 gap-2 border-top-0">
+                                                            <button type="button" class="btn btn-light btn-sm flex-fill text-muted" data-bs-dismiss="modal">Abbrechen</button>
                                                             <button type="submit" class="btn btn-primary btn-sm flex-fill">Speichern</button>
                                                         </div>
                                                     </form>
@@ -439,13 +439,12 @@
                             `;
 
                             // Inject missing Modal HTML for editing
-                            const modalHtml = `
-                                <div class="modal fade" id="editAzubiModal${azubi.id}" tabindex="-1" aria-labelledby="editAzubiModalTitle${azubi.id}" aria-hidden="true">
+                                                     <div class="modal fade" id="editAzubiModal${azubi.id}" tabindex="-1" aria-labelledby="editAzubiModalTitle${azubi.id}" aria-hidden="true">
                                     <div class="modal-dialog modal-sm">
                                         <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h6 class="modal-title fw-bold" id="editAzubiModalTitle${azubi.id}">Azubi bearbeiten</h6>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            <div class="modal-header border-bottom-0 pb-0">
+                                                <h2 class="modal-title h5 fw-bold" id="editAzubiModalTitle${azubi.id}">Azubi bearbeiten</h2>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
                                             </div>
                                             <form action="{{ ingress_path }}/edit_azubi/${azubi.id}" method="POST">
                                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
@@ -459,15 +458,15 @@
                                                         <input type="number" class="form-control form-control-sm" id="editLJ${azubi.id}" name="lehrjahr" value="${azubi.lehrjahr}" min="1" max="4" required>
                                                     </div>
                                                 </div>
-                                                <div class="modal-footer p-2 gap-2">
-                                                    <button type="button" class="btn btn-light btn-sm flex-fill" data-bs-dismiss="modal">Abbrechen</button>
+                                                <div class="modal-footer p-2 gap-2 border-top-0">
+                                                    <button type="button" class="btn btn-light btn-sm flex-fill text-muted" data-bs-dismiss="modal">Abbrechen</button>
                                                     <button type="submit" class="btn btn-primary btn-sm flex-fill">Speichern</button>
                                                 </div>
                                             </form>
                                         </div>
                                     </div>
                                 </div>
-                            `;
+                            `;                          `;
                             document.getElementById('dynamicModalsContainer').insertAdjacentHTML('beforeend', modalHtml);
 
                             // CRITICAL FIX: Append cells to row!
@@ -568,9 +567,9 @@
                                 <div class="modal fade" id="editExaminerModal${examiner.id}" tabindex="-1" aria-labelledby="editExaminerModalTitle${examiner.id}" aria-hidden="true">
                                     <div class="modal-dialog modal-sm">
                                         <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h6 class="modal-title fw-bold" id="editExaminerModalTitle${examiner.id}">Prüfer bearbeiten</h6>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            <div class="modal-header border-bottom-0 pb-0">
+                                                <h2 class="modal-title h5 fw-bold" id="editExaminerModalTitle${examiner.id}">Prüfer bearbeiten</h2>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
                                             </div>
                                             <form action="{{ ingress_path }}/edit_examiner/${examiner.id}" method="POST">
                                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
@@ -580,8 +579,8 @@
                                                         <input type="text" class="form-control form-control-sm" id="editExName${examiner.id}" name="name" value="${examiner.name}" required>
                                                     </div>
                                                 </div>
-                                                <div class="modal-footer p-2 gap-2">
-                                                    <button type="button" class="btn btn-light btn-sm flex-fill" data-bs-dismiss="modal">Abbrechen</button>
+                                                <div class="modal-footer p-2 gap-2 border-top-0">
+                                                    <button type="button" class="btn btn-light btn-sm flex-fill text-muted" data-bs-dismiss="modal">Abbrechen</button>
                                                     <button type="submit" class="btn btn-primary btn-sm flex-fill">Speichern</button>
                                                 </div>
                                             </form>

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [2.13.8] - 2026-03-17
+
+### Barrierefreiheit (Audit Phase 2 Resolution)
+- **Tech-Parameter:** Zugängliche `aria-label`s für dynamische Werkzeug-Parameter in `check.html` hinzugefügt (WCAG 1.3.1).
+- **Icons:** Systemweite Bereinigung dekorativer Icons; konsequente Anwendung von `aria-hidden="true"` zur Reduzierung von Screenreader-Rauschen.
+- **Formulare:** Verbesserte Labels und ARIA-Verknüpfungen in den Filter-Bereichen von Personal- und Werkzeugverwaltung.
+
+### UI & UX Konsistenz (Design System 2026)
+- **Modal-Anatomie:** Alle Modals auf standardisierte Header (`border-bottom-0 pb-0`) und Footer (`p-2 gap-2 border-top-0`) normalisiert.
+- **Empty States:** Icons systemweit auf `.display-3` und zentrierte Ausrichtung vereinheitlicht.
+- **Tablet-Ergonomie:**
+  - Bento-Grid Spacing in `check.html` auf `gap-4` erhöht für bessere Treffsicherheit.
+  - Sticky-Footer in Prüfungs- und Detailansichten mit `shadow-lg` für bessere visuelle Trennung aufgeteilt.
+  - "Abbrechen"-Buttons in Modals farblich dezentriert (`text-muted`), um Primäraktionen (Speichern) stärker zu betonen.
+
 ## [2.13.7] - 2026-03-17
 
 ### Behobene Fehler (Audit Resolution v2.13.6)
