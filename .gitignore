@@ -49,7 +49,10 @@ ticketsystem/secret.key
 
 # Node / Tools
 node_modules/
+package.json
+package-lock.json
 analyze_css.js
 analyze_css_full.js
 audit_results.json
 accessibility_audit_*.md
+
