@@ -37,6 +37,29 @@ def _seed_default_settings(app, logger):
 
     db.session.commit()
 
+def _ensure_schema_sync(app, logger):
+    """
+    Manually check for and add missing columns for SQLite.
+    (Pragmatic alternative to full Alembic migrations for SME setup).
+    """
+    from sqlalchemy import text
+    
+    # Missing columns in 'ticket' table
+    migrations = [
+        ("ticket", "status", "VARCHAR(20) DEFAULT 'offen'"),
+        ("ticket", "priority", "INTEGER DEFAULT 2")
+    ]
+    
+    for table, column, definition in migrations:
+        try:
+            # We use a raw SQL check or just try-except the ALTER
+            db.session.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {definition}"))
+            db.session.commit()
+            if logger:
+                logger.info("Database Migration: Added missing '%s' column to '%s' table.", column, table)
+        except Exception:
+            db.session.rollback() # Column likely already exists or table doesn't exist yet
+
 def init_database(app, *, logger=None):
     """Generic database initialization."""
     if logger is None:
@@ -53,6 +76,9 @@ def init_database(app, *, logger=None):
             # Create all tables defined in models.py
             db.create_all()
             logger.info("Database: Tables created (if not existing).")
+            
+            # Force schema sync for missing columns (create_all is no-op on existing tables)
+            _ensure_schema_sync(app, logger)
             
             # Seed default system settings
             _seed_default_settings(app, logger)
