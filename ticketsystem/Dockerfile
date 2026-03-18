@@ -23,7 +23,8 @@ COPY app.py .
 COPY extensions.py .
 COPY models.py .
 COPY routes/ routes/
-COPY services/ services/
+COPY services/ ./services/
+
 COPY database_init.py .
 COPY templates templates/
 COPY static static/

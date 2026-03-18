@@ -1,10 +1,10 @@
 #!/usr/bin/with-contenv bashio
 # ==============================================================================
-# Home Assistant Add-on: Azubi Werkzeug Tracker
-# Starts the Azubi Werkzeug Tracker application
+# Home Assistant Add-on: Ticket System
+# Starts the Ticket System application
 # ==============================================================================
 
-bashio::log.info "Starte Azubi Werkzeug Tracker..."
+bashio::log.info "Starte Ticket System..."
 
 # Wechsel ins Arbeitsverzeichnis
 cd /app || bashio::exit.nok "Kann nicht nach /app wechseln"

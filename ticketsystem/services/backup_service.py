@@ -12,7 +12,14 @@ from datetime import datetime, timezone
 from flask import current_app
 from flask_migrate import upgrade
 
-from exceptions import BackupError, ValidationError
+class BackupError(Exception):
+    """Raised when a backup or restore operation fails."""
+    pass
+
+class ValidationError(Exception):
+    """Raised when backup validation fails."""
+    pass
+
 from extensions import Config, db, scheduler
 from models import SystemSettings
 from ._helpers import _remove_with_retry
@@ -252,7 +259,7 @@ class BackupService:
         """Create a zip backup of critical data."""
         data_dir = Config.get_data_dir()
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        backup_filename = f"backup_azubi_werkzeug_{timestamp}.zip"
+        backup_filename = f"backup_ticketsystem_{timestamp}.zip"
         backup_dir = os.path.join(data_dir, 'backups')
         backup_path = os.path.join(backup_dir, backup_filename)
 
