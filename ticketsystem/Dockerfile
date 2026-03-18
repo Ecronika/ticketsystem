@@ -20,17 +20,11 @@ RUN pip3 install --no-cache-dir --upgrade pip setuptools --break-system-packages
 
 # App-Code kopieren
 COPY app.py .
-COPY pdf_utils.py .
 COPY extensions.py .
 COPY models.py .
 COPY routes/ routes/
 COPY services/ services/
 COPY database_init.py .
-COPY forms.py .
-COPY enums.py .
-COPY app_state.py .
-COPY dto.py .
-COPY exceptions.py .
 COPY templates templates/
 COPY static static/
 COPY metrics.py .
