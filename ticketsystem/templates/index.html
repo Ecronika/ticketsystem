@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block styles %}{% endblock %}
+
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="visually-hidden">Dashboard</h1>
+        <h2 class="h3 fw-bold tracking-tight mb-2 mb-md-0 display-font mt-2 mt-md-0">Ticket Dashboard</h2>
+        <p class="text-muted">Hier entstehen Ihre neuen Ticket-Ansichten.</p>
+    </div>
+    <div class="col-auto align-self-center">
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary">
+                <i class="bi bi-plus-lg me-2" aria-hidden="true"></i>Neues Ticket
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Placeholder Card 1 -->
+    <div class="col-md-6 col-xl-4">
+        <div class="card h-100 shadow-sm border-0 rounded-4 p-4">
+            <div class="d-flex align-items-center mb-3">
+                <div class="btn-outline-theme-warning rounded-circle p-3 me-3">
+                    <i class="bi bi-activity fs-4"></i>
+                </div>
+                <div>
+                    <h3 class="h5 fw-bold mb-0">Statistik Widget</h3>
+                    <span class="text-meta small">Aktivität der letzten 7 Tage</span>
+                </div>
+            </div>
+            <div class="py-4 text-center">
+                <div class="display-3 fw-bolder text-primary">0</div>
+                <div class="text-meta text-uppercase fw-bold">Offene Tickets</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Placeholder Card 2 -->
+    <div class="col-md-6 col-xl-4">
+        <div class="card h-100 shadow-sm border-0 rounded-4 p-4">
+            <div class="d-flex align-items-center mb-3">
+                <div class="btn-outline-theme-warning rounded-circle p-3 me-3">
+                    <i class="bi bi-list-task fs-4"></i>
+                </div>
+                <div>
+                    <h3 class="h5 fw-bold mb-0">Leere Liste</h3>
+                    <span class="text-meta small">Keine aktuellen Einträge</span>
+                </div>
+            </div>
+            <div class="flex-grow-1 d-flex align-items-center justify-content-center border rounded-3 border-dashed p-5 text-muted">
+                <div class="text-center">
+                    <i class="bi bi-inbox fs-1 mb-2"></i>
+                    <p class="mb-0">Keine Daten gefunden.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Placeholder Card 3 -->
+    <div class="col-md-6 col-xl-4">
+        <div class="card h-100 shadow-sm border-0 rounded-4 p-4">
+            <div class="d-flex align-items-center mb-3">
+                <div class="btn-outline-theme-warning rounded-circle p-3 me-3">
+                    <i class="bi bi-info-circle fs-4"></i>
+                </div>
+                <div>
+                    <h3 class="h5 fw-bold mb-0">Willkommen</h3>
+                    <span class="text-meta small">System-Informationen</span>
+                </div>
+            </div>
+            <div class="mt-2">
+                <p>Das ist das neue Ticket-System Boilerplate. Alle alten Funktionen wurden erfolgreich entfernt.</p>
+                <ul class="list-unstyled">
+                    <li><i class="bi bi-check2-circle text-success me-2"></i> Bento CSS aktiv</li>
+                    <li><i class="bi bi-check2-circle text-success me-2"></i> PIN-Login aktiv</li>
+                    <li><i class="bi bi-check2-circle text-success me-2"></i> SQLite WAL Modus</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

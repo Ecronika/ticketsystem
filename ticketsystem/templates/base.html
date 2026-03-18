@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>{% block title %}Dashboard{% endblock %} - TicketSystem</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="{{ ingress_path }}{{ url_for('static', filename='css/style.css') }}?v=5.4">
+  {% block styles %}{% endblock %}
+</head>
+
+<body class="d-flex flex-column min-vh-100">
+  <a href="#main-content" class="visually-hidden-focusable">Zum Hauptinhalt springen</a>
+  <script>
+    // Phase 2 + Phase 3: Theme Auto-Detect & Application Logic
+    window.applyTheme = function (themeParam) {
+      try {
+        let theme = themeParam;
+        if (theme === 'auto') {
+          if (window.matchMedia('(prefers-contrast: more)').matches) {
+            theme = 'hc';
+          } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            theme = 'dark';
+          } else {
+            theme = 'light';
+          }
+        }
+        document.documentElement.setAttribute('data-theme', theme);
+
+        // Sync with Bootstrap 5.3 native dark mode
+        const bsTheme = theme === 'hc' ? 'dark' : theme;
+        document.documentElement.setAttribute('data-bs-theme', bsTheme);
+
+        window.dispatchEvent(new CustomEvent('themeChanged', { detail: theme }));
+
+        // Update Navbar Icon if it exists
+        const themeIcon = document.getElementById('themeIcon');
+        const toggleBtn = document.getElementById('themeToggle');
+        if (themeIcon && toggleBtn) {
+          if (theme === 'light') {
+            themeIcon.className = 'bi bi-moon-stars';
+            toggleBtn.title = 'Dark Mode aktivieren';
+          } else {
+            themeIcon.className = 'bi bi-sun';
+            toggleBtn.title = 'Light Mode aktivieren';
+          }
+        }
+      } catch (e) { console.error('Theme Script Error:', e); }
+    };
+
+    // Apply immediately to prevent FOUC
+    (function () {
+      const savedTheme = localStorage.getItem('ui_theme') || 'auto';
+      window.applyTheme(savedTheme);
+    })();
+  </script>
+
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+    <div class="container">
+      <a class="navbar-brand fw-bold" href="{{ ingress_path }}{{ url_for('main.index') }}">
+        <i class="bi bi-ticket-perforated" aria-hidden="true"></i> TicketSystem
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+        aria-controls="navbarNav" aria-expanded="false" aria-label="Navigation umschalten">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto align-items-center">
+          <li class="nav-item">
+            <a class="nav-link {{ 'active' if request.endpoint and request.endpoint == 'main.index' else '' }}"
+              href="{{ ingress_path }}{{ url_for('main.index') }}" {% if request.endpoint and
+              request.endpoint=='main.index' %}aria-current="page" {% endif %}>Dashboard</a>
+          </li>
+          
+          {% if session.get('is_admin') %}
+          <li class="nav-item ms-lg-2">
+            <span class="badge-subtle-success d-flex align-items-center gap-1" aria-label="Administrator eingeloggt">
+              <i class="bi bi-shield-check" aria-hidden="true"></i>
+              <span class="d-none d-md-inline small fw-semibold">Admin</span>
+            </span>
+          </li>
+          {% endif %}
+          
+          <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
+            <button class="btn btn-outline-light btn-sm" id="themeToggle" title="Theme wechseln"
+              aria-label="Theme umschalten">
+              <i class="bi bi-moon-stars" id="themeIcon" aria-hidden="true"></i>
+            </button>
+          </li>
+
+          {% if session.get('is_admin') %}
+          <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
+            <form action="{{ ingress_path }}{{ url_for('main.logout') }}" method="POST" class="m-0 p-0 d-inline-flex align-items-center">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-outline-light btn-sm d-flex align-items-center gap-1" aria-label="Abmelden">
+                <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                <span class="d-lg-none d-xl-inline">Abmelden</span>
+              </button>
+            </form>
+          </li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <main id="main-content" class="container-fluid px-4 py-4">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="position-fixed top-0 end-0 p-3 z-toast" aria-live="polite" aria-atomic="true">
+      {% for category, message in messages %}
+      <div
+        class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show shadow auto-dismiss-alert"
+        role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer mt-auto py-3 border-top w-100 bg-surface">
+    <div class="container text-center">
+      <span class="text-muted small font-mono">
+        TicketSystem Boilerplate &copy; 2026 | v{{ config.VERSION }} |
+        <a href="#" class="text-decoration-none text-muted">Impressum</a> |
+        <a href="#" class="text-decoration-none text-muted">Datenschutz</a>
+      </span>
+    </div>
+  </footer>
+
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // === GLOBAL UI ALERT UTILITY (replaces all native alert() calls) ===
+    // Available on all pages. Renders non-blocking, aria-live-compatible toasts.
+    window.showUiAlert = function (msg, type) {
+      type = type || 'danger';
+      let container = document.querySelector('.position-fixed.top-0.end-0.p-3[aria-live]');
+      if (!container) {
+        container = document.createElement('div');
+        container.className = 'position-fixed top-0 end-0 p-3';
+        container.style.zIndex = '1055';
+        container.setAttribute('aria-live', 'assertive');
+        container.setAttribute('aria-atomic', 'true');
+        document.body.appendChild(container);
+      }
+      const id = 'ui-alert-' + Date.now();
+      const alertHtml = `
+        <div id="${id}" class="alert alert-${type} alert-dismissible fade show shadow" role="alert" aria-atomic="true">
+          <i class="bi bi-exclamation-triangle-fill me-2" aria-hidden="true"></i>${msg}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Schließen"></button>
+        </div>`;
+      container.insertAdjacentHTML('beforeend', alertHtml);
+      // Auto-dismiss after 6 seconds
+      setTimeout(() => {
+        const el = document.getElementById(id);
+        if (el) { try { bootstrap.Alert.getOrCreateInstance(el).close(); } catch(e) { el.remove(); } }
+      }, 6000);
+    };
+
+
+    // Promise-based Confirm Function
+    window.showConfirm = function(title, message, isDanger = true) {
+        return new Promise((resolve) => {
+            const modalEl = document.getElementById('globalConfirmModal');
+            const titleEl = document.getElementById('globalConfirmTitle');
+            const messageEl = document.getElementById('globalConfirmMessage');
+            const confirmBtn = document.getElementById('globalConfirmBtn');
+
+            titleEl.textContent = title || 'Bestätigung';
+            messageEl.innerHTML = message || 'Möchten Sie diese Aktion wirklich ausführen?';
+            
+            // Dynamically style the confirm button based on context
+            confirmBtn.className = isDanger ? 'btn btn-danger px-4 py-2' : 'btn btn-primary px-4 py-2';
+
+            const bsModal = new bootstrap.Modal(modalEl);
+
+            // One-time event handlers
+            const handleConfirm = () => {
+                bsModal.hide();
+                cleanup();
+                resolve(true);
+            };
+
+            const handleCancel = () => {
+                bsModal.hide();
+                cleanup();
+                resolve(false);
+            };
+
+            const cleanup = () => {
+                confirmBtn.removeEventListener('click', handleConfirm);
+                modalEl.removeEventListener('hidden.bs.modal', handleCancel);
+            };
+
+            confirmBtn.addEventListener('click', handleConfirm);
+            modalEl.addEventListener('hidden.bs.modal', handleCancel); // Triggers on ESC or outside click
+
+            bsModal.show();
+        });
+    };
+
+    // Event Delegation for Form Submissions
+    document.addEventListener('submit', async function(e) {
+        const form = e.target;
+        const submitter = e.submitter;
+        
+        // Check if the form OR the button that triggered it requires confirmation
+        const needsConfirm = form.hasAttribute('data-confirm') || (submitter && submitter.hasAttribute('data-confirm'));
+
+        if (needsConfirm) {
+            // NEW: Check native HTML5 validity BEFORE intercepting
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return; // Exit and let browser show bubbles
+            }
+
+            e.preventDefault(); // Only stop if form is valid and needs confirm
+
+            const message = (submitter && submitter.getAttribute('data-confirm-message')) || 
+                            form.getAttribute('data-confirm-message') || 
+                            'Sind Sie sicher?';
+            const title = (submitter && submitter.getAttribute('data-confirm-title')) || 
+                          form.getAttribute('data-confirm-title') || 
+                          'Achtung';
+            
+            // Check if it's a destructive action (determines button color)
+            const isDanger = (submitter && (submitter.classList.contains('btn-danger') || submitter.classList.contains('text-danger'))) ||
+                             form.querySelector('.btn-danger, .text-danger') !== null;
+
+            const confirmed = await window.showConfirm(title, message, isDanger);
+
+            if (confirmed) {
+                // Remove the attributes to prevent infinite loops
+                form.removeAttribute('data-confirm');
+                if (submitter) submitter.removeAttribute('data-confirm');
+                
+                // If it was triggered by a specific button with a name/value (or formaction), 
+                // we should re-trigger that correctly. 
+                // form.submit() doesn't include the button data.
+                if (submitter && (submitter.name || submitter.hasAttribute('formaction'))) {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = submitter.name;
+                    hiddenInput.value = submitter.value;
+                    form.appendChild(hiddenInput);
+                    
+                    if (submitter.hasAttribute('formaction')) {
+                        form.action = submitter.getAttribute('formaction');
+                    }
+                }
+                form.submit();
+            }
+        }
+    });
+
+    // Phase 3: Theme Toggle Logic (Navbar) & Flash Msg Auto-Dismiss
+    document.addEventListener('DOMContentLoaded', () => {
+      // Auto-Dismiss Flash Messages
+      const alerts = document.querySelectorAll('.auto-dismiss-alert');
+      alerts.forEach(alert => {
+        setTimeout(() => {
+          if (document.body.contains(alert)) {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+          }
+        }, 5000);
+      });
+
+      const toggleBtn = document.getElementById('themeToggle');
+      const root = document.documentElement;
+
+      if (!toggleBtn) return;
+
+      toggleBtn.addEventListener('click', () => {
+        const activeTheme = root.getAttribute('data-theme');
+        // Toggle only between Light and Dark for quick access from the navbar
+        const newTheme = activeTheme === 'light' ? 'dark' : 'light';
+
+        localStorage.setItem('ui_theme', newTheme);
+        window.applyTheme(newTheme);
+
+        // If we are on the settings page, also update the dropdown seamlessly
+        const themeSelect = document.getElementById('themeSelect');
+        if (themeSelect) {
+          themeSelect.value = newTheme;
+        }
+      });
+      
+
+      {% if session.get('is_admin') %}
+      const SESSION_TIMEOUT = 8 * 60 * 60 * 1000; // 8 hours
+      // Session monitoring can be re-implemented here if needed.
+      {% endif %}
+    });
+  </script>
+
+  <div class="modal fade" id="globalConfirmModal" tabindex="-1" aria-labelledby="globalConfirmTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow">
+        <div class="modal-header border-bottom-0">
+          <h5 class="modal-title fw-bold" id="globalConfirmTitle">Bestätigung</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Abbrechen"></button>
+        </div>
+        <div class="modal-body py-4" id="globalConfirmMessage">
+          Möchten Sie diese Aktion wirklich ausführen?
+        </div>
+        <div class="modal-footer border-top-0 px-2 py-2 gap-2">
+          <button type="button" class="btn btn-light btn-sm flex-fill" data-bs-dismiss="modal">Abbrechen</button>
+          <button type="button" class="btn btn-danger btn-sm flex-fill" id="globalConfirmBtn">Bestätigen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="ajaxStatusAnnouncer" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>

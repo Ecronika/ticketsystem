@@ -1,13 +1,17 @@
 version: '3.8'
 
+
 services:
-  azubi-werkzeug:
-    container_name: azubi_werkzeug
+  ticket-app:
+    container_name: ticket_app
+
     build:
-      context: ./azubi_werkzeug # Verzeichnis in dem der Code und das Dockerfile liegen
+      context: ./ticketsystem # Verzeichnis in dem der Code und das Dockerfile liegen
+
       dockerfile: Dockerfile.standalone
     ports:
-      - "5000:5000"
+      - "5001:5000"
+
     volumes:
       # Links: Pfad auf dem Mini PC (CasaOS Standard) | Rechts: Pfad im Container
       - ./data:/data 
