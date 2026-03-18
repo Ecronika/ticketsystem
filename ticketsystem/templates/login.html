@@ -6,18 +6,26 @@
     <div class="col-md-6 col-lg-4">
         <div class="card shadow">
             <div class="card-header bg-dark text-white">
-                <h4 class="mb-0"><i class="bi bi-shield-lock" aria-hidden="true"></i> Admin Login</h4>
+                <h4 class="mb-0"><i class="bi bi-person-badge" aria-hidden="true"></i> Mitarbeiter Login</h4>
             </div>
             <div class="card-body">
                 <form method="POST">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                     <div class="mb-3">
-                        <label for="pin" class="form-label">PIN eingeben</label>
+                        <label for="worker_id" class="form-label">Mitarbeiter auswählen</label>
+                        <select class="form-select form-select-lg" id="worker_id" name="worker_id" required autofocus>
+                            <option value="" selected disabled>-- Name wählen --</option>
+                            {% for worker in workers %}
+                            <option value="{{ worker.id }}">{{ worker.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="pin" class="form-label">Persönlicher PIN</label>
                         <input type="password" class="form-control form-control-lg text-center" id="pin" name="pin"
-                            required autofocus pattern="[0-9]*" inputmode="numeric" placeholder="****"
+                            required pattern="[0-9]*" inputmode="numeric" placeholder="****"
                             autocomplete="current-password">
-                        <div class="form-text text-center mt-2"><i class="bi bi-info-circle" aria-hidden="true"></i> Standard-PIN bei
-                            Erststart: <strong>0000</strong></div>
+                        <div class="form-text text-center mt-2 small text-muted"><i class="bi bi-info-circle-fill" aria-hidden="true"></i> Standard-PIN für neue User: <strong>0000</strong></div>
                     </div>
                     <div class="d-grid">
                         <button type="submit" class="btn btn-primary btn-lg">
