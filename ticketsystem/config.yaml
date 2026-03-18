@@ -15,10 +15,9 @@ startup: application
 boot: auto
 ingress: true
 ingress_port: 8099
-ports:
-  5000/tcp: 5000
-ports_description:
-  5000/tcp: Web Interface (HTTPS when SSL is enabled)
+ports: {}
+ports_description: {}
+
 panel_icon: mdi:ticket-confirmation
 panel_title: "Ticket System"
 hassio_api: false
