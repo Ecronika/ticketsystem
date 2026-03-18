@@ -1,34 +1,23 @@
-# Azubi Werkzeug Tracker - Home Assistant Repository
+# Ticket System Repository
 
-Dieses Repository enthält Home Assistant Add-ons für den Azubi Werkzeug Tracker.
+This repository contains the Home Assistant Add-on for the **Ticket System**.
 
-## Verfügbare Add-ons
+## Add-ons in this repository
 
-- **Azubi Werkzeug Tracker**: Eine Anwendung zur Verwaltung und Prüfung von Werkzeugen.
+### Ticket System
+A clean, modern boilerplate for a Ticket Management System, built with Flask, SQLAlchemy, and a Bento-Grid design system.
 
 ## Installation
 
-1. Kopieren Sie die URL dieses Repositories.
-2. Öffnen Sie Home Assistant.
-3. Gehen Sie zu **Einstellungen -> Add-ons -> Add-on Store**.
-4. Klicken Sie auf die drei Punkte oben rechts und wählen Sie **Repositories**.
-5. Fügen Sie die URL dieses Repositories hinzu.
-6. Laden Sie die Seite neu (oder klicken Sie auf "Überprüfen auf Updates").
-7. Installieren Sie das "Azubi Werkzeug Tracker" Add-on.
+1. Open your Home Assistant instance.
+2. Navigate to **Settings** > **Add-ons** > **Add-on Store**.
+3. Click the three dots in the top right corner and select **Repositories**.
+4. Add the URL of this repository: `https://github.com/Ecronika/ticketsystem`
+5. Click **Add** and then close the dialog.
+6. The "Ticket System" add-on should now appear in the list.
 
-## Erste Schritte (Standalone Nutzung)
+## Development
 
-Wenn Sie das Projekt lokal oder als Standalone-Anwendung (ohne Home Assistant) betreiben:
-
-1. **Abhängigkeiten installieren:** 
-   ```bash
-   pip install -r requirements.txt
-   ```
-2. **Datenbank initialisieren/aktualisieren:** 
-   ```bash
-   flask db upgrade
-   ```
-3. **Erster Login:** 
-   - Rufen Sie die Anwendung im Browser auf (typischerweise `http://localhost:5000` oder `8099`).
-   - Der initiale Admin-Login erfolgt über die **Standard-PIN: `0000`**.
-   - Ändern Sie diese PIN umgehend nach dem ersten Login in den Einstellungen.
+-   `ticketsystem/`: The actual add-on code.
+-   `docker-compose.yml`: For standalone local development.
+-   `repository.yaml`: Home Assistant repository configuration.

@@ -10,7 +10,7 @@ import pytest  # noqa: E402
 
 from app import app as flask_app  # noqa: E402
 from extensions import db  # noqa: E402
-from models import Azubi, Werkzeug  # noqa: E402
+from models import Ticket  # noqa: E402
 
 
 @pytest.fixture
@@ -27,15 +27,10 @@ def test_app():
         db.create_all()
 
         # Seed basic data
-        azubi = db.session.get(Azubi, 1) or Azubi.query.first()
-        if not azubi:
-            azubi = Azubi(name="Test Azubi", lehrjahr=1)
-            db.session.add(azubi)
-
-        tool = db.session.get(Werkzeug, 1) or Werkzeug.query.first()
-        if not tool:
-            tool = Werkzeug(name="Test Tool", material_category="standard")
-            db.session.add(tool)
+        ticket = db.session.get(Ticket, 1) or Ticket.query.first()
+        if not ticket:
+            ticket = Ticket(title="Test Ticket", description="Initial test ticket")
+            db.session.add(ticket)
 
         db.session.commit()
 

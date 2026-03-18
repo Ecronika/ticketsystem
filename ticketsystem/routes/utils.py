@@ -44,28 +44,3 @@ def get_data_dir():
     """Retrieve data directory from config."""
     from extensions import Config  # pylint: disable=import-outside-toplevel
     return Config.get_data_dir()
-
-
-def parse_migration_date(form_data, ingress):
-    """Parse and validate custom date from migration mode form data.
-
-    Returns:
-        tuple: (check_date, error_redirect) — error_redirect is None
-               on success.
-    """
-    c_date = form_data.get('custom_date')
-    c_time = form_data.get('custom_time')
-    if not c_date:
-        return datetime.now(timezone.utc), None
-    try:
-        time_str = c_time if c_time else "12:00"
-        check_date = datetime.strptime(
-            f"{c_date} {time_str}", "%Y-%m-%d %H:%M")
-        return check_date, None
-    except ValueError:
-        flash(
-            'Fehler: Ungültiges Datumsformat im Migrations-Modus.',
-            'error')
-        current_app.logger.warning(
-            f"Invalid migration date format: {c_date} {c_time}")
-        return None, redirect(f"{ingress}{url_for('main.index')}")

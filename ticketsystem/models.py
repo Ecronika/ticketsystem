@@ -5,7 +5,6 @@ Defines SQLAlchemy database models for Apprentice, Tool, Check, etc.
 """
 from datetime import datetime, timezone
 
-from enums import CheckType
 from extensions import db
 
 

@@ -10,10 +10,8 @@ from datetime import datetime
 
 
 from flask import Response, current_app, jsonify, render_template, request
-from sqlalchemy import func
 
 from extensions import Config, db
-from models import Ticket
 
 _dash_start_time = time.time()
 
