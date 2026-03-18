@@ -32,52 +32,76 @@ def _is_safe_redirect(target: str) -> bool:
 
 
 def admin_required(f):
-    """Decorate to require admin login."""
+    """Decorate to require admin permissions."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get('is_admin'):
             if request.path.startswith('/api/'):
                 from flask import jsonify
-                return jsonify({'success': False, 'error': 'Nicht autorisiert. Bitte neu einloggen.'}), 401
+                return jsonify({'success': False, 'error': 'Admin-Rechte erforderlich.'}), 403
 
-            flash('Bitte zuerst einloggen.', 'warning')
+            flash('Diese Aktion erfordert Administrator-Rechte.', 'warning')
             ingress = request.headers.get('X-Ingress-Path', '')
-            return redirect(
-                f"{ingress}{url_for('main.login', next=request.url)}"
-            )
+            return redirect(f"{ingress}{url_for('main.login', next=request.url)}")
         return f(*args, **kwargs)
     return decorated_function
 
 
+def worker_required(f):
+    """Decorate to require a worker login session."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('worker_id'):
+            if request.path.startswith('/api/'):
+                from flask import jsonify
+                return jsonify({'success': False, 'error': 'Bitte zuerst einloggen.'}), 401
+
+            flash('Bitte loggen Sie sich ein.', 'info')
+            ingress = request.headers.get('X-Ingress-Path', '')
+            return redirect(f"{ingress}{url_for('main.login', next=request.url)}")
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+from models import Worker
+
 def _login_view():
-    """Handle admin login."""
+    """Handle worker login with Dropdown and PIN."""
     if request.method == 'POST':
+        worker_id = request.form.get('worker_id')
         pin = request.form.get('pin')
-        pin_hash = SystemSettings.get_setting('admin_pin_hash')
 
-        # Fallback (should be seeded)
-        if not pin_hash:
-            flash('Systemfehler: PIN-Hash nicht gefunden.', 'error')
-            return render_template('login.html')
+        if not worker_id or not pin:
+            flash('Bitte Mitarbeiter auswählen und PIN eingeben.', 'warning')
+            return render_template('login.html', workers=Worker.query.filter_by(is_active=True).all())
 
-        if check_password_hash(pin_hash, pin):
-            session['is_admin'] = True
-            session.permanent = True  # Enables PERMANENT_SESSION_LIFETIME (8h)
-            flash('Erfolgreich eingeloggt.', 'success')
+        worker = db.session.get(Worker, worker_id)
+        if worker and worker.pin_hash and check_password_hash(worker.pin_hash, pin):
+            session.clear()
+            session['worker_id'] = worker.id
+            session['worker_name'] = worker.name
+            session['is_admin'] = worker.is_admin
+            session.permanent = True
+            
+            flash(f'Willkommen zurück, {worker.name}!', 'success')
             raw_next = request.args.get('next') or request.form.get('next')
             ingress = request.headers.get('X-Ingress-Path', '')
-            next_url = raw_next if (
-                raw_next and _is_safe_redirect(raw_next)) else None
+            next_url = raw_next if (raw_next and _is_safe_redirect(raw_next)) else None
             return redirect(next_url or f"{ingress}{url_for('main.index')}")
 
-        flash('Falscher PIN.', 'error')
+        flash('Falscher PIN oder Mitarbeiter nicht gefunden.', 'error')
 
-    return render_template('login.html')
+    active_workers = Worker.query.filter_by(is_active=True).all()
+    # If no workers exist yet, we might need a way to create the first admin or fallback to system pin
+    if not active_workers:
+        flash('Keine aktiven Mitarbeiter gefunden. Bitte System-Administrator kontaktieren.', 'warning')
+
+    return render_template('login.html', workers=active_workers)
 
 
 def _logout_view():
-    """Handle admin logout."""
-    session.pop('is_admin', None)
+    """Handle worker logout."""
+    session.clear()
     flash('Erfolgreich ausgeloggt.', 'info')
     ingress = request.headers.get('X-Ingress-Path', '')
     return redirect(f"{ingress}{url_for('main.index')}")
