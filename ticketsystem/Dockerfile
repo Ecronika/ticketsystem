@@ -22,6 +22,7 @@ RUN pip3 install --no-cache-dir --upgrade pip setuptools --break-system-packages
 COPY app.py .
 COPY extensions.py .
 COPY models.py .
+COPY enums.py .
 COPY routes/ routes/
 COPY services/ ./services/
 
