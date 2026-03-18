@@ -38,26 +38,14 @@ secret.key
 instance/
 
 # Stable App Data
-azubi_werkzeug/reports/*
-!azubi_werkzeug/reports/.gitkeep
-azubi_werkzeug/signatures/*
-!azubi_werkzeug/signatures/.gitkeep
-azubi_werkzeug/backups/*
-!azubi_werkzeug/backups/.gitkeep
-azubi_werkzeug/secret.key
+ticketsystem/reports/*
+!ticketsystem/reports/.gitkeep
+ticketsystem/signatures/*
+!ticketsystem/signatures/.gitkeep
+ticketsystem/backups/*
+!ticketsystem/backups/.gitkeep
+ticketsystem/secret.key
 
-# Azubi Werkzeug Beta (Active)
-# Ignore generated content but keep directory structure
-azubi_werkzeug_beta/reports/*
-!azubi_werkzeug_beta/reports/.gitkeep
-
-azubi_werkzeug_beta/signatures/*
-!azubi_werkzeug_beta/signatures/.gitkeep
-
-azubi_werkzeug_beta/backups/*
-!azubi_werkzeug_beta/backups/.gitkeep
-
-azubi_werkzeug_beta/secret.key
 
 # Node / Tools
 node_modules/
