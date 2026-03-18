@@ -4,12 +4,12 @@ import os
 import sys
 
 # Add package folder to path before importing local modules
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import pytest  # noqa: E402
 
 from app import app as flask_app  # noqa: E402
-from extensions import db  # noqa: E402
+from extensions import db as _db  # noqa: E402
 from models import Ticket  # noqa: E402
 
 
@@ -24,20 +24,26 @@ def test_app():
     })
 
     with flask_app.app_context():
-        db.create_all()
+        _db.create_all()
 
         # Seed basic data
-        ticket = db.session.get(Ticket, 1) or Ticket.query.first()
+        ticket = _db.session.get(Ticket, 1) or Ticket.query.first()
         if not ticket:
             ticket = Ticket(title="Test Ticket", description="Initial test ticket")
-            db.session.add(ticket)
+            _db.session.add(ticket)
 
-        db.session.commit()
+        _db.session.commit()
 
         yield flask_app
 
-        db.session.remove()
-        db.drop_all()
+        _db.session.remove()
+        _db.drop_all()
+
+
+@pytest.fixture
+def db(test_app):
+    """Return the database object."""
+    return _db
 
 
 @pytest.fixture

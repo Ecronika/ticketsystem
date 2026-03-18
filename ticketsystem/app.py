@@ -12,7 +12,7 @@ import secrets
 import sqlite3
 import sys
 import time
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from logging.handlers import QueueHandler, QueueListener, RotatingFileHandler
 from zoneinfo import ZoneInfo
 
@@ -383,6 +383,27 @@ def local_time_filter(dt):
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(ZoneInfo('Europe/Berlin'))
+
+
+@app.template_filter('time_ago')
+def time_ago_filter(dt):
+    """Return a pretty relative time string."""
+    if not dt:
+        return ""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    
+    now = datetime.now(timezone.utc)
+    diff = now - dt
+    
+    seconds = diff.total_seconds()
+    if seconds < 60:
+        return "jetzt"
+    if seconds < 3600:
+        return f"vor {int(seconds // 60)} Min."
+    if seconds < 86400:
+        return f"vor {int(seconds // 3600)} Std."
+    return f"vor {int(seconds // 86400)} Tg."
 
 
 # --- Global Error Handlers ---

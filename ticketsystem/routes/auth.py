@@ -9,7 +9,7 @@ from urllib.parse import urljoin, urlparse
 from flask import flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash
 
-from extensions import limiter
+from extensions import db, limiter
 from models import SystemSettings
 
 
