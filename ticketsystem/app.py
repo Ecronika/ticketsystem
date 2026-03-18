@@ -375,6 +375,12 @@ def remove_session(_exception=None):
 # --- Jinja Filters ---
 
 
+@app.context_processor
+def inject_ingress_path():
+    """Inject the Home Assistant Ingress path prefix into templates."""
+    return {'ingress_path': request.headers.get('X-Ingress-Path', '')}
+
+
 @app.template_filter('local_time')
 def local_time_filter(dt):
     """Localize UTC datetime to Europe/Berlin."""

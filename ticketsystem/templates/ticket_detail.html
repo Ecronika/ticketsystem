@@ -129,7 +129,8 @@
 
 <script>
 function updateTicketStatus(ticketId, newStatus) {
-    const ingress = document.querySelector('header').getAttribute('data-ingress') || '';
+    const navbar = document.querySelector('.navbar');
+    const ingress = navbar ? navbar.getAttribute('data-ingress') : '';
     fetch(`${ingress}/api/ticket/${ticketId}/status`, {
         method: 'POST',
         headers: {
