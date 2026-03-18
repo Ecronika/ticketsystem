@@ -35,8 +35,9 @@ COPY config.yaml .
 COPY rootfs /
 
 # Ausführungsrechte für Service-Skripte setzen
-RUN chmod a+x /etc/services.d/azubi-werkzeug/run && \
-    chmod a+x /etc/services.d/azubi-werkzeug/finish
+RUN chmod a+x /etc/services.d/ticketsystem/run && \
+    chmod a+x /etc/services.d/ticketsystem/finish
+
 
 # Datenbank-Pfad setzen
 ENV DB_PATH=/data/werkzeug.db
