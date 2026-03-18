@@ -1,0 +1,111 @@
+from flask import flash, redirect, render_template, request, session, url_for, jsonify
+from extensions import limiter, db
+from services.ticket_service import TicketService
+from enums import TicketStatus, TicketPriority
+from .auth import worker_required
+from models import Worker
+
+def _dashboard_view():
+    """Handle the main dashboard view."""
+    worker_id = session.get('worker_id')
+    tickets = TicketService.get_dashboard_tickets(worker_id)
+    return render_template('index.html', 
+                          focus_tickets=tickets['focus'], 
+                          self_tickets=tickets['self'])
+
+def _new_ticket_view():
+    """Handle new ticket creation (unauthenticated)."""
+    if request.method == 'POST':
+        title = request.form.get('title')
+        description = request.form.get('description')
+        priority_val = request.form.get('priority', 2)
+        author_name = request.form.get('author_name') or "Anonym"
+
+        if not title:
+            flash('Bitte einen Titel angeben.', 'warning')
+            return render_template('ticket_new.html')
+
+        try:
+            priority = TicketPriority(int(priority_val))
+            TicketService.create_ticket(
+                title=title,
+                description=description,
+                priority=priority,
+                author_name=author_name
+            )
+            flash('Ticket erfolgreich erstellt!', 'success')
+            ingress = request.headers.get('X-Ingress-Path', '')
+            return redirect(f"{ingress}{url_for('main.index')}")
+        except Exception:
+            flash('Fehler beim Erstellen des Tickets.', 'error')
+
+    return render_template('ticket_new.html')
+
+@worker_required
+def _ticket_detail_view(ticket_id):
+    """Handle ticket detail view."""
+    from models import Ticket
+    ticket = db.session.get(Ticket, ticket_id)
+    if not ticket:
+        flash('Ticket nicht gefunden.', 'error')
+        ingress = request.headers.get('X-Ingress-Path', '')
+        return redirect(f"{ingress}{url_for('main.index')}")
+    
+    workers = Worker.query.filter_by(is_active=True).all()
+    return render_template('ticket_detail.html', ticket=ticket, workers=workers)
+
+@worker_required
+def _add_comment_view(ticket_id):
+    """Handle adding a comment."""
+    text = request.form.get('text')
+    author_name = session.get('worker_name', 'System')
+    
+    if text:
+        TicketService.add_comment(ticket_id, author_name, text)
+        flash('Kommentar hinzugefügt.', 'success')
+    
+    ingress = request.headers.get('X-Ingress-Path', '')
+    return redirect(f"{ingress}{url_for('main.ticket_detail', ticket_id=ticket_id)}")
+
+@worker_required
+def _update_status_api(ticket_id):
+    """Handle AJAX status update."""
+    data = request.get_json()
+    new_status_val = data.get('status')
+    author_name = session.get('worker_name', 'System')
+    
+    if not new_status_val:
+        return jsonify({'success': False, 'error': 'Kein Status angegeben'}), 400
+    
+    try:
+        TicketService.update_status(ticket_id, new_status_val, author_name)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+def register_routes(bp):
+    """Register ticket routes."""
+    # Public Dashboard (Anyone can see? Or only workers? User said "Dashboard fills Self-tickets", implying login)
+    # Actually, the user's plan said "Auth refactoring... session['worker_id']".
+    # I'll make the dashboard protected for now.
+    dashboard_view = worker_required(_dashboard_view)
+    dashboard_view.__name__ = 'index'
+    bp.add_url_rule('/', view_func=dashboard_view)
+
+    # Public Ticket Creation (limiter 10/min)
+    new_ticket_view = limiter.limit("10 per minute")(_new_ticket_view)
+    new_ticket_view.__name__ = 'ticket_new'
+    bp.add_url_rule('/ticket/new', view_func=new_ticket_view, methods=['GET', 'POST'])
+
+    # Protected Detail & Actions
+    ticket_detail_view = _ticket_detail_view
+    ticket_detail_view.__name__ = 'ticket_detail'
+    bp.add_url_rule('/ticket/<int:ticket_id>', view_func=ticket_detail_view)
+
+    add_comment_view = _add_comment_view
+    add_comment_view.__name__ = 'add_comment'
+    bp.add_url_rule('/ticket/<int:ticket_id>/comment', view_func=add_comment_view, methods=['POST'])
+
+    update_status_api = _update_status_api
+    update_status_api.__name__ = 'update_status'
+    bp.add_url_rule('/api/ticket/<int:ticket_id>/status', view_func=update_status_api, methods=['POST'])
