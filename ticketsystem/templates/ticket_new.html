@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Neues Ticket{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-4">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-header bg-white border-0 pt-4 px-4">
+                <div class="d-flex align-items-center mb-2">
+                    <a href="{{ ingress_path }}{{ url_for('main.index') }}" class="btn btn-light btn-sm rounded-circle me-3">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    <h2 class="h4 fw-bold mb-0">Klärungsfall melden</h2>
+                </div>
+                <p class="text-muted small">Erstellen Sie ein neues Ticket für die Werkstatt oder das Büro.</p>
+            </div>
+            <div class="card-body px-4 pb-4">
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    
+                    <div class="mb-3">
+                        <label for="author_name" class="form-label fw-bold">Dein Name</label>
+                        <input type="text" class="form-control form-control-lg bg-light" id="author_name" name="author_name" 
+                               value="{{ session.get('worker_name', '') }}" 
+                               {% if session.get('worker_id') %}readonly{% endif %} 
+                               placeholder="z.B. Schmidt / Azubi Max" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="title" class="form-label fw-bold">Titel / Betreff</label>
+                        <input type="text" class="form-control form-control-lg" id="title" name="title" 
+                               placeholder="Kurze Zusammenfassung" required autofocus>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="description" class="form-label fw-bold">Beschreibung</label>
+                        <textarea class="form-control" id="description" name="description" rows="5" 
+                                  placeholder="Was ist das Problem? (Diktierfunktion der Tastatur nutzbar)" required></textarea>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Dringlichkeit</label>
+                        <div class="d-flex gap-2">
+                            <input type="radio" class="btn-check" name="priority" id="prio3" value="3" checked>
+                            <label class="btn btn-outline-success flex-fill" for="prio3">Normal</label>
+
+                            <input type="radio" class="btn-check" name="priority" id="prio2" value="2">
+                            <label class="btn btn-outline-primary flex-fill" for="prio2">Wichtig</label>
+
+                            <input type="radio" class="btn-check" name="priority" id="prio1" value="1">
+                            <label class="btn btn-outline-danger flex-fill" for="prio1">Eilig!</label>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg rounded-pill p-3 fw-bold">
+                            <i class="bi bi-send-fill me-2"></i>Ticket absenden
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
