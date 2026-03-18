@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}System Setup{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-8 col-lg-5">
+        <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+            <div class="bg-primary p-4 text-white text-center">
+                <i class="bi bi-rocket-takeoff-fill display-4 mb-2"></i>
+                <h2 class="h3 fw-bold mb-0">Willkommen!</h2>
+                <p class="mb-0 opacity-75 small">Richten wir Ihr Ticketsystem ein.</p>
+            </div>
+            <div class="card-body p-4 p-md-5">
+                <p class="text-secondary small mb-4">
+                    Bitte legen Sie das Profil für den ersten Administrator fest. 
+                    Dieses Profil wird den temporären Setup-Admin ersetzen.
+                </p>
+
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="mb-3">
+                        <label for="name" class="form-label fw-bold small">Administrator Name</label>
+                        <input type="text" class="form-control form-control-lg bg-light" id="name" name="name" 
+                               placeholder="z.B. Herr Meyer" required autofocus>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="pin" class="form-label fw-bold small">Persönlicher PIN (4-stellig)</label>
+                        <input type="password" class="form-control form-control-lg bg-light text-center" id="pin" name="pin" 
+                               inputmode="numeric" pattern="[0-9]{4}" placeholder="****" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="pin_confirm" class="form-label fw-bold small">PIN bestätigen</label>
+                        <input type="password" class="form-control form-control-lg bg-light text-center" id="pin_confirm" name="pin_confirm" 
+                               inputmode="numeric" pattern="[0-9]{4}" placeholder="****" required>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg rounded-pill p-3 fw-bold">
+                            Konfiguration abschließen
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="text-center mt-4">
+            <p class="text-meta x-small">Information: Nach diesem Schritt wird dieser Sonder-Zugang dauerhaft deaktiviert.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

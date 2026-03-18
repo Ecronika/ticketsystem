@@ -10,7 +10,7 @@ import pytest  # noqa: E402
 
 from app import app as flask_app  # noqa: E402
 from extensions import db as _db  # noqa: E402
-from models import Ticket  # noqa: E402
+from models import Ticket, Worker, SystemSettings # noqa: E402
 
 
 @pytest.fixture
@@ -31,6 +31,12 @@ def test_app():
         if not ticket:
             ticket = Ticket(title="Test Ticket", description="Initial test ticket")
             _db.session.add(ticket)
+
+        # Seed onboarding for tests
+        if not SystemSettings.query.filter_by(key="onboarding_complete").first():
+            _db.session.add(SystemSettings(key="onboarding_complete", value="true"))
+        if not SystemSettings.query.filter_by(key="ticket_shortcuts").first():
+            _db.session.add(SystemSettings(key="ticket_shortcuts", value="Prüfen,Bestellt,Erledigt,Rückruf"))
 
         _db.session.commit()
 

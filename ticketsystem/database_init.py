@@ -5,29 +5,37 @@ Handles creation of tables, migrations, and seeding of default data.
 Uses Dependency Injection to decouple from the global Flask app object.
 """
 import sys
-import sqlalchemy as sa
 from werkzeug.security import generate_password_hash
-
+from models import SystemSettings, Worker
 from extensions import db
 
+def _seed_default_settings(app, logger):
+    """Seed initial system settings and bootstrap worker."""
+    # Default admin_pin_hash (superseded by Worker pins)
+    if not SystemSettings.query.filter_by(key="admin_pin_hash").first():
+        db.session.add(SystemSettings(key="admin_pin_hash", value=generate_password_hash("0000")))
 
-def _seed_default_settings(_app, logger):
-    """Seed default system settings into the database."""
-    from models import SystemSettings
+    # SME Shortcuts
+    if not SystemSettings.query.filter_by(key="ticket_shortcuts").first():
+        db.session.add(SystemSettings(key="ticket_shortcuts", value="Prüfen,Bestellt,Erledigt,Rückruf"))
 
-    defaults = {
-        'backup_retention_days': '30',
-        'backup_interval': 'date',  # daily, weekly, never, date
-        'backup_time': '03:00',
-        'manufacturer_presets': 'Wera,Wiha,Knipex,Hazet,Stahlwille,Gedore,NWS',
-        'admin_pin_hash': generate_password_hash("0000"),
-    }
+    # Initial Onboarding Flag
+    if not SystemSettings.query.filter_by(key="onboarding_complete").first():
+        db.session.add(SystemSettings(key="onboarding_complete", value="false"))
 
-    for key, value in defaults.items():
-        if SystemSettings.get_setting(key) is None:
-            SystemSettings.set_setting(key, value)
-            logger.info("Seeded default setting: %s", key)
+    # Bootstrap Worker (if none exists)
+    if not Worker.query.first():
+        bootstrap_admin = Worker(
+            name="Admin (Bootstrap)",
+            pin_hash=generate_password_hash("0000"),
+            is_admin=True,
+            is_active=True
+        )
+        db.session.add(bootstrap_admin)
+        if logger:
+            logger.info("Database: Seeded bootstrap worker 'Admin (Bootstrap)' with PIN '0000'")
 
+    db.session.commit()
 
 def init_database(app, *, logger=None):
     """Generic database initialization."""
@@ -40,8 +48,7 @@ def init_database(app, *, logger=None):
 
     with app.app_context():
         logger.info("Database: Initialization started...")
-        db.engine.dispose()
-
+        
         try:
             # Create all tables defined in models.py
             db.create_all()
@@ -52,4 +59,4 @@ def init_database(app, *, logger=None):
             logger.info("Database: Initialization finished successfully.")
         except Exception as e:
             logger.error("Database: Initialization failed: %s", e)
-
+            db.session.rollback()

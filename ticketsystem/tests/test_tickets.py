@@ -64,7 +64,12 @@ def test_worker_login_and_session(client, db):
     db.session.add(worker)
     db.session.commit()
     
-    # Login
+    # Login - first check for redirect
+    resp = client.post('/login', data={'worker_id': worker.id, 'pin': '1234'})
+    assert resp.status_code == 302
+    assert "/" in resp.location # Should redirect to dashboard
+
+    # Now follow the redirect to check the final page content
     response = client.post('/login', data={'worker_id': worker.id, 'pin': '1234'}, follow_redirects=True)
     assert response.status_code == 200
     assert b'Willkommen zur\xc3\xbcck, Hans' in response.data
