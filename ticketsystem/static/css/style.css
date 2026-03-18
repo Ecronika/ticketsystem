@@ -138,17 +138,6 @@ canvas {
     --h-logo-preview: 150px;
     --h-qr-selector: 200px;
 
-    /* History Session Type Tokens (Visual Calm / Monochromatic by default) */
-    --hs-check-bg: #f2f2f2;
-    --hs-check-text: #495057;   /* #495057 auf #f2f2f2 = 5.9:1 ✓ AA */
-    --hs-issue-bg: #f2f2f2;
-    --hs-issue-text: #495057;
-    --hs-return-bg: #f2f2f2;
-    --hs-return-text: #495057;
-    --hs-exchange-bg: #e7f1ff; /* Attention: Primary Blue Soft */
-    --hs-exchange-text: #0d6efd;
-    --hs-payable-bg: #fff3cd; /* Attention: Warning Yellow Soft */
-    --hs-payable-text: #997404;
 }
 
 .z-toast {
@@ -169,17 +158,6 @@ canvas {
     --btn-soft-border: rgb(135 206 235 / 40%);
     --btn-warning-soft-bg: rgb(241 196 15 / 15%);
 
-    /* History Dark Mode Corrected Contrasts */
-    --hs-check-bg: #2d3238;
-    --hs-check-text: #adb5bd;
-    --hs-issue-bg: #2d3238;
-    --hs-issue-text: #adb5bd;
-    --hs-return-bg: #2d3238;
-    --hs-return-text: #adb5bd;
-    --hs-exchange-bg: #03285e;
-    --hs-exchange-text: #9ec5fe;
-    --hs-payable-bg: #332701;
-    --hs-payable-text: #ffda6a;
 
     /* Semantic Colors (Adjusted for Dark Mode contrast) */
     --color-primary: #3b82f6;
