@@ -46,15 +46,57 @@ class SystemSettings(db.Model):
             raise
 
 
+
+class Worker(db.Model):
+    """
+    Worker model representing staff members in the enterprise.
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False, unique=True)
+    pin_hash = db.Column(db.String(128), nullable=True) # Individual worker PIN
+    is_active = db.Column(db.Boolean, default=True)
+    is_admin = db.Column(db.Boolean, default=False)
+
+    def __repr__(self):
+        return f'<Worker {self.name}>'
+
+
 class Ticket(db.Model):
     """
-    Placeholder model for the new Ticket System.
+    Main Ticket model for tracking issues/tasks.
     """
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text, nullable=True)
+    
+    # Use String for Enum persistence for simplicity in SQLite 
+    # but handle via enums.py in the service layer.
+    status = db.Column(db.String(20), default='offen', nullable=False)
+    priority = db.Column(db.Integer, default=2, nullable=False) # 1=High, 2=Medium, 3=Low
+    
+    assigned_to_id = db.Column(db.Integer, db.ForeignKey('worker.id'), nullable=True)
+    assigned_to = db.relationship('Worker', backref='tickets')
+    
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), 
+                           onupdate=lambda: datetime.now(timezone.utc))
+
+    def __repr__(self):
+        return f'<Ticket {self.title} ({self.status})>'
+
+
+class Comment(db.Model):
+    """
+    Comment model for documenting the ticket history.
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    ticket_id = db.Column(db.Integer, db.ForeignKey('ticket.id'), nullable=False)
+    ticket = db.relationship('Ticket', backref=db.backref('comments', cascade='all, delete-orphan'))
+    
+    author = db.Column(db.String(50), nullable=False) # String for unauthenticated flexibility
+    text = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self):
-        return f'<Ticket {self.title}>'
+        return f'<Comment by {self.author} on Ticket {self.ticket_id}>'
 
