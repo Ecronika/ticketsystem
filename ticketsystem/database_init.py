@@ -47,7 +47,10 @@ def _ensure_schema_sync(app, logger):
     # Missing columns in 'ticket' table
     migrations = [
         ("ticket", "status", "VARCHAR(20) DEFAULT 'offen'"),
-        ("ticket", "priority", "INTEGER DEFAULT 2")
+        ("ticket", "priority", "INTEGER DEFAULT 2"),
+        ("ticket", "assigned_to_id", "INTEGER"),
+        ("ticket", "created_at", "DATETIME"),
+        ("ticket", "updated_at", "DATETIME")
     ]
     
     for table, column, definition in migrations:
