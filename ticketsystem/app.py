@@ -376,9 +376,13 @@ def remove_session(_exception=None):
 
 
 @app.context_processor
-def inject_ingress_path():
-    """Inject the Home Assistant Ingress path prefix into templates."""
-    return {'ingress_path': request.headers.get('X-Ingress-Path', '')}
+def inject_globals():
+    """Inject global variables into templates."""
+    from models import SystemSettings
+    return {
+        'ingress_path': request.headers.get('X-Ingress-Path', ''),
+        'system_settings': SystemSettings
+    }
 
 
 @app.template_filter('local_time')
