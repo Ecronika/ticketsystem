@@ -47,6 +47,10 @@
                                     {% endif %}
                                 </td>
                                 <td class="text-end px-4">
+                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 me-1 edit-worker-btn" 
+                                            data-id="{{ worker.id }}" data-name="{{ worker.name }}" data-admin="{{ 'true' if worker.is_admin else 'false' }}">
+                                        Bearbeiten
+                                    </button>
                                     <form action="{{ ingress_path }}{{ url_for('admin.workers') }}" method="POST" class="d-inline">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <input type="hidden" name="action" value="toggle_status">
@@ -64,6 +68,60 @@
             </div>
         </div>
     </div>
+
+    <!-- Edit Worker Modal -->
+    <div class="modal fade" id="editWorkerModal" tabindex="-1" aria-labelledby="editWorkerModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 rounded-4 shadow">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold" id="editWorkerModalLabel">Mitarbeiter bearbeiten</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="{{ ingress_path }}{{ url_for('admin.workers') }}" method="POST">
+                    <div class="modal-body p-4">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="update">
+                        <input type="hidden" name="worker_id" id="edit_worker_id">
+                        
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Anzeigename</label>
+                            <input type="text" name="name" id="edit_name" class="form-control" required>
+                        </div>
+                        
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="is_admin" id="edit_is_admin">
+                            <label class="form-check-label small fw-bold" for="edit_is_admin">Administrator-Rechte</label>
+                        </div>
+                        <p class="text-muted x-small mb-0">Hinweis: Die PIN kann hier nicht geändert werden.</p>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="submit" class="btn btn-primary rounded-pill px-4">Speichern</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const editModal = new bootstrap.Modal(document.getElementById('editWorkerModal'));
+        
+        document.querySelectorAll('.edit-worker-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const id = this.getAttribute('data-id');
+                const name = this.getAttribute('data-name');
+                const isAdmin = this.getAttribute('data-admin') === 'true';
+                
+                document.getElementById('edit_worker_id').value = id;
+                document.getElementById('edit_name').value = name;
+                document.getElementById('edit_is_admin').checked = isAdmin;
+                
+                editModal.show();
+            });
+        });
+    });
+    </script>
 
     <!-- Add Worker Form (Bento Style) -->
     <div class="col-lg-4">

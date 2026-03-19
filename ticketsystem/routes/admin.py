@@ -29,6 +29,13 @@ def workers():
                 worker = WorkerService.toggle_status(worker_id)
                 status_str = "aktiviert" if worker.is_active else "deaktiviert"
                 flash(f"Mitarbeiter '{worker.name}' wurde {status_str}.", "success")
+
+            elif action == 'update':
+                worker_id = request.form.get('worker_id')
+                name = request.form.get('name')
+                is_admin = request.form.get('is_admin') == 'on'
+                WorkerService.update_worker(worker_id, name, is_admin)
+                flash(f"Mitarbeiter '{name}' wurde aktualisiert.", "success")
                 
         except ValueError as e:
             flash(str(e), "danger")

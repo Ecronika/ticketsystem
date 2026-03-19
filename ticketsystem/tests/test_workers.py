@@ -33,3 +33,18 @@ def test_prevent_last_admin_deactivation(test_app):
     # Try to deactivate the only active admin
     with pytest.raises(ValueError, match="Der letzte aktive Administrator kann nicht deaktiviert werden"):
         WorkerService.toggle_status(admin.id)
+
+def test_update_worker(test_app):
+    worker = WorkerService.create_worker("UpdateName", "9999", is_admin=False)
+    
+    # Update name
+    WorkerService.update_worker(worker.id, "NewName", is_admin=False)
+    assert worker.name == "NewName"
+    
+    # Update admin status
+    WorkerService.update_worker(worker.id, "NewName", is_admin=True)
+    assert worker.is_admin is True
+    
+    # Prevent degrading last admin
+    with pytest.raises(ValueError, match="Der letzte Administrator kann nicht .* degradiert werden"):
+        WorkerService.update_worker(worker.id, "NewName", is_admin=False)

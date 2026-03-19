@@ -52,6 +52,32 @@ class WorkerService:
         return worker
 
     @staticmethod
+    def update_worker(worker_id, name, is_admin):
+        """Update worker's name and admin status."""
+        worker = db.session.get(Worker, worker_id)
+        if not worker:
+            raise ValueError("Mitarbeiter nicht gefunden.")
+        
+        if not name:
+            raise ValueError("Name ist erforderlich.")
+        
+        # Check for name collision if name changed
+        if worker.name != name:
+            if Worker.query.filter_by(name=name).first():
+                raise ValueError(f"Mitarbeiter '{name}' existiert bereits.")
+        
+        # Prevent removing admin from the last admin
+        if worker.is_admin and not is_admin:
+            active_admins = Worker.query.filter_by(is_admin=True, is_active=True).count()
+            if active_admins <= 1:
+                raise ValueError("Der letzte Administrator kann nicht zum normalen Mitarbeiter degradiert werden.")
+
+        worker.name = name
+        worker.is_admin = is_admin
+        db.session.commit()
+        return worker
+
+    @staticmethod
     def update_pin(worker_id, new_pin):
         """Update a worker's PIN."""
         worker = db.session.get(Worker, worker_id)
