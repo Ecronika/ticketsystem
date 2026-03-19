@@ -290,6 +290,6 @@ def _recover_pin_view():
 def register_routes(bp):
     """Register auth routes."""
     bp.add_url_rule('/login', 'login', view_func=_login_view, methods=['GET', 'POST'])
-    bp.add_url_rule('/logout', 'logout', view_func=_logout_view)
+    bp.add_url_rule('/logout', 'logout', view_func=_logout_view, methods=['GET', 'POST'])
     bp.add_url_rule('/setup', 'setup', view_func=_setup_view, methods=['GET', 'POST'])
     bp.add_url_rule('/recover_pin', 'recover_pin', view_func=_recover_pin_view, methods=['GET', 'POST'])

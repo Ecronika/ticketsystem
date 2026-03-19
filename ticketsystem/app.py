@@ -391,6 +391,22 @@ def local_time_filter(dt):
     return dt.astimezone(ZoneInfo('Europe/Berlin'))
 
 
+@app.template_filter('datetime')
+def datetime_filter(dt, format='%d.%m.%Y %H:%M'):
+    """Format a datetime object."""
+    if not dt:
+        return ""
+    return dt.strftime(format)
+
+
+@app.template_filter('time')
+def time_filter(dt, format='%H:%M'):
+    """Format a time from a datetime object."""
+    if not dt:
+        return ""
+    return dt.strftime(format)
+
+
 @app.template_filter('time_ago')
 def time_ago_filter(dt):
     """Return a pretty relative time string."""
