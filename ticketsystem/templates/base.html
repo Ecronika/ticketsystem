@@ -5,6 +5,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <!-- Preconnect reduces DNS/TLS handshake latency for CDN assets (~50–150ms saved) -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <title>{% block title %}Dashboard{% endblock %} - TicketSystem</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
@@ -150,24 +152,53 @@
   <script>
     // === GLOBAL UI ALERT UTILITY (replaces all native alert() calls) ===
     // Available on all pages. Renders non-blocking, aria-live-compatible toasts.
+    // Patch 1: XSS-Fix + Container-z-index in showUiAlert
     window.showUiAlert = function (msg, type) {
-      type = type || 'danger';
+      // SECURITY: type allow-list prevents class injection
+      const safeTypes = ['danger', 'warning', 'success', 'info', 'primary', 'secondary'];
+      const safeType = safeTypes.includes(type) ? type : 'danger';
+
       let container = document.querySelector('.position-fixed.top-0.end-0.p-3[aria-live]');
       if (!container) {
         container = document.createElement('div');
-        container.className = 'position-fixed top-0 end-0 p-3';
-        container.style.zIndex = '1055';
+        // Use z-toast class (--z-toast: 1090) so alerts appear above modals
+        container.className = 'position-fixed top-0 end-0 p-3 z-toast';
         container.setAttribute('aria-live', 'assertive');
         container.setAttribute('aria-atomic', 'true');
         document.body.appendChild(container);
       }
+
       const id = 'ui-alert-' + Date.now();
-      const alertHtml = `
-        <div id="${id}" class="alert alert-${type} alert-dismissible fade show shadow" role="alert" aria-atomic="true">
-          <i class="bi bi-exclamation-triangle-fill me-2" aria-hidden="true"></i>${msg}
-          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Schließen"></button>
-        </div>`;
-      container.insertAdjacentHTML('beforeend', alertHtml);
+
+      // SECURITY FIX: Build DOM nodes instead of innerHTML to prevent XSS
+      const alertEl = document.createElement('div');
+      alertEl.id = id;
+      alertEl.className = `alert alert-${safeType} alert-dismissible fade show shadow`;
+      alertEl.setAttribute('role', 'alert');
+      alertEl.setAttribute('aria-atomic', 'true');
+
+      const icon = document.createElement('i');
+      icon.className = 'bi bi-exclamation-triangle-fill me-2';
+      icon.setAttribute('aria-hidden', 'true');
+
+      // textContent is XSS-safe
+      const msgNode = document.createTextNode(msg);
+
+      const closeBtn = document.createElement('button');
+      closeBtn.type = 'button';
+      closeBtn.className = 'btn-close';
+      closeBtn.setAttribute('data-bs-dismiss', 'alert');
+      closeBtn.setAttribute('aria-label', 'Schließen');
+
+      alertEl.appendChild(icon);
+      alertEl.appendChild(msgNode);
+      alertEl.appendChild(closeBtn);
+      container.appendChild(alertEl);
+
+      // Also update aria-live announcer for screenreaders
+      const announcer = document.getElementById('ajaxStatusAnnouncer');
+      if (announcer) announcer.textContent = msg;
+
       // Auto-dismiss after 6 seconds
       setTimeout(() => {
         const el = document.getElementById(id);
@@ -283,6 +314,10 @@
           }
         }, 5000);
       });
+
+      // Patch 4: Theme-Icon-Initialisierung bei DOMContentLoaded
+      // Sync theme icon to match the already-applied theme (FOUC-safe)
+      window.applyTheme(localStorage.getItem('ui_theme') || 'auto');
 
       const toggleBtn = document.getElementById('themeToggle');
       const root = document.documentElement;

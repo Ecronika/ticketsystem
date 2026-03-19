@@ -116,8 +116,9 @@
                 document.getElementById('edit_worker_id').value = id;
                 document.getElementById('edit_name').value = name;
                 document.getElementById('edit_is_admin').checked = isAdmin;
-                
-                editModal.show();
+
+                // Pass relatedTarget so Bootstrap returns focus to trigger button on close
+                editModal.show(this);
             });
         });
     });
@@ -139,8 +140,9 @@
                     
                     <div class="mb-3">
                         <label class="form-label small">PIN (4-stellig)</label>
-                        <input type="password" name="pin" class="form-control border-0 bg-white-50" placeholder="****" pattern="\d{4}" maxlength="4" required>
-                        <div class="form-text text-white-50 x-small">Nur Ziffern erlaubt.</div>
+                        <input type="password" name="pin" class="form-control border-0 bg-white-50" placeholder="****" 
+                               pattern="[0-9]+" minlength="4" maxlength="16" inputmode="numeric" required>
+                        <div class="form-text text-white-50 x-small">Mind. 4 Ziffern erlaubt.</div>
                     </div>
                     
                     <div class="form-check form-switch mb-4">

@@ -87,7 +87,9 @@
                 
                 <div class="mb-4">
                     <label class="form-label small text-muted">Status</label>
-                    <select id="statusSelect" class="form-select border-0 bg-light fw-bold" onchange="updateTicketStatus({{ ticket.id }}, this.value)">
+                    <select id="statusSelect" class="form-select border-0 bg-light fw-bold" 
+                            data-original="{{ ticket.status }}"
+                            onchange="updateTicketStatus({{ ticket.id }}, this.value)">
                         <option value="offen" {{ 'selected' if ticket.status == 'offen' }}>{{ 'offen'|status_label|upper }}</option>
                         <option value="in_bearbeitung" {{ 'selected' if ticket.status == 'in_bearbeitung' }}>{{ 'in_bearbeitung'|status_label|upper }}</option>
                         <option value="wartet" {{ 'selected' if ticket.status == 'wartet' }}>{{ 'wartet'|status_label|upper }}</option>
@@ -97,7 +99,9 @@
 
                 <div class="mb-4">
                     <label class="form-label small text-muted">Zuständigkeit</label>
-                    <select id="assignSelect" class="form-select border-0 bg-light fw-bold" onchange="assignTicket({{ ticket.id }}, this.value)">
+                    <select id="assignSelect" class="form-select border-0 bg-light fw-bold" 
+                            data-original="{{ ticket.assigned_to_id or '' }}"
+                            onchange="assignTicket({{ ticket.id }}, this.value)">
                         <option value="" {{ 'selected' if not ticket.assigned_to_id }}>NICHT ZUGEWIESEN</option>
                         {% for worker in workers %}
                         <option value="{{ worker.id }}" {{ 'selected' if ticket.assigned_to_id == worker.id }}>
@@ -125,8 +129,9 @@
 <script>
 async function updateTicketStatus(ticketId, newStatus) {
     const select = document.getElementById('statusSelect');
-    const originalValue = select.getAttribute('data-original') || select.value;
-    
+    // data-original is set in HTML from server-rendered ticket.status
+    const originalValue = select.dataset.original;
+
     // Safety confirm for closing
     if (newStatus === 'erledigt') {
         const confirmed = await window.showConfirm('Ticket abschließen', 'Möchten Sie dieses Ticket wirklich als erledigt markieren?');
@@ -137,6 +142,8 @@ async function updateTicketStatus(ticketId, newStatus) {
     }
 
     select.disabled = true;
+    select.classList.add('opacity-50'); // visual loading hint
+    
     const navbar = document.querySelector('.navbar');
     const ingress = navbar ? navbar.getAttribute('data-ingress') : '';
     
@@ -151,10 +158,12 @@ async function updateTicketStatus(ticketId, newStatus) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            select.dataset.original = newStatus; // update after confirmed server change
             location.reload();
         } else {
             window.showUiAlert('Fehler beim Aktualisieren des Status: ' + data.error);
             select.disabled = false;
+            select.classList.remove('opacity-50');
             select.value = originalValue;
         }
     })
@@ -162,14 +171,17 @@ async function updateTicketStatus(ticketId, newStatus) {
         console.error('Error:', error);
         window.showUiAlert('Netzwerkfehler beim Aktualisieren des Status.');
         select.disabled = false;
+        select.classList.remove('opacity-50');
         select.value = originalValue;
     });
 }
 
 function assignTicket(ticketId, workerId) {
     const select = document.getElementById('assignSelect');
+    const originalValue = select.dataset.original;
     select.disabled = true;
-    
+    select.classList.add('opacity-50');
+
     const navbar = document.querySelector('.navbar');
     const ingress = navbar ? navbar.getAttribute('data-ingress') : '';
     fetch(`${ingress}/api/ticket/${ticketId}/assign`, {
@@ -183,16 +195,21 @@ function assignTicket(ticketId, workerId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            select.dataset.original = workerId || '';
             location.reload();
         } else {
             window.showUiAlert('Fehler beim Zuweisen: ' + data.error);
             select.disabled = false;
+            select.classList.remove('opacity-50');
+            select.value = originalValue;
         }
     })
     .catch(error => {
         console.error('Error:', error);
         window.showUiAlert('Netzwerkfehler bei der Zuweisung.');
         select.disabled = false;
+        select.classList.remove('opacity-50');
+        select.value = originalValue;
     });
 }
 </script>

@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-03-19
+
+### Fixed
+- **Security**: Hardened `showUiAlert` against XSS by switching to `textContent` DOM manipulation.
+- **Security**: Restricted `/logout` route to `POST` only (CSRF protection).
+- **Ingress**: Fixed broken pagination links by prepending `ingress_path` in `index.html` and `archive.html`.
+- **UI/UX**: Fixed select element revert logic in `ticket_detail.html` using `data-original` state tracking.
+- **UI/UX**: Added visual loading feedback (opacity) during ticket status and assignment updates.
+- **UI/UX**: Fixed theme icon FOUC (Flash of Unstyled Content) during page load.
+- **UI/UX**: Refined PIN pattern to allow flexible lengths (4-16 digits) and added mobile `inputmode="numeric"`.
+- **A11y**: Restored focus to triggering button after closing the worker edit modal.
+- **A11y**: Integrated `#ajaxStatusAnnouncer` into global alert utility for screen reader support.
+- **Performance**: Added DNS `preconnect` hints for CDN-hosted assets.
+
 ## [1.1.0] - 2026-03-19
 
 ### Secured
