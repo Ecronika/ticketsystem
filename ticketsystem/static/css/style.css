@@ -8,6 +8,7 @@ body {
     font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
     background-color: var(--bg-body);
     color: var(--text-main);
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Karten sollen leicht schweben */
@@ -173,10 +174,13 @@ canvas {
     --border-warning-subtle: rgb(241 196 15 / 80%);
     --bg-danger-subtle: rgb(231 76 60 / 20%);
     --border-danger-subtle: rgb(231 76 60 / 80%);
-    --bg-info-subtle: rgb(108 207 246 / 15%); /* Adjusted to match new color-info */
+    --bg-info-subtle: rgb(108 207 246 / 15%);
     --border-info-subtle: rgb(108 207 246 / 50%);
     --badge-info-text: var(--color-info);
     --focus-shadow: 0 0 0 0.25rem rgb(59 130 246 / 25%);
+    
+    /* Force navbar background in dark mode if Bootstrap fails */
+    --nav-bg: #1a1a1a;
 }
 
 /* Thicker borders for Low Vision in Dark Mode */
@@ -298,6 +302,57 @@ canvas {
 
 .text-theme-info {
     color: var(--color-info) !important;
+}
+
+/* --- NUCLEAR CONTRAST FIXES --- */
+
+/* Force Navbar to be readable (Dark background for navbar-dark) */
+.navbar-dark {
+    background-color: #1a1a1a !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.navbar-dark .navbar-brand,
+.navbar-dark .nav-link {
+    color: #fff !important;
+    opacity: 0.9;
+}
+
+.navbar-dark .nav-link:hover {
+    opacity: 1;
+    color: var(--color-primary, #0d6efd) !important;
+}
+
+/* Fix Badge Contrast in Light Mode */
+[data-bs-theme="light"] .badge.bg-primary-subtle {
+    color: #0d6efd !important;
+    background-color: rgba(13, 110, 253, 0.15) !important;
+}
+
+[data-bs-theme="light"] .badge.bg-danger-subtle {
+    color: #b91c1c !important;
+    background-color: rgba(185, 28, 28, 0.15) !important;
+}
+
+/* Fix Bento Card Contrast (Add Worker) */
+.card.bg-dark.text-white {
+    background-color: #1a1a1a !important;
+    color: #ffffff !important;
+}
+
+.card.bg-dark.text-white .form-control.bg-white-50 {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.card.bg-dark.text-white .form-control.bg-white-50::placeholder {
+    color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Ensure consistent card borders for separation */
+.card {
+    border: 1px solid var(--border-color) !important;
 }
 
 .text-theme-primary {
