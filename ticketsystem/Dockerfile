@@ -43,6 +43,9 @@ RUN chmod a+x /etc/services.d/ticketsystem/run && \
 # Datenbank-Pfad setzen
 ENV DB_PATH=/data/werkzeug.db
 
+# Ports exposieren (Intern/Ingress/Direkt)
+EXPOSE 5000 5001 8099
+
 # Healthcheck (Optimized for SD Card / Slow Start)
 HEALTHCHECK --interval=30s --timeout=15s --start-period=30s --retries=5 \
     CMD curl -f http://127.0.0.1:8099/health || exit 1

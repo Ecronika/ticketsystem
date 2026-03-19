@@ -84,6 +84,13 @@ server {
 EOF
 fi
 
+bashio::log.info "Teste NGINX Konfiguration..."
+if ! nginx -t; then
+    bashio::log.fatal "NGINX Konfiguration fehlerhaft!"
+    nginx -t
+    bashio::exit.nok
+fi
+
 bashio::log.info "Starte NGINX im Hintergrund..."
 # Beende eventuell hängende NGINX-Prozesse von einem vorherigen Absturz (Port-Konflikt verhindern)
 pkill nginx || true
