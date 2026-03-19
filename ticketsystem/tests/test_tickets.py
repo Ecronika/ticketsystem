@@ -84,3 +84,27 @@ def test_worker_required_guard(client):
     client.get('/logout', follow_redirects=True) # Ensure logged out
     response = client.get('/', follow_redirects=True)
     assert b'Mitarbeiter Login' in response.data
+
+def test_assign_ticket(test_app, db):
+    """Test assigning a ticket to a worker."""
+    with test_app.app_context():
+        # Setup
+        worker = Worker(name="Tester", pin_hash="hash")
+        db.session.add(worker)
+        db.session.commit()
+        
+        ticket = TicketService.create_ticket("Assign Test", "Test")
+        
+        # Assign
+        TicketService.assign_ticket(ticket.id, worker.id, "System")
+        assert ticket.assigned_to_id == worker.id
+        
+        # Verify comment
+        comment = Comment.query.filter_by(ticket_id=ticket.id).order_by(Comment.id.desc()).first()
+        assert "Zuständigkeit geändert" in comment.text
+        
+        # Self assign (unassign first to trigger a change)
+        TicketService.assign_ticket(ticket.id, None, "System")
+        TicketService.assign_ticket(ticket.id, worker.id, worker.name)
+        comment = Comment.query.filter_by(ticket_id=ticket.id).order_by(Comment.id.desc()).first()
+        assert "hat sich das Ticket selbst zugewiesen" in comment.text

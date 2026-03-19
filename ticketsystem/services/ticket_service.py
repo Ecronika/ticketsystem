@@ -119,3 +119,45 @@ class TicketService:
             'focus': focus_tickets,
             'self': self_tickets
         }
+
+    @staticmethod
+    def assign_ticket(ticket_id, worker_id, author_name):
+        """Assign a ticket to a worker and log the change."""
+        try:
+            ticket = db.session.get(Ticket, ticket_id)
+            if not ticket:
+                raise ValueError("Ticket nicht gefunden.")
+            
+            old_worker_name = ticket.assigned_to.name if ticket.assigned_to else "Niemand"
+            
+            if worker_id:
+                worker = db.session.get(Worker, worker_id)
+                if not worker:
+                    raise ValueError("Mitarbeiter nicht gefunden.")
+                new_worker_name = worker.name
+            else:
+                new_worker_name = "Niemand"
+
+            if ticket.assigned_to_id == worker_id:
+                return ticket
+                
+            ticket.assigned_to_id = worker_id
+            ticket.updated_at = datetime.now(timezone.utc)
+            
+            # Log to history
+            comment_text = f"Zuständigkeit geändert: {old_worker_name} -> {new_worker_name}."
+            if author_name == new_worker_name:
+                comment_text = f"Mitarbeiter {new_worker_name} hat sich das Ticket selbst zugewiesen."
+            
+            comment = Comment(
+                ticket_id=ticket.id,
+                author=author_name,
+                text=comment_text
+            )
+            db.session.add(comment)
+            db.session.commit()
+            return ticket
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error assigning ticket: {e}")
+            raise

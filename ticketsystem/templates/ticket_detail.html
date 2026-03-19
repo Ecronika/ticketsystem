@@ -105,20 +105,23 @@
 
                 <div class="mb-4">
                     <label class="form-label small text-muted">Zuständigkeit</label>
-                    <div class="d-flex align-items-center bg-light p-2 rounded-3">
-                        <div class="btn-primary rounded-circle p-2 me-2 x-small">
-                            <i class="bi bi-person"></i>
-                        </div>
-                        <span class="small fw-bold">{{ ticket.assigned_to.name if ticket.assigned_to else 'Nicht zugewiesen' }}</span>
-                    </div>
+                    <select class="form-select border-0 bg-light fw-bold" onchange="assignTicket({{ ticket.id }}, this.value)">
+                        <option value="" {{ 'selected' if not ticket.assigned_to_id }}>NICHT ZUGEWIESEN</option>
+                        {% for worker in workers %}
+                        <option value="{{ worker.id }}" {{ 'selected' if ticket.assigned_to_id == worker.id }}>
+                            {{ worker.name|upper }}
+                        </option>
+                        {% endfor %}
+                    </select>
                 </div>
 
                 <hr class="text-muted opacity-25">
                 
                 <div class="d-grid">
                     {% if not ticket.assigned_to_id == session.get('worker_id') %}
-                    <form action="#" method="POST"> <!-- Logic missing in service yet, but UI ready -->
-                         <button type="button" class="btn btn-outline-primary btn-sm rounded-pill" disabled>Mir zuweisen</button>
+                    <form action="{{ ingress_path }}{{ url_for('main.assign_to_me', ticket_id=ticket.id) }}" method="POST">
+                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                         <button type="submit" class="btn btn-outline-primary btn-sm rounded-pill w-100">Mir zuweisen</button>
                     </form>
                     {% endif %}
                 </div>
@@ -145,6 +148,28 @@ function updateTicketStatus(ticketId, newStatus) {
             location.reload();
         } else {
             alert('Fehler beim Aktualisieren des Status: ' + data.error);
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+function assignTicket(ticketId, workerId) {
+    const navbar = document.querySelector('.navbar');
+    const ingress = navbar ? navbar.getAttribute('data-ingress') : '';
+    fetch(`${ingress}/api/ticket/${ticketId}/assign`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ worker_id: workerId ? parseInt(workerId) : null })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Fehler beim Zuweisen: ' + data.error);
         }
     })
     .catch(error => console.error('Error:', error));

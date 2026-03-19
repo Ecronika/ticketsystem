@@ -83,6 +83,33 @@ def _update_status_api(ticket_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@worker_required
+def _assign_ticket_api(ticket_id):
+    """Handle AJAX ticket assignment."""
+    data = request.get_json()
+    worker_id = data.get('worker_id')
+    author_name = session.get('worker_name', 'System')
+    
+    try:
+        # Note: worker_id can be None/null for "Unassigned"
+        TicketService.assign_ticket(ticket_id, worker_id, author_name)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@worker_required
+def _assign_to_me_view(ticket_id):
+    """Assign the ticket to the current logged-in worker."""
+    worker_id = session.get('worker_id')
+    worker_name = session.get('worker_name', 'System')
+    
+    if worker_id:
+        TicketService.assign_ticket(ticket_id, worker_id, worker_name)
+        flash('Ticket wurde Ihnen zugewiesen.', 'success')
+    
+    ingress = request.headers.get('X-Ingress-Path', '')
+    return redirect(f"{ingress}{url_for('main.ticket_detail', ticket_id=ticket_id)}")
+
 def register_routes(bp):
     """Register ticket routes."""
     # Public Dashboard (Anyone can see? Or only workers? User said "Dashboard fills Self-tickets", implying login)
@@ -109,3 +136,11 @@ def register_routes(bp):
     update_status_api = _update_status_api
     update_status_api.__name__ = 'update_status'
     bp.add_url_rule('/api/ticket/<int:ticket_id>/status', view_func=update_status_api, methods=['POST'])
+
+    assign_ticket_api = _assign_ticket_api
+    assign_ticket_api.__name__ = 'assign_ticket_api'
+    bp.add_url_rule('/api/ticket/<int:ticket_id>/assign', view_func=assign_ticket_api, methods=['POST'])
+
+    assign_to_me_view = _assign_to_me_view
+    assign_to_me_view.__name__ = 'assign_to_me'
+    bp.add_url_rule('/ticket/<int:ticket_id>/assign_me', view_func=assign_to_me_view, methods=['POST'])
