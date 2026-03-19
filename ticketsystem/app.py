@@ -434,6 +434,30 @@ def time_ago_filter(dt):
     return f"vor {int(seconds // 86400)} Tg."
 
 
+@app.template_filter('status_label')
+def status_label_filter(status):
+    """Translate internal status enums to human label."""
+    labels = {
+        'offen': 'Offen',
+        'in_bearbeitung': 'In Bearbeitung',
+        'wartet': 'Wartet',
+        'erledigt': 'Erledigt'
+    }
+    return labels.get(status, status)
+
+
+@app.template_filter('priority_label')
+def priority_label_filter(priority):
+    """Translate priority integer to human label."""
+    if priority == 1:
+        return 'Hoch'
+    if priority == 2:
+        return 'Mittel'
+    if priority == 3:
+        return 'Niedrig'
+    return f'P{priority}'
+
+
 # --- Global Error Handlers ---
 @app.errorhandler(413)  # Payload Too Large
 def request_entity_too_large(e):

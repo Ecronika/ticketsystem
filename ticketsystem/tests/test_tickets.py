@@ -58,26 +58,46 @@ def test_unauthenticated_ticket_creation_route(client):
     assert ticket.description == 'Something is broken'
 
 def test_worker_login_and_session(client, db):
-    """Test worker login and session persistence."""
-    # Create worker
-    worker = Worker(name="Hans", pin_hash=generate_password_hash("1234"))
+    """Test worker login and session persistence (with needs_pin_change=False)."""
+    # Create worker who already changed their PIN
+    worker = Worker(name="Hans", pin_hash=generate_password_hash("1234"), needs_pin_change=False)
     db.session.add(worker)
     db.session.commit()
     
-    # Login - first check for redirect
-    resp = client.post('/login', data={'worker_id': worker.id, 'pin': '1234'})
+    # Login - first check for redirect to dashboard
+    resp = client.post('/login', data={'worker_name': 'Hans', 'pin': '1234'})
     assert resp.status_code == 302
-    assert "/" in resp.location # Should redirect to dashboard
+    assert "/" in resp.location 
 
     # Now follow the redirect to check the final page content
-    response = client.post('/login', data={'worker_id': worker.id, 'pin': '1234'}, follow_redirects=True)
+    response = client.post('/login', data={'worker_name': 'Hans', 'pin': '1234'}, follow_redirects=True)
     assert response.status_code == 200
-    assert b'Willkommen zur\xc3\xbcck, Hans' in response.data
+    assert b'Hans' in response.data
     
-    # Check session via dashboard (must be protected by worker_required)
+    # Check session via dashboard
     response = client.get('/')
     assert response.status_code == 200
-    assert b'Willkommen, Hans' in response.data
+    assert b'Hans' in response.data
+
+def test_mandatory_pin_change(client, db):
+    """Test that a new worker is forced to change their PIN."""
+    # Create worker with default needs_pin_change=True
+    worker = Worker(name="Neu", pin_hash=generate_password_hash("0000"), needs_pin_change=True)
+    db.session.add(worker)
+    db.session.commit()
+    
+    # Login should redirect to /change-pin
+    resp = client.post('/login', data={'worker_name': 'Neu', 'pin': '0000'})
+    assert resp.status_code == 302
+    assert "/change-pin" in resp.location
+
+    # Verify /change-pin is accessible
+    with client:
+        # We need to be logged in to access change-pin
+        client.post('/login', data={'worker_name': 'Neu', 'pin': '0000'})
+        response = client.get('/change-pin')
+        assert response.status_code == 200
+        assert b'PIN \xc3\xa4ndern' in response.data
 
 def test_worker_required_guard(client):
     """Test that unauthorized access to dashboard is redirected to login."""

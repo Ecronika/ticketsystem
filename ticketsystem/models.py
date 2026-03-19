@@ -56,6 +56,7 @@ class Worker(db.Model):
     pin_hash = db.Column(db.String(128), nullable=True) # Individual worker PIN
     is_active = db.Column(db.Boolean, default=True)
     is_admin = db.Column(db.Boolean, default=False)
+    needs_pin_change = db.Column(db.Boolean, default=True)
 
     def __repr__(self):
         return f'<Worker {self.name}>'

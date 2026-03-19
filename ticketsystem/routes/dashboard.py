@@ -20,20 +20,6 @@ _dash_start_time = time.time()
 def register_routes(bp):
     """Register dashboard routes on the given blueprint."""
 
-    @bp.context_processor
-    def inject_ingress_path():
-        """Inject ingress path and logo version into templates."""
-        ingress = request.headers.get('X-Ingress-Path', '')
-        data_dir = Config.get_data_dir()
-        logo_path = os.path.join(data_dir, 'static', 'img', 'logo.png')
-        logo_version = 0
-        if os.path.exists(logo_path):
-            try:
-                logo_version = int(os.path.getmtime(logo_path))
-            except OSError:
-                pass
-        return {'ingress_path': ingress, 'logo_version': logo_version}
-
 
     @bp.route('/')
     def index():

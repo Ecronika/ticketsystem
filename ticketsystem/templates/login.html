@@ -12,20 +12,19 @@
                 <form method="POST">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                     <div class="mb-3">
-                        <label for="worker_id" class="form-label">Mitarbeiter auswählen</label>
-                        <select class="form-select form-select-lg" id="worker_id" name="worker_id" required autofocus>
-                            <option value="" selected disabled>-- Name wählen --</option>
+                        <label for="worker_name" class="form-label">Name eingeben</label>
+                        <input type="text" class="form-control form-control-lg" id="worker_name" name="worker_name" list="workerList" required autofocus autocomplete="username" placeholder="Vorname Nachname">
+                        <datalist id="workerList">
                             {% for worker in workers %}
-                            <option value="{{ worker.id }}">{{ worker.name }}</option>
+                            <option value="{{ worker.name }}">
                             {% endfor %}
-                        </select>
+                        </datalist>
                     </div>
                     <div class="mb-3">
                         <label for="pin" class="form-label">Persönlicher PIN</label>
                         <input type="password" class="form-control form-control-lg text-center" id="pin" name="pin"
                             required pattern="[0-9]*" inputmode="numeric" placeholder="****"
                             autocomplete="current-password">
-                        <div class="form-text text-center mt-2 small text-muted"><i class="bi bi-info-circle-fill" aria-hidden="true"></i> Standard-PIN für neue User: <strong>0000</strong></div>
                     </div>
                     <div class="d-grid">
                         <button type="submit" class="btn btn-primary btn-lg">

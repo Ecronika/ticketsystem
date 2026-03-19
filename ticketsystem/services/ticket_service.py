@@ -99,24 +99,39 @@ class TicketService:
             raise
 
     @staticmethod
-    def get_dashboard_tickets(worker_id=None):
-        """Fetch tickets for the dashboard (Focus & Self)."""
-        # Focus: Non-completed tickets sorted by priority and date
-        focus_tickets = Ticket.query.filter(
-            Ticket.status != TicketStatus.ERLEDIGT.value
-        ).order_by(Ticket.priority.asc(), Ticket.created_at.desc()).all()
+    def get_dashboard_tickets(worker_id=None, search=None, status_filter=None, page=1, per_page=10):
+        """Fetch tickets for the dashboard with search, filtering, and pagination."""
+        query = Ticket.query
 
-        # Self: Tickets assigned to the specific worker
+        if search:
+            query = query.filter(
+                (Ticket.title.ilike(f"%{search}%")) | 
+                (Ticket.description.ilike(f"%{search}%"))
+            )
+        
+        if status_filter:
+            query = query.filter(Ticket.status == status_filter)
+        elif not search:
+            # Default: hide closed tickets unless searching
+            query = query.filter(Ticket.status != TicketStatus.ERLEDIGT.value)
+
+        # Focus / General list (Paginated)
+        focus_pagination = query.order_by(
+            Ticket.priority.asc(), 
+            Ticket.created_at.desc()
+        ).paginate(page=page, per_page=per_page, error_out=False)
+
+        # Self: Always keep an eye on "My Tickets" (limit to top 5 for sidebar)
         self_tickets = []
         if worker_id:
             self_tickets = Ticket.query.filter_by(
                 assigned_to_id=worker_id
             ).filter(
                 Ticket.status != TicketStatus.ERLEDIGT.value
-            ).order_by(Ticket.updated_at.desc()).all()
+            ).order_by(Ticket.updated_at.desc()).limit(5).all()
 
         return {
-            'focus': focus_tickets,
+            'focus_pagination': focus_pagination,
             'self': self_tickets
         }
 

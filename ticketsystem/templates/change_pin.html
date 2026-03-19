@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}PIN ändern{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h4 class="mb-0"><i class="bi bi-shield-lock-fill" aria-hidden="true"></i> PIN ändern erforderlich</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">Zu Ihrer Sicherheit müssen Sie Ihren PIN bei der ersten Anmeldung oder nach einem Reset ändern.</p>
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <div class="mb-3">
+                        <label for="new_pin" class="form-label">Neuer PIN (mind. 4 Ziffern)</label>
+                        <input type="password" class="form-control form-control-lg text-center" id="new_pin" name="new_pin"
+                            required pattern="[0-9]*" inputmode="numeric" placeholder="****" minlength="4"
+                            autocomplete="new-password" autofocus>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_pin_confirm" class="form-label">Neuen PIN bestätigen</label>
+                        <input type="password" class="form-control form-control-lg text-center" id="new_pin_confirm" name="new_pin_confirm"
+                            required pattern="[0-9]*" inputmode="numeric" placeholder="****" minlength="4"
+                            autocomplete="new-password">
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-warning btn-lg">
+                            <i class="bi bi-save" aria-hidden="true"></i> PIN speichern & fortfahren
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

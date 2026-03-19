@@ -8,10 +8,43 @@ from models import Worker
 def _dashboard_view():
     """Handle the main dashboard view."""
     worker_id = session.get('worker_id')
-    tickets = TicketService.get_dashboard_tickets(worker_id)
+    search = request.args.get('q', '').strip()
+    status_filter = request.args.get('status', '')
+    page = request.args.get('page', 1, type=int)
+
+    tickets_data = TicketService.get_dashboard_tickets(
+        worker_id=worker_id,
+        search=search,
+        status_filter=status_filter,
+        page=page,
+        per_page=10
+    )
+    
     return render_template('index.html', 
-                          focus_tickets=tickets['focus'], 
-                          self_tickets=tickets['self'])
+                          pagination=tickets_data['focus_pagination'], 
+                          focus_tickets=tickets_data['focus_pagination'].items,
+                          self_tickets=tickets_data['self'],
+                          query=search,
+                          current_status=status_filter)
+
+@worker_required
+def _archive_view():
+    """Handle the ticket archive view (completed tickets)."""
+    search = request.args.get('q', '').strip()
+    page = request.args.get('page', 1, type=int)
+
+    tickets_data = TicketService.get_dashboard_tickets(
+        search=search,
+        status_filter=TicketStatus.ERLEDIGT.value,
+        page=page,
+        per_page=15
+    )
+    
+    return render_template('archive.html', 
+                          pagination=tickets_data['focus_pagination'], 
+                          tickets=tickets_data['focus_pagination'].items,
+                          query=search,
+                          current_status=TicketStatus.ERLEDIGT.value)
 
 def _new_ticket_view():
     """Handle new ticket creation (unauthenticated)."""
@@ -144,3 +177,7 @@ def register_routes(bp):
     assign_to_me_view = _assign_to_me_view
     assign_to_me_view.__name__ = 'assign_to_me'
     bp.add_url_rule('/ticket/<int:ticket_id>/assign_me', view_func=assign_to_me_view, methods=['POST'])
+
+    archive_view = _archive_view
+    archive_view.__name__ = 'archive'
+    bp.add_url_rule('/archive', view_func=archive_view)

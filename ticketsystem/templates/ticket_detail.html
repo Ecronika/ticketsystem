@@ -17,7 +17,7 @@
                         <p class="text-meta small mb-0">Ticket #{{ ticket.id }} • Erstellt am {{ ticket.created_at|local_time|datetime }}</p>
                     </div>
                     <span class="badge bg-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }}-subtle text-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} rounded-pill px-3 py-2">
-                        Priorität: {{ 'Hoch' if ticket.priority == 1 else 'Mittel' if ticket.priority == 2 else 'Niedrig' }}
+                        Priorität: {{ ticket.priority|priority_label }}
                     </span>
                 </div>
 
@@ -46,41 +46,33 @@
             {% endfor %}
         </div>
 
-        <!-- Quick Input Form (Sticky Mobile) -->
-        <div class="card border-0 shadow-lg rounded-top-4 fixed-bottom d-lg-none" style="z-index: 1030;">
-              <div class="card-body p-3">
-                  <form action="{{ ingress_path }}{{ url_for('main.add_comment', ticket_id=ticket.id) }}" method="POST">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                      <div class="input-group">
-                          <input type="text" name="text" class="form-control rounded-pill-start border-0 bg-light" placeholder="Antworten..." required>
-                          <button class="btn btn-primary rounded-pill-end px-4" type="submit">
-                              <i class="bi bi-send"></i>
-                          </button>
-                      </div>
-                  </form>
-              </div>
-        </div>
-
-        <!-- Desktop Input Form -->
-        <div class="card border-0 shadow-sm rounded-4 d-none d-lg-block mb-5">
+        <!-- Sticky Input Form (Shared for Mobile/Desktop) -->
+        <div class="card border-0 shadow-sm rounded-4 mb-5">
             <div class="card-body p-3">
-                <form action="{{ ingress_path }}{{ url_for('main.add_comment', ticket_id=ticket.id) }}" method="POST">
+                <form id="commentForm" action="{{ ingress_path }}{{ url_for('main.add_comment', ticket_id=ticket.id) }}" method="POST">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                    <label class="form-label small fw-bold">Kommentar hinzufügen</label>
-                    <textarea name="text" class="form-control mb-2" rows="2" placeholder="Was gibt es neues?" required></textarea>
+                    <label class="form-label small fw-bold"><i class="bi bi-plus-circle me-1"></i>Kommentar hinzufügen</label>
                     
-                    <!-- SME Shortcuts (Auto-Kürzel) -->
-                    <div class="d-flex flex-wrap gap-2 mb-3">
-                        {% set shortcuts = system_settings.get_setting('ticket_shortcuts', 'Prüfen,Bestellt,Erledigt,Rückruf').split(',') %}
-                        {% for shortcut in shortcuts %}
-                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" onclick="this.form.text.value += '{{ shortcut }} '">
-                            <i class="bi bi-lightning"></i> {{ shortcut }}
+                    <div class="input-group mb-2">
+                        <textarea name="text" class="form-control" rows="2" placeholder="Was gibt es neues?" required></textarea>
+                        <button type="submit" class="btn btn-primary px-4 d-lg-none">
+                            <i class="bi bi-send"></i>
                         </button>
-                        {% endfor %}
                     </div>
-
-                    <div class="text-end">
-                        <button type="submit" class="btn btn-primary px-4 rounded-pill">Senden</button>
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <!-- SME Shortcuts -->
+                        <div class="d-flex flex-wrap gap-2">
+                            {% set shortcuts = system_settings.get_setting('ticket_shortcuts', 'Prüfen,Bestellt,Erledigt,Rückruf').split(',') %}
+                            {% for shortcut in shortcuts %}
+                            <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill py-1 px-3" onclick="this.form.text.value += '{{ shortcut }} '">
+                                <i class="bi bi-lightning-charge-fill x-small text-warning"></i> {{ shortcut }}
+                            </button>
+                            {% endfor %}
+                        </div>
+                        <button type="submit" class="btn btn-primary px-4 rounded-pill d-none d-lg-block">
+                            <i class="bi bi-send me-2"></i>Senden
+                        </button>
                     </div>
                 </form>
             </div>
@@ -95,17 +87,17 @@
                 
                 <div class="mb-4">
                     <label class="form-label small text-muted">Status</label>
-                    <select class="form-select border-0 bg-light fw-bold" onchange="updateTicketStatus({{ ticket.id }}, this.value)">
-                        <option value="offen" {{ 'selected' if ticket.status == 'offen' }}>OFFEN</option>
-                        <option value="in_bearbeitung" {{ 'selected' if ticket.status == 'in_bearbeitung' }}>IN BEARBEITUNG</option>
-                        <option value="wartet" {{ 'selected' if ticket.status == 'wartet' }}>WARTET</option>
-                        <option value="erledigt" {{ 'selected' if ticket.status == 'erledigt' }}>ERLEDIGT</option>
+                    <select id="statusSelect" class="form-select border-0 bg-light fw-bold" onchange="updateTicketStatus({{ ticket.id }}, this.value)">
+                        <option value="offen" {{ 'selected' if ticket.status == 'offen' }}>{{ 'offen'|status_label|upper }}</option>
+                        <option value="in_bearbeitung" {{ 'selected' if ticket.status == 'in_bearbeitung' }}>{{ 'in_bearbeitung'|status_label|upper }}</option>
+                        <option value="wartet" {{ 'selected' if ticket.status == 'wartet' }}>{{ 'wartet'|status_label|upper }}</option>
+                        <option value="erledigt" {{ 'selected' if ticket.status == 'erledigt' }}>{{ 'erledigt'|status_label|upper }}</option>
                     </select>
                 </div>
 
                 <div class="mb-4">
                     <label class="form-label small text-muted">Zuständigkeit</label>
-                    <select class="form-select border-0 bg-light fw-bold" onchange="assignTicket({{ ticket.id }}, this.value)">
+                    <select id="assignSelect" class="form-select border-0 bg-light fw-bold" onchange="assignTicket({{ ticket.id }}, this.value)">
                         <option value="" {{ 'selected' if not ticket.assigned_to_id }}>NICHT ZUGEWIESEN</option>
                         {% for worker in workers %}
                         <option value="{{ worker.id }}" {{ 'selected' if ticket.assigned_to_id == worker.id }}>
@@ -131,9 +123,23 @@
 </div>
 
 <script>
-function updateTicketStatus(ticketId, newStatus) {
+async function updateTicketStatus(ticketId, newStatus) {
+    const select = document.getElementById('statusSelect');
+    const originalValue = select.getAttribute('data-original') || select.value;
+    
+    // Safety confirm for closing
+    if (newStatus === 'erledigt') {
+        const confirmed = await window.showConfirm('Ticket abschließen', 'Möchten Sie dieses Ticket wirklich als erledigt markieren?');
+        if (!confirmed) {
+            select.value = originalValue;
+            return;
+        }
+    }
+
+    select.disabled = true;
     const navbar = document.querySelector('.navbar');
     const ingress = navbar ? navbar.getAttribute('data-ingress') : '';
+    
     fetch(`${ingress}/api/ticket/${ticketId}/status`, {
         method: 'POST',
         headers: {
@@ -147,13 +153,23 @@ function updateTicketStatus(ticketId, newStatus) {
         if (data.success) {
             location.reload();
         } else {
-            alert('Fehler beim Aktualisieren des Status: ' + data.error);
+            window.showUiAlert('Fehler beim Aktualisieren des Status: ' + data.error);
+            select.disabled = false;
+            select.value = originalValue;
         }
     })
-    .catch(error => console.error('Error:', error));
+    .catch(error => {
+        console.error('Error:', error);
+        window.showUiAlert('Netzwerkfehler beim Aktualisieren des Status.');
+        select.disabled = false;
+        select.value = originalValue;
+    });
 }
 
 function assignTicket(ticketId, workerId) {
+    const select = document.getElementById('assignSelect');
+    select.disabled = true;
+    
     const navbar = document.querySelector('.navbar');
     const ingress = navbar ? navbar.getAttribute('data-ingress') : '';
     fetch(`${ingress}/api/ticket/${ticketId}/assign`, {
@@ -169,10 +185,15 @@ function assignTicket(ticketId, workerId) {
         if (data.success) {
             location.reload();
         } else {
-            alert('Fehler beim Zuweisen: ' + data.error);
+            window.showUiAlert('Fehler beim Zuweisen: ' + data.error);
+            select.disabled = false;
         }
     })
-    .catch(error => console.error('Error:', error));
+    .catch(error => {
+        console.error('Error:', error);
+        window.showUiAlert('Netzwerkfehler bei der Zuweisung.');
+        select.disabled = false;
+    });
 }
 </script>
 {% endblock %}
