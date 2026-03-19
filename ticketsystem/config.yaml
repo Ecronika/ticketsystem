@@ -15,8 +15,10 @@ startup: application
 boot: auto
 ingress: true
 ingress_port: 8099
-ports: {}
-ports_description: {}
+ports:
+  5001/tcp: 5001
+ports_description:
+  5001/tcp: "Web-Schnittstelle (Direktzugriff)"
 
 panel_icon: mdi:ticket-confirmation
 panel_title: "Ticket System"
@@ -26,7 +28,9 @@ options:
   ssl: false
   certfile: fullchain.pem
   keyfile: privkey.pem
+  port: 5001
 schema:
   ssl: bool
   certfile: str
   keyfile: str
+  port: int

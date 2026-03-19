@@ -16,6 +16,7 @@ bashio::log.info "Initialisiere Datenbank..."
 SSL=$(bashio::config 'ssl')
 CERTFILE=$(bashio::config 'certfile')
 KEYFILE=$(bashio::config 'keyfile')
+PORT=$(bashio::config 'port' '5001')
 
 # Pruefe ob SSL aktiviert ist
 if bashio::var.true "${SSL}"; then
@@ -43,11 +44,11 @@ if bashio::var.true "${SSL}"; then
     # Signal Flask that HTTPS is active → SESSION_COOKIE_SECURE=True + SameSite=None
     export REQUIRE_HTTPS=1
 
-    bashio::log.info "Konfiguriere NGINX als SSL-Reverse-Proxy auf Port 5000..."
+    bashio::log.info "Konfiguriere NGINX als SSL-Reverse-Proxy auf Port ${PORT}..."
     mkdir -p /etc/nginx/http.d
     cat > /etc/nginx/http.d/default.conf <<EOF
 server {
-    listen 5000 ssl;
+    listen ${PORT} ssl;
     ssl_certificate ${CERTFILE_PATH};
     ssl_certificate_key ${KEYFILE_PATH};
     client_max_body_size 50m;
@@ -65,11 +66,11 @@ else
     bashio::log.info "SSL ist deaktiviert."
     # Signal Flask to use plain HTTP cookies → SESSION_COOKIE_SECURE=False + SameSite=Lax
     export REQUIRE_HTTPS=0
-    bashio::log.info "Konfiguriere NGINX als HTTP-Reverse-Proxy auf Port 5000..."
+    bashio::log.info "Konfiguriere NGINX als HTTP-Reverse-Proxy auf Port ${PORT}..."
     mkdir -p /etc/nginx/http.d
     cat > /etc/nginx/http.d/default.conf <<EOF
 server {
-    listen 5000;
+    listen ${PORT};
     client_max_body_size 50m;
     location / {
         proxy_pass http://127.0.0.1:8099;
