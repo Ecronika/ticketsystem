@@ -297,8 +297,10 @@ else:
         "Security: Manual CSP headers enabled (Home Assistant Ingress mode)")
 
 # Register Blueprints
+from routes.admin import admin_bp
 app.register_blueprint(main_bp)
 app.register_blueprint(metrics_bp)
+app.register_blueprint(admin_bp, url_prefix='/admin')
 
 
 @app.errorhandler(429)

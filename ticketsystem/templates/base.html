@@ -74,6 +74,12 @@
               href="{{ ingress_path }}{{ url_for('main.index') }}" {% if request.endpoint and
               request.endpoint=='main.index' %}aria-current="page" {% endif %}>Dashboard</a>
           </li>
+          {% if session.get('is_admin') %}
+          <li class="nav-item">
+            <a class="nav-link {{ 'active' if request.endpoint and request.endpoint == 'admin.workers' else '' }}"
+               href="{{ ingress_path }}{{ url_for('admin.workers') }}">Mitarbeiter</a>
+          </li>
+          {% endif %}
           
           {% if session.get('is_admin') %}
           <li class="nav-item ms-lg-2">
