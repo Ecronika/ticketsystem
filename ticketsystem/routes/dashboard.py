@@ -20,12 +20,6 @@ _dash_start_time = time.time()
 def register_routes(bp):
     """Register dashboard routes on the given blueprint."""
 
-
-    @bp.route('/')
-    def index():
-        """Dashboard view."""
-        return render_template('index.html')
-
     @bp.route('/logo')
     def serve_logo():
         """Serve logo from DATA_DIR with ETag-based caching."""
@@ -81,4 +75,26 @@ def register_routes(bp):
         }
         status_code = 200 if db_ok else 503
         return jsonify(payload), status_code
+
+    @bp.route('/api/dashboard/summary')
+    def dashboard_summary():
+        """API endpoint for dashboard polling (summary only)."""
+        from models import Ticket
+        
+        try:
+            # Count open/in-progress tickets (excluding soft-deleted)
+            counts = {
+                'offen': Ticket.query.filter_by(status='offen', is_deleted=False).count(),
+                'in_bearbeitung': Ticket.query.filter_by(status='in_bearbeitung', is_deleted=False).count(),
+                'wartet': Ticket.query.filter_by(status='wartet', is_deleted=False).count(),
+                'summary': Ticket.query.filter(Ticket.status != 'erledigt', Ticket.is_deleted == False).count()
+            }
+            return jsonify({
+                'success': True,
+                'counts': counts,
+                'timestamp': datetime.now().isoformat()
+            })
+        except Exception as e:
+            current_app.logger.error(f"Error in dashboard_summary: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
 

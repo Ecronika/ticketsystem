@@ -1,8 +1,3 @@
-"""
-Models module.
-
-Defines SQLAlchemy database models for Apprentice, Tool, Check, etc.
-"""
 from datetime import datetime, timezone
 
 from extensions import db
@@ -56,6 +51,7 @@ class Worker(db.Model):
     pin_hash = db.Column(db.String(128), nullable=True) # Individual worker PIN
     is_active = db.Column(db.Boolean, default=True)
     is_admin = db.Column(db.Boolean, default=False)
+    role = db.Column(db.String(20), nullable=True) # Role: admin, worker, viewer
     needs_pin_change = db.Column(db.Boolean, default=True)
     
     # Enterprise Security: Brute-force protection
@@ -64,6 +60,24 @@ class Worker(db.Model):
 
     def __repr__(self):
         return f'<Worker {self.name}>'
+
+
+# Association table for Tickets and Tags
+ticket_tags = db.Table('ticket_tags',
+    db.Column('ticket_id', db.Integer, db.ForeignKey('ticket.id'), primary_key=True),
+    db.Column('tag_id', db.Integer, db.ForeignKey('tag.id'), primary_key=True)
+)
+
+
+class Tag(db.Model):
+    """
+    Tag model for categorizing tickets.
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(30), unique=True, nullable=False)
+
+    def __repr__(self):
+        return f'<Tag {self.name}>'
 
 
 class Ticket(db.Model):
@@ -82,12 +96,34 @@ class Ticket(db.Model):
     assigned_to_id = db.Column(db.Integer, db.ForeignKey('worker.id'), nullable=True)
     assigned_to = db.relationship('Worker', backref='tickets')
     
+    due_date = db.Column(db.DateTime, nullable=True)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    
+    tags = db.relationship('Tag', secondary=ticket_tags, backref=db.backref('tickets', lazy='dynamic'))
+    
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), 
                            onupdate=lambda: datetime.now(timezone.utc))
 
     def __repr__(self):
         return f'<Ticket {self.title} ({self.status})>'
+
+
+class Attachment(db.Model):
+    """
+    Attachment model for storing metadata about uploaded files/images.
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    ticket_id = db.Column(db.Integer, db.ForeignKey('ticket.id'), nullable=False)
+    ticket = db.relationship('Ticket', backref=db.backref('attachments', cascade='all, delete-orphan'))
+    
+    path = db.Column(db.String(255), nullable=False)
+    filename = db.Column(db.String(100), nullable=False)
+    mime_type = db.Column(db.String(50), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def __repr__(self):
+        return f'<Attachment {self.filename} for Ticket {self.ticket_id}>'
 
 
 class Comment(db.Model):
@@ -103,6 +139,9 @@ class Comment(db.Model):
     author_worker = db.relationship('Worker', foreign_keys=[author_id])
     
     text = db.Column(db.Text, nullable=False)
+    is_system_event = db.Column(db.Boolean, default=False)
+    event_type = db.Column(db.String(30), nullable=True) # e.g., 'STATUS_CHANGE', 'ASSIGNMENT'
+    
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self):

@@ -5,7 +5,7 @@
 <div class="row justify-content-center mt-4">
     <div class="col-md-8 col-lg-6">
         <div class="card shadow-sm border-0 rounded-4">
-            <div class="card-header bg-white border-0 pt-4 px-4">
+            <div class="card-header bg-transparent border-0 pt-4 px-4">
                 <div class="d-flex align-items-center mb-2">
                     <a href="{{ ingress_path }}{{ url_for('main.index') }}" class="btn btn-light btn-sm rounded-circle me-3">
                         <i class="bi bi-arrow-left"></i>
@@ -52,6 +52,17 @@
                         </div>
                     </div>
 
+                    <div class="mb-4">
+                        <label for="attachment" class="form-label fw-bold">Foto / Anhang (optional)</label>
+                        <input type="file" class="form-control" id="attachment-input" accept="image/*">
+                        <input type="hidden" name="image_base64" id="image-base64">
+                        <div id="image-preview" class="mt-2 d-none">
+                            <img src="" class="img-thumbnail" style="max-height: 200px;">
+                            <button type="button" class="btn btn-sm btn-danger mt-1" id="remove-image">Entfernen</button>
+                        </div>
+                        <p class="text-meta x-small mt-1">Bilder werden automatisch für den Upload optimiert.</p>
+                    </div>
+
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary btn-lg rounded-pill p-3 fw-bold">
                             <i class="bi bi-send-fill me-2"></i>Ticket absenden
@@ -62,4 +73,62 @@
         </div>
     </div>
 </div>
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const input = document.getElementById('attachment-input');
+    const base64Input = document.getElementById('image-base64');
+    const preview = document.getElementById('image-preview');
+    const previewImg = preview.querySelector('img');
+    const removeBtn = document.getElementById('remove-image');
+
+    input.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                const max_size = 1200;
+
+                if (width > height) {
+                    if (width > max_size) {
+                        height *= max_size / width;
+                        width = max_size;
+                    }
+                } else {
+                    if (height > max_size) {
+                        width *= max_size / height;
+                        height = max_size;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                base64Input.value = dataUrl;
+                previewImg.src = dataUrl;
+                preview.classList.remove('d-none');
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    removeBtn.addEventListener('click', function() {
+        input.value = '';
+        base64Input.value = '';
+        preview.classList.add('d-none');
+    });
+});
+</script>
+{% endblock %}
 {% endblock %}

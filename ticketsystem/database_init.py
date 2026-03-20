@@ -29,6 +29,7 @@ def _seed_default_settings(app, logger):
             name="Admin (Bootstrap)",
             pin_hash=generate_password_hash("0000"),
             is_admin=True,
+            role='admin',
             is_active=True
         )
         db.session.add(bootstrap_admin)
@@ -80,12 +81,9 @@ def init_database(app, *, logger=None):
         logger.info("Database: Initialization started...")
         
         try:
-            # Create all tables defined in models.py
+            # Create all tables defined in models.py (if not existing)
             db.create_all()
             logger.info("Database: Tables created (if not existing).")
-            
-            # Force schema sync for missing columns (create_all is no-op on existing tables)
-            _ensure_schema_sync(app, logger)
             
             # Seed default system settings
             _seed_default_settings(app, logger)

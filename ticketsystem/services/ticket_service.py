@@ -10,7 +10,7 @@ class TicketService:
     """
 
     @staticmethod
-    def create_ticket(title, description=None, priority=TicketPriority.MITTEL, author_name="System", author_id=None, assigned_to_id=None):
+    def create_ticket(title, description=None, priority=TicketPriority.MITTEL, author_name="System", author_id=None, assigned_to_id=None, due_date=None, tags=None):
         """Create a new ticket and an initial comment."""
         try:
             ticket = Ticket(
@@ -18,34 +18,110 @@ class TicketService:
                 description=description,
                 priority=int(priority.value if hasattr(priority, 'value') else priority),
                 status=TicketStatus.OFFEN.value,
-                assigned_to_id=assigned_to_id
+                assigned_to_id=assigned_to_id,
+                due_date=due_date
             )
+            
+            if tags:
+                # Assuming tags is a list of Tag objects or names
+                for tag_name in tags:
+                    tag = Tag.query.filter_by(name=tag_name).first()
+                    if not tag:
+                        tag = Tag(name=tag_name)
+                        db.session.add(tag)
+                    ticket.tags.append(tag)
+
             db.session.add(ticket)
             db.session.flush()  # Get ticket ID
 
             # Add initial comment if description exists
-            if description:
-                comment = Comment(
-                    ticket_id=ticket.id,
-                    author=author_name,
-                    author_id=author_id,
-                    text=f"Ticket erstellt. Beschreibung: {description}"
-                )
-                db.session.add(comment)
-            else:
-                comment = Comment(
-                    ticket_id=ticket.id,
-                    author=author_name,
-                    author_id=author_id,
-                    text="Ticket ohne Beschreibung erstellt."
-                )
-                db.session.add(comment)
+            comment_text = f"Ticket erstellt. Beschreibung: {description}" if description else "Ticket ohne Beschreibung erstellt."
+            
+            comment = Comment(
+                ticket_id=ticket.id,
+                author=author_name,
+                author_id=author_id,
+                text=comment_text,
+                is_system_event=True,
+                event_type='TICKET_CREATED'
+            )
+            db.session.add(comment)
 
             db.session.commit()
             return ticket
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Error creating ticket: {e}")
+            raise
+
+    @staticmethod
+    def update_ticket(ticket_id, title=None, description=None, priority=None, due_date=None, author_name="System", author_id=None):
+        """Update ticket basic details."""
+        try:
+            ticket = db.session.get(Ticket, ticket_id)
+            if not ticket or ticket.is_deleted:
+                return None
+            
+            changes = []
+            if title and ticket.title != title:
+                changes.append(f"Titel: {ticket.title} -> {title}")
+                ticket.title = title
+            if description and ticket.description != description:
+                changes.append("Beschreibung aktualisiert")
+                ticket.description = description
+            if priority and ticket.priority != int(priority):
+                changes.append(f"Priorität: {ticket.priority} -> {priority}")
+                ticket.priority = int(priority)
+            if due_date is not None and ticket.due_date != due_date:
+                old_date = ticket.due_date.strftime('%d.%m.%Y') if ticket.due_date else "Keines"
+                new_date = due_date.strftime('%d.%m.%Y') if due_date else "Keines"
+                changes.append(f"Fälligkeit: {old_date} -> {new_date}")
+                ticket.due_date = due_date
+
+            if changes:
+                ticket.updated_at = datetime.now(timezone.utc)
+                comment = Comment(
+                    ticket_id=ticket.id,
+                    author=author_name,
+                    author_id=author_id,
+                    text=f"Ticket aktualisiert: {', '.join(changes)}",
+                    is_system_event=True,
+                    event_type='TICKET_UPDATE'
+                )
+                db.session.add(comment)
+                db.session.commit()
+            
+            return ticket
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error updating ticket: {e}")
+            raise
+
+    @staticmethod
+    def delete_ticket(ticket_id, author_name="System", author_id=None):
+        """Soft-delete a ticket."""
+        try:
+            ticket = db.session.get(Ticket, ticket_id)
+            if not ticket or ticket.is_deleted:
+                return False
+            
+            ticket.is_deleted = True
+            ticket.updated_at = datetime.now(timezone.utc)
+            
+            comment = Comment(
+                ticket_id=ticket.id,
+                author=author_name,
+                author_id=author_id,
+                text="Ticket wurde gelöscht (soft-delete).",
+                is_system_event=True,
+                event_type='TICKET_DELETED'
+            )
+            db.session.add(comment)
+            db.session.commit()
+            return True
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error deleting ticket: {e}")
             raise
 
     @staticmethod
@@ -56,7 +132,8 @@ class TicketService:
                 ticket_id=ticket_id,
                 author=author_name,
                 author_id=author_id,
-                text=text
+                text=text,
+                is_system_event=False
             )
             db.session.add(comment)
             
@@ -77,7 +154,7 @@ class TicketService:
         """Update ticket status and add a system comment."""
         try:
             ticket = db.session.get(Ticket, ticket_id)
-            if not ticket:
+            if not ticket or ticket.is_deleted:
                 return None
             
             old_status = ticket.status
@@ -91,7 +168,9 @@ class TicketService:
                     ticket_id=ticket_id,
                     author=author_name,
                     author_id=author_id,
-                    text=f"Status geändert: {old_status} -> {new_status}"
+                    text=f"Status geändert: {old_status} -> {new_status}",
+                    is_system_event=True,
+                    event_type='STATUS_CHANGE'
                 )
                 db.session.add(comment)
                 db.session.commit()
@@ -105,7 +184,7 @@ class TicketService:
     @staticmethod
     def get_dashboard_tickets(worker_id=None, search=None, status_filter=None, page=1, per_page=10):
         """Fetch tickets for the dashboard with search, filtering, and pagination."""
-        query = Ticket.query
+        query = Ticket.query.filter_by(is_deleted=False)
 
         if search:
             query = query.filter(
@@ -129,7 +208,8 @@ class TicketService:
         self_tickets = []
         if worker_id:
             self_tickets = Ticket.query.filter_by(
-                assigned_to_id=worker_id
+                assigned_to_id=worker_id,
+                is_deleted=False
             ).filter(
                 Ticket.status != TicketStatus.ERLEDIGT.value
             ).order_by(Ticket.updated_at.desc()).limit(5).all()
@@ -144,7 +224,7 @@ class TicketService:
         """Assign a ticket to a worker and log the change."""
         try:
             ticket = db.session.get(Ticket, ticket_id)
-            if not ticket:
+            if not ticket or ticket.is_deleted:
                 raise ValueError("Ticket nicht gefunden.")
             
             old_worker_name = ticket.assigned_to.name if ticket.assigned_to else "Niemand"
@@ -172,7 +252,9 @@ class TicketService:
                 ticket_id=ticket.id,
                 author=author_name,
                 author_id=author_id,
-                text=comment_text
+                text=comment_text,
+                is_system_event=True,
+                event_type='ASSIGNMENT'
             )
             db.session.add(comment)
             db.session.commit()

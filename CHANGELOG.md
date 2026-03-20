@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.3.0] - 2026-03-21
+### Shopfloor Ergonomics & PWA
+- **PWA Support:** Added `manifest.json` and Service Worker for offline-capable "Add to Home Screen" support on industrial tablets.
+- **Polling System:** Real-time dashboard updates via automated 30s background polling (`/api/dashboard/summary`).
+- **Client-side Image Optimization:** Automated Resizing/Compression (max 1200px) before upload to save bandwidth and storage.
+
+### Security & RBAC
+- **Role-Based Access Control (RBAC):** Transitioned from binary `is_admin` to a granular `role` system (`admin`, `worker`, `viewer`).
+- **Shared Terminal Security:** Implementation of the `Clear-Site-Data` HTTP header on logout to purge cache/cookies on shared devices.
+- **Admin PIN Reset:** Administrators can now reset forgotten worker PINs to "0000" with a forced change on next login.
+
+### Architektur & Maintenance
+- **Alembic Migrations:** Integrated Flask-Migrate for robust, versioned database schema management.
+- **Soft-Delete System:** Tickets are no longer permanently deleted, preserving audit trails while cleaning the UI.
+- **Consolidated Audit Trail:** All system events (status changes, assignments) are now stored as internal comments (`is_system_event`).
+
 ## [1.2.0] - 2026-03-18
 ### Sicherheit & Enterprise-Readiness (Hardening)
 - **Account-Lockout Mechanism (H-1):** Sperrt Benutzer nach 5 Fehlversuchen für 15 Minuten, um Brute-Force-Angriffe zu verhindern.

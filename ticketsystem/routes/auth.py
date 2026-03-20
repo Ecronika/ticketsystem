@@ -148,7 +148,8 @@ def _login_view():
                 session.permanent = True
                 session['worker_id'] = worker.id
                 session['worker_name'] = worker.name
-                session['is_admin'] = worker.is_admin
+                session['is_admin'] = (worker.role == 'admin' or worker.is_admin)
+                session['role'] = worker.role or ('admin' if worker.is_admin else 'worker')
 
                 if worker.needs_pin_change:
                     flash('Bitte ändern Sie zu Ihrer Sicherheit zuerst Ihren PIN.', 'info')
@@ -167,15 +168,22 @@ def _login_view():
                 else:
                     flash(f'Falscher PIN. (Versuch {worker.failed_login_count}/5)', 'danger')
                 db.session.commit()
+                return render_template('login.html', workers=workers)
         else:
             flash('Mitarbeiter nicht gefunden oder inaktiv.', 'danger')
+            return render_template('login.html', workers=workers)
 
 def _logout_view():
-    """Handle worker logout."""
+    """Handle worker logout with Clear-Site-Data for shared terminals."""
+    from flask import make_response
     session.clear()
     flash('Erfolgreich ausgeloggt.', 'info')
     ingress = request.headers.get('X-Ingress-Path', '')
-    return redirect(f"{ingress}{url_for('main.index')}")
+    response = make_response(redirect(f"{ingress}{url_for('main.index')}"))
+    
+    # GDPR & Shopfloor Security: Clear all local data on logout
+    response.headers['Clear-Site-Data'] = '"cache", "cookies", "storage"'
+    return response
 
 
 def _recover_pin_view():

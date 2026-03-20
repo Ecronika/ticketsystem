@@ -4,8 +4,8 @@ This repository contains the Home Assistant Add-on for the **Ticket System**.
 
 ## Add-ons in this repository
 
-### Ticket System
-A clean, modern boilerplate for a Ticket Management System, built with Flask, SQLAlchemy, and a Bento-Grid design system.
+### Ticket System (v1.3.0)
+A clean, modern boilerplate for a Ticket Management System, optimized for Shopfloor use cases. Featuring PWA support, client-side image resizing, and robust RBAC security.
 
 ## Installation
 
