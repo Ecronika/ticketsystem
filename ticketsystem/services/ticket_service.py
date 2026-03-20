@@ -10,7 +10,7 @@ class TicketService:
     """
 
     @staticmethod
-    def create_ticket(title, description=None, priority=TicketPriority.MITTEL, author_name="System", assigned_to_id=None):
+    def create_ticket(title, description=None, priority=TicketPriority.MITTEL, author_name="System", author_id=None, assigned_to_id=None):
         """Create a new ticket and an initial comment."""
         try:
             ticket = Ticket(
@@ -28,6 +28,7 @@ class TicketService:
                 comment = Comment(
                     ticket_id=ticket.id,
                     author=author_name,
+                    author_id=author_id,
                     text=f"Ticket erstellt. Beschreibung: {description}"
                 )
                 db.session.add(comment)
@@ -35,6 +36,7 @@ class TicketService:
                 comment = Comment(
                     ticket_id=ticket.id,
                     author=author_name,
+                    author_id=author_id,
                     text="Ticket ohne Beschreibung erstellt."
                 )
                 db.session.add(comment)
@@ -47,12 +49,13 @@ class TicketService:
             raise
 
     @staticmethod
-    def add_comment(ticket_id, author_name, text):
+    def add_comment(ticket_id, author_name, author_id, text):
         """Add a comment to an existing ticket."""
         try:
             comment = Comment(
                 ticket_id=ticket_id,
                 author=author_name,
+                author_id=author_id,
                 text=text
             )
             db.session.add(comment)
@@ -70,7 +73,7 @@ class TicketService:
             raise
 
     @staticmethod
-    def update_status(ticket_id, status, author_name="System"):
+    def update_status(ticket_id, status, author_name="System", author_id=None):
         """Update ticket status and add a system comment."""
         try:
             ticket = db.session.get(Ticket, ticket_id)
@@ -87,6 +90,7 @@ class TicketService:
                 comment = Comment(
                     ticket_id=ticket_id,
                     author=author_name,
+                    author_id=author_id,
                     text=f"Status geändert: {old_status} -> {new_status}"
                 )
                 db.session.add(comment)
@@ -136,7 +140,7 @@ class TicketService:
         }
 
     @staticmethod
-    def assign_ticket(ticket_id, worker_id, author_name):
+    def assign_ticket(ticket_id, worker_id, author_name, author_id=None):
         """Assign a ticket to a worker and log the change."""
         try:
             ticket = db.session.get(Ticket, ticket_id)
@@ -167,6 +171,7 @@ class TicketService:
             comment = Comment(
                 ticket_id=ticket.id,
                 author=author_name,
+                author_id=author_id,
                 text=comment_text
             )
             db.session.add(comment)

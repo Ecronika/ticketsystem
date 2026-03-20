@@ -4,6 +4,7 @@ Authentication routes.
 Handles admin authentication and session management.
 """
 from functools import wraps
+from datetime import datetime, timezone, timedelta
 from urllib.parse import urljoin, urlparse
 
 from flask import flash, redirect, render_template, request, session, url_for
@@ -130,24 +131,44 @@ def _login_view():
             return render_template('login.html', workers=workers)
 
         worker = Worker.query.filter_by(name=worker_name, is_active=True).first()
-        if worker and check_password_hash(worker.pin_hash, pin):
-            session.permanent = True
-            session['worker_id'] = worker.id
-            session['worker_name'] = worker.name
-            session['is_admin'] = worker.is_admin
-            
-            if worker.needs_pin_change:
-                flash('Bitte ändern Sie zu Ihrer Sicherheit zuerst Ihren PIN.', 'info')
+        if worker:
+            # Check for active lockout
+            if worker.locked_until and worker.locked_until > datetime.now(timezone.utc):
+                time_diff = worker.locked_until - datetime.now(timezone.utc)
+                minutes_left = int(time_diff.total_seconds() // 60) + 1
+                flash(f'Konto vorübergehend gesperrt. Bitte in {minutes_left} Min. erneut versuchen.', 'danger')
+                return render_template('login.html', workers=workers)
+
+            if check_password_hash(worker.pin_hash, pin):
+                # Reset lockout on success
+                worker.failed_login_count = 0
+                worker.locked_until = None
+                db.session.commit()
+
+                session.permanent = True
+                session['worker_id'] = worker.id
+                session['worker_name'] = worker.name
+                session['is_admin'] = worker.is_admin
+
+                if worker.needs_pin_change:
+                    flash('Bitte ändern Sie zu Ihrer Sicherheit zuerst Ihren PIN.', 'info')
+                    ingress = request.headers.get('X-Ingress-Path', '')
+                    return redirect(f"{ingress}{url_for('main.change_pin')}")
+
+                flash(f'Willkommen zurück, {worker.name}!', 'success')
                 ingress = request.headers.get('X-Ingress-Path', '')
-                return redirect(f"{ingress}{url_for('main.change_pin')}")
-
-            flash(f'Willkommen zurück, {worker.name}!', 'success')
-            ingress = request.headers.get('X-Ingress-Path', '')
-            return redirect(f"{ingress}{url_for('main.index')}")
+                return redirect(f"{ingress}{url_for('main.index')}")
+            else:
+                # Increment failed attempts
+                worker.failed_login_count += 1
+                if worker.failed_login_count >= 5:
+                    worker.locked_until = datetime.now(timezone.utc) + timedelta(minutes=15)
+                    flash('Zu viele Fehlversuche. Konto für 15 Minuten gesperrt.', 'danger')
+                else:
+                    flash(f'Falscher PIN. (Versuch {worker.failed_login_count}/5)', 'danger')
+                db.session.commit()
         else:
-            flash('Falscher PIN.', 'danger')
-
-    return render_template('login.html', workers=workers)
+            flash('Mitarbeiter nicht gefunden oder inaktiv.', 'danger')
 
 def _logout_view():
     """Handle worker logout."""
@@ -183,18 +204,24 @@ def _recover_pin_view():
             SystemSettings.set_setting(
                 'recovery_tokens_hash', ','.join(hashed_tokens))
 
-            session['is_admin'] = True
-            session.permanent = True
+            # Patch H-1: Fix inconsistent auth state by binding to an admin account
+            admin = Worker.query.filter_by(is_admin=True, is_active=True).first()
+            if admin:
+                session['worker_id'] = admin.id
+                session['worker_name'] = admin.name
+                session['is_admin'] = True
+                session.permanent = True
 
-            # If recovering as admin via token, we should find who that worker is
-            # and force a PIN change. But for now, just index is fine as the 
-            # audit focuses on the general flow.
-            
-            flash('Erfolgreich eingeloggt. Bitte ändern Sie jetzt Ihren PIN!', 'success')
-            ingress = request.headers.get('X-Ingress-Path', '')
-            return redirect(f"{ingress}{url_for('main.index')}")
+                # Force PIN change for recovered account
+                admin.needs_pin_change = True
+                db.session.commit()
 
-
+                flash('Recovery erfolgreich. Bitte ändern Sie jetzt Ihren PIN!', 'success')
+                ingress = request.headers.get('X-Ingress-Path', '')
+                return redirect(f"{ingress}{url_for('main.index')}")
+            else:
+                flash('Kein aktiver Administrator gefunden, Wiederherstellung fehlgeschlagen.', 'danger')
+                return render_template('recover_pin.html')
         flash('Ungültiger oder bereits verwendeter Token.', 'error')
 
     return render_template('recover_pin.html')

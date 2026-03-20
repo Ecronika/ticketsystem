@@ -57,6 +57,10 @@ class Worker(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     is_admin = db.Column(db.Boolean, default=False)
     needs_pin_change = db.Column(db.Boolean, default=True)
+    
+    # Enterprise Security: Brute-force protection
+    failed_login_count = db.Column(db.Integer, default=0)
+    locked_until = db.Column(db.DateTime, nullable=True)
 
     def __repr__(self):
         return f'<Worker {self.name}>'
@@ -95,6 +99,9 @@ class Comment(db.Model):
     ticket = db.relationship('Ticket', backref=db.backref('comments', cascade='all, delete-orphan'))
     
     author = db.Column(db.String(50), nullable=False) # String for unauthenticated flexibility
+    author_id = db.Column(db.Integer, db.ForeignKey('worker.id'), nullable=True) # Linked author for audit
+    author_worker = db.relationship('Worker', foreign_keys=[author_id])
+    
     text = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 

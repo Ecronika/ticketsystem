@@ -51,7 +51,10 @@ def _ensure_schema_sync(app, logger):
         ("ticket", "assigned_to_id", "INTEGER"),
         ("ticket", "created_at", "DATETIME"),
         ("ticket", "updated_at", "DATETIME"),
-        ("worker", "needs_pin_change", "BOOLEAN DEFAULT 1")
+        ("worker", "needs_pin_change", "BOOLEAN DEFAULT 1"),
+        ("worker", "failed_login_count", "INTEGER DEFAULT 0"),
+        ("worker", "locked_until", "DATETIME"),
+        ("comment", "author_id", "INTEGER")
     ]
     
     for table, column, definition in migrations:

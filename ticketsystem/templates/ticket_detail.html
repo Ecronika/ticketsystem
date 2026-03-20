@@ -2,6 +2,7 @@
 {% block title %}Ticket #{{ ticket.id }}{% endblock %}
 
 {% block content %}
+<div id="ticketDetailWrapper" data-ticket-id="{{ ticket.id }}">
 <div class="row g-4">
     <!-- Main Content -->
     <div class="col-lg-8">
@@ -16,13 +17,18 @@
                         <h1 class="h3 fw-bold mb-1">{{ ticket.title }}</h1>
                         <p class="text-meta small mb-0">Ticket #{{ ticket.id }} • Erstellt am {{ ticket.created_at|local_time|datetime }}</p>
                     </div>
-                    <span class="badge bg-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }}-subtle text-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} rounded-pill px-3 py-2">
-                        Priorität: {{ ticket.priority|priority_label }}
-                    </span>
+                    <div class="d-flex flex-column align-items-end gap-2">
+                        <span class="badge bg-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }}-subtle text-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} rounded-pill px-3 py-2">
+                            Priorität: {{ ticket.priority|priority_label }}
+                        </span>
+                        <span id="ticketStatusBadge" class="badge-subtle-{{ 'warning' if ticket.status == 'in_bearbeitung' else 'success' if ticket.status == 'erledigt' else 'info' if ticket.status == 'offen' else 'secondary' }} rounded-pill px-3 py-1 small fw-bold">
+                            {{ ticket.status|status_label|upper }}
+                        </span>
+                    </div>
                 </div>
 
-                <div class="bg-light rounded-3 p-3 mb-2">
-                    <p class="mb-0 text-dark" style="white-space: pre-wrap;">{{ ticket.description or 'Keine Beschreibung.' }}</p>
+                <div class="bg-surface-subtle p-3 rounded-3 mb-2 border">
+                    <p class="mb-0" style="white-space: pre-wrap;">{{ ticket.description or 'Keine Beschreibung.' }}</p>
                 </div>
             </div>
         </div>
@@ -86,10 +92,9 @@
                 <h4 class="h6 fw-bold mb-3">Ticket Management</h4>
                 
                 <div class="mb-4">
-                    <label class="form-label small text-muted">Status</label>
-                    <select id="statusSelect" class="form-select border-0 bg-light fw-bold" 
-                            data-original="{{ ticket.status }}"
-                            onchange="updateTicketStatus({{ ticket.id }}, this.value)">
+                    <label for="statusSelect" class="form-label small text-muted fw-bold">Status ändern</label>
+                    <select id="statusSelect" class="form-select border-0 bg-surface-subtle fw-bold" 
+                            data-original="{{ ticket.status }}">
                         <option value="offen" {{ 'selected' if ticket.status == 'offen' }}>{{ 'offen'|status_label|upper }}</option>
                         <option value="in_bearbeitung" {{ 'selected' if ticket.status == 'in_bearbeitung' }}>{{ 'in_bearbeitung'|status_label|upper }}</option>
                         <option value="wartet" {{ 'selected' if ticket.status == 'wartet' }}>{{ 'wartet'|status_label|upper }}</option>
@@ -98,10 +103,9 @@
                 </div>
 
                 <div class="mb-4">
-                    <label class="form-label small text-muted">Zuständigkeit</label>
-                    <select id="assignSelect" class="form-select border-0 bg-light fw-bold" 
-                            data-original="{{ ticket.assigned_to_id or '' }}"
-                            onchange="assignTicket({{ ticket.id }}, this.value)">
+                    <label for="assignSelect" class="form-label small text-muted fw-bold">Mitarbeiter zuweisen</label>
+                    <select id="assignSelect" class="form-select border-0 bg-surface-subtle fw-bold" 
+                            data-original="{{ ticket.assigned_to_id or '' }}">
                         <option value="" {{ 'selected' if not ticket.assigned_to_id }}>NICHT ZUGEWIESEN</option>
                         {% for worker in workers %}
                         <option value="{{ worker.id }}" {{ 'selected' if ticket.assigned_to_id == worker.id }}>
@@ -109,6 +113,11 @@
                         </option>
                         {% endfor %}
                     </select>
+                </div>
+
+                <div class="mb-2">
+                    <small class="text-muted d-block mb-1">Aktuell zugewiesen:</small>
+                    <span id="ticketAssigneeBadge" class="fw-bold text-primary">{{ ticket.assigned_to.name|upper if ticket.assigned_to_id else 'NICHT ZUGEWIESEN' }}</span>
                 </div>
 
                 <hr class="text-muted opacity-25">
@@ -125,92 +134,9 @@
         </div>
     </div>
 </div>
+</div>
+{% endblock %}
 
-<script>
-async function updateTicketStatus(ticketId, newStatus) {
-    const select = document.getElementById('statusSelect');
-    // data-original is set in HTML from server-rendered ticket.status
-    const originalValue = select.dataset.original;
-
-    // Safety confirm for closing
-    if (newStatus === 'erledigt') {
-        const confirmed = await window.showConfirm('Ticket abschließen', 'Möchten Sie dieses Ticket wirklich als erledigt markieren?');
-        if (!confirmed) {
-            select.value = originalValue;
-            return;
-        }
-    }
-
-    select.disabled = true;
-    select.classList.add('opacity-50'); // visual loading hint
-    
-    const navbar = document.querySelector('.navbar');
-    const ingress = navbar ? navbar.getAttribute('data-ingress') : '';
-    
-    fetch(`${ingress}/api/ticket/${ticketId}/status`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({ status: newStatus })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            select.dataset.original = newStatus; // update after confirmed server change
-            location.reload();
-        } else {
-            window.showUiAlert('Fehler beim Aktualisieren des Status: ' + data.error);
-            select.disabled = false;
-            select.classList.remove('opacity-50');
-            select.value = originalValue;
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        window.showUiAlert('Netzwerkfehler beim Aktualisieren des Status.');
-        select.disabled = false;
-        select.classList.remove('opacity-50');
-        select.value = originalValue;
-    });
-}
-
-function assignTicket(ticketId, workerId) {
-    const select = document.getElementById('assignSelect');
-    const originalValue = select.dataset.original;
-    select.disabled = true;
-    select.classList.add('opacity-50');
-
-    const navbar = document.querySelector('.navbar');
-    const ingress = navbar ? navbar.getAttribute('data-ingress') : '';
-    fetch(`${ingress}/api/ticket/${ticketId}/assign`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({ worker_id: workerId ? parseInt(workerId) : null })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            select.dataset.original = workerId || '';
-            location.reload();
-        } else {
-            window.showUiAlert('Fehler beim Zuweisen: ' + data.error);
-            select.disabled = false;
-            select.classList.remove('opacity-50');
-            select.value = originalValue;
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        window.showUiAlert('Netzwerkfehler bei der Zuweisung.');
-        select.disabled = false;
-        select.classList.remove('opacity-50');
-        select.value = originalValue;
-    });
-}
-</script>
+{% block scripts %}
+<script src="{{ ingress_path }}{{ url_for('static', filename='js/ticket_detail.js') }}?v=1.2.0"></script>
 {% endblock %}

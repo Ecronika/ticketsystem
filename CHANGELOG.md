@@ -1,9 +1,23 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## [1.2.0] - 2026-03-18
+### Sicherheit & Enterprise-Readiness (Hardening)
+- **Account-Lockout Mechanism (H-1):** Sperrt Benutzer nach 5 Fehlversuchen für 15 Minuten, um Brute-Force-Angriffe zu verhindern.
+- **Worker Enumeration Prevention (M-1):** Benutzerliste auf der Login-Seite entfernt, um Angriffsfläche zu minimieren.
+- **Audit-Trail Integrität (H-2):** Alle Kommentare, Statusänderungen und Zuweisungen werden nun über eine nicht fälschbare `author_id` (Fremdschlüssel) verknüpft.
+- **Strict Content Security Policy (C-1):** Alle Inline-Scripte wurden externalisiert; `'unsafe-inline'` wurde aus der CSP entfernt.
+- **CSRF-Härtung:** Session-Bindung für AJAX-Requests via Meta-Tag und POST-only für sensible Aktionen.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+### Architektur & Maintenance
+- **JavaScript Externalisierung:** Refactoring von `base.html`, `ticket_detail.html` und `workers.html` – Logik in saubere, versionierte `.js` Dateien ausgelagert.
+- **Service-Layer Update:** `TicketService` unterstützt nun die native Verknpfung von Aktionen mit Mitarbeiter-Datensätzen.
+
+### UI/UX & Barrierefreiheit (WCAG 2.2 AA)
+- **Kontrast-Optimierung (L-1/M-6):** Einführung von theme-sensitiven Badge-Klassen (`badge-subtle-*`) für perfekte Lesbarkeit in Light, Dark und High-Contrast.
+- **Design-System Konsistenz:** Entfernung aller hardcodierten Bootstrap-Farben (`bg-white` etc.) aus den Haupttemplates zugunsten von CSS-Variablen.
+- **Shopfloor-Ergonomie:** Korrektur von PIN-Eingabemustern und Modal-Fokus-Management.
+
+---
 
 ## [1.1.1] - 2026-03-19
 

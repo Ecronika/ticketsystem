@@ -21,7 +21,7 @@
 </div>
 
 <!-- Search & Filter Bar (Bento Style) -->
-<div class="card shadow-sm border-0 rounded-4 mb-4 bg-white">
+<div class="card shadow-sm border-0 rounded-4 mb-4">
     <div class="card-body p-3">
         <form method="GET" class="row g-3">
             <div class="col-md-6 col-lg-7">
@@ -31,7 +31,7 @@
                 </div>
             </div>
             <div class="col-md-3 col-lg-3">
-                <select name="status" class="form-select border-0 bg-light-subtle rounded-3 fw-medium">
+                <select name="status" class="form-select border-0 bg-surface-subtle rounded-3 fw-medium">
                     <option value="">Alle Offenen</option>
                     <option value="offen" {{ 'selected' if current_status == 'offen' }}>Offen</option>
                     <option value="in_bearbeitung" {{ 'selected' if current_status == 'in_bearbeitung' }}>In Bearbeitung</option>
@@ -50,9 +50,9 @@
     <!-- Focus Box (High Priority / Unassigned) -->
     <div class="col-lg-8">
         <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden">
-            <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+            <div class="card-header border-0 py-3 px-4 d-flex justify-content-between align-items-center">
                 <h3 class="h5 fw-bold mb-0"><i class="bi bi-fire text-danger me-2"></i> Fokus: Offene Tickets</h3>
-                <span class="badge bg-danger-subtle text-danger rounded-pill px-3">{{ focus_tickets|length }}</span>
+                <span class="badge badge-subtle-danger rounded-pill px-3">{{ focus_tickets|length }}</span>
             </div>
             <div class="card-body p-0">
                 <div class="list-group list-group-flush">
@@ -60,13 +60,13 @@
                     <a href="{{ ingress_path }}{{ url_for('main.ticket_detail', ticket_id=ticket.id) }}" class="list-group-item list-group-item-action py-3 px-4 border-0 border-bottom">
                         <div class="d-flex justify-content-between align-items-start mb-1">
                             <h4 class="h6 fw-bold mb-0">{{ ticket.title }}</h4>
-                            <span class="badge bg-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }}-subtle text-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} px-2 py-1 small rounded">
+                            <span class="badge badge-subtle-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} px-2 py-1 small rounded">
                                 {{ ticket.priority|priority_label }}
                             </span>
                         </div>
                         <p class="text-secondary small mb-2 text-truncate">{{ ticket.description or 'Keine Beschreibung vorhanden.' }}</p>
                         <div class="d-flex justify-content-between align-items-center">
-                            <span class="badge bg-{{ 'info' if ticket.status == 'in_bearbeitung' else 'warning' if ticket.status == 'wartet' else 'secondary' }} rounded-pill px-2 py-1 x-small fw-normal">
+                            <span class="badge badge-subtle-{{ 'info' if ticket.status == 'in_bearbeitung' else 'warning' if ticket.status == 'wartet' else 'secondary' }} rounded-pill px-2 py-1 x-small fw-normal">
                                 {{ ticket.status|status_label }}
                             </span>
                             <small class="text-meta x-small">{{ ticket.created_at|local_time|time_ago }}</small>
@@ -81,7 +81,7 @@
                 </div>
             </div>
             {% if pagination.pages > 1 %}
-            <div class="card-footer bg-white border-0 py-3 px-4 d-flex justify-content-center">
+            <div class="card-footer border-0 py-3 px-4 d-flex justify-content-center">
                 <nav aria-label="Ticket pagination">
                     <ul class="pagination pagination-sm mb-0">
                         <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
@@ -108,7 +108,7 @@
 
     <!-- Self Box (Assigned to Me) -->
     <div class="col-lg-4">
-        <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden bg-light-subtle">
+        <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden bg-surface-subtle">
             <div class="card-header bg-transparent border-0 py-3 px-4">
                 <h3 class="h5 fw-bold mb-0"><i class="bi bi-person-check-fill text-primary me-2"></i> Meine Tickets</h3>
             </div>
@@ -118,7 +118,7 @@
                     <a href="{{ ingress_path }}{{ url_for('main.ticket_detail', ticket_id=ticket.id) }}" class="list-group-item list-group-item-action py-3 px-4 border-0 border-bottom bg-transparent">
                         <h4 class="h6 fw-bold mb-1">{{ ticket.title }}</h4>
                         <div class="d-flex justify-content-between align-items-center">
-                            <span class="badge bg-{{ 'info' if ticket.status == 'in_bearbeitung' else 'warning' if ticket.status == 'wartet' else 'secondary' }} rounded-pill px-2 py-1 x-small fw-normal">
+                            <span class="badge badge-subtle-{{ 'info' if ticket.status == 'in_bearbeitung' else 'warning' if ticket.status == 'wartet' else 'secondary' }} rounded-pill px-2 py-1 x-small fw-normal">
                                 {{ ticket.status|upper }}
                             </span>
                             <small class="text-meta x-small">{{ ticket.updated_at|local_time|time_ago }}</small>

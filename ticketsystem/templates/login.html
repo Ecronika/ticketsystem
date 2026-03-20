@@ -13,12 +13,7 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                     <div class="mb-3">
                         <label for="worker_name" class="form-label">Name eingeben</label>
-                        <input type="text" class="form-control form-control-lg" id="worker_name" name="worker_name" list="workerList" required autofocus autocomplete="username" placeholder="Vorname Nachname">
-                        <datalist id="workerList">
-                            {% for worker in workers %}
-                            <option value="{{ worker.name }}">
-                            {% endfor %}
-                        </datalist>
+                        <input type="text" class="form-control form-control-lg" id="worker_name" name="worker_name" required autofocus autocomplete="username" placeholder="Mitarbeiter-Name">
                     </div>
                     <div class="mb-3">
                         <label for="pin" class="form-label">Persönlicher PIN</label>

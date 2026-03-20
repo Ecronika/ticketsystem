@@ -64,7 +64,8 @@ def _new_ticket_view():
                 title=title,
                 description=description,
                 priority=priority,
-                author_name=author_name
+                author_name=author_name,
+                author_id=session.get('worker_id')
             )
             flash('Ticket erfolgreich erstellt!', 'success')
             ingress = request.headers.get('X-Ingress-Path', '')
@@ -94,7 +95,7 @@ def _add_comment_view(ticket_id):
     author_name = session.get('worker_name', 'System')
     
     if text:
-        TicketService.add_comment(ticket_id, author_name, text)
+        TicketService.add_comment(ticket_id, author_name, session.get('worker_id'), text)
         flash('Kommentar hinzugefügt.', 'success')
     
     ingress = request.headers.get('X-Ingress-Path', '')
@@ -111,7 +112,7 @@ def _update_status_api(ticket_id):
         return jsonify({'success': False, 'error': 'Kein Status angegeben'}), 400
     
     try:
-        TicketService.update_status(ticket_id, new_status_val, author_name)
+        TicketService.update_status(ticket_id, new_status_val, author_name, session.get('worker_id'))
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -125,7 +126,7 @@ def _assign_ticket_api(ticket_id):
     
     try:
         # Note: worker_id can be None/null for "Unassigned"
-        TicketService.assign_ticket(ticket_id, worker_id, author_name)
+        TicketService.assign_ticket(ticket_id, worker_id, author_name, session.get('worker_id'))
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -137,7 +138,7 @@ def _assign_to_me_view(ticket_id):
     worker_name = session.get('worker_name', 'System')
     
     if worker_id:
-        TicketService.assign_ticket(ticket_id, worker_id, worker_name)
+        TicketService.assign_ticket(ticket_id, worker_id, worker_name, worker_id)
         flash('Ticket wurde Ihnen zugewiesen.', 'success')
     
     ingress = request.headers.get('X-Ingress-Path', '')

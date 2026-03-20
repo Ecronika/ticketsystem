@@ -264,7 +264,7 @@ if not IS_HOMEASSISTANT:
              strict_transport_security=SSL_ACTIVE,
              content_security_policy={
                  'default-src': "'self'",
-                 'script-src': ["'self'", 'cdn.jsdelivr.net', 'unpkg.com', "'unsafe-inline'"],
+                 'script-src': ["'self'", 'cdn.jsdelivr.net', 'unpkg.com'],
                  'style-src': ["'self'", 'cdn.jsdelivr.net', "'unsafe-inline'"],
                  'img-src': ["'self'", 'data:'],
                  'font-src': ["'self'", 'cdn.jsdelivr.net'],
@@ -286,7 +286,7 @@ else:
         # CSP headers (same policy as Talisman)
         response.headers['Content-Security-Policy'] = (
             "default-src 'self'; "
-            "script-src 'self' cdn.jsdelivr.net unpkg.com 'unsafe-inline'; "
+            "script-src 'self' cdn.jsdelivr.net unpkg.com; "
             "style-src 'self' cdn.jsdelivr.net 'unsafe-inline'; "
             "img-src 'self' data:; "
             "font-src 'self' cdn.jsdelivr.net; "

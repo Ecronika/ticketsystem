@@ -91,6 +91,7 @@ canvas {
     --font-mono: ui-monospace, "Courier New", monospace;
     --bg-body: #f5f5f0;
     --bg-surface: #fdfcfb;
+    --bg-surface-subtle: #f8f9fa;
     --text-main: #212529;
     --text-muted: #5c636a;
     --border-color: #dee2e6;
@@ -148,6 +149,8 @@ canvas {
 /* Dark Mode (Ergonomisch, kein reines Schwarz) */
 [data-theme="dark"] {
     --bg-body: #121212;
+    --bg-surface: #1e1e1e;
+    --bg-surface-subtle: #2d2d2d;
     --bg-surface: #1e1e1e;
     --text-main: #e0e0e0;
     --text-muted: #b5bcc7;
@@ -407,6 +410,57 @@ canvas {
 
 .border-theme-info-subtle {
     border-color: var(--border-info-subtle) !important;
+}
+
+.bg-surface-subtle {
+    background-color: var(--bg-surface-subtle) !important;
+}
+
+/* Badge Subtle Utilities - Addressing L-1 for High Contrast */
+.badge-subtle-primary {
+    background-color: var(--bg-primary-subtle, #e7f1ff) !important;
+    color: var(--color-primary, #0d6efd) !important;
+    border: 1px solid transparent;
+}
+.badge-subtle-success {
+    background-color: var(--bg-success-subtle, #d1e7dd) !important;
+    color: var(--color-success, #146c43) !important;
+    border: 1px solid transparent;
+}
+.badge-subtle-warning {
+    background-color: var(--bg-warning-subtle, #fff3cd) !important;
+    color: var(--color-warning, #856404) !important;
+    border: 1px solid transparent;
+}
+.badge-subtle-danger {
+    background-color: var(--bg-danger-subtle, #f8d7da) !important;
+    color: var(--color-danger, #b91c1c) !important;
+    border: 1px solid transparent;
+}
+.badge-subtle-info {
+    background-color: var(--bg-info-subtle, #cff4fc) !important;
+    color: var(--badge-info-text, #055160) !important;
+    border: 1px solid transparent;
+}
+.badge-subtle-secondary {
+    background-color: var(--border-color, #dee2e6) !important;
+    color: var(--text-muted, #6c757d) !important;
+    border: 1px solid transparent;
+}
+
+[data-theme="dark"] .badge-subtle-secondary {
+    background-color: #333 !important;
+    color: #bbb !important;
+}
+
+[data-theme="hc"] .badge-subtle-info,
+[data-theme="hc"] .badge-subtle-primary,
+[data-theme="hc"] .badge-subtle-success,
+[data-theme="hc"] .badge-subtle-warning,
+[data-theme="hc"] .badge-subtle-danger,
+[data-theme="hc"] .badge-subtle-secondary {
+    background-color: #000 !important;
+    border: 1px solid currentColor !important;
 }
 
 /* -------------------------------------------------------------------------- */

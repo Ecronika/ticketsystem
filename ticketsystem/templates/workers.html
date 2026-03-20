@@ -14,13 +14,13 @@
     <!-- List of Workers (Bento Style) -->
     <div class="col-lg-8">
         <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
-            <div class="card-header bg-white border-0 py-3 px-4">
+            <div class="card-header border-0 py-3 px-4">
                 <h3 class="h5 fw-bold mb-0"><i class="bi bi-people text-primary me-2"></i> Aktive Mitarbeiter</h3>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
-                        <thead class="bg-light-subtle">
+                        <thead class="bg-surface-subtle">
                             <tr>
                                 <th class="px-4 border-0 small text-muted">NAME</th>
                                 <th class="border-0 small text-muted">ROLLE</th>
@@ -34,16 +34,16 @@
                                 <td class="px-4 fw-bold">{{ worker.name }}</td>
                                 <td>
                                     {% if worker.is_admin %}
-                                    <span class="badge bg-danger-subtle text-danger rounded-pill px-2">Admin</span>
+                                    <span class="badge badge-subtle-danger rounded-pill px-2">Admin</span>
                                     {% else %}
-                                    <span class="badge bg-primary-subtle text-primary rounded-pill px-2">Mitarbeiter</span>
+                                    <span class="badge badge-subtle-primary rounded-pill px-2">Mitarbeiter</span>
                                     {% endif %}
                                 </td>
                                 <td>
                                     {% if worker.is_active %}
-                                    <span class="badge bg-success-subtle text-success rounded-pill px-2">Aktiv</span>
+                                    <span class="badge badge-subtle-success rounded-pill px-2">Aktiv</span>
                                     {% else %}
-                                    <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2">Inaktiv</span>
+                                    <span class="badge badge-subtle-secondary rounded-pill px-2">Inaktiv</span>
                                     {% endif %}
                                 </td>
                                 <td class="text-end px-4">
@@ -103,26 +103,7 @@
         </div>
     </div>
 
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const editModal = new bootstrap.Modal(document.getElementById('editWorkerModal'));
-        
-        document.querySelectorAll('.edit-worker-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const id = this.getAttribute('data-id');
-                const name = this.getAttribute('data-name');
-                const isAdmin = this.getAttribute('data-admin') === 'true';
-                
-                document.getElementById('edit_worker_id').value = id;
-                document.getElementById('edit_name').value = name;
-                document.getElementById('edit_is_admin').checked = isAdmin;
-
-                // Pass relatedTarget so Bootstrap returns focus to trigger button on close
-                editModal.show(this);
-            });
-        });
-    });
-    </script>
+    <script src="{{ ingress_path }}{{ url_for('static', filename='js/workers.js') }}?v=1.2.0"></script>
 
     <!-- Add Worker Form (Bento Style) -->
     <div class="col-lg-4">
@@ -141,8 +122,8 @@
                     <div class="mb-3">
                         <label class="form-label small">PIN (4-stellig)</label>
                         <input type="password" name="pin" class="form-control border-0 bg-white-50" placeholder="****" 
-                               pattern="[0-9]+" minlength="4" maxlength="16" inputmode="numeric" required>
-                        <div class="form-text text-white-50 x-small">Mind. 4 Ziffern erlaubt.</div>
+                               pattern="\d{4,16}" inputmode="numeric" required>
+                        <div class="form-text text-white-50 x-small">Erlaubt sind 4 bis 16 Ziffern.</div>
                     </div>
                     
                     <div class="form-check form-switch mb-4">
