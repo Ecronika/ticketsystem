@@ -98,9 +98,12 @@ touch /var/log/nginx/error.log
 touch /var/log/nginx/access.log
 
 bashio::log.info "Starte NGINX im Hintergrund..."
-# Beende eventuell hängende NGINX-Prozesse von einem vorherigen Absturz (Port-Konflikt verhindern)
-pkill nginx || true
-# Nginx im Standard-Modus (Daemon) starten, damit es im Hintergrund bleibt
+# Beende eventuell hängende NGINX-Prozesse (Port-Konflikt verhindern)
+if pgrep nginx >/dev/null; then
+    pkill nginx || true
+    sleep 1
+fi
+
 if ! nginx; then
     bashio::log.fatal "NGINX konnte nicht gestartet werden!"
     cat /var/log/nginx/error.log
