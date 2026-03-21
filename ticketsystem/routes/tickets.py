@@ -3,7 +3,7 @@ from flask import flash, redirect, render_template, request, session, url_for, j
 from extensions import limiter, db
 from services.ticket_service import TicketService
 from enums import TicketStatus, TicketPriority
-from .auth import worker_required
+from .auth import worker_required, redirect_to
 from models import Worker, Attachment
 
 def _dashboard_view():
@@ -71,8 +71,7 @@ def _new_ticket_view():
                 image_base64=image_base64
             )
             flash('Ticket erfolgreich erstellt!', 'success')
-            ingress = request.headers.get('X-Ingress-Path', '')
-            return redirect(f"{ingress}{url_for('main.index')}")
+            return redirect_to('main.index')
         except Exception:
             flash('Fehler beim Erstellen des Tickets.', 'error')
 
@@ -85,8 +84,7 @@ def _ticket_detail_view(ticket_id):
     ticket = db.session.get(Ticket, ticket_id)
     if not ticket:
         flash('Ticket nicht gefunden.', 'error')
-        ingress = request.headers.get('X-Ingress-Path', '')
-        return redirect(f"{ingress}{url_for('main.index')}")
+        return redirect_to('main.index')
     
     workers = Worker.query.filter_by(is_active=True).all()
     return render_template('ticket_detail.html', ticket=ticket, workers=workers)
@@ -101,8 +99,7 @@ def _add_comment_view(ticket_id):
         TicketService.add_comment(ticket_id, author_name, session.get('worker_id'), text)
         flash('Kommentar hinzugefügt.', 'success')
     
-    ingress = request.headers.get('X-Ingress-Path', '')
-    return redirect(f"{ingress}{url_for('main.ticket_detail', ticket_id=ticket_id)}")
+    return redirect_to('main.ticket_detail', ticket_id=ticket_id)
 
 @worker_required
 def _update_status_api(ticket_id):
@@ -144,8 +141,7 @@ def _assign_to_me_view(ticket_id):
         TicketService.assign_ticket(ticket_id, worker_id, worker_name, worker_id)
         flash('Ticket wurde Ihnen zugewiesen.', 'success')
     
-    ingress = request.headers.get('X-Ingress-Path', '')
-    return redirect(f"{ingress}{url_for('main.ticket_detail', ticket_id=ticket_id)}")
+    return redirect_to('main.ticket_detail', ticket_id=ticket_id)
 
 def _serve_attachment(attachment_id):
     """Securely serve uploaded attachments."""

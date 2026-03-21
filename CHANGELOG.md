@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.3.4] - 2026-03-21
+### Fixed
+- **Redirect Reliability:** Introduced a centralized Ingress-aware redirect helper to prevent 404 errors and double-slash pathing issues across all authenticated and unauthenticated routes.
+
 ## [1.3.3] - 2026-03-21
 ### Added
 - **Image Support:** Fixed the missing link between frontend image uploads and backend storage. Tickets now correctly save and display uploaded images in the detail view.

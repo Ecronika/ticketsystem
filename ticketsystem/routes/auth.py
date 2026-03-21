@@ -13,22 +13,24 @@ from extensions import db, limiter
 from models import SystemSettings, Worker
 
 
-def _is_safe_redirect(target: str) -> bool:
-    """Return True only if target stays on the same host or Ingress proxy."""
-    ref = urlparse(request.host_url)
-    test = urlparse(urljoin(request.host_url, target))
-    if test.scheme not in ('http', 'https'):
-        return False
-    # Direct same-host match (standalone / local access)
-    if ref.netloc == test.netloc:
-        return True
-    # Behind Ingress: the target URL carries the external hostname.
-    # Trust it if it contains the Ingress path prefix so we stay on the
-    # same add-on and don't redirect to a foreign site.
     ingress = request.headers.get('X-Ingress-Path', '')
     if ingress and test.path.startswith(ingress):
         return True
     return False
+
+
+def redirect_to(endpoint, **kwargs):
+    """Helper for Ingress-aware redirects."""
+    ingress = request.headers.get('X-Ingress-Path', '')
+    target = url_for(endpoint, **kwargs)
+    
+    # Ensure no double slashes
+    if ingress.endswith('/') and target.startswith('/'):
+        target = target[1:]
+    elif not ingress.endswith('/') and not target.startswith('/'):
+        target = '/' + target
+        
+    return redirect(f"{ingress}{target}")
 
 
 def admin_required(f):
@@ -41,8 +43,7 @@ def admin_required(f):
                 return jsonify({'success': False, 'error': 'Admin-Rechte erforderlich.'}), 403
 
             flash('Diese Aktion erfordert Administrator-Rechte.', 'warning')
-            ingress = request.headers.get('X-Ingress-Path', '')
-            return redirect(f"{ingress}{url_for('main.login', next=request.url)}")
+            return redirect_to('main.login', next=request.url)
         return f(*args, **kwargs)
     return decorated_function
 
@@ -57,8 +58,7 @@ def worker_required(f):
                 return jsonify({'success': False, 'error': 'Bitte zuerst einloggen.'}), 401
 
             flash('Bitte loggen Sie sich ein.', 'info')
-            ingress = request.headers.get('X-Ingress-Path', '')
-            return redirect(f"{ingress}{url_for('main.login', next=request.url)}")
+            return redirect_to('main.login', next=request.url)
         return f(*args, **kwargs)
     return decorated_function
 
@@ -104,8 +104,7 @@ def _setup_view():
             session['is_admin'] = True
             
             flash('Setup abgeschlossen! Willkommen im System.', 'success')
-            ingress = request.headers.get('X-Ingress-Path', '')
-            return redirect(f"{ingress}{url_for('main.index')}")
+            return redirect_to('main.index')
 
     return render_template('setup.html')
 
@@ -154,12 +153,10 @@ def _login_view():
 
                 if worker.needs_pin_change:
                     flash('Bitte ändern Sie zu Ihrer Sicherheit zuerst Ihren PIN.', 'info')
-                    ingress = request.headers.get('X-Ingress-Path', '')
-                    return redirect(f"{ingress}{url_for('main.change_pin')}")
+                    return redirect_to('main.change_pin')
 
                 flash(f'Willkommen zurück, {worker.name}!', 'success')
-                ingress = request.headers.get('X-Ingress-Path', '')
-                return redirect(f"{ingress}{url_for('main.index')}")
+                return redirect_to('main.index')
             else:
                 # Log failure to console for admin diagnostics
                 import sys
@@ -185,14 +182,8 @@ def _logout_view():
     from flask import make_response
     session.clear()
     flash('Erfolgreich ausgeloggt.', 'info')
-    ingress = request.headers.get('X-Ingress-Path', '')
-    # Ensure no double slashes when redirecting with ingress path
-    target = url_for('main.index')
-    if ingress and target.startswith('/'):
-        target = target[1:]
     
-    redirect_url = f"{ingress}{target}"
-    response = make_response(redirect(redirect_url))
+    response = make_response(_redirect_to('main.index'))
     
     # GDPR & Shopfloor Security: Clear all local data on logout
     response.headers['Clear-Site-Data'] = '"cache", "cookies", "storage"'
@@ -238,8 +229,7 @@ def _recover_pin_view():
                 db.session.commit()
 
                 flash('Recovery erfolgreich. Bitte ändern Sie jetzt Ihren PIN!', 'success')
-                ingress = request.headers.get('X-Ingress-Path', '')
-                return redirect(f"{ingress}{url_for('main.index')}")
+                return redirect_to('main.index')
             else:
                 flash('Kein aktiver Administrator gefunden, Wiederherstellung fehlgeschlagen.', 'danger')
                 return render_template('recover_pin.html')
@@ -272,8 +262,7 @@ def _change_pin_view():
             worker.needs_pin_change = False
             db.session.commit()
             flash('PIN erfolgreich geändert.', 'success')
-            ingress = request.headers.get('X-Ingress-Path', '')
-            return redirect(f"{ingress}{url_for('main.index')}")
+            return redirect_to('main.index')
 
     return render_template('change_pin.html')
 
