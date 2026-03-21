@@ -11,6 +11,9 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app import app
 from database_init import init_database
+from models import Worker
+from extensions import db
+from werkzeug.security import generate_password_hash
 
 # Configure basic logging to console
 logging.basicConfig(
