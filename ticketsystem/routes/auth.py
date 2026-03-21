@@ -161,6 +161,10 @@ def _login_view():
                 ingress = request.headers.get('X-Ingress-Path', '')
                 return redirect(f"{ingress}{url_for('main.index')}")
             else:
+                # Log failure to console for admin diagnostics
+                import sys
+                print(f"DEBUG: Login FAILED for '{worker.name}' - PIN mismatch.", file=sys.stderr, flush=True)
+                
                 # Increment failed attempts
                 worker.failed_login_count += 1
                 if worker.failed_login_count >= 5:
