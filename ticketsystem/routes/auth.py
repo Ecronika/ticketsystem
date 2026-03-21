@@ -173,6 +173,8 @@ def _login_view():
             flash('Mitarbeiter nicht gefunden oder inaktiv.', 'danger')
             return render_template('login.html', workers=workers)
 
+    return render_template('login.html', workers=workers)
+
 def _logout_view():
     """Handle worker logout with Clear-Site-Data for shared terminals."""
     from flask import make_response
