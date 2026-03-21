@@ -115,7 +115,7 @@ tail -f /var/log/nginx/error.log &
 
 bashio::log.info "Initialisiere Datenbank-Schema und Standardwerte..."
 # Run dedicated init script before starting the server
-if ! python3 init_db.py; then
+if ! python3 -u init_db.py; then
     bashio::log.fatal "Datenbank-Initialisierung fehlgeschlagen! Add-on startet nicht."
     bashio::exit.nok
 fi

@@ -31,8 +31,10 @@ def run():
     except Exception as e:
         import traceback
         logger.critical("DATABASE INITIALIZATION FAILED!")
-        logger.error(str(e))
-        logger.error(traceback.format_exc())
+        print(f"ERROR: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        sys.stderr.flush()
+        sys.stdout.flush()
         sys.exit(1)
 
 if __name__ == "__main__":

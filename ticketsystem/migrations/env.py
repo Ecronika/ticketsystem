@@ -98,10 +98,6 @@ def run_migrations_online():
     connectable = get_engine()
 
     with connectable.connect() as connection:
-        # Set busy_timeout for SQLite to prevent "database is locked" during migrations
-        if connection.dialect.name == 'sqlite':
-            connection.execute(sa.text("PRAGMA busy_timeout = 30000"))
-            
         context.configure(
             connection=connection,
             target_metadata=get_metadata(),
