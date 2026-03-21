@@ -28,6 +28,7 @@ COPY services/ ./services/
 COPY migrations/ migrations/
 
 COPY database_init.py .
+COPY init_db.py .
 COPY templates templates/
 COPY static static/
 COPY metrics.py .
