@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.9] - 2026-03-22
+### Fixed
+- **Image Upload:** Implemented a state-based submit button to prevent premature ticket submission before image processing is finished.
+- **Image Upload:** Added error handling for client-side image loading failures.
+- **Diagnostics:** Added detailed backend logging for attachment processing to identify silent failures.
+- **Reliability:** Corrected potential race conditions during Base64 image encoding on mobile devices.
+
 ## [1.3.8] - 2026-03-21
 ### Fixed
 - **Worker Management:** Restored the "Add Worker" form which was accidentally removed in v1.3.7.

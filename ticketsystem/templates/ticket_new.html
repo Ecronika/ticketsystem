@@ -57,14 +57,19 @@
                         <input type="file" class="form-control" id="attachment-input" accept="image/*">
                         <input type="hidden" name="image_base64" id="image-base64">
                         <div id="image-preview" class="mt-2 d-none">
-                            <img src="" class="img-thumbnail" style="max-height: 200px;">
-                            <button type="button" class="btn btn-sm btn-danger mt-1" id="remove-image">Entfernen</button>
+                            <div class="position-relative d-inline-block">
+                                <img src="" class="img-thumbnail" style="max-height: 200px;">
+                                <div id="image-upload-status" class="position-absolute top-50 start-50 translate-middle d-none">
+                                    <div class="spinner-border text-primary" role="status"></div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-danger d-block mt-1" id="remove-image">Entfernen</button>
                         </div>
                         <p class="text-meta x-small mt-1">Bilder werden automatisch für den Upload optimiert.</p>
                     </div>
 
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary btn-lg rounded-pill p-3 fw-bold">
+                        <button type="submit" id="submit-btn" class="btn btn-primary btn-lg rounded-pill p-3 fw-bold">
                             <i class="bi bi-send-fill me-2"></i>Ticket absenden
                         </button>
                     </div>
@@ -82,10 +87,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const preview = document.getElementById('image-preview');
     const previewImg = preview.querySelector('img');
     const removeBtn = document.getElementById('remove-image');
+    const submitBtn = document.getElementById('submit-btn');
+    const statusIdx = document.getElementById('image-upload-status');
 
     input.addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
+
+        // Show preview and loading
+        preview.classList.remove('d-none');
+        previewImg.style.opacity = '0.3';
+        statusIdx?.classList.remove('d-none');
+        submitBtn.disabled = true;
 
         const reader = new FileReader();
         reader.onload = function(event) {
@@ -113,21 +126,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
 
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
                 base64Input.value = dataUrl;
                 previewImg.src = dataUrl;
-                preview.classList.remove('d-none');
+                previewImg.style.opacity = '1';
+                statusIdx?.classList.add('d-none');
+                submitBtn.disabled = false;
+            };
+            img.onerror = function() {
+                alert('Fehler beim Laden des Bildes.');
+                resetImage();
             };
             img.src = event.target.result;
         };
         reader.readAsDataURL(file);
     });
 
-    removeBtn.addEventListener('click', function() {
+    function resetImage() {
         input.value = '';
         base64Input.value = '';
         preview.classList.add('d-none');
-    });
+        submitBtn.disabled = false;
+    }
+
+    removeBtn.addEventListener('click', resetImage);
 });
 </script>
 {% endblock %}

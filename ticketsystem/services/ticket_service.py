@@ -48,38 +48,43 @@ class TicketService:
             db.session.add(comment)
 
             # Handle Image/Attachment
-            if image_base64 and "," in image_base64:
-                try:
-                    import os
-                    import base64
-                    import uuid
-                    
-                    # Ensure attachments directory exists
-                    data_dir = current_app.config.get('DATA_DIR', '/data')
-                    attachments_dir = os.path.join(data_dir, 'attachments')
-                    os.makedirs(attachments_dir, exist_ok=True)
-                    
-                    # Decode base64
-                    header, encoded = image_base64.split(",", 1)
-                    mime_type = header.split(";")[0].split(":")[1]
-                    ext = mime_type.split("/")[-1]
-                    if ext == 'jpeg': ext = 'jpg'
-                    
-                    filename = f"ticket_{ticket.id}_{uuid.uuid4().hex[:8]}.{ext}"
-                    filepath = os.path.join(attachments_dir, filename)
-                    
-                    with open(filepath, "wb") as f:
-                        f.write(base64.b64decode(encoded))
+            if image_base64:
+                current_app.logger.info(f"Processing attachment for ticket {ticket.id}. Length: {len(image_base64)}")
+                if "," in image_base64:
+                    try:
+                        import os
+                        import base64
+                        import uuid
                         
-                    attachment = Attachment(
-                        ticket_id=ticket.id,
-                        path=filename, # Store relative name
-                        filename=filename,
-                        mime_type=mime_type
-                    )
-                    db.session.add(attachment)
-                except Exception as img_err:
-                    current_app.logger.error(f"Error saving attachment: {img_err}")
+                        # Ensure attachments directory exists
+                        data_dir = current_app.config.get('DATA_DIR', '/data')
+                        attachments_dir = os.path.join(data_dir, 'attachments')
+                        os.makedirs(attachments_dir, exist_ok=True)
+                        
+                        # Decode base64
+                        header, encoded = image_base64.split(",", 1)
+                        mime_type = header.split(";")[0].split(":")[1]
+                        ext = mime_type.split("/")[-1]
+                        if ext == 'jpeg': ext = 'jpg'
+                        
+                        filename = f"ticket_{ticket.id}_{uuid.uuid4().hex[:8]}.{ext}"
+                        filepath = os.path.join(attachments_dir, filename)
+                        
+                        with open(filepath, "wb") as f:
+                            f.write(base64.b64decode(encoded))
+                            
+                        attachment = Attachment(
+                            ticket_id=ticket.id,
+                            path=filename,
+                            filename=filename,
+                            mime_type=mime_type
+                        )
+                        db.session.add(attachment)
+                        current_app.logger.info(f"Successfully saved attachment: {filename}")
+                    except Exception as img_err:
+                        current_app.logger.error(f"Error saving attachment for ticket {ticket.id}: {img_err}", exc_info=True)
+                else:
+                    current_app.logger.warning(f"image_base64 present but missing comma separator for ticket {ticket.id}")
 
             db.session.commit()
             return ticket
