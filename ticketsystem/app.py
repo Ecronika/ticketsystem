@@ -425,7 +425,7 @@ def time_ago_filter(dt):
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     diff = now - dt
     
     seconds = diff.total_seconds()

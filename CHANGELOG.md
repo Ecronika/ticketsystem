@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.5] - 2026-03-21
+### Fixed
+- **Critical Runtime Fixes:** Fixed specialized `IndentationError` and `NameError` in `auth.py` and `tickets.py` that caused application crashes.
+- **Timezone Stability:** Standardized all internal timestamps to naive UTC for full SQLite compatibility, resolving `TypeError` crashes during account lockout checks.
+- **HA Ingress Optimization:** Fixed dashboard polling with correct Ingress path prefix.
+
 ## [1.3.4] - 2026-03-21
 ### Fixed
 - **Redirect Reliability:** Introduced a centralized Ingress-aware redirect helper to prevent 404 errors and double-slash pathing issues across all authenticated and unauthenticated routes.

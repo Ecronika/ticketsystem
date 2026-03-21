@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const POLL_INTERVAL = 30000; // 30 seconds
     
     function updateDashboard() {
-        fetch('/api/dashboard/summary')
+        fetch('{{ ingress_path }}/api/dashboard/summary')
             .then(response => response.json())
             .then(data => {
                 if (data.success) {

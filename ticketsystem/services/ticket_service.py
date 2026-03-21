@@ -113,7 +113,7 @@ class TicketService:
                 ticket.due_date = due_date
 
             if changes:
-                ticket.updated_at = datetime.now(timezone.utc)
+                ticket.updated_at = datetime.utcnow()
                 comment = Comment(
                     ticket_id=ticket.id,
                     author=author_name,
@@ -140,7 +140,7 @@ class TicketService:
                 return False
             
             ticket.is_deleted = True
-            ticket.updated_at = datetime.now(timezone.utc)
+            ticket.updated_at = datetime.utcnow()
             
             comment = Comment(
                 ticket_id=ticket.id,
@@ -174,7 +174,7 @@ class TicketService:
             # Update updated_at on ticket
             ticket = db.session.get(Ticket, ticket_id)
             if ticket:
-                ticket.updated_at = datetime.now(timezone.utc)
+                ticket.updated_at = datetime.utcnow()
             
             db.session.commit()
             return comment
@@ -196,7 +196,7 @@ class TicketService:
             
             if old_status != new_status:
                 ticket.status = new_status
-                ticket.updated_at = datetime.now(timezone.utc)
+                ticket.updated_at = datetime.utcnow()
                 
                 comment = Comment(
                     ticket_id=ticket_id,

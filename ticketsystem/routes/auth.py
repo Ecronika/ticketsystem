@@ -13,6 +13,8 @@ from extensions import db, limiter
 from models import SystemSettings, Worker
 
 
+def is_safe_url(test):
+    """Prüft ob eine Redirect-URL safe ist (innerhalb des Ingress-Pfads)."""
     ingress = request.headers.get('X-Ingress-Path', '')
     if ingress and test.path.startswith(ingress):
         return True
@@ -129,12 +131,13 @@ def _login_view():
             flash('Bitte Name und PIN angeben.', 'warning')
             return render_template('login.html', workers=workers)
 
-        # Case-insensitive lookup for better UX
+        # Naive UTC lookup for SQLite compatibility
+        _now = datetime.utcnow()
         worker = Worker.query.filter(Worker.name.ilike(worker_name), Worker.is_active == True).first()
         if worker:
             # Check for active lockout
-            if worker.locked_until and worker.locked_until > datetime.now(timezone.utc):
-                time_diff = worker.locked_until - datetime.now(timezone.utc)
+            if worker.locked_until and worker.locked_until > _now:
+                time_diff = worker.locked_until - _now
                 minutes_left = int(time_diff.total_seconds() // 60) + 1
                 flash(f'Konto vorübergehend gesperrt. Bitte in {minutes_left} Min. erneut versuchen.', 'danger')
                 return render_template('login.html', workers=workers)
@@ -165,7 +168,7 @@ def _login_view():
                 # Increment failed attempts
                 worker.failed_login_count += 1
                 if worker.failed_login_count >= 5:
-                    worker.locked_until = datetime.now(timezone.utc) + timedelta(minutes=15)
+                    worker.locked_until = datetime.utcnow() + timedelta(minutes=15)
                     flash('Zu viele Fehlversuche. Konto für 15 Minuten gesperrt.', 'danger')
                 else:
                     flash(f'Falscher PIN. (Versuch {worker.failed_login_count}/5)', 'danger')
@@ -183,7 +186,7 @@ def _logout_view():
     session.clear()
     flash('Erfolgreich ausgeloggt.', 'info')
     
-    response = make_response(_redirect_to('main.index'))
+    response = make_response(redirect_to('main.index'))
     
     # GDPR & Shopfloor Security: Clear all local data on logout
     response.headers['Clear-Site-Data'] = '"cache", "cookies", "storage"'
