@@ -113,6 +113,13 @@ fi
 # Optional: Nginx Fehlerausgabe kontinuierlich ins Log umleiten
 tail -f /var/log/nginx/error.log &
 
+bashio::log.info "Initialisiere Datenbank-Schema und Standardwerte..."
+# Run dedicated init script before starting the server
+if ! python3 init_db.py; then
+    bashio::log.fatal "Datenbank-Initialisierung fehlgeschlagen! Add-on startet nicht."
+    bashio::exit.nok
+fi
+
 bashio::log.info "Starte Gunicorn Server (Backend) auf Port 8099..."
 exec gunicorn \
     --workers 1 \

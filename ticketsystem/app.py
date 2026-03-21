@@ -521,18 +521,16 @@ def handle_exception(e):
     return render_template('500.html'), 500
 
 
-# Perform Database Setup & Migrations on Import
-# This ensures tables/migrations exist when running via Gunicorn
-# (which imports 'app' but skips 'if __name__ == "__main__"')
-# Use a guard to prevent running during tests (when pytest imports app)
-if 'pytest' not in sys.modules:
-    with app.app_context():
-        try:
-            init_database(app)
-        except Exception as e:
-            app.logger.critical("APPLICATION BOOT FAILED: Database initialization error: %s", e, exc_info=True)
-            # Re-raise to ensure Gunicorn sees the failure, but only after logging
-            raise
+# --- Database Setup (Moved to init_db.py for production) ---
+# Module-level initialization is disabled to avoid Gunicorn worker crashes.
+# Production deployments should call 'python init_db.py' before starting the server.
+# if 'pytest' not in sys.modules:
+#     with app.app_context():
+#         try:
+#             init_database(app)
+#         except Exception as e:
+#             app.logger.critical("APPLICATION BOOT FAILED: Database initialization error: %s", e, exc_info=True)
+#             raise
 
 
 if __name__ == '__main__':
