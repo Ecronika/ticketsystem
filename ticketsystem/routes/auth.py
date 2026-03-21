@@ -186,7 +186,13 @@ def _logout_view():
     session.clear()
     flash('Erfolgreich ausgeloggt.', 'info')
     ingress = request.headers.get('X-Ingress-Path', '')
-    response = make_response(redirect(f"{ingress}{url_for('main.index')}"))
+    # Ensure no double slashes when redirecting with ingress path
+    target = url_for('main.index')
+    if ingress and target.startswith('/'):
+        target = target[1:]
+    
+    redirect_url = f"{ingress}{target}"
+    response = make_response(redirect(redirect_url))
     
     # GDPR & Shopfloor Security: Clear all local data on logout
     response.headers['Clear-Site-Data'] = '"cache", "cookies", "storage"'
