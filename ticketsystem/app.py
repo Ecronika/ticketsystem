@@ -45,6 +45,10 @@ try:
 except FileNotFoundError:
     pass
 app = Flask(__name__)
+# Security: Application behind Reverse Proxy (Nginx/Ingress)
+# Fixes URL generation for redirects and absolute links
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
 IS_STANDALONE = os.environ.get('STANDALONE_MODE') == 'true'
 # Home Assistant Check (Ingress usually sets headers, but we also check env)
 IS_HOMEASSISTANT = (not IS_STANDALONE) and (

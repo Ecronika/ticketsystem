@@ -91,16 +91,29 @@ if ! nginx -t; then
     bashio::exit.nok
 fi
 
+# Sicherstellen, dass notwendige Verzeichnisse existieren
+mkdir -p /run/nginx
+mkdir -p /var/log/nginx
+touch /var/log/nginx/error.log
+touch /var/log/nginx/access.log
+
 bashio::log.info "Starte NGINX im Hintergrund..."
 # Beende eventuell hängende NGINX-Prozesse von einem vorherigen Absturz (Port-Konflikt verhindern)
 pkill nginx || true
-# suppress warning about running as root if any
-nginx -g "daemon off;" 2>&1 &
+# Nginx im Standard-Modus (Daemon) starten, damit es im Hintergrund bleibt
+if ! nginx; then
+    bashio::log.fatal "NGINX konnte nicht gestartet werden!"
+    cat /var/log/nginx/error.log
+    bashio::exit.nok
+fi
+
+# Optional: Nginx Fehlerausgabe kontinuierlich ins Log umleiten
+tail -f /var/log/nginx/error.log &
 
 bashio::log.info "Starte Gunicorn Server (Backend) auf Port 8099..."
 exec gunicorn \
     --workers 1 \
-    --threads 2 \
+    --threads 4 \
     --worker-class gthread \
     --timeout 120 \
     --graceful-timeout 120 \
@@ -110,4 +123,5 @@ exec gunicorn \
     --bind 0.0.0.0:8099 \
     --access-logfile - \
     --error-logfile - \
+    --log-level info \
     app:app
