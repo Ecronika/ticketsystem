@@ -142,8 +142,13 @@
                     
                     <div class="mb-3">
                         <label class="form-label small">PIN (4-stellig)</label>
-                        <input type="password" name="pin" class="form-control border-0 bg-white-50" placeholder="****" 
-                                pattern="\d{4,16}" inputmode="numeric" required>
+                        <div class="input-group">
+                            <input type="password" name="pin" id="new_worker_pin" class="form-control border-0 bg-white-50" placeholder="****" 
+                                    pattern="\d{4,16}" inputmode="numeric" required>
+                            <button type="button" class="btn btn-outline-light border-0 bg-white-20 px-3" onclick="const p = document.getElementById('new_worker_pin'); p.type = p.type === 'password' ? 'text' : 'password'; this.querySelector('i').classList.toggle('bi-eye'); this.querySelector('i').classList.toggle('bi-eye-slash');" aria-label="PIN anzeigen/verbergen">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
                         <div class="form-text text-white-50 x-small">Erlaubt sind 4 bis 16 Ziffern.</div>
                     </div>
                     
@@ -175,7 +180,7 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="generate_tokens">
                     <div class="d-grid">
-                        <button type="submit" class="btn btn-outline-warning rounded-pill">
+                        <button type="submit" class="btn btn-warning rounded-pill fw-bold">
                             <i class="bi bi-plus-circle me-2"></i>Neue Notfall-Codes
                         </button>
                     </div>
@@ -190,10 +195,11 @@
 
 <style>
 .bg-white-50 { background-color: rgba(255, 255, 255, 0.15) !important; color: white !important; }
+.bg-white-20 { background-color: rgba(255, 255, 255, 0.1) !important; color: white !important; }
 .bg-white-50::placeholder { color: rgba(255, 255, 255, 0.6); }
 .bg-white-50:focus { background-color: rgba(255, 255, 255, 0.25) !important; box-shadow: none; }
 .bg-black-10 { background-color: rgba(0, 0, 0, 0.1); }
-.btn-white { background-color: white; border: none; }
+.btn-white { background-color: white; border: none; color: #0d6efd !important; }
 .btn-white:hover { background-color: rgba(255, 255, 255, 0.9); }
 </style>
 {% endblock %}

@@ -56,13 +56,12 @@
             </span>
           </li>
           {% endif %}
-          {% if not session.get('worker_id') %}
             <li class="nav-item ms-lg-2">
                 <a class="btn btn-outline-light btn-sm rounded-pill px-3" href="{{ ingress_path }}{{ url_for('main.ticket_new') }}">
-                    <i class="bi bi-plus-circle me-1"></i>Ticket melden
+                    <i class="bi bi-plus-circle me-1"></i>
+                    {% if session.get('worker_id') %}Neues Ticket{% else %}Ticket melden{% endif %}
                 </a>
             </li>
-            {% endif %}
             <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
             <button class="btn btn-outline-light btn-sm" id="themeToggle" title="Theme wechseln"
               aria-label="Theme umschalten">
@@ -114,7 +113,7 @@
   <footer class="footer mt-auto py-3 border-top w-100 bg-surface">
     <div class="container text-center">
       <span class="text-muted small font-mono">
-        TicketSystem Boilerplate &copy; 2026 | v{{ config.VERSION }} |
+        TicketSystem &copy; 2026 | v{{ config.VERSION }} |
         <a href="#" class="text-decoration-none text-muted">Impressum</a> |
         <a href="#" class="text-decoration-none text-muted">Datenschutz</a>
       </span>

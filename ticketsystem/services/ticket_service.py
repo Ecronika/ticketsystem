@@ -35,7 +35,7 @@ class TicketService:
             db.session.flush()  # Get ticket ID
 
             # Add initial comment if description exists
-            comment_text = f"Ticket erstellt. Beschreibung: {description}" if description else "Ticket ohne Beschreibung erstellt."
+            comment_text = f"Ticket erstellt von {author_name}. Beschreibung: {description}" if description else f"Ticket erstellt von {author_name}."
             
             comment = Comment(
                 ticket_id=ticket.id,
@@ -221,9 +221,12 @@ class TicketService:
             raise
 
     @staticmethod
-    def get_dashboard_tickets(worker_id=None, search=None, status_filter=None, page=1, per_page=10):
+    def get_dashboard_tickets(worker_id=None, search=None, status_filter=None, page=1, per_page=10, assigned_to_me=False):
         """Fetch tickets for the dashboard with search, filtering, and pagination."""
         query = Ticket.query.filter_by(is_deleted=False)
+
+        if assigned_to_me and worker_id:
+            query = query.filter(Ticket.assigned_to_id == worker_id)
 
         if search:
             query = query.filter(
@@ -233,8 +236,8 @@ class TicketService:
         
         if status_filter:
             query = query.filter(Ticket.status == status_filter)
-        elif not search:
-            # Default: hide closed tickets unless searching
+        elif not search and not assigned_to_me:
+            # Default: hide closed tickets unless searching or specifically looking at "My Tickets"
             query = query.filter(Ticket.status != TicketStatus.ERLEDIGT.value)
 
         # Focus / General list (Paginated)

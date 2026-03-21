@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.4.0] - 2026-03-22
+### Added
+- **My Tickets Filter:** Added deep link and backend filter `?assigned_to_me=1` to the dashboard for quick access to personal assignments.
+- **System Event Styling:** Implemented a slim, timeline-based UI for system-generated comments (status changes, assignments) to distinguish them from worker talk.
+- **PIN Visibility:** Added a toggle button to PIN fields in setup and worker management.
+
+### Fixed (P0/P1 UX Overhaul)
+- **Status Colors:** Standardized status colors across all views (offen=red, in_bearbeitung=yellow, wartet=gray, erledigt=green).
+- **Confirmation Loop:** Added a persistent confirmation banner after ticket creation with a direct link to the new ticket.
+- **Terminology:** Standardized system-wide terminology (replaced "Klärungsfall" and "Azubi Tracker" with "Ticket" and "TicketSystem").
+- **Navigation:** Enabled "New Ticket" button in navbar for logged-in workers.
+- **Accessibility:** Set default ticket priority to "Mittel" and fixed broken Home icon on 404 page.
+- **Consistency:** Fixed contrast of "Emergency Codes" button and improved "Add Worker" form visibility in Dark Mode.
+- **Validation:** Fixed PIN confirmation pattern and length validation in setup UI.
+
 ## [1.3.9] - 2026-03-22
 ### Fixed
 - **Image Upload:** Implemented a state-based submit button to prevent premature ticket submission before image processing is finished.

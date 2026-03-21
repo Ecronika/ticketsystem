@@ -11,8 +11,8 @@
             <div class="card-body p-4">
                 <div class="d-flex justify-content-between align-items-start mb-3">
                     <div>
-                        <a href="{{ ingress_path }}{{ url_for('main.index') }}" class="btn btn-link text-decoration-none p-0 mb-2 small">
-                            <i class="bi bi-chevron-left"></i> Zurück zum Dashboard
+                        <a href="{{ ingress_path }}{{ url_for('main.index') }}" class="btn btn-light btn-sm rounded-circle me-2 mb-2" title="Zurück zum Dashboard">
+                            <i class="bi bi-chevron-left"></i>
                         </a>
                         <h1 class="h3 fw-bold mb-1">{{ ticket.title }}</h1>
                         <p class="text-meta small mb-0">Ticket #{{ ticket.id }} • Erstellt am {{ ticket.created_at|local_time|datetime }}</p>
@@ -21,7 +21,7 @@
                         <span class="badge bg-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }}-subtle text-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} rounded-pill px-3 py-2">
                             Priorität: {{ ticket.priority|priority_label }}
                         </span>
-                        <span id="ticketStatusBadge" class="badge-subtle-{{ 'warning' if ticket.status == 'in_bearbeitung' else 'success' if ticket.status == 'erledigt' else 'info' if ticket.status == 'offen' else 'secondary' }} rounded-pill px-3 py-1 small fw-bold">
+                        <span id="ticketStatusBadge" class="badge-subtle-{{ 'danger' if ticket.status == 'offen' else 'warning' if ticket.status == 'in_bearbeitung' else 'secondary' if ticket.status == 'wartet' else 'success' }} rounded-pill px-3 py-1 small fw-bold">
                             {{ ticket.status|status_label|upper }}
                         </span>
                     </div>
@@ -55,6 +55,13 @@
         <h3 class="h5 fw-bold mb-3 px-2"><i class="bi bi-chat-left-text me-2"></i> Verlauf</h3>
         <div class="comment-history mb-5">
             {% for comment in ticket.comments|sort(attribute='created_at') %}
+            {% if comment.is_system_event %}
+            <div class="d-flex align-items-center gap-2 py-2 px-3 text-muted x-small border-start border-2 border-secondary-subtle ms-3 my-1 animate__animated animate__fadeIn">
+                <i class="bi bi-arrow-right-circle-fill text-secondary-emphasis" aria-hidden="true"></i>
+                <span>{{ comment.text }}</span>
+                <span class="ms-auto text-meta">{{ comment.created_at|local_time|time }}</span>
+            </div>
+            {% else %}
             <div class="card border-0 shadow-sm rounded-4 mb-3 {{ 'ms-auto bg-primary-subtle border-primary-subtle' if comment.author == session.get('worker_name') else 'me-auto' }}" 
                  style="max-width: 85%;">
                 <div class="card-body py-2 px-3">
@@ -65,6 +72,7 @@
                     <p class="mb-0 small">{{ comment.text }}</p>
                 </div>
             </div>
+            {% endif %}
             {% else %}
             <p class="text-center text-muted py-4">Noch keine Kommentare.</p>
             {% endfor %}
@@ -86,13 +94,16 @@
                     
                     <div class="d-flex justify-content-between align-items-center">
                         <!-- SME Shortcuts -->
-                        <div class="d-flex flex-wrap gap-2">
-                            {% set shortcuts = system_settings.get_setting('ticket_shortcuts', 'Prüfen,Bestellt,Erledigt,Rückruf').split(',') %}
-                            {% for shortcut in shortcuts %}
-                            <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill py-1 px-3" onclick="this.form.text.value += '{{ shortcut }} '">
-                                <i class="bi bi-lightning-charge-fill x-small text-warning"></i> {{ shortcut }}
-                            </button>
-                            {% endfor %}
+                        <div>
+                            <small class="text-muted d-block mb-1 x-small"><i class="bi bi-lightning-charge me-1"></i>Schnellauswahl:</small>
+                            <div class="d-flex flex-wrap gap-2">
+                                {% set shortcuts = system_settings.get_setting('ticket_shortcuts', 'Prüfen,Bestellt,Erledigt,Rückruf').split(',') %}
+                                {% for shortcut in shortcuts %}
+                                <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill py-1 px-3" onclick="this.form.text.value += '{{ shortcut }} '; this.form.text.focus();">
+                                    <i class="bi bi-lightning-charge-fill x-small text-warning"></i> {{ shortcut }}
+                                </button>
+                                {% endfor %}
+                            </div>
                         </div>
                         <button type="submit" class="btn btn-primary px-4 rounded-pill d-none d-lg-block">
                             <i class="bi bi-send me-2"></i>Senden

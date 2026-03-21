@@ -27,15 +27,25 @@
 
                     <div class="mb-3">
                         <label for="pin" class="form-label fw-bold small">Persönlicher PIN (mind. 4-stellig)</label>
-                        <input type="password" class="form-control form-control-lg bg-light text-center" id="pin" name="pin" 
-                               inputmode="numeric" pattern="[0-9]{4,16}" placeholder="mind. 4 Ziffern" required>
+                        <div class="input-group">
+                            <input type="password" class="form-control form-control-lg bg-light text-center" id="pin" name="pin" 
+                                   inputmode="numeric" pattern="[0-9]{4,16}" maxlength="16" placeholder="mind. 4 Ziffern" required>
+                            <button type="button" class="btn btn-outline-secondary px-3" onclick="const p = document.getElementById('pin'); p.type = p.type === 'password' ? 'text' : 'password'; this.querySelector('i').classList.toggle('bi-eye'); this.querySelector('i').classList.toggle('bi-eye-slash');" aria-label="PIN anzeigen/verbergen">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
                         <div class="form-text x-small text-muted text-center mt-2">Muss 4 bis 16 Ziffern lang sein.</div>
                     </div>
 
                     <div class="mb-3">
                         <label for="pin_confirm" class="form-label fw-bold small">PIN bestätigen</label>
-                        <input type="password" class="form-control form-control-lg bg-light text-center" id="pin_confirm" name="pin_confirm" 
-                               inputmode="numeric" pattern="[0-9]{4}" placeholder="****" required>
+                        <div class="input-group">
+                            <input type="password" class="form-control form-control-lg bg-light text-center" id="pin_confirm" name="pin_confirm" 
+                                   inputmode="numeric" pattern="[0-9]{4,16}" maxlength="16" placeholder="****" required>
+                            <button type="button" class="btn btn-outline-secondary px-3" onclick="const p = document.getElementById('pin_confirm'); p.type = p.type === 'password' ? 'text' : 'password'; this.querySelector('i').classList.toggle('bi-eye'); this.querySelector('i').classList.toggle('bi-eye-slash');" aria-label="Bestätigung anzeigen/verbergen">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="d-grid">

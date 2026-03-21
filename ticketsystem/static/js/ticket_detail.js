@@ -52,10 +52,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         };
                         statusBadge.textContent = STATUS_LABELS[newStatus] || newStatus.toUpperCase();
                         
-                        statusBadge.className = 'badge-subtle-secondary';
+                        statusBadge.className = 'badge-subtle-danger';
                         if (newStatus === 'in_bearbeitung') statusBadge.className = 'badge-subtle-warning';
+                        if (newStatus === 'wartet') statusBadge.className = 'badge-subtle-secondary';
                         if (newStatus === 'erledigt') statusBadge.className = 'badge-subtle-success';
-                        if (newStatus === 'offen') statusBadge.className = 'badge-subtle-info';
                     }
                     window.showUiAlert('Status erfolgreich aktualisiert.', 'success');
                 } else {

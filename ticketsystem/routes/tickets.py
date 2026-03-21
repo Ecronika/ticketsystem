@@ -12,13 +12,15 @@ def _dashboard_view():
     search = request.args.get('q', '').strip()
     status_filter = request.args.get('status', '')
     page = request.args.get('page', 1, type=int)
+    assigned_to_me = request.args.get('assigned_to_me') == '1'
 
     tickets_data = TicketService.get_dashboard_tickets(
         worker_id=worker_id,
         search=search,
         status_filter=status_filter,
         page=page,
-        per_page=10
+        per_page=10,
+        assigned_to_me=assigned_to_me
     )
     
     return render_template('index.html', 
@@ -26,7 +28,8 @@ def _dashboard_view():
                           focus_tickets=tickets_data['focus_pagination'].items,
                           self_tickets=tickets_data['self'],
                           query=search,
-                          current_status=status_filter)
+                          current_status=status_filter,
+                          assigned_to_me=assigned_to_me)
 
 @worker_required
 def _archive_view():
@@ -70,11 +73,15 @@ def _new_ticket_view():
                 author_id=session.get('worker_id'),
                 image_base64=image_base64
             )
+            session['last_created_ticket_id'] = ticket.id
+            ticket_url = f"{request.headers.get('X-Ingress-Path', '')}{url_for('main.ticket_detail', ticket_id=ticket.id)}"
+            link_html = f' <a href="{ticket_url}" class="alert-link">Ticket #{ticket.id} ansehen →</a>'
+            
             if not session.get('worker_id'):
-                flash('Ticket erfolgreich erstellt! Das Team wurde informiert.', 'success')
+                flash(f'Ticket #{ticket.id} erfolgreich erstellt!{link_html}', 'success')
                 return redirect_to('main.ticket_new')
             
-            flash('Ticket erfolgreich erstellt!', 'success')
+            flash(f'Ticket #{ticket.id} erfolgreich erstellt!{link_html}', 'success')
             return redirect_to('main.index')
         except Exception:
             flash('Fehler beim Erstellen des Tickets.', 'error')
