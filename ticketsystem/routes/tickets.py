@@ -70,6 +70,10 @@ def _new_ticket_view():
                 author_id=session.get('worker_id'),
                 image_base64=image_base64
             )
+            if not session.get('worker_id'):
+                flash('Ticket erfolgreich erstellt! Das Team wurde informiert.', 'success')
+                return redirect_to('main.ticket_new')
+            
             flash('Ticket erfolgreich erstellt!', 'success')
             return redirect_to('main.index')
         except Exception:

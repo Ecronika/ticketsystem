@@ -464,7 +464,6 @@ canvas {
 }
 
 /* -------------------------------------------------------------------------- */
-
 /* Theme Switches                                                             */
 .text-muted {
     color: var(--text-muted) !important;
@@ -748,6 +747,9 @@ textarea:focus-visible {
 }
 
 /* === Typography Utilities === */
+.x-small { font-size: 0.75rem !important; line-height: 1.4; }
+.text-meta { color: var(--text-muted) !important; font-size: 0.8rem; }
+
 .fs-check-status {
     font-size: 1.1rem;
 }

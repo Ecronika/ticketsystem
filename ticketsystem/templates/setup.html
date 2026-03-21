@@ -26,12 +26,13 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="pin" class="form-label fw-bold small">Persönlicher PIN (4-stellig)</label>
+                        <label for="pin" class="form-label fw-bold small">Persönlicher PIN (mind. 4-stellig)</label>
                         <input type="password" class="form-control form-control-lg bg-light text-center" id="pin" name="pin" 
-                               inputmode="numeric" pattern="[0-9]{4}" placeholder="****" required>
+                               inputmode="numeric" pattern="[0-9]{4,16}" placeholder="mind. 4 Ziffern" required>
+                        <div class="form-text x-small text-muted text-center mt-2">Muss 4 bis 16 Ziffern lang sein.</div>
                     </div>
 
-                    <div class="mb-4">
+                    <div class="mb-3">
                         <label for="pin_confirm" class="form-label fw-bold small">PIN bestätigen</label>
                         <input type="password" class="form-control form-control-lg bg-light text-center" id="pin_confirm" name="pin_confirm" 
                                inputmode="numeric" pattern="[0-9]{4}" placeholder="****" required>

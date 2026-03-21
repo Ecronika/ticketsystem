@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.3.7] - 2026-03-21
+### Fixed (Critical UX P0/P1)
+- **Visibility:** "Ticket melden" is now visible to unauthenticated users on the login page and navigation bar.
+- **Workflow:** Corrected public ticket submission redirect to ensure users stay on the success message.
+- **Admin Control:** Implemented Admin-initiated PIN resets and Emergency Recovery Token generation.
+- **UI Logic:** Fixed dashboard ticket count badge and added polling-refresh hints.
+- **Clarity:** Renamed ambiguous internal labels (e.g., "Fokus" -> "Alle offenen Tickets", "Deaktivieren" -> "Zugang sperren").
+- **Accessibility:** Integrated confirmation dialogs for all sensitive worker status actions.
+- **Visualization:** System events (status changes, assignments) are now visually distinct from user comments.
+
+### Refined (P2)
+- **Data Integrity:** Ticket description field is now optional.
+- **Archiving:** Renamed archive column to "ZULETZT AKTUALISIERT" for transparency on closure dates.
+- **PIN Standards:** Aligned PIN length requirements (4-16 digits) across all setup and reset forms.
+- **Consistency:** Fixed JSend status badge labeling in JavaScript to match server-side display.
+
 ## [1.3.6] - 2026-03-21
 ### Fixed
 - **Filter Stability:** Resolved `TypeError` in `time_ago` filter caused by mismatched timezone-aware (from `local_time`) and naive timestamps.

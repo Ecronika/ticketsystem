@@ -55,8 +55,13 @@
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <input type="hidden" name="action" value="toggle_status">
                                         <input type="hidden" name="worker_id" value="{{ worker.id }}">
-                                        <button type="submit" class="btn btn-sm {{ 'btn-outline-danger' if worker.is_active else 'btn-outline-success' }} rounded-pill px-3">
-                                            {{ 'Deaktivieren' if worker.is_active else 'Aktivieren' }}
+                                        <button type="submit" class="btn btn-sm {{ 'btn-outline-danger' if worker.is_active else 'btn-outline-success' }} rounded-pill px-3"
+                                                {% if worker.is_active %}
+                                                data-confirm="true"
+                                                data-confirm-title="Zugang sperren?"
+                                                data-confirm-message="Der Mitarbeiter '{{ worker.name }}' kann sich nicht mehr einloggen. Bestehende Tickets bleiben erhalten."
+                                                {% endif %}>
+                                            {{ 'Zugang sperren' if worker.is_active else 'Zugang freischalten' }}
                                         </button>
                                     </form>
                                 </td>
@@ -92,11 +97,26 @@
                             <input class="form-check-input" type="checkbox" name="is_admin" id="edit_is_admin">
                             <label class="form-check-label small fw-bold" for="edit_is_admin">Administrator-Rechte</label>
                         </div>
-                        <p class="text-muted x-small mb-0">Hinweis: Die PIN kann hier nicht geändert werden.</p>
+                        <p class="text-muted x-small mb-1">Hinweis: PIN-Änderungen erfolgen über den Reset-Button unten.</p>
                     </div>
-                    <div class="modal-footer border-0 pt-0">
-                        <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Abbrechen</button>
-                        <button type="submit" class="btn btn-primary rounded-pill px-4">Speichern</button>
+                    <div class="modal-footer border-0 pt-0 d-flex justify-content-between">
+                        <div class="reset-pin-section">
+                            <form action="{{ ingress_path }}{{ url_for('admin.workers') }}" method="POST"
+                                  data-confirm="true"
+                                  data-confirm-title="PIN zurücksetzen?"
+                                  data-confirm-message="Der PIN wird auf '0000' zurückgesetzt. Der Mitarbeiter muss diesen beim nächsten Login zwingend ändern.">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="reset_pin">
+                                <input type="hidden" name="worker_id" id="reset_pin_worker_id">
+                                <button type="submit" class="btn btn-outline-warning btn-sm rounded-pill">
+                                    <i class="bi bi-key me-1"></i>PIN zurücksetzen
+                                </button>
+                            </form>
+                        </div>
+                        <div class="action-buttons">
+                            <button type="button" class="btn btn-light btn-sm rounded-pill px-3" data-bs-dismiss="modal">Abbrechen</button>
+                            <button type="submit" class="btn btn-primary btn-sm rounded-pill px-3">Speichern</button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -105,39 +125,28 @@
 
     <script src="{{ ingress_path }}{{ url_for('static', filename='js/workers.js') }}?v=1.2.0"></script>
 
-    <!-- Add Worker Form (Bento Style) -->
-    <div class="col-lg-4">
-        <div class="card shadow-sm border-0 rounded-4 bg-dark text-white overflow-hidden h-100">
+    <!-- Emergency Recovery Section (Bento Style) -->
+    <div class="col-lg-4 mt-4 mt-lg-0">
+        <div class="card shadow-sm border-0 rounded-4 bg-surface-subtle h-100">
             <div class="card-body p-4">
-                <h3 class="h5 fw-bold mb-3"><i class="bi bi-person-plus-fill me-2 text-primary"></i> Neuer Mitarbeiter</h3>
-                <form action="{{ ingress_path }}{{ url_for('admin.workers') }}" method="POST">
+                <h3 class="h5 fw-bold mb-3"><i class="bi bi-shield-lock-fill me-2 text-warning"></i> Notfallzugang</h3>
+                <p class="small text-secondary mb-4">Falls alle Administratoren ausgesperrt sind, können Einmal-Codes zur Wiederherstellung genutzt werden.</p>
+                
+                <form action="{{ ingress_path }}{{ url_for('admin.workers') }}" method="POST"
+                      data-confirm="true"
+                      data-confirm-title="Notfall-Codes generieren?"
+                      data-confirm-message="Bestehende Codes werden ungültig. Die neuen Codes müssen sofort sicher notiert werden!">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="action" value="create">
-                    
-                    <div class="mb-3">
-                        <label class="form-label small">Anzeigename</label>
-                        <input type="text" name="name" class="form-control border-0 bg-white-50" placeholder="z.B. Max Mustermann" required>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label small">PIN (4-stellig)</label>
-                        <input type="password" name="pin" class="form-control border-0 bg-white-50" placeholder="****" 
-                               pattern="\d{4,16}" inputmode="numeric" required>
-                        <div class="form-text text-white-50 x-small">Erlaubt sind 4 bis 16 Ziffern.</div>
-                    </div>
-                    
-                    <div class="form-check form-switch mb-4">
-                        <input class="form-check-input" type="checkbox" name="is_admin" id="isAdminSwitch">
-                        <label class="form-check-label small" for="isAdminSwitch">Administrator-Rechte</label>
-                    </div>
-                    
+                    <input type="hidden" name="action" value="generate_tokens">
                     <div class="d-grid">
-                        <button type="submit" class="btn btn-white text-primary fw-bold rounded-pill">Anlegen</button>
+                        <button type="submit" class="btn btn-outline-dark rounded-pill">
+                            <i class="bi bi-plus-circle me-2"></i>Neue Notfall-Codes
+                        </button>
                     </div>
                 </form>
             </div>
-            <div class="card-footer bg-black-10 border-0 py-3 px-4">
-                <p class="small mb-0 opacity-75"><i class="bi bi-info-circle me-1"></i> Administratoren können Einstellungen ändern und Benutzer verwalten.</p>
+            <div class="card-footer bg-transparent border-0 py-3 px-4">
+                <p class="x-small text-muted mb-0">Hinweis: Diese Codes (Recovery-Tokens) sollten ausgedruckt im Tresor liegen.</p>
             </div>
         </div>
     </div>

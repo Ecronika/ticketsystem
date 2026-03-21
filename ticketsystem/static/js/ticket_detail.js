@@ -44,7 +44,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     // UX Update: Badge in header
                     const statusBadge = document.getElementById('ticketStatusBadge');
                     if (statusBadge) {
-                        statusBadge.textContent = newStatus.replace('_', ' ').toUpperCase();
+                        const STATUS_LABELS = {
+                            'offen': 'OFFEN',
+                            'in_bearbeitung': 'IN BEARBEITUNG',
+                            'wartet': 'WARTET',
+                            'erledigt': 'ERLEDIGT'
+                        };
+                        statusBadge.textContent = STATUS_LABELS[newStatus] || newStatus.toUpperCase();
+                        
                         statusBadge.className = 'badge-subtle-secondary';
                         if (newStatus === 'in_bearbeitung') statusBadge.className = 'badge-subtle-warning';
                         if (newStatus === 'erledigt') statusBadge.className = 'badge-subtle-success';

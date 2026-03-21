@@ -7,12 +7,16 @@
 document.addEventListener('DOMContentLoaded', function() {
     const POLL_INTERVAL = 30000; // 30 seconds
     
+    let lastCount = {{ pagination.total or 0 }};
+
     function updateDashboard() {
         fetch('{{ ingress_path }}/api/dashboard/summary')
             .then(response => response.json())
             .then(data => {
-                if (data.success) {
-                    console.log('Dashboard summary updated:', data.counts);
+                if (data.success && data.counts.summary !== lastCount) {
+                    console.log('New tickets available, showing hint');
+                    const hint = document.getElementById('reloadHint');
+                    if (hint) hint.classList.remove('d-none');
                 }
             })
             .catch(err => console.error('Polling error:', err));
@@ -30,7 +34,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="d-flex align-items-center mb-1">
             <h2 class="h3 fw-bold mb-0 display-font">Willkommen, {{ session.get('worker_name', 'Mitarbeiter') }}</h2>
         </div>
-        <p class="text-secondary small mb-0">Übersicht der aktuellen Klärungsfälle und Zuweisungen.</p>
+        <p class="text-secondary small mb-0">Offene Tickets in dieser Schicht.</p>
     </div>
     <div class="col-auto">
         <a href="{{ ingress_path }}{{ url_for('main.ticket_new') }}" class="btn btn-primary btn-lg rounded-pill shadow-sm px-4">
@@ -66,12 +70,18 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <div class="row g-4">
+    <div id="reloadHint" class="d-none alert alert-info alert-dismissible py-2 mb-3 shadow-sm border-0 rounded-3 small animate__animated animate__fadeIn" role="alert">
+        <i class="bi bi-arrow-clockwise me-1"></i>
+        Neue Tickets verfügbar — <a href="#" onclick="location.reload()" class="alert-link">Jetzt aktualisieren</a>
+        <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert"></button>
+    </div>
+
     <!-- Focus Box (High Priority / Unassigned) -->
     <div class="col-lg-8">
         <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden">
             <div class="card-header border-0 py-3 px-4 d-flex justify-content-between align-items-center">
-                <h3 class="h5 fw-bold mb-0"><i class="bi bi-fire text-danger me-2"></i> Fokus: Offene Tickets</h3>
-                <span class="badge badge-subtle-danger rounded-pill px-3">{{ focus_tickets|length }}</span>
+                <h3 class="h5 fw-bold mb-0"><i class="bi bi-fire text-danger me-2"></i> Alle offenen Tickets</h3>
+                <span class="badge badge-subtle-danger rounded-pill px-3">{{ pagination.total }}</span>
             </div>
             <div class="card-body p-0">
                 <div class="list-group list-group-flush">
@@ -136,7 +146,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     {% for ticket in self_tickets %}
                     <a href="{{ ingress_path }}{{ url_for('main.ticket_detail', ticket_id=ticket.id) }}" class="list-group-item list-group-item-action py-3 px-4 border-0 border-bottom bg-transparent">
                         <h4 class="h6 fw-bold mb-1">{{ ticket.title }}</h4>
-                        <div class="d-flex justify-content-between align-items-center">
+                        <p class="text-meta small mb-0">
+                            Ticket #{{ ticket.id }} • Erstellt am {{ ticket.created_at|local_time|datetime }}
+                            {% set creator_comment = ticket.comments|selectattr('event_type', 'equalto', 'TICKET_CREATED')|first %}
+                            {% if creator_comment %}
+                            von {{ creator_comment.author }}
+                            {% endif %}
+                        </p>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
                             <span class="badge badge-subtle-{{ 'info' if ticket.status == 'in_bearbeitung' else 'warning' if ticket.status == 'wartet' else 'secondary' }} rounded-pill px-2 py-1 x-small fw-normal">
                                 {{ ticket.status|status_label|upper }}
                             </span>
@@ -154,4 +171,4 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 </div>
-{% endblock %}
+{% endblock %}
