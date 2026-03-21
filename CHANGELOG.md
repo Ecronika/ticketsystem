@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.8] - 2026-03-21
+### Fixed
+- **Worker Management:** Restored the "Add Worker" form which was accidentally removed in v1.3.7.
+- **Critical Runtime Fix:** Fixed `NameError` and missing import (`SystemSettings`) in `admin.py` that caused crashes when updating workers or generating recovery tokens.
+- **UI/UX:** Fixed visibility of the "Neue Notfall-Codes" button in Dark Mode by switching to `btn-outline-warning`.
+- **Dashboard:** Fixed potential JS syntax issues in `index.html` polling logic.
+
 ## [1.3.7] - 2026-03-21
 ### Fixed (Critical UX P0/P1)
 - **Visibility:** "Ticket melden" is now visible to unauthenticated users on the login page and navigation bar.

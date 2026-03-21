@@ -125,9 +125,45 @@
 
     <script src="{{ ingress_path }}{{ url_for('static', filename='js/workers.js') }}?v=1.2.0"></script>
 
-    <!-- Emergency Recovery Section (Bento Style) -->
-    <div class="col-lg-4 mt-4 mt-lg-0">
-        <div class="card shadow-sm border-0 rounded-4 bg-surface-subtle h-100">
+    <!-- Sidebar: Add Worker & Recovery -->
+    <div class="col-lg-4">
+        <!-- Add Worker Form (Bento Style) -->
+        <div class="card shadow-sm border-0 rounded-4 bg-dark text-white overflow-hidden mb-4">
+            <div class="card-body p-4">
+                <h3 class="h5 fw-bold mb-3"><i class="bi bi-person-plus-fill me-2 text-primary"></i> Neuer Mitarbeiter</h3>
+                <form action="{{ ingress_path }}{{ url_for('admin.workers') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="create">
+                    
+                    <div class="mb-3">
+                        <label class="form-label small">Anzeigename</label>
+                        <input type="text" name="name" class="form-control border-0 bg-white-50" placeholder="z.B. Max Mustermann" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small">PIN (4-stellig)</label>
+                        <input type="password" name="pin" class="form-control border-0 bg-white-50" placeholder="****" 
+                                pattern="\d{4,16}" inputmode="numeric" required>
+                        <div class="form-text text-white-50 x-small">Erlaubt sind 4 bis 16 Ziffern.</div>
+                    </div>
+                    
+                    <div class="form-check form-switch mb-4">
+                        <input class="form-check-input" type="checkbox" name="is_admin" id="isAdminSwitch">
+                        <label class="form-check-label small" for="isAdminSwitch">Administrator-Rechte</label>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-white text-primary fw-bold rounded-pill">Anlegen</button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer bg-black-10 border-0 py-3 px-4">
+                <p class="small mb-0 opacity-75"><i class="bi bi-info-circle me-1"></i> Administratoren können Einstellungen ändern und Benutzer verwalten.</p>
+            </div>
+        </div>
+
+        <!-- Emergency Recovery Section (Bento Style) -->
+        <div class="card shadow-sm border-0 rounded-4 bg-surface-subtle">
             <div class="card-body p-4">
                 <h3 class="h5 fw-bold mb-3"><i class="bi bi-shield-lock-fill me-2 text-warning"></i> Notfallzugang</h3>
                 <p class="small text-secondary mb-4">Falls alle Administratoren ausgesperrt sind, können Einmal-Codes zur Wiederherstellung genutzt werden.</p>
@@ -139,7 +175,7 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="generate_tokens">
                     <div class="d-grid">
-                        <button type="submit" class="btn btn-outline-dark rounded-pill">
+                        <button type="submit" class="btn btn-outline-warning rounded-pill">
                             <i class="bi bi-plus-circle me-2"></i>Neue Notfall-Codes
                         </button>
                     </div>

@@ -7,7 +7,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const POLL_INTERVAL = 30000; // 30 seconds
     
-    let lastCount = {{ pagination.total or 0 }};
+    let lastCount = parseInt("{{ pagination.total or 0 }}");
 
     function updateDashboard() {
         fetch('{{ ingress_path }}/api/dashboard/summary')

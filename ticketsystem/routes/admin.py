@@ -6,6 +6,7 @@ Handles worker management and other administrative tasks.
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from .auth import admin_required
 from services.worker_service import WorkerService
+from models import SystemSettings
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -30,6 +31,10 @@ def workers():
                 status_str = "aktiviert" if worker.is_active else "deaktiviert"
                 flash(f"Mitarbeiter '{worker.name}' wurde {status_str}.", "success")
 
+            elif action == 'update':
+                worker_id = request.form.get('worker_id')
+                name = request.form.get('name')
+                is_admin = request.form.get('is_admin') == 'on'
                 WorkerService.update_worker(worker_id, name, is_admin)
                 flash(f"Mitarbeiter '{name}' wurde aktualisiert.", "success")
             
