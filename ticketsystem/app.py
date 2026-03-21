@@ -201,6 +201,20 @@ else:
         app.logger.critical(
             "Could not persist secret key to %s: %s", secret_file, e)
 
+# --- Database Optimization ---
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    """Enable WAL mode and set busy_timeout for SQLite stability."""
+    cursor = dbapi_connection.cursor()
+    try:
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA busy_timeout=30000")
+        cursor.close()
+    except sqlite3.Error:
+        pass
+
+
 # Init Extensions - Order: DB FIRST, then Migrate
 db.init_app(app)
 csrf.init_app(app)
@@ -513,9 +527,12 @@ def handle_exception(e):
 # Use a guard to prevent running during tests (when pytest imports app)
 if 'pytest' not in sys.modules:
     with app.app_context():
-        # Only run if not in a special context (like alembic, though we use manual migrations)
-        # Checks are idempotent (safe to run multiple times)
-        init_database(app)
+        try:
+            init_database(app)
+        except Exception as e:
+            app.logger.critical("APPLICATION BOOT FAILED: Database initialization error: %s", e, exc_info=True)
+            # Re-raise to ensure Gunicorn sees the failure, but only after logging
+            raise
 
 
 if __name__ == '__main__':
