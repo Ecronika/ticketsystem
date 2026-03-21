@@ -40,35 +40,32 @@ def _seed_default_settings(app, logger):
     db.session.commit()
 
 def init_database(app, *, logger=None):
-    """Generic database initialization with automatic migrations."""
+    """Run migrations and seed defaults. Must be called within app context."""
     if logger is None:
         logger = app.logger
 
-    # Guard against running during tests if not explicitly allowed
+    # Guard: skip during test collection unless explicitly allowed
     if 'pytest' in sys.modules and not app.config.get('TESTING'):
         return
 
-    with app.app_context():
-        logger.info("Database: Initialization started...")
-        
-        try:
-            # Automatic Migrations via Alembic/Flask-Migrate
-            # This handles both fresh installs (create_all equivalent) and upgrades
-            logger.info("Database: Running migrations...")
-            flask_upgrade()
-            logger.info("Database: Schema is up to date.")
-            
-            # Seed default system settings
-            _seed_default_settings(app, logger)
-            logger.info("Database: Initialization finished successfully.")
-        except Exception as e:
-            import traceback
-            logger.error("Database: Initialization failed: %s", e)
-            logger.error(traceback.format_exc())
-            db.session.rollback()
-            # If migration fails, we might fall back to create_all for completely fresh DBs
-            try:
-                db.create_all()
-                logger.info("Database: Fallback to db.create_all() finished.")
-            except Exception as e2:
-                logger.error("Database: Fallback failed: %s", e2)
+    # Note: caller (app.py) ensures app_context()
+    logger.info("Database: Running migrations...")
+    try:
+        flask_upgrade()
+        logger.info("Database: Schema is up to date.")
+    except Exception as e:
+        import traceback
+        logger.critical("Database: Migration FAILED. Manual intervention required: %s", e)
+        logger.error(traceback.format_exc())
+        db.session.rollback()
+        # CRITICAL: No more fallback to create_all() to avoid untracked states
+        raise
+
+    logger.info("Database: Seeding defaults...")
+    try:
+        _seed_default_settings(app, logger)
+        logger.info("Database: Initialization finished successfully.")
+    except Exception as e:
+        db.session.rollback()
+        logger.error("Database: Seeding failed: %s", e)
+        raise

@@ -56,16 +56,6 @@ IS_HOMEASSISTANT = (not IS_STANDALONE) and (
         'HAS_INGRESS') == '1'
 )
 
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
-
-# Init Migrate
-# Explicitly set the migrations directory to be relative to the app.py file
-# This ensures it is found regardless of the current working directory (e.g. HA run context)
-# render_as_batch=True is critical for SQLite schema changes (like adding columns)
-migrations_dir = os.path.join(os.path.dirname(
-    os.path.abspath(__file__)), 'migrations')
-migrate = Migrate(app, db, directory=migrations_dir, render_as_batch=True)
-
 # Security: Session Configuration
 # SSL is active only if explicitly requested ÃƒÂ¢€Ã¢â‚¬Â this is the single source of truth
 # for cookie security. SameSite=None requires HTTPS+Secure; plain HTTP must use Lax.
@@ -211,10 +201,16 @@ else:
         app.logger.critical(
             "Could not persist secret key to %s: %s", secret_file, e)
 
-# Init Extensions
+# Init Extensions - Order: DB FIRST, then Migrate
 db.init_app(app)
 csrf.init_app(app)
 limiter.init_app(app)
+
+# Init Migrate after db.init_app to ensure engine is configured
+# Explicitly set the migrations directory to be relative to the app.py file
+migrations_dir = os.path.join(os.path.dirname(
+    os.path.abspath(__file__)), 'migrations')
+migrate = Migrate(app, db, directory=migrations_dir, render_as_batch=True)
 
 
 if not scheduler.running:

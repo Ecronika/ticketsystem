@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from flask import current_app
 from extensions import db
-from models import Ticket, Comment, Worker
+from models import Ticket, Comment, Worker, Tag, Attachment
 from enums import TicketStatus, TicketPriority
 
 class TicketService:

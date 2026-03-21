@@ -115,7 +115,7 @@ class BackupService:
             except Exception:  # pylint: disable=broad-exception-caught
                 pass
         try:
-            db.create_all()
+            # Upgrade schema only, NO create_all fallback
             upgrade()
         except Exception as e:  # pylint: disable=broad-exception-caught
             current_app.logger.error("Migration after restore failed: %s", e)

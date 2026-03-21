@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.1] - 2026-03-21
+### Fixed
+- **Critical Migration Fix:** Added missing `sqlalchemy` import in Alembic's `env.py` to prevent startup crashes.
+- **Initialization Order:** Fixed extension initialization order to ensure `db.init_app` runs before `Migrate`.
+- **Database Safety:** Removed dangerous `db.create_all()` fallbacks that could lead to untracked schema states.
+- **Service Stability:** Fixed missing `Tag` and `Attachment` imports in `TicketService`.
+- **Deployment & Proxy:** Deduplicated `ProxyFix` middleware and ensured absolute database paths for Home Assistant Ingress.
+
 ## [1.3.0] - 2026-03-21
 ### Shopfloor Ergonomics & PWA
 - **PWA Support:** Added `manifest.json` and Service Worker for offline-capable "Add to Home Screen" support on industrial tablets.

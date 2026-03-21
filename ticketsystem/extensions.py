@@ -50,7 +50,7 @@ class Config:
     def get_db_path():
         """Return the absolute path to the SQLite database."""
         if os.environ.get('DB_PATH'):
-            return os.environ.get('DB_PATH')
+            return os.path.abspath(os.environ.get('DB_PATH'))
         return os.path.join(Config.get_data_dir(), 'werkzeug.db')
 
     @staticmethod
