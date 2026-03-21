@@ -25,6 +25,7 @@ COPY models.py .
 COPY enums.py .
 COPY routes/ routes/
 COPY services/ ./services/
+COPY migrations/ migrations/
 
 COPY database_init.py .
 COPY templates templates/
