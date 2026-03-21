@@ -85,6 +85,20 @@ def _ensure_critical_columns(logger):
                     logger.info("Repair: Adding ticket.due_date")
                     conn.execute(db.text("ALTER TABLE ticket ADD COLUMN due_date DATETIME"))
                 conn.commit()
+
+        if 'comment' in tables:
+            columns = [c['name'] for c in inspector.get_columns('comment')]
+            with engine.connect() as conn:
+                if 'author_id' not in columns:
+                    logger.info("Repair: Adding comment.author_id")
+                    conn.execute(db.text("ALTER TABLE comment ADD COLUMN author_id INTEGER"))
+                if 'is_system_event' not in columns:
+                    logger.info("Repair: Adding comment.is_system_event")
+                    conn.execute(db.text("ALTER TABLE comment ADD COLUMN is_system_event BOOLEAN DEFAULT 0"))
+                if 'event_type' not in columns:
+                    logger.info("Repair: Adding comment.event_type")
+                    conn.execute(db.text("ALTER TABLE comment ADD COLUMN event_type VARCHAR(30)"))
+                conn.commit()
                 
     except Exception as e:
         logger.warning("Repair: Auto-repair encountered an issue (non-fatal): %s", e)

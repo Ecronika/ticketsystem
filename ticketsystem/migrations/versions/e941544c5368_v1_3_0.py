@@ -57,6 +57,8 @@ def upgrade():
             batch_op.add_column(sa.Column('is_system_event', sa.Boolean(), nullable=True))
         if 'event_type' not in comment_cols:
             batch_op.add_column(sa.Column('event_type', sa.String(length=30), nullable=True))
+        if 'author_id' not in comment_cols:
+            batch_op.add_column(sa.Column('author_id', sa.Integer(), nullable=True))
 
     ticket_cols = [r[1] for r in bind.execute(sa.text("PRAGMA table_info(ticket)")).fetchall()]
     with op.batch_alter_table('ticket', schema=None) as batch_op:
