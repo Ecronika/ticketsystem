@@ -422,8 +422,9 @@ def time_ago_filter(dt):
     """Return a pretty relative time string."""
     if not dt:
         return ""
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+    # Standardize to naive UTC for calculation (SQLite compatibility)
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
     
     now = datetime.utcnow()
     diff = now - dt

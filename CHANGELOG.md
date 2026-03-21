@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.3.6] - 2026-03-21
+### Fixed
+- **Filter Stability:** Resolved `TypeError` in `time_ago` filter caused by mismatched timezone-aware (from `local_time`) and naive timestamps.
+
 ## [1.3.5] - 2026-03-21
 ### Fixed
 - **Critical Runtime Fixes:** Fixed specialized `IndentationError` and `NameError` in `auth.py` and `tickets.py` that caused application crashes.
