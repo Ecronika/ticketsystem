@@ -26,6 +26,23 @@ def run():
         with app.app_context():
             # init_database handles migrations and seeding
             init_database(app, logger=logger)
+            
+            # Diagnostic: List existing workers to help user find the right login name
+            workers = Worker.query.all()
+            if workers:
+                names = [f"'{w.name}' ({'Admin' if w.is_admin else 'Worker'})" for w in workers]
+                logger.info("Found existing workers: %s", ", ".join(names))
+            else:
+                logger.warning("No workers found in database after seeding!")
+                
+            # Emergency Reset: Ensure at least one admin has PIN '0000' if requested or as fallback
+            # (In HA context, we can use this to recover if migrations mess up the admin account)
+            admin = Worker.query.filter_by(is_admin=True, is_active=True).first()
+            if admin and not admin.pin_hash:
+                logger.warning("Admin '%s' has no PIN. Setting to '0000'.", admin.name)
+                admin.pin_hash = generate_password_hash("0000")
+                db.session.commit()
+
         logger.info("Database initialization successful.")
         sys.exit(0)
     except Exception as e:

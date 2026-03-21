@@ -123,14 +123,15 @@ def _login_view():
         return render_template('login.html', workers=[])
 
     if request.method == 'POST':
-        worker_name = request.form.get('worker_name')
-        pin = request.form.get('pin')
+        worker_name = (request.form.get('worker_name') or '').strip()
+        pin = (request.form.get('pin') or '').strip()
 
         if not worker_name or not pin:
             flash('Bitte Name und PIN angeben.', 'warning')
             return render_template('login.html', workers=workers)
 
-        worker = Worker.query.filter_by(name=worker_name, is_active=True).first()
+        # Case-insensitive lookup for better UX
+        worker = Worker.query.filter(Worker.name.ilike(worker_name), Worker.is_active == True).first()
         if worker:
             # Check for active lockout
             if worker.locked_until and worker.locked_until > datetime.now(timezone.utc):
