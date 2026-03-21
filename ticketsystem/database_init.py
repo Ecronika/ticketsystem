@@ -62,10 +62,11 @@ def init_database(app, *, logger=None):
             _seed_default_settings(app, logger)
             logger.info("Database: Initialization finished successfully.")
         except Exception as e:
+            import traceback
             logger.error("Database: Initialization failed: %s", e)
+            logger.error(traceback.format_exc())
             db.session.rollback()
             # If migration fails, we might fall back to create_all for completely fresh DBs
-            # though flask_upgrade() should handle it if 'migrations' folder is present.
             try:
                 db.create_all()
                 logger.info("Database: Fallback to db.create_all() finished.")

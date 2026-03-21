@@ -71,8 +71,10 @@ def upgrade():
             batch_op.add_column(sa.Column('role', sa.String(length=20), nullable=True))
 
     # Data migration: populate 'role' from 'is_admin'
-    op.execute("UPDATE worker SET role = 'admin' WHERE is_admin = 1")
-    op.execute("UPDATE worker SET role = 'worker' WHERE is_admin = 0 OR is_admin IS NULL")
+    worker_cols_final = [c['name'] for c in inspector.get_columns('worker')]
+    if 'role' in worker_cols_final:
+        op.execute("UPDATE worker SET role = 'admin' WHERE is_admin = 1")
+        op.execute("UPDATE worker SET role = 'worker' WHERE is_admin = 0 OR is_admin IS NULL")
 
     # ### end Alembic commands ###
 
