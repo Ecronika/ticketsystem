@@ -10,7 +10,7 @@ class TicketService:
     """
 
     @staticmethod
-    def create_ticket(title, description=None, priority=TicketPriority.MITTEL, author_name="System", author_id=None, assigned_to_id=None, due_date=None, tags=None):
+    def create_ticket(title, description=None, priority=TicketPriority.MITTEL, author_name="System", author_id=None, assigned_to_id=None, due_date=None, tags=None, image_base64=None):
         """Create a new ticket and an initial comment."""
         try:
             ticket = Ticket(
@@ -46,6 +46,40 @@ class TicketService:
                 event_type='TICKET_CREATED'
             )
             db.session.add(comment)
+
+            # Handle Image/Attachment
+            if image_base64 and "," in image_base64:
+                try:
+                    import os
+                    import base64
+                    import uuid
+                    
+                    # Ensure attachments directory exists
+                    data_dir = current_app.config.get('DATA_DIR', '/data')
+                    attachments_dir = os.path.join(data_dir, 'attachments')
+                    os.makedirs(attachments_dir, exist_ok=True)
+                    
+                    # Decode base64
+                    header, encoded = image_base64.split(",", 1)
+                    mime_type = header.split(";")[0].split(":")[1]
+                    ext = mime_type.split("/")[-1]
+                    if ext == 'jpeg': ext = 'jpg'
+                    
+                    filename = f"ticket_{ticket.id}_{uuid.uuid4().hex[:8]}.{ext}"
+                    filepath = os.path.join(attachments_dir, filename)
+                    
+                    with open(filepath, "wb") as f:
+                        f.write(base64.b64decode(encoded))
+                        
+                    attachment = Attachment(
+                        ticket_id=ticket.id,
+                        path=filename, # Store relative name
+                        filename=filename,
+                        mime_type=mime_type
+                    )
+                    db.session.add(attachment)
+                except Exception as img_err:
+                    current_app.logger.error(f"Error saving attachment: {img_err}")
 
             db.session.commit()
             return ticket

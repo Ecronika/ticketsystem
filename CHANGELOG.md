@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.3.3] - 2026-03-21
+### Added
+- **Image Support:** Fixed the missing link between frontend image uploads and backend storage. Tickets now correctly save and display uploaded images in the detail view.
+- **Secure File Serving:** Dedicated route for serving attachments from the persistent data directory.
+
 ## [1.3.2] - 2026-03-21
 ### Fixed
 - **Critical Database Fix:** Added missing `comment.author_id` column to the pre-boot repair tool and Alembic migrations. Resolves crashes when viewing or creating tickets.

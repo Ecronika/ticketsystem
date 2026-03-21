@@ -1,9 +1,10 @@
-from flask import flash, redirect, render_template, request, session, url_for, jsonify
+import os
+from flask import flash, redirect, render_template, request, session, url_for, jsonify, send_from_directory
 from extensions import limiter, db
 from services.ticket_service import TicketService
 from enums import TicketStatus, TicketPriority
 from .auth import worker_required
-from models import Worker
+from models import Worker, Attachment
 
 def _dashboard_view():
     """Handle the main dashboard view."""
@@ -53,6 +54,7 @@ def _new_ticket_view():
         description = request.form.get('description')
         priority_val = request.form.get('priority', 2)
         author_name = request.form.get('author_name') or "Anonym"
+        image_base64 = request.form.get('image_base64')
 
         if not title:
             flash('Bitte einen Titel angeben.', 'warning')
@@ -65,7 +67,8 @@ def _new_ticket_view():
                 description=description,
                 priority=priority,
                 author_name=author_name,
-                author_id=session.get('worker_id')
+                author_id=session.get('worker_id'),
+                image_base64=image_base64
             )
             flash('Ticket erfolgreich erstellt!', 'success')
             ingress = request.headers.get('X-Ingress-Path', '')
@@ -144,6 +147,18 @@ def _assign_to_me_view(ticket_id):
     ingress = request.headers.get('X-Ingress-Path', '')
     return redirect(f"{ingress}{url_for('main.ticket_detail', ticket_id=ticket_id)}")
 
+def _serve_attachment(attachment_id):
+    """Securely serve uploaded attachments."""
+    attachment = db.session.get(Attachment, attachment_id)
+    if not attachment:
+        return "Not Found", 404
+        
+    data_dir = current_app.config.get('DATA_DIR', '/data')
+    attachments_dir = os.path.join(data_dir, 'attachments')
+    
+    # Path is stored as just the filename in DB
+    return send_from_directory(attachments_dir, attachment.path)
+
 def register_routes(bp):
     """Register ticket routes."""
     # Public Dashboard (Anyone can see? Or only workers? User said "Dashboard fills Self-tickets", implying login)
@@ -182,3 +197,6 @@ def register_routes(bp):
     archive_view = _archive_view
     archive_view.__name__ = 'archive'
     bp.add_url_rule('/archive', view_func=archive_view)
+
+    # Attachment Serving
+    bp.add_url_rule('/attachment/<int:attachment_id>', 'serve_attachment', view_func=_serve_attachment)
