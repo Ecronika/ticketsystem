@@ -201,18 +201,8 @@ else:
         app.logger.critical(
             "Could not persist secret key to %s: %s", secret_file, e)
 
-# --- Database Optimization ---
-@event.listens_for(Engine, "connect")
-def set_sqlite_pragma(dbapi_connection, connection_record):
-    """Enable WAL mode and set busy_timeout for SQLite stability."""
-    cursor = dbapi_connection.cursor()
-    try:
-        cursor.execute("PRAGMA journal_mode=WAL")
-        cursor.execute("PRAGMA synchronous=NORMAL")
-        cursor.execute("PRAGMA busy_timeout=30000")
-        cursor.close()
-    except sqlite3.Error:
-        pass
+# --- Database Initialization (Legacy Block Moved) ---
+# Note: Connections are optimized via the event listener below.
 
 
 # Init Extensions - Order: DB FIRST, then Migrate

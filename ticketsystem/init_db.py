@@ -30,19 +30,11 @@ def run():
             # init_database handles migrations and seeding
             init_database(app, logger=logger)
             
-            # Diagnostics & Emergency Reset
+            # Diagnostics
             workers = Worker.query.all()
             if workers:
                 names = [f"'{w.name}' ({'Admin' if w.is_admin else 'Worker'})" for w in workers]
                 print(f"Found existing workers: {', '.join(names)}", file=sys.stderr, flush=True)
-                
-                # Special Fix for 'Tobias Paul': Reset to '0000' to ensure access
-                tp = Worker.query.filter_by(name="Tobias Paul").first()
-                if tp:
-                    print("Emergency: Resetting PIN for 'Tobias Paul' to '0000' for recovery.", file=sys.stderr, flush=True)
-                    tp.pin_hash = generate_password_hash("0000")
-                    tp.needs_pin_change = True
-                    db.session.commit()
             else:
                 print("WARNING: No workers found in database!", file=sys.stderr, flush=True)
 

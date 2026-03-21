@@ -5,8 +5,10 @@
 - **Critical Migration Fix:** Added missing `sqlalchemy` import in Alembic's `env.py` to prevent startup crashes.
 - **Initialization Order:** Fixed extension initialization order to ensure `db.init_app` runs before `Migrate`.
 - **Database Safety:** Removed dangerous `db.create_all()` fallbacks that could lead to untracked schema states.
-- **Service Stability:** Fixed missing `Tag` and `Attachment` imports in `TicketService`.
 - **Deployment & Proxy:** Deduplicated `ProxyFix` middleware and ensured absolute database paths for Home Assistant Ingress.
+- **Standalone Support:** Updated `Dockerfile.standalone` to correctly trigger database migrations on boot.
+- **Diagnostics:** Added `init_db.py` for pre-boot initialization and better startup logging.
+- **Performance:** Consolidated SQLite connection listeners for optimal concurrency.
 
 ## [1.3.0] - 2026-03-21
 ### Shopfloor Ergonomics & PWA
