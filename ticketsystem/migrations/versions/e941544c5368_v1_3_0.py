@@ -69,9 +69,21 @@ def upgrade():
     with op.batch_alter_table('worker', schema=None) as batch_op:
         if 'role' not in worker_cols:
             batch_op.add_column(sa.Column('role', sa.String(length=20), nullable=True))
+        # Ensure 'Enterprise Hardening' columns exist if they were missed in a manual v1.2.0 -> v1.3.0 jump
+        if 'failed_login_count' not in worker_cols:
+            batch_op.add_column(sa.Column('failed_login_count', sa.Integer(), nullable=False, server_default=sa.text('0')))
+        if 'locked_until' not in worker_cols:
+            batch_op.add_column(sa.Column('locked_until', sa.DateTime(), nullable=True))
+        if 'needs_pin_change' not in worker_cols:
+            batch_op.add_column(sa.Column('needs_pin_change', sa.Boolean(), nullable=False, server_default=sa.text('0')))
+        if 'is_active' not in worker_cols:
+            batch_op.add_column(sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('1')))
+        if 'is_admin' not in worker_cols:
+            batch_op.add_column(sa.Column('is_admin', sa.Boolean(), nullable=False, server_default=sa.text('0')))
 
     # Data migration: populate 'role' from 'is_admin'
-    if 'role' in [r[1] for r in bind.execute(sa.text("PRAGMA table_info(worker)")).fetchall()]:
+    worker_cols_final = [r[1] for r in bind.execute(sa.text("PRAGMA table_info(worker)")).fetchall()]
+    if 'role' in worker_cols_final:
         op.execute("UPDATE worker SET role = 'admin' WHERE is_admin = 1")
         op.execute("UPDATE worker SET role = 'worker' WHERE is_admin = 0 OR is_admin IS NULL")
 
