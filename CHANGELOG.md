@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2] - 2026-03-21
+### Fixed
+- **Critical Database Fix:** Added missing `comment.author_id` column to the pre-boot repair tool and Alembic migrations. Resolves crashes when viewing or creating tickets.
+- **Authentication:** Fixed logout redirection logic for Home Assistant Ingress to prevent double-slash pathing issues.
+- **Network Stability:** Refined NGINX `listen` directive with `default_server` to ensure Port 5001 accessibility.
+- **UI Cleanup:** Removed redundant version badge from dashboard header.
+
 ## [1.3.1] - 2026-03-21
 ### Fixed
 - **Critical Migration Fix:** Added missing `sqlalchemy` import in Alembic's `env.py` to prevent startup crashes.
