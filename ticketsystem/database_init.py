@@ -6,6 +6,7 @@ Uses Dependency Injection to decouple from the global Flask app object.
 """
 import sys
 from werkzeug.security import generate_password_hash
+from flask_migrate import upgrade as flask_upgrade
 from models import SystemSettings, Worker
 from extensions import db
 
@@ -38,38 +39,8 @@ def _seed_default_settings(app, logger):
 
     db.session.commit()
 
-def _ensure_schema_sync(app, logger):
-    """
-    Manually check for and add missing columns for SQLite.
-    (Pragmatic alternative to full Alembic migrations for SME setup).
-    """
-    from sqlalchemy import text
-    
-    # Missing columns in 'ticket' table
-    migrations = [
-        ("ticket", "status", "VARCHAR(20) DEFAULT 'offen'"),
-        ("ticket", "priority", "INTEGER DEFAULT 2"),
-        ("ticket", "assigned_to_id", "INTEGER"),
-        ("ticket", "created_at", "DATETIME"),
-        ("ticket", "updated_at", "DATETIME"),
-        ("worker", "needs_pin_change", "BOOLEAN DEFAULT 1"),
-        ("worker", "failed_login_count", "INTEGER DEFAULT 0"),
-        ("worker", "locked_until", "DATETIME"),
-        ("comment", "author_id", "INTEGER")
-    ]
-    
-    for table, column, definition in migrations:
-        try:
-            # We use a raw SQL check or just try-except the ALTER
-            db.session.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {definition}"))
-            db.session.commit()
-            if logger:
-                logger.info("Database Migration: Added missing '%s' column to '%s' table.", column, table)
-        except Exception:
-            db.session.rollback() # Column likely already exists or table doesn't exist yet
-
 def init_database(app, *, logger=None):
-    """Generic database initialization."""
+    """Generic database initialization with automatic migrations."""
     if logger is None:
         logger = app.logger
 
@@ -81,9 +52,11 @@ def init_database(app, *, logger=None):
         logger.info("Database: Initialization started...")
         
         try:
-            # Create all tables defined in models.py (if not existing)
-            db.create_all()
-            logger.info("Database: Tables created (if not existing).")
+            # Automatic Migrations via Alembic/Flask-Migrate
+            # This handles both fresh installs (create_all equivalent) and upgrades
+            logger.info("Database: Running migrations...")
+            flask_upgrade()
+            logger.info("Database: Schema is up to date.")
             
             # Seed default system settings
             _seed_default_settings(app, logger)
@@ -91,3 +64,10 @@ def init_database(app, *, logger=None):
         except Exception as e:
             logger.error("Database: Initialization failed: %s", e)
             db.session.rollback()
+            # If migration fails, we might fall back to create_all for completely fresh DBs
+            # though flask_upgrade() should handle it if 'migrations' folder is present.
+            try:
+                db.create_all()
+                logger.info("Database: Fallback to db.create_all() finished.")
+            except Exception as e2:
+                logger.error("Database: Fallback failed: %s", e2)
