@@ -55,10 +55,12 @@ class TicketService:
             if image_base64:
                 current_app.logger.info("Processing attachment for ticket %s. Length: %s", ticket.id, len(image_base64))
                 if "," in image_base64:
-                    try:
-                        import os
-                        import base64
-                        import uuid
+                        # P1-7: Initialize variables to avoid UnboundLocalError
+                        attachments_dir = None
+                        mime_type = 'application/octet-stream'
+                        ext = 'bin'
+                        image_data = None
+                        filename = None
                         
                         # Ensure attachments directory exists
                         from extensions import Config
@@ -78,21 +80,22 @@ class TicketService:
                             current_app.logger.error("Malformed Base64 data for ticket %s: %s", ticket.id, decode_err)
                             image_data = None
                             
-                        if image_data:
-                            filename = f"ticket_{ticket.id}_{uuid.uuid4().hex[:8]}.{ext}"
-                            filepath = os.path.join(attachments_dir, filename)
-                            
-                            with open(filepath, "wb") as f:
-                                f.write(image_data)
-                            
-                        attachment = Attachment(
-                            ticket_id=ticket.id,
-                            path=filename,
-                            filename=filename,
-                            mime_type=mime_type
-                        )
-                        db.session.add(attachment)
-                        current_app.logger.info("Successfully saved attachment: %s", filename)
+                            if image_data:
+                                filename = f"ticket_{ticket.id}_{uuid.uuid4().hex[:8]}.{ext}"
+                                filepath = os.path.join(attachments_dir, filename)
+                                
+                                with open(filepath, "wb") as f:
+                                    f.write(image_data)
+                                
+                                # P0-3: Only create attachment if data was written successfully
+                                attachment = Attachment(
+                                    ticket_id=ticket.id,
+                                    path=filename,
+                                    filename=filename,
+                                    mime_type=mime_type
+                                )
+                                db.session.add(attachment)
+                                current_app.logger.info("Successfully saved attachment: %s", filename)
                     except Exception as img_err:
                         current_app.logger.error("Error saving attachment for ticket %s: %s", ticket.id, img_err, exc_info=True)
                 else:

@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import flash, redirect, render_template, request, session, url_for, jsonify, send_from_directory, current_app
 from markupsafe import Markup
 from extensions import limiter, db
@@ -43,7 +43,7 @@ def _dashboard_view():
                           unassigned_only=unassigned_only,
                           today=datetime.now(timezone.utc).replace(tzinfo=None))
 
-@worker_required
+
 def _archive_view():
     """Handle the ticket archive view (completed tickets)."""
     search = request.args.get('q', '').strip()

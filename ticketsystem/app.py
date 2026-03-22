@@ -226,6 +226,9 @@ if not scheduler.running:
         # Restore Backup Schedule from DB
         with app.app_context():
             BackupService.schedule_backup_job(app)
+        
+        # P3-3: Ensure clean scheduler shutdown
+        atexit.register(lambda: scheduler.shutdown())
     except Exception as e:  # pylint: disable=broad-exception-caught
         # In multi-worker environments, the scheduler might already be running
         app.logger.warning("Scheduler initialization skipped or failed: %s", e)
@@ -355,14 +358,15 @@ def add_security_headers(response):
     response.headers['X-XSS-Protection'] = '1; mode=block'
     
     # CSP Nonce support
-    from flask import g
     nonce = getattr(g, 'csp_nonce', None)
     
     # IS_HOMEASSISTANT manual CSP (Talisman is disabled in this mode)
     if IS_HOMEASSISTANT:
+        # P0-1: Avoid backslashes in f-strings for Python 3.11 compatibility
+        nonce_directive = f"'nonce-{nonce}'" if nonce else ""
         csp_policy = (
             "default-src 'self'; "
-            f"script-src 'self' cdn.jsdelivr.net unpkg.com {'\\'nonce-' + nonce + '\\'' if nonce else ''}; "
+            f"script-src 'self' cdn.jsdelivr.net unpkg.com {nonce_directive}; "
             "style-src 'self' cdn.jsdelivr.net 'unsafe-inline'; "
             "img-src 'self' data:; "
             "font-src 'self' cdn.jsdelivr.net; "

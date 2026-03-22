@@ -1,5 +1,14 @@
 # Changelog
  
+## [1.10.1] - 2026-03-22
+### Fixed (P0-P1 Bugfixes)
+- **Startup-Fix (P0):** Syntaxfehler in `app.py` behoben (Backslash in f-string auf Python 3.11).
+- **Dashboard-Fix (P0):** Fehlender `timezone` Import in `tickets.py` ergänzt.
+- **Datenintegrität (P0):** Einrückungsfehler bei der Attachment-Erstellung in `ticket_service.py` behoben.
+- **Auth-Fix (P1):** Letztes verbliebenes `datetime.utcnow()` in `auth.py` ersetzt.
+- **API-Fix (P1):** Doppelten Decorator auf `_archive_view` entfernt.
+- **Maintenance:** APScheduler Shutdown-Handler registriert und Inline-Imports optimiert.
+
 ## [1.10.0] - 2026-03-22
 ### Security (Critical CSP & Race Conditions)
 - **CSP Nonce System:** Implementierung eines dynamischen Nonce-Systems für die Content Security Policy. Alle Inline-Skripte sind nun durch Nonces geschützt, was die Anwendung in restriktiven Umgebungen (Home Assistant Ingress) wieder voll funktionsfähig macht.

@@ -159,7 +159,7 @@ def _login_view():
                 # Reset lockout on success
                 worker.failed_login_count = 0
                 worker.locked_until = None
-                worker.last_active = datetime.utcnow()
+                worker.last_active = datetime.now(timezone.utc).replace(tzinfo=None)
                 db.session.commit()
 
                 session.permanent = True
