@@ -202,7 +202,7 @@ def _login_view():
 
 def _logout_view():
     """Handle worker logout with thorough session clearing."""
-    from flask import make_response
+    from flask import make_response, current_app
     
     # Clear session data
     session.clear()

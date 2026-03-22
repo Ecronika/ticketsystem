@@ -43,7 +43,7 @@ def _ensure_critical_columns(logger):
     """
     Manually ensure critical columns exist before migrations run.
     This fixes inconsistent states from previous failed or non-Alembic upgrades.
-        try:
+    try:
         engine = db.engine
         inspector = db.inspect(engine)
         tables = inspector.get_table_names()
@@ -92,7 +92,6 @@ def _ensure_critical_columns(logger):
                     conn.execute(db.text("ALTER TABLE comment ADD COLUMN event_type VARCHAR(30)"))
             
             conn.commit()
-)
                 
     except Exception as e:
         logger.warning("Repair: Auto-repair encountered an issue (non-fatal): %s", e)

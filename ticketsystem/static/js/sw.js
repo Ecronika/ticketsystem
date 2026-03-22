@@ -27,7 +27,7 @@ self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   
   // Cache-first for static assets
-  if (ASSETS.some(asset => url.pathname.endsWith(asset))) {
+  if (url.pathname.includes('/static/')) {
     event.respondWith(
       caches.match(event.request).then(response => {
         return response || fetch(event.request);

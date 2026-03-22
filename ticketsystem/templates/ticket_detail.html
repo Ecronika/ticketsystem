@@ -217,5 +217,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ ingress_path }}{{ url_for('static', filename='js/ticket_detail.js') }}?v=1.2.0"></script>
+<script src="{{ ingress_path }}{{ url_for('static', filename='js/ticket_detail.js') }}?v={{ config.VERSION }}"></script>
 {% endblock %}

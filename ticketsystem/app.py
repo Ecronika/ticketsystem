@@ -255,9 +255,6 @@ def set_sqlite_pragma(dbapi_conn, _connection_record):
         # Less frequent WAL checkpoints
         cursor.execute("PRAGMA wal_autocheckpoint = 1000")
         cursor.close()
-        app.logger.info(
-            "SQLite pragmas set: busy_timeout=30s, WAL mode, cache=10MB, SD-optimized"
-        )
 
 
 # Security: Content-Security-Policy (Issue #3)

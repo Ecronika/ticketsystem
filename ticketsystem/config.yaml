@@ -1,5 +1,5 @@
 name: "Ticket System"
-version: "1.8.0"
+version: "1.8.1"
 
 slug: "ticketsystem"
 description: "A clean boilerplate for a ticket management system."

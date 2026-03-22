@@ -49,7 +49,7 @@ class TicketService:
 
             # Handle Image/Attachment
             if image_base64:
-                current_app.logger.info(f"Processing attachment for ticket {ticket.id}. Length: {len(image_base64)}")
+                current_app.logger.info("Processing attachment for ticket %s. Length: %s", ticket.id, len(image_base64))
                 if "," in image_base64:
                     try:
                         import os
@@ -81,17 +81,17 @@ class TicketService:
                             mime_type=mime_type
                         )
                         db.session.add(attachment)
-                        current_app.logger.info(f"Successfully saved attachment: {filename}")
+                        current_app.logger.info("Successfully saved attachment: %s", filename)
                     except Exception as img_err:
-                        current_app.logger.error(f"Error saving attachment for ticket {ticket.id}: {img_err}", exc_info=True)
+                        current_app.logger.error("Error saving attachment for ticket %s: %s", ticket.id, img_err, exc_info=True)
                 else:
-                    current_app.logger.warning(f"image_base64 present but missing comma separator for ticket {ticket.id}")
+                    current_app.logger.warning("image_base64 present but missing comma separator for ticket %s", ticket.id)
 
             db.session.commit()
             return ticket
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Error creating ticket: {e}")
+            current_app.logger.error("Error creating ticket: %s", e)
             raise
 
     @staticmethod

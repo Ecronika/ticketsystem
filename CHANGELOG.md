@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.8.1] - 2026-03-22
+### Fixed (Critical Regressions)
+- **Startup-Fix (NEU-01):** SyntaxError in `database_init.py` behoben. Die Anwendung startet nun wieder korrekt.
+- **Logout-Fix (NEU-02):** NameError (`current_app`) im Logout-View behoben. Abmelden ist nun wieder möglich.
+- **Public-Detail (NEU-05):** Anhänge und Kommentare werden auf der öffentlichen Ticket-Seite nun nur noch für angemeldete Mitarbeiter angezeigt, um Broken-Images und unbefugten Datenzugriff zu vermeiden.
+
+### Changed
+- **Asset-Versioning (NEU-04/07):** Versionierung via `?v={{ config.VERSION }}` in alle Templates (`ticket_detail.html`, `workers.html`) übernommen, um Cache-Probleme nach Updates zu vermeiden.
+- **ServiceWorker (NEU-06):** Die Cache-Matching-Logik in `sw.js` wurde vereinfacht und erkennt nun alle statischen Assets unter `/static/` zuverlässig.
+- **Logging (NEU-03):** Redundante Pragma-Logmeldungen in `app.py` entfernt und Logging-Calls in `ticket_service.py` auf Standard-Formatierung (`%s`) umgestellt (QUAL-02).
+
+---
+
 ## [1.8.0] - 2026-03-22
 ### Security (Hardening)
 - **Attachment-Sicherheit:** `serve_attachment` ist nun durch `@worker_required` geschützt und nutzt robuste Pfad-Validierung (`os.path.basename`), um Path-Traversal-Angriffe zu verhindern (SEC-03, SEC-04).

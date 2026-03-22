@@ -23,7 +23,7 @@
                     <p class="mb-0" style="white-space: pre-wrap;">{{ ticket.description or 'Keine Beschreibung.' }}</p>
                 </div>
 
-                {% if ticket.attachments %}
+                {% if session.get('worker_id') and ticket.attachments %}
                 <div class="mt-4">
                     <h4 class="h6 fw-bold mb-3"><i class="bi bi-paperclip me-2"></i>Anhänge</h4>
                     <div class="row g-2">
@@ -42,7 +42,8 @@
             </div>
         </div>
 
-        <!-- Comment History -->
+        {% if session.get('worker_id') %}
+        <!-- Comment History (Worker Only) -->
         <h3 class="h5 fw-bold mb-3 px-2"><i class="bi bi-chat-left-text me-2"></i> Verlauf</h3>
         <div class="comment-history mb-5">
             {% for comment in ticket.comments|sort(attribute='created_at') %}
@@ -67,6 +68,7 @@
             <p class="text-center text-muted py-4">Noch keine Kommentare.</p>
             {% endfor %}
         </div>
+        {% endif %}
 
         <div class="text-center mt-5 mb-5 opacity-75">
             <p class="small text-muted mb-3">Dies ist eine öffentlich einsehbare Status-Seite für Ticket #{{ ticket.id }}.</p>

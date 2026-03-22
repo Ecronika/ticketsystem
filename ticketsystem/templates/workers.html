@@ -142,7 +142,7 @@
         </div>
     </div>
 
-    <script src="{{ ingress_path }}{{ url_for('static', filename='js/workers.js') }}?v=1.2.0"></script>
+    <script src="{{ ingress_path }}{{ url_for('static', filename='js/workers.js') }}?v={{ config.VERSION }}"></script>
 
     <!-- Sidebar: Add Worker & Recovery -->
     <div class="col-lg-4">
