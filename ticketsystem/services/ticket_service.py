@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from flask import current_app
 from extensions import db
 from models import Ticket, Comment, Worker, Tag, Attachment
+from sqlalchemy.exc import SQLAlchemyError
 from enums import TicketStatus, TicketPriority
 
 class TicketService:
@@ -103,9 +104,13 @@ class TicketService:
 
             db.session.commit()
             return ticket
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            current_app.logger.error("Database error creating ticket: %s", e)
+            raise
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error("Error creating ticket: %s", e)
+            current_app.logger.error("Unexpected error creating ticket: %s", e)
             raise
 
     @staticmethod
@@ -146,9 +151,13 @@ class TicketService:
                 db.session.commit()
             
             return ticket
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            current_app.logger.error("Database error updating ticket: %s", e)
+            raise
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error("Error updating ticket: %s", e)
+            current_app.logger.error("Unexpected error updating ticket: %s", e)
             raise
 
     @staticmethod
@@ -173,9 +182,13 @@ class TicketService:
             db.session.add(comment)
             db.session.commit()
             return True
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            current_app.logger.error("Database error deleting ticket: %s", e)
+            raise
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error("Error deleting ticket: %s", e)
+            current_app.logger.error("Unexpected error deleting ticket: %s", e)
             raise
 
     @staticmethod
@@ -401,7 +414,11 @@ class TicketService:
                 db.session.commit()
             
             return ticket
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            current_app.logger.error("Database error updating ticket meta: %s", e)
+            raise
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error("Error updating ticket meta: %s", e)
+            current_app.logger.error("Unexpected error updating ticket meta: %s", e)
             raise

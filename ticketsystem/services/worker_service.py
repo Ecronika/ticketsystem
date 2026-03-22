@@ -4,6 +4,7 @@ Worker Service module.
 Handles business logic for Worker management (CRUD, Status, Auth).
 """
 from werkzeug.security import generate_password_hash
+from sqlalchemy.exc import SQLAlchemyError
 from extensions import db
 from models import Worker
 
@@ -31,17 +32,21 @@ class WorkerService:
         if not role:
             role = 'admin' if is_admin else 'worker'
 
-        new_worker = Worker(
-            name=name,
-            pin_hash=generate_password_hash(effective_pin),
-            is_admin=is_admin,
-            role=role,
-            is_active=True,
-            needs_pin_change=True
-        )
-        db.session.add(new_worker)
-        db.session.commit()
-        return new_worker
+        try:
+            new_worker = Worker(
+                name=name,
+                pin_hash=generate_password_hash(effective_pin),
+                is_admin=is_admin,
+                role=role,
+                is_active=True,
+                needs_pin_change=True
+            )
+            db.session.add(new_worker)
+            db.session.commit()
+            return new_worker
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Datenbankfehler beim Erstellen des Mitarbeiters: {e}")
 
     @staticmethod
     def toggle_status(worker_id):
@@ -56,9 +61,14 @@ class WorkerService:
             if admin_count <= 1:
                 raise ValueError("Der letzte aktive Administrator kann nicht deaktiviert werden.")
 
-        worker.is_active = not worker.is_active
-        db.session.commit()
-        return worker
+
+        try:
+            worker.is_active = not worker.is_active
+            db.session.commit()
+            return worker
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Datenbankfehler beim Ändern des Status: {e}")
 
     @staticmethod
     def update_worker(worker_id, name, is_admin, role=None):
@@ -85,11 +95,16 @@ class WorkerService:
             if active_admins <= 1:
                 raise ValueError("Der letzte aktive Administrator kann nicht zum normalen Mitarbeiter degradiert werden. Aktivieren Sie erst einen anderen Administrator.")
 
-        worker.name = name
-        worker.is_admin = is_admin
-        worker.role = role
-        db.session.commit()
-        return worker
+
+        try:
+            worker.name = name
+            worker.is_admin = is_admin
+            worker.role = role
+            db.session.commit()
+            return worker
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Datenbankfehler beim Aktualisieren des Mitarbeiters: {e}")
 
     @staticmethod
     def update_pin(worker_id, new_pin):
@@ -98,10 +113,15 @@ class WorkerService:
         if not worker:
             raise ValueError("Mitarbeiter nicht gefunden.")
         
-        worker.pin_hash = generate_password_hash(new_pin)
-        worker.needs_pin_change = False
-        db.session.commit()
-        return worker
+
+        try:
+            worker.pin_hash = generate_password_hash(new_pin)
+            worker.needs_pin_change = False
+            db.session.commit()
+            return worker
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Datenbankfehler beim Ändern der PIN: {e}")
 
     @staticmethod
     def admin_reset_pin(worker_id):
@@ -110,7 +130,11 @@ class WorkerService:
         if not worker:
             raise ValueError("Mitarbeiter nicht gefunden.")
             
-        worker.pin_hash = generate_password_hash("0000")
-        worker.needs_pin_change = True
-        db.session.commit()
-        return worker
+        try:
+            worker.pin_hash = generate_password_hash("0000")
+            worker.needs_pin_change = True
+            db.session.commit()
+            return worker
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            raise ValueError(f"Datenbankfehler beim PIN-Reset: {e}")

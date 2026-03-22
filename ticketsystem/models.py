@@ -36,7 +36,7 @@ class SystemSettings(db.Model):
             else:
                 setting.value = str(value)
             db.session.commit()
-        except Exception:
+        except SQLAlchemyError:
             db.session.rollback()
             raise
 
