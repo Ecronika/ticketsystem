@@ -148,15 +148,15 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label small">PIN (4-stellig) <span class="text-danger">*</span></label>
+                        <label class="form-label small">PIN (4-stellig, optional)</label>
                         <div class="input-group">
                             <input type="password" name="pin" id="new_worker_pin" class="form-control border-0 bg-white-50" placeholder="****" 
-                                    pattern="\d{4,16}" inputmode="numeric" required>
+                                    pattern="\d{4,16}" inputmode="numeric">
                             <button type="button" class="btn btn-outline-light border-0 bg-white-20 px-3" onclick="const p = document.getElementById('new_worker_pin'); p.type = p.type === 'password' ? 'text' : 'password'; this.querySelector('i').classList.toggle('bi-eye'); this.querySelector('i').classList.toggle('bi-eye-slash');" aria-label="PIN anzeigen/verbergen">
                                 <i class="bi bi-eye"></i>
                             </button>
                         </div>
-                        <div class="form-text text-white-50 x-small">Erlaubt sind 4 bis 16 Ziffern.</div>
+                        <div class="form-text text-white-50 x-small">Wird das Feld leer gelassen, gilt die Standard-PIN '0000'.</div>
                     </div>
                     
                     <div class="form-check form-switch mb-4">

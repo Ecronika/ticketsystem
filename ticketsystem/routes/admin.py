@@ -23,7 +23,11 @@ def workers():
                 pin = request.form.get('pin')
                 is_admin = request.form.get('is_admin') == 'on'
                 WorkerService.create_worker(name, pin, is_admin)
-                flash(f"Mitarbeiter '{name}' wurde angelegt. Erster Login mit PIN: {pin} – er wird sofort zur PIN-Änderung aufgefordert.", "success")
+                
+                if pin:
+                    flash(f"Mitarbeiter '{name}' wurde angelegt. Erster Login mit PIN: {pin}.", "success")
+                else:
+                    flash(f"Mitarbeiter '{name}' wurde ohne PIN angelegt. Standard-PIN ist '0000' (muss beim ersten Login geändert werden).", "success")
             
             elif action == 'toggle_status':
                 worker_id = request.form.get('worker_id')

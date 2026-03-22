@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.6.4] - 2026-03-22
+### Added
+- **Benutzerverwaltung:** Administratoren können nun neue Mitarbeiter anlegen, ohne sofort einen PIN festzulegen. Das System nutzt dann automatisch den Standard-PIN '0000', der beim ersten Login geändert werden muss.
+
+
 ## [1.6.3] - 2026-03-22
 ### Fixed
 - **Admin Management:** Fehlermeldungen beim Deaktivieren oder Degradieren von Administratoren präzisiert. Es wird nun explizit darauf hingewiesen, dass mindestens ein **aktiver** Administrator im System verbleiben muss, um Lockouts zu verhindern.

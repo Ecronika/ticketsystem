@@ -16,10 +16,14 @@ class WorkerService:
         return Worker.query.order_by(Worker.is_admin.desc(), Worker.name.asc()).all()
 
     @staticmethod
-    def create_worker(name, pin, is_admin=False, role=None):
+    def create_worker(name, pin=None, is_admin=False, role=None):
         """Create a new worker with hashed PIN and RBAC role."""
-        if not name or not pin:
-            raise ValueError("Name und PIN sind erforderlich.")
+        if not name:
+            raise ValueError("Name ist erforderlich.")
+        
+        # Default PIN to '0000' if not provided
+        effective_pin = pin if pin else "0000"
+        needs_change = True if not pin or pin == "0000" else True # Always force change for new users for safety
         
         if Worker.query.filter_by(name=name).first():
             raise ValueError(f"Mitarbeiter '{name}' existiert bereits.")
@@ -30,7 +34,7 @@ class WorkerService:
 
         new_worker = Worker(
             name=name,
-            pin_hash=generate_password_hash(pin),
+            pin_hash=generate_password_hash(effective_pin),
             is_admin=is_admin,
             role=role,
             is_active=True,
