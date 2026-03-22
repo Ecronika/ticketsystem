@@ -1,5 +1,10 @@
 # Changelog
  
+## [1.10.3] - 2026-03-23
+### Fixed
+- **UI-Fix:** Das „Auge“ zum Anzeigen von PINs funktioniert nun auch mit der neuen restriktiven CSP (Umstellung von Inline-JS auf Event-Listener).
+- **UI-Improvement:** PIN-Sichtbarkeitstoggle auch auf der `change_pin.html` Seite hinzugefügt.
+
 ## [1.10.2] - 2026-03-22
 ### Fixed
 - **Auth-Fix:** Letztes verbliebenes `datetime.utcnow()` in der Login-Lockout-Logik ersetzt.

@@ -106,6 +106,25 @@
             }, delay);
         });
 
+        // PIN Toggle Logic (v1.10.3 - CSP Compatible)
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('.pin-toggle');
+            if (!btn) return;
+            
+            const targetId = btn.getAttribute('data-target') || 'pin';
+            const input = document.getElementById(targetId);
+            if (!input) return;
+            
+            const isPassword = input.type === 'password';
+            input.type = isPassword ? 'text' : 'password';
+            
+            const icon = btn.querySelector('i');
+            if (icon) {
+                icon.classList.toggle('bi-eye', !isPassword);
+                icon.classList.toggle('bi-eye-slash', isPassword);
+            }
+        });
+
         // Theme Toggle
         const toggleBtn = document.getElementById('themeToggle');
         if (toggleBtn) {
