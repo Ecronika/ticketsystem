@@ -11,8 +11,8 @@
             <div class="card-body p-4">
                 <div class="d-flex justify-content-between align-items-start mb-3">
                     <div>
-                        <a href="{{ ingress_path }}{{ url_for('main.index') }}" class="btn btn-light btn-sm rounded-circle me-2 mb-2" title="Zurück zum Dashboard">
-                            <i class="bi bi-chevron-left"></i>
+                        <a href="{{ ingress_path }}{{ url_for('main.index') }}" class="btn btn-light btn-sm rounded-pill px-3 me-2 mb-2">
+                            <i class="bi bi-chevron-left me-1"></i> Dashboard
                         </a>
                         <h1 class="h3 fw-bold mb-1">{{ ticket.title }}</h1>
                         <p class="text-meta small mb-0">Ticket #{{ ticket.id }} • Erstellt am {{ ticket.created_at|local_time|datetime }}</p>
@@ -59,7 +59,7 @@
             <div class="d-flex align-items-center gap-2 py-2 px-3 text-muted x-small border-start border-2 border-secondary-subtle ms-3 my-1 animate__animated animate__fadeIn">
                 <i class="bi bi-arrow-right-circle-fill text-secondary-emphasis" aria-hidden="true"></i>
                 <span>{{ comment.text }}</span>
-                <span class="ms-auto text-meta">{{ comment.created_at|local_time|time }}</span>
+                <span class="ms-auto text-meta">{{ comment.created_at|local_time|datetime('%d.%m. %H:%M') }}</span>
             </div>
             {% else %}
             <div class="card border-0 shadow-sm rounded-4 mb-3 {{ 'ms-auto bg-primary-subtle border-primary-subtle' if comment.author == session.get('worker_name') else 'me-auto' }}" 
@@ -67,7 +67,7 @@
                 <div class="card-body py-2 px-3">
                     <div class="d-flex justify-content-between align-items-center mb-1">
                         <span class="fw-bold small text-primary">{{ comment.author }}</span>
-                        <span class="text-meta x-small">{{ comment.created_at|local_time|time }}</span>
+                        <span class="text-meta x-small">{{ comment.created_at|local_time|datetime('%d.%m. %H:%M') }}</span>
                     </div>
                     <p class="mb-0 small">{{ comment.text }}</p>
                 </div>
@@ -100,13 +100,15 @@
                                 {% set basic_shortcuts = system_settings.get_setting('ticket_shortcuts', 'Prüfen,Bestellt,Erledigt,Rückruf').split(',') %}
                                 {% set wait_shortcuts = ['Wartet auf: Lieferung', 'Wartet auf: Rückruf'] %}
                                 {% for shortcut in basic_shortcuts %}
-                                <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill py-1 px-3" onclick="this.form.text.value += '{{ shortcut }} '; this.form.text.focus();">
+                                <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill py-1 px-3 shortcut-btn" 
+                                        onclick="document.querySelectorAll('.shortcut-btn').forEach(b => b.classList.remove('btn-secondary', 'active')); this.classList.add('btn-secondary', 'active'); this.form.text.value = '{{ shortcut }}'; this.form.text.focus();">
                                     <i class="bi bi-lightning-charge-fill x-small text-warning"></i> {{ shortcut }}
                                 </button>
                                 {% endfor %}
                                 {% for shortcut in wait_shortcuts %}
-                                <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill py-1 px-3" onclick="this.form.text.value += '{{ shortcut }} '; this.form.text.focus();">
-                                    <i class="bi bi-hourglass-split x-small text-secondary"></i> {{ shortcut }}
+                                <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill py-1 px-3 shortcut-btn" 
+                                        onclick="document.querySelectorAll('.shortcut-btn').forEach(b => b.classList.remove('btn-secondary', 'active')); this.classList.add('btn-secondary', 'active'); this.form.text.value = '{{ shortcut }}'; this.form.text.focus();">
+                                    <i class="bi bi-hourglass-split x-small text-secondary"></i> {{ shortcut|replace('Wartet auf: ', '⏳ ') }}
                                 </button>
                                 {% endfor %}
                             </div>

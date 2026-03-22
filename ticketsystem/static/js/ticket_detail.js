@@ -10,7 +10,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const getIngress = () => document.querySelector('.navbar')?.getAttribute('data-ingress') || '';
 
+    const applySelectColor = (sel) => {
+        const map = {
+            offen: 'var(--bg-danger-subtle)',
+            in_bearbeitung: 'var(--bg-warning-subtle)',
+            wartet: 'var(--border-color)',
+            erledigt: 'var(--bg-success-subtle)'
+        };
+        sel.style.backgroundColor = map[sel.value] || '';
+    };
+
     if (statusSelect) {
+        applySelectColor(statusSelect);
         statusSelect.addEventListener('change', async function() {
             const newStatus = this.value;
             const originalValue = this.dataset.original;
@@ -40,6 +51,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.dataset.original = newStatus;
                     this.disabled = false;
                     this.classList.remove('opacity-50');
+                    applySelectColor(this);
                     
                     // UX Update: Badge in header
                     const statusBadge = document.getElementById('ticketStatusBadge');
@@ -63,12 +75,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.disabled = false;
                     this.classList.remove('opacity-50');
                     this.value = originalValue;
+                    applySelectColor(this);
                 }
             } catch (error) {
                 window.showUiAlert('Netzwerkfehler beim Aktualisieren.');
                 this.disabled = false;
                 this.classList.remove('opacity-50');
                 this.value = originalValue;
+                applySelectColor(this);
             }
         });
     }

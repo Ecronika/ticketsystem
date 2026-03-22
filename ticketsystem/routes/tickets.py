@@ -79,7 +79,6 @@ def _new_ticket_view():
             link_html = f' <a href="{ticket_url}" class="alert-link">Ticket #{ticket.id} ansehen →</a>'
             
             if not session.get('worker_id'):
-                flash(f'Ticket #{ticket.id} erfolgreich erstellt!{link_html}', 'success')
                 return redirect_to('main.ticket_new')
             
             flash(f'Ticket #{ticket.id} erfolgreich erstellt!{link_html}', 'success')

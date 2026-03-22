@@ -1,6 +1,26 @@
 # Changelog
 
-## [1.4.1] - 2026-03-22
+## [1.5.0] - 2026-03-22
+
+### Hinzugefügt (Added)
+- **Login:** PIN-Sichtbarkeit lässt sich nun per Auge-Icon umschalten.
+- **Login:** Mitarbeiter-Namen als anklickbare "Chips" zur Schnellauswahl.
+- **Dashboard:** Hochprio-Tickets werden optisch hervorgehoben (roter Rand + Hintergrund).
+- **Details:** Datum in der Ticket-Historie (z.B. "20.03. 14:00") für bessere Orientierung.
+- **Details:** Status-Dropdown ändert nun dynamisch die Hintergrundfarbe passend zum Status.
+- **Ticket-Erstellung:** Infobox "Was passiert nach dem Absenden?" für mehr Vertrauen.
+- **Tooltips:** Exakte Datumsangaben beim Hover über relative Zeitstempel (z.B. "vor 5 Min.").
+
+### Geändert (Changed)
+- **Navigation:** "Zurück"-Button in den Details ist nun ein beschrifteter "Dashboard"-Button.
+- **Mitarbeiter:** "Aktive Mitarbeiter" wurde in "Hinterlegte Mitarbeiter" umbenannt.
+- **Pflichtfelder:** Markierung durch ein rotes Sternchen `*` in allen Verwaltungsformularen.
+- **Shortcuts:** Diese ersetzen nun den Text im Kommentarfeld (statt anzuhängen) und zeigen bei Aktivierung einen dunklen Hintergrund.
+- **Alerts:** System-Hinweise bleiben nun 8 Sekunden (bzw. 12 Sek. bei Links) sichtbar.
+
+### Beholfen (Fixed)
+- **Banner:** Doppelte Flash-Meldungen bei anonymer Ticket-Erstellung entfernt (nur noch Ticket-Bestätigung).
+- **Sprache:** Konsistente Anzeige von Status-Labels in Großbuchstaben (Jinja & JS).
 
 ### Beholfen (Fixed)
 - **P0-1:** Kritischer Fehler in der Ticket-Erstellung behoben (Ticket-Bestätigung wird nun korrekt angezeigt).

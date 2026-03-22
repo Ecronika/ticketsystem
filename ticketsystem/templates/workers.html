@@ -15,7 +15,7 @@
     <div class="col-lg-8">
         <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
             <div class="card-header border-0 py-3 px-4">
-                <h3 class="h5 fw-bold mb-0"><i class="bi bi-people text-primary me-2"></i> Aktive Mitarbeiter</h3>
+                <h3 class="h5 fw-bold mb-0"><i class="bi bi-people text-primary me-2"></i> Hinterlegte Mitarbeiter</h3>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -143,12 +143,12 @@
                     <input type="hidden" name="action" value="create">
                     
                     <div class="mb-3">
-                        <label class="form-label small">Anzeigename</label>
+                        <label class="form-label small">Anzeigename <span class="text-danger">*</span></label>
                         <input type="text" name="name" class="form-control border-0 bg-white-50" placeholder="z.B. Max Mustermann" required>
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label small">PIN (4-stellig)</label>
+                        <label class="form-label small">PIN (4-stellig) <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <input type="password" name="pin" id="new_worker_pin" class="form-control border-0 bg-white-50" placeholder="****" 
                                     pattern="\d{4,16}" inputmode="numeric" required>
@@ -194,7 +194,7 @@
                 </form>
             </div>
             <div class="card-footer bg-transparent border-0 py-3 px-4">
-                <p class="x-small text-muted mb-0">Hinweis: Diese Codes (Notfall-Codes) sollten ausgedruckt im Tresor liegen.</p>
+                <p class="x-small text-muted mb-0">Hinweis: Diese <strong>Notfall-Codes</strong> sollten ausgedruckt im Tresor liegen.</p>
             </div>
         </div>
     </div>
