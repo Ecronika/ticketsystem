@@ -5,6 +5,7 @@ Handles creation of tables, migrations, and seeding of default data.
 Uses Dependency Injection to decouple from the global Flask app object.
 """
 import sys
+import traceback
 from werkzeug.security import generate_password_hash
 from flask_migrate import upgrade as flask_upgrade
 from models import SystemSettings, Worker
@@ -113,7 +114,6 @@ def init_database(app, *, logger=None):
         flask_upgrade()
         logger.info("Database: Schema is up to date.")
     except Exception as e:
-        import traceback
         logger.critical("Database: Migration FAILED. Manual intervention required: %s", e)
         logger.error(traceback.format_exc())
         db.session.rollback()

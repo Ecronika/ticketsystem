@@ -90,8 +90,12 @@ def _new_ticket_view():
         priority_val = request.form.get('priority', 2)
         author_name = request.form.get('author_name') or "Anonym"
         image_base64 = request.form.get('image_base64')
-        from flask import current_app
-        current_app.logger.info(f"POST /ticket/new - image_base64 present: {bool(image_base64)}, length: {len(image_base64) if image_base64 else 0}")
+        due_date_str = request.form.get('due_date')
+        current_app.logger.info(
+            "POST /ticket/new - image_base64 present: %s, length: %s",
+            bool(image_base64),
+            len(image_base64) if image_base64 else 0
+        )
         due_date = None
         if due_date_str:
             try:

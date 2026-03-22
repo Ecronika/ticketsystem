@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.9.2] - 2026-03-22
+### Fixed (Critical Regressions)
+- **Ticket-Erstellung (NEU-1.9.1-01):** Kritischer `NameError` (`due_date_str`) in `_new_ticket_view` behoben. Ticket-Erstellung über das Web-Formular funktioniert nun wieder wie gewohnt.
+- **Import-Fix (QUAL-05):** Inline-Import von `traceback` in `database_init.py` an den Dateianfang verschoben.
+
+### Changed (Cleanup & Quality)
+- **Logger-Standardisierung (NEU-1.9.1-02/03):** f-strings in Logger-Calls in `tickets.py` und `utils.py` durch `%s` Formatierung ersetzt.
+- **Import-Cleanup:** Redundanter lokaler Import von `current_app` in `_new_ticket_view` entfernt.
+- **Dokumentation:** Versionsnummern in `README.md`, `config.yaml`, `VERSION` und `sw.js` konsistent auf v1.9.2 aktualisiert.
+
+---
+
 ## [1.9.1] - 2026-03-22
 ### Fixed (Critical Regressions)
 - **Security-Header Kollision (NEU-01):** Namenskollision von `add_security_headers` in `app.py` behoben. Hooks zusammengeführt; CSP-Header werden nun auch im Home Assistant Modus korrekt gesendet.
