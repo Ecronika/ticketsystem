@@ -11,9 +11,12 @@
             <h4 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Etwas hat nicht geklappt</h4>
             <p>{{ error | default('Die Sitzung ist abgelaufen oder die Anfrage war fehlerhaft. Bitte laden Sie die Seite neu und versuchen Sie es noch einmal.') }}</p>
         </div>
-        <div class="mt-4">
-            <a href="{{ url_for('main.index') }}" class="btn btn-primary btn-lg">
-                <i class="bi bi-house-door"></i> Zurück zum Dashboard
+        <div class="mt-4 d-flex justify-content-center gap-3">
+            <button onclick="location.reload()" class="btn btn-outline-warning btn-lg px-4">
+                <i class="bi bi-arrow-clockwise"></i> Seite neu laden
+            </button>
+            <a href="{{ url_for('main.index') }}" class="btn btn-primary btn-lg px-4">
+                <i class="bi bi-house-door"></i> Zum Dashboard
             </a>
         </div>
     </div>

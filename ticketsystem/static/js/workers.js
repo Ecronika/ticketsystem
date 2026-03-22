@@ -14,9 +14,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('edit_name').value = name;
                 document.getElementById('edit_is_admin').checked = isAdmin;
                 
-                // P0-3: Set worker ID for PIN Reset form
-                const resetPinIdEl = document.getElementById('reset_pin_worker_id');
-                if (resetPinIdEl) resetPinIdEl.value = id;
+                // P0-1 (v1.5.1): Set worker ID for both possible reset form targets
+                ['reset_pin_worker_id', 'reset_pin_worker_id_hidden'].forEach(fieldId => {
+                    const el = document.getElementById(fieldId);
+                    if (el) el.value = id;
+                });
 
                 // Pass relatedTarget so Bootstrap returns focus to trigger button on close
                 editModal.show(this);

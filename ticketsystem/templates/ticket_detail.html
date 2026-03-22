@@ -98,7 +98,7 @@
                             <small class="text-muted d-block mb-1 x-small"><i class="bi bi-lightning-charge me-1"></i>Schnellauswahl:</small>
                             <div class="d-flex flex-wrap gap-2">
                                 {% set basic_shortcuts = system_settings.get_setting('ticket_shortcuts', 'Prüfen,Bestellt,Erledigt,Rückruf').split(',') %}
-                                {% set wait_shortcuts = ['Wartet auf: Lieferung', 'Wartet auf: Rückruf'] %}
+                                {% set wait_shortcuts = ['Wartet auf: Lieferung', 'Wartet auf: Rückruf', 'Wartet auf: Rückmeldung'] %}
                                 {% for shortcut in basic_shortcuts %}
                                 <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill py-1 px-3 shortcut-btn" 
                                         onclick="document.querySelectorAll('.shortcut-btn').forEach(b => b.classList.remove('btn-secondary', 'active')); this.classList.add('btn-secondary', 'active'); this.form.text.value = '{{ shortcut }}'; this.form.text.focus();">
@@ -134,7 +134,7 @@
                             data-original="{{ ticket.status }}">
                         <option value="offen" {{ 'selected' if ticket.status == 'offen' }}>{{ 'offen'|status_label|upper }}</option>
                         <option value="in_bearbeitung" {{ 'selected' if ticket.status == 'in_bearbeitung' }}>{{ 'in_bearbeitung'|status_label|upper }}</option>
-                        <option value="wartet" {{ 'selected' if ticket.status == 'wartet' }}>{{ 'wartet'|status_label|upper }}</option>
+                        <option value="wartet" {{ 'selected' if ticket.status == 'wartet' }} title="Warten auf externe Aktion (Lieferung, Rückruf, ...)">{{ 'wartet'|status_label|upper }}</option>
                         <option value="erledigt" {{ 'selected' if ticket.status == 'erledigt' }}>{{ 'erledigt'|status_label|upper }}</option>
                     </select>
                 </div>

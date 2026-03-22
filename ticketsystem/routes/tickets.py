@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from flask import flash, redirect, render_template, request, session, url_for, jsonify, send_from_directory, current_app
 from extensions import limiter, db
 from services.ticket_service import TicketService
@@ -13,6 +14,7 @@ def _dashboard_view():
     status_filter = request.args.get('status', '')
     page = request.args.get('page', 1, type=int)
     assigned_to_me = request.args.get('assigned_to_me') == '1'
+    unassigned_only = request.args.get('unassigned') == '1'
 
     tickets_data = TicketService.get_dashboard_tickets(
         worker_id=worker_id,
@@ -20,7 +22,8 @@ def _dashboard_view():
         status_filter=status_filter,
         page=page,
         per_page=10,
-        assigned_to_me=assigned_to_me
+        assigned_to_me=assigned_to_me,
+        unassigned_only=unassigned_only
     )
     
     return render_template('index.html', 
@@ -30,7 +33,9 @@ def _dashboard_view():
                           self_total=tickets_data['self_total'],
                           query=search,
                           current_status=status_filter,
-                          assigned_to_me=assigned_to_me)
+                          assigned_to_me=assigned_to_me,
+                          unassigned_only=unassigned_only,
+                          today=datetime.now())
 
 @worker_required
 def _archive_view():
@@ -59,6 +64,15 @@ def _new_ticket_view():
         priority_val = request.form.get('priority', 2)
         author_name = request.form.get('author_name') or "Anonym"
         image_base64 = request.form.get('image_base64')
+        due_date_str = request.form.get('due_date')
+        
+        due_date = None
+        if due_date_str:
+            try:
+                from datetime import datetime
+                due_date = datetime.strptime(due_date_str, '%Y-%m-%d')
+            except ValueError:
+                due_date = None
 
         if not title:
             flash('Bitte einen Titel angeben.', 'warning')
@@ -72,16 +86,17 @@ def _new_ticket_view():
                 priority=priority,
                 author_name=author_name,
                 author_id=session.get('worker_id'),
-                image_base64=image_base64
+                image_base64=image_base64,
+                due_date=due_date
             )
             session['last_created_ticket_id'] = ticket.id
             ticket_url = f"{request.headers.get('X-Ingress-Path', '')}{url_for('main.ticket_detail', ticket_id=ticket.id)}"
             link_html = f' <a href="{ticket_url}" class="alert-link">Ticket #{ticket.id} ansehen →</a>'
             
             if not session.get('worker_id'):
-                return redirect_to('main.ticket_new')
+                return redirect_to('main.ticket_new', created=ticket.id)
             
-            flash(f'Ticket #{ticket.id} erfolgreich erstellt!{link_html}', 'success')
+            flash(f'Ticket #{ticket.id} erfolgreich erstellt!', 'success')
             return redirect_to('main.index')
         except Exception:
             flash('Fehler beim Erstellen des Tickets.', 'error')

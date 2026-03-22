@@ -797,6 +797,17 @@ textarea:focus-visible {
     }
 }
 
+.bg-white-hover {
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+.bg-white-hover:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+[data-theme="dark"] .bg-white-hover:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
 /* --- WCAG 2.3.3: Reduced Motion --- */
 @media (prefers-reduced-motion: reduce) {
 

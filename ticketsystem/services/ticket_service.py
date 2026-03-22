@@ -221,12 +221,15 @@ class TicketService:
             raise
 
     @staticmethod
-    def get_dashboard_tickets(worker_id=None, search=None, status_filter=None, page=1, per_page=10, assigned_to_me=False):
+    def get_dashboard_tickets(worker_id=None, search=None, status_filter=None, page=1, per_page=10, assigned_to_me=False, unassigned_only=False):
         """Fetch tickets for the dashboard with search, filtering, and pagination."""
-        query = Ticket.query.filter_by(is_deleted=False)
+        from sqlalchemy.orm import joinedload
+        query = Ticket.query.filter_by(is_deleted=False).options(joinedload(Ticket.comments))
 
         if assigned_to_me and worker_id:
             query = query.filter(Ticket.assigned_to_id == worker_id)
+        elif unassigned_only:
+            query = query.filter(Ticket.assigned_to_id == None)
 
         if search:
             query = query.filter(

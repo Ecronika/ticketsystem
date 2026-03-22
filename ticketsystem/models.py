@@ -53,6 +53,7 @@ class Worker(db.Model):
     is_admin = db.Column(db.Boolean, default=False)
     role = db.Column(db.String(20), nullable=True) # Role: admin, worker, viewer
     needs_pin_change = db.Column(db.Boolean, default=True)
+    last_active = db.Column(db.DateTime, nullable=True)
     
     # Enterprise Security: Brute-force protection
     failed_login_count = db.Column(db.Integer, default=0)

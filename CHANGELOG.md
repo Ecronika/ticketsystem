@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.5.1] - 2026-03-22
+### Fixed
+- **P0-1:** Verschachteltes Formular in Mitarbeiterverwaltung behoben (PIN-Reset funktioniert nun browserübergreifend).
+- **P0-2:** Fehlerhafter Link in der anonymen Ticket-Bestätigung entfernt.
+- **P2-1:** Tote Footer-Links (Impressum/Datenschutz) korrigiert und Sidebar-Hover CSS (`bg-white-hover`) implementiert.
+
+### Added
+- **P0-3:** Landing-Banner auf der Login-Seite für bessere Orientierung neuer Nutzer.
+- **P1-1:** Anzeige des Ticket-Erstellers direkt in der Dashboard-Liste.
+- **P1-2:** Erklärungs-Tooltips für den "WARTET"-Status und neue Kommentar-Shortcuts.
+- **P1-3:** Integration des Fälligkeitsdatums (`due_date`) in Erstellung, Detailansicht und Dashboard (mit Farb-Highlighting).
+- **P1-4:** Filter für "Unzugewiesene" Tickets auf dem Dashboard hinzugefügt.
+- **P1-5:** Ticket-Bestätigungsbanner ist nun idempotent (URL-basiert statt Session).
+- **P2-2:** Neue Spalte "Letzte Aktivität" in der Mitarbeiterverwaltung zur besseren Übersicht.
+- **P2-3:** Verbesserte 400-Fehlerseite mit "Neu laden"-Button für abgelaufene Sitzungen.
+
+---
+
 ## [1.5.0] - 2026-03-22
 
 ### Hinzugefügt (Added)

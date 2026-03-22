@@ -146,6 +146,7 @@ def _login_view():
                 # Reset lockout on success
                 worker.failed_login_count = 0
                 worker.locked_until = None
+                worker.last_active = datetime.utcnow()
                 db.session.commit()
 
                 session.permanent = True
