@@ -143,7 +143,7 @@ class Comment(db.Model):
     is_system_event = db.Column(db.Boolean, default=False)
     event_type = db.Column(db.String(30), nullable=True) # e.g., 'STATUS_CHANGE', 'ASSIGNMENT'
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.utcnow())
 
     def __repr__(self):
         return f'<Comment by {self.author} on Ticket {self.ticket_id}>'

@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.9.1] - 2026-03-22
+### Fixed (Critical Regressions)
+- **Security-Header Kollision (NEU-01):** Namenskollision von `add_security_headers` in `app.py` behoben. Hooks zusammengeführt; CSP-Header werden nun auch im Home Assistant Modus korrekt gesendet.
+- **UI-Fix (NEU-02):** Ticket-Header in `ticket_detail.html` wiederhergestellt (Titel, Bearbeiten-Button und ID-Anzeige waren in v1.9.0 verloren gegangen).
+- **SQL-Fix (NEU-03):** `Comment.created_at` nutzt nun ebenfalls den Lambda-Wrapper für `datetime.utcnow()`, um SQLAlchemy-Warnungen zu vermeiden.
+- **Logic-Fix:** Undefinierte Variable `due_date` in `_new_ticket_view` behoben; Deadlines werden nun auch bei anonymer Erstellung korrekt verarbeitet.
+
+### Changed (Cleanup & Quality)
+- **Logging (NEU-04):** Veraltetes `import sys` und Debug-Print in `auth.py` entfernt; Nutzung des Standard-Loggers.
+- **Logger-Standardisierung:** Alle f-strings in `dashboard.py` Logger-Calls durch `%s` Formatierung ersetzt (QUAL-02).
+- **Security-Pfad:** Zusätzliche Validierung (`os.path.basename`) und Schutz gegen leere Pfade in `_serve_attachment` implementiert (SEC-03).
+- **CSS-Cleanup (QUAL-07):** Unbenutzte Inline-Styles aus `workers.html` entfernt.
+- **Import-Cleanup:** Doppelte `datetime`-Imports und lokale Logging-Imports in `app.py` bereinigt.
+
+---
+
 ## [1.9.0] - 2026-03-22
 ### Security (Hardening)
 - **PIN-Hashing (SEC-01):** Umstellung auf `pbkdf2:sha256` mit 600.000 Iterationen (standardmäßig via Werkzeug 3.x) für erhöhten Schutz gegen Offline-Cracking.

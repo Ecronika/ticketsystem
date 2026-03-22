@@ -182,8 +182,7 @@ def _login_view():
                 return redirect_to('main.index')
             else:
                 # Log failure to console for admin diagnostics
-                import sys
-                print(f"DEBUG: Login FAILED for '{worker.name}' - PIN mismatch.", file=sys.stderr, flush=True)
+                current_app.logger.debug("Login FAILED for '%s' - PIN mismatch.", worker.name)
                 
                 # Increment failed attempts
                 worker.failed_login_count += 1

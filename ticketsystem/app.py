@@ -251,8 +251,7 @@ def set_sqlite_pragma(dbapi_conn, _connection_record):
         cursor.execute("PRAGMA mmap_size = 268435456")
         
         # Use standard logging for pragma logging to avoid context errors (OFFEN-03)
-        import logging as _logging
-        _logging.getLogger(__name__).debug("SQLite pragmas set: WAL=on, busy_timeout=30s")
+        logging.getLogger(__name__).debug("SQLite pragmas set: WAL=on, busy_timeout=30s")
         # Less frequent WAL checkpoints
         cursor.execute("PRAGMA wal_autocheckpoint = 1000")
         cursor.close()
@@ -282,24 +281,7 @@ if not IS_HOMEASSISTANT:
         "Security: Flask-Talisman enabled (CSP + Security Headers, "
         "SSL_ACTIVE=%s)", SSL_ACTIVE)
 else:
-    # Home Assistant Ingress: Talisman breaks X-Ingress-Path, use manual
-    # headers
-    @app.after_request
-    def add_security_headers(response):
-        """Add manual Context Security Policy headers."""
-        response.headers['X-Content-Type-Options'] = 'nosniff'
-        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
-        response.headers['X-XSS-Protection'] = '1; mode=block'
-        # CSP headers (same policy as Talisman)
-        response.headers['Content-Security-Policy'] = (
-            "default-src 'self'; "
-            "script-src 'self' cdn.jsdelivr.net unpkg.com; "
-            "style-src 'self' cdn.jsdelivr.net 'unsafe-inline'; "
-            "img-src 'self' data:; "
-            "font-src 'self' cdn.jsdelivr.net; "
-            "connect-src 'self' cdn.jsdelivr.net unpkg.com"
-        )
-        return response
+    # Home Assistant Ingress: Talisman breaks X-Ingress-Path, manual headers are handled globally
     app.logger.info(
         "Security: Manual CSP headers enabled (Home Assistant Ingress mode)")
 
@@ -360,10 +342,22 @@ def after_request_metrics(response):
 @app.after_request
 def add_security_headers(response):
     """Add standard security headers to every response."""
+    # Global headers
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['X-XSS-Protection'] = '1; mode=block'
     
+    # IS_HOMEASSISTANT manual CSP (Talisman is disabled in this mode)
+    if IS_HOMEASSISTANT:
+        response.headers['Content-Security-Policy'] = (
+            "default-src 'self'; "
+            "script-src 'self' cdn.jsdelivr.net unpkg.com; "
+            "style-src 'self' cdn.jsdelivr.net 'unsafe-inline'; "
+            "img-src 'self' data:; "
+            "font-src 'self' cdn.jsdelivr.net; "
+            "connect-src 'self' cdn.jsdelivr.net unpkg.com"
+        )
+
     # SEC-05: Strict-Transport-Security (HSTS)
     if os.environ.get('REQUIRE_HTTPS', '0') == '1':
         response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'

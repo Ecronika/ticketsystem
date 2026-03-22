@@ -9,6 +9,31 @@
         <!-- Ticket Header Card -->
         <div class="card shadow-sm border-0 rounded-4 mb-4">
             <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div id="ticketHeaderStatic">
+                        <div class="d-flex align-items-center mb-1">
+                            <h1 class="h3 fw-bold mb-0 me-3" id="staticTitle">{{ ticket.title }}</h1>
+                            <button type="button" class="btn btn-sm btn-link text-secondary text-decoration-none rounded-pill px-2" id="editTicketBtn" aria-label="Ticket bearbeiten">
+                                <i class="bi bi-pencil-square me-1"></i> Bearbeiten
+                            </button>
+                        </div>
+                        <p class="text-meta small mb-0">Ticket #{{ ticket.id }} • Erstellt am {{ ticket.created_at|local_time|datetime }}</p>
+                    </div>
+
+                    <div id="ticketHeaderEdit" class="d-none flex-grow-1">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Titel</label>
+                            <input type="text" id="editTitleInput" class="form-control fw-bold h4 border-primary" value="{{ ticket.title }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Zu bearbeiten bis (Deadline)</label>
+                            <input type="date" id="editDueDateInput" class="form-control" value="{{ ticket.due_date.strftime('%Y-%m-%d') if ticket.due_date else '' }}">
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-primary rounded-pill px-4" id="saveTicketBtn">Speichern</button>
+                            <button type="button" class="btn btn-light rounded-pill px-4" id="cancelEditBtn">Abbrechen</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="d-flex flex-column align-items-end gap-2" id="priorityBadgeWrapper">

@@ -92,8 +92,13 @@ def _new_ticket_view():
         image_base64 = request.form.get('image_base64')
         from flask import current_app
         current_app.logger.info(f"POST /ticket/new - image_base64 present: {bool(image_base64)}, length: {len(image_base64) if image_base64 else 0}")
-        due_date_str = request.form.get('due_date')
-        
+        due_date = None
+        if due_date_str:
+            try:
+                due_date = datetime.strptime(due_date_str, '%Y-%m-%d')
+            except (ValueError, TypeError):
+                due_date = None
+
         if not title:
             flash('Bitte einen Titel angeben.', 'warning')
             return render_template('ticket_new.html')
@@ -210,8 +215,11 @@ def _serve_attachment(attachment_id):
     data_dir = current_app.config.get('DATA_DIR', Config.get_data_dir())
     attachments_dir = os.path.join(data_dir, 'attachments')
     
-    # Path-Traversal protection: only use basename
+    # Path-Traversal protection: only use basename and ensure it's not empty
     safe_filename = os.path.basename(attachment.path)
+    if not safe_filename or safe_filename in ['.', '..']:
+        return "Invalid Path", 400
+        
     return send_from_directory(attachments_dir, safe_filename)
 
 @worker_required

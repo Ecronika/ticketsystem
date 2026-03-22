@@ -214,15 +214,7 @@
     </div>
 </div>
 
-<style>
-.bg-white-50 { background-color: rgba(255, 255, 255, 0.15) !important; color: white !important; }
-.bg-white-20 { background-color: rgba(255, 255, 255, 0.1) !important; color: white !important; }
-.bg-white-50::placeholder { color: rgba(255, 255, 255, 0.6); }
-.bg-white-50:focus { background-color: rgba(255, 255, 255, 0.25) !important; box-shadow: none; }
-.bg-black-10 { background-color: rgba(0, 0, 0, 0.1); }
-.btn-white { background-color: white; border: none; color: #0d6efd !important; }
-.btn-white:hover { background-color: rgba(255, 255, 255, 0.9); }
-</style>
+
 
 <form id="reset_pin_form" action="{{ ingress_path }}{{ url_for('admin.workers') }}" method="POST">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

@@ -29,7 +29,7 @@ def register_routes(bp):
 
         if not os.path.exists(logo_path):
             current_app.logger.warning(
-                f"Logo not found at {logo_path}")
+                "Logo not found at %s", logo_path)
             return "Logo not found", 404
 
         try:
@@ -95,6 +95,6 @@ def register_routes(bp):
                 'timestamp': datetime.now().isoformat()
             })
         except Exception as e:
-            current_app.logger.error(f"Error in dashboard_summary: {e}")
+            current_app.logger.error("Error in dashboard_summary: %s", e)
             return jsonify({'success': False, 'error': str(e)}), 500
 
