@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.8.2] - 2026-03-22
+### Fixed (Critical Hotfixes)
+- **Startup-Fix (OFFEN-01):** Definitiver Fix für den SyntaxError in `database_init.py`. Docstring korrekt geschlossen und Funktionskörper repariert.
+- **Context-Fix (OFFEN-03):** `RuntimeError` im DB-Event-Listener behoben, indem auf das Standard-Python-`logging` gewechselt wurde (verfügbar auch ohne App-Kontext).
+- **ServiceWorker (OFFEN-02):** Cache-Name auf `v1.8.2` aktualisiert, um Cache-Invalidierung sicherzustellen.
+
+### Changed
+- **Logging (OFFEN-04):** Alle verbleibenden Logging-Calls in `ticket_service.py` auf Standard-Formatierung (`%s`) konsolidiert (QUAL-02).
+- **Dokumentation (OFFEN-05):** Versionsnummer in `README.md` auf v1.8.2 aktualisiert.
+
+---
+
 ## [1.8.1] - 2026-03-22
 ### Fixed (Critical Regressions)
 - **Startup-Fix (NEU-01):** SyntaxError in `database_init.py` behoben. Die Anwendung startet nun wieder korrekt.

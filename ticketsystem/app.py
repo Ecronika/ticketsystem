@@ -250,8 +250,9 @@ def set_sqlite_pragma(dbapi_conn, _connection_record):
         # 256MB memory-mapped I/O
         cursor.execute("PRAGMA mmap_size = 268435456")
         
-        # Use debug level for pragma logging to avoid log spam (PERF-03)
-        current_app.logger.debug("SQLite pragmas set: WAL=on, busy_timeout=30s")
+        # Use standard logging for pragma logging to avoid context errors (OFFEN-03)
+        import logging as _logging
+        _logging.getLogger(__name__).debug("SQLite pragmas set: WAL=on, busy_timeout=30s")
         # Less frequent WAL checkpoints
         cursor.execute("PRAGMA wal_autocheckpoint = 1000")
         cursor.close()

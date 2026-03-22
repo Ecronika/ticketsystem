@@ -43,6 +43,7 @@ def _ensure_critical_columns(logger):
     """
     Manually ensure critical columns exist before migrations run.
     This fixes inconsistent states from previous failed or non-Alembic upgrades.
+    """
     try:
         engine = db.engine
         inspector = db.inspect(engine)

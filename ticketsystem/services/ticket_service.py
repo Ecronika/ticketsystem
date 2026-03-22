@@ -134,7 +134,7 @@ class TicketService:
             return ticket
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Error updating ticket: {e}")
+            current_app.logger.error("Error updating ticket: %s", e)
             raise
 
     @staticmethod
@@ -161,7 +161,7 @@ class TicketService:
             return True
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Error deleting ticket: {e}")
+            current_app.logger.error("Error deleting ticket: %s", e)
             raise
 
     @staticmethod
@@ -186,7 +186,7 @@ class TicketService:
             return comment
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Error adding comment: {e}")
+            current_app.logger.error("Error adding comment: %s", e)
             raise
 
     @staticmethod
@@ -218,7 +218,7 @@ class TicketService:
             return ticket
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Error updating status: {e}")
+            current_app.logger.error("Error updating status: %s", e)
             raise
 
     @staticmethod
@@ -338,7 +338,7 @@ class TicketService:
             return ticket
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Error assigning ticket: {e}")
+            current_app.logger.error("Error assigning ticket: %s", e)
             raise
 
     @staticmethod
@@ -386,5 +386,5 @@ class TicketService:
             return ticket
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Error updating ticket meta: {e}")
+            current_app.logger.error("Error updating ticket meta: %s", e)
             raise
