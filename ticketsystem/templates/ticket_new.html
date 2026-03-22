@@ -117,7 +117,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ g.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     const input = document.getElementById('attachment-input');
     const base64Input = document.getElementById('image-base64');

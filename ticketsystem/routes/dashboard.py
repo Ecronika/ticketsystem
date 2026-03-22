@@ -6,7 +6,7 @@ and ingress path injection.
 """
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 from flask import Response, current_app, jsonify, render_template, request
@@ -82,17 +82,23 @@ def register_routes(bp):
         from models import Ticket
         
         try:
-            # Count open/in-progress tickets (excluding soft-deleted)
+            from sqlalchemy import func
+            results = db.session.query(Ticket.status, func.count(Ticket.id))\
+                .filter(Ticket.is_deleted == False)\
+                .group_by(Ticket.status).all()
+            
+            count_map = {status: count for status, count in results}
+            
             counts = {
-                'offen': Ticket.query.filter_by(status='offen', is_deleted=False).count(),
-                'in_bearbeitung': Ticket.query.filter_by(status='in_bearbeitung', is_deleted=False).count(),
-                'wartet': Ticket.query.filter_by(status='wartet', is_deleted=False).count(),
-                'summary': Ticket.query.filter(Ticket.status != 'erledigt', Ticket.is_deleted == False).count()
+                'offen': count_map.get('offen', 0),
+                'in_bearbeitung': count_map.get('in_bearbeitung', 0),
+                'wartet': count_map.get('wartet', 0),
+                'summary': sum(count for status, count in count_map.items() if status != 'erledigt')
             }
             return jsonify({
                 'success': True,
                 'counts': counts,
-                'timestamp': datetime.now().isoformat()
+                'timestamp': datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
             })
         except Exception as e:
             current_app.logger.error("Error in dashboard_summary: %s", e)

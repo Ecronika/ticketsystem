@@ -3,7 +3,7 @@
 {% block styles %}{% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ g.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     const POLL_INTERVAL = 30000; // 30 seconds
     

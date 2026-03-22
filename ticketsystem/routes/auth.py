@@ -145,8 +145,8 @@ def _login_view():
             return render_template('login.html', workers=workers)
 
         # Naive UTC lookup for SQLite compatibility
-        _now = datetime.utcnow()
-        worker = Worker.query.filter(Worker.name.ilike(worker_name), Worker.is_active == True).first()
+        _now = datetime.now(timezone.utc).replace(tzinfo=None)
+        worker = Worker.query.filter(Worker.name.ilike(worker_name), Worker.is_active == True).with_for_update().first()
         if worker:
             # Check for active lockout
             if worker.locked_until and worker.locked_until > _now:

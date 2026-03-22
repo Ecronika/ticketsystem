@@ -1,4 +1,21 @@
 # Changelog
+ 
+## [1.10.0] - 2026-03-22
+### Security (Critical CSP & Race Conditions)
+- **CSP Nonce System:** Implementierung eines dynamischen Nonce-Systems für die Content Security Policy. Alle Inline-Skripte sind nun durch Nonces geschützt, was die Anwendung in restriktiven Umgebungen (Home Assistant Ingress) wieder voll funktionsfähig macht.
+- **Login-Sicherheit (High):** Race-Condition beim `failed_login_count` durch Nutzung von `with_for_update()` in der Datenbank-Abfrage behoben.
+- **Robustes Image-Processing:** Fehlerbehandlung für ungültige Base64-Bilddaten in `ticket_service.py` hinzugefügt (abfangen von `binascii.Error`).
+
+### Performance & Quality
+- **Dashboard-API-Optimierung (Medium):** Die `/api/dashboard/summary` Route nutzt nun eine einzige `group_by` Abfrage anstelle von vier separaten Queries.
+- **Python 3.12 Readiness (Low):** Systemweite Ablösung der veralteten Methode `datetime.utcnow()` durch `datetime.now(timezone.utc).replace(tzinfo=None)`.
+- **Backend-Robustheit:** `_remove_with_retry` fängt nun gezielt `OSError` ab, anstatt eine breite `Exception`.
+
+### Documentation
+- Version auf v2.0.0 angehoben (Enterprise Readiness Update).
+
+---
+
 
 ## [1.9.2] - 2026-03-22
 ### Fixed (Critical Regressions)

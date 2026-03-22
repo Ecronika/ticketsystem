@@ -275,7 +275,8 @@ if not IS_HOMEASSISTANT:
                  'img-src': ["'self'", 'data:'],
                  'font-src': ["'self'", 'cdn.jsdelivr.net'],
                  'connect-src': ["'self'", 'cdn.jsdelivr.net', 'unpkg.com']
-             }
+             },
+             content_security_policy_nonce_in=['script-src']
              )
     app.logger.info(
         "Security: Flask-Talisman enabled (CSP + Security Headers, "
@@ -339,6 +340,12 @@ def after_request_metrics(response):
     return response
 
 
+@app.before_request
+def set_nonce():
+    """Generate a random nonce for CSP on every request."""
+    g.csp_nonce = secrets.token_urlsafe(16)
+
+
 @app.after_request
 def add_security_headers(response):
     """Add standard security headers to every response."""
@@ -347,16 +354,21 @@ def add_security_headers(response):
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['X-XSS-Protection'] = '1; mode=block'
     
+    # CSP Nonce support
+    from flask import g
+    nonce = getattr(g, 'csp_nonce', None)
+    
     # IS_HOMEASSISTANT manual CSP (Talisman is disabled in this mode)
     if IS_HOMEASSISTANT:
-        response.headers['Content-Security-Policy'] = (
+        csp_policy = (
             "default-src 'self'; "
-            "script-src 'self' cdn.jsdelivr.net unpkg.com; "
+            f"script-src 'self' cdn.jsdelivr.net unpkg.com {'\\'nonce-' + nonce + '\\'' if nonce else ''}; "
             "style-src 'self' cdn.jsdelivr.net 'unsafe-inline'; "
             "img-src 'self' data:; "
             "font-src 'self' cdn.jsdelivr.net; "
             "connect-src 'self' cdn.jsdelivr.net unpkg.com"
         )
+        response.headers['Content-Security-Policy'] = csp_policy
 
     # SEC-05: Strict-Transport-Security (HSTS)
     if os.environ.get('REQUIRE_HTTPS', '0') == '1':

@@ -2,7 +2,7 @@
 {% block title %}Login{% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ g.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     const workerNameInput = document.getElementById('worker_name');
     const pinInput = document.getElementById('pin');

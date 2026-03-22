@@ -11,7 +11,7 @@ def _remove_with_retry(path, retries=3, delay=0.5):
             elif os.path.isdir(path):
                 shutil.rmtree(path)
             return True
-        except Exception:
+        except OSError:
             if i < retries - 1:
                 time.sleep(delay)
             else:

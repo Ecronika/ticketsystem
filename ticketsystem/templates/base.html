@@ -152,7 +152,7 @@
 
   <div id="ajaxStatusAnnouncer" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
 
-  <script>
+  <script nonce="{{ g.csp_nonce }}">
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
       navigator.serviceWorker.register("{{ ingress_path }}{{ url_for('static', filename='js/sw.js') }}").then(function(registration) {

@@ -41,7 +41,7 @@ def _dashboard_view():
                           current_status=status_filter,
                           assigned_to_me=assigned_to_me,
                           unassigned_only=unassigned_only,
-                          today=datetime.now())
+                          today=datetime.now(timezone.utc).replace(tzinfo=None))
 
 @worker_required
 def _archive_view():
