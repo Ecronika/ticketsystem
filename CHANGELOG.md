@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.7.0] - 2026-03-22
+### Added
+- **Interaktives Dashboard:** Status-Tiles ("Offen", "In Arbeit", "Wartet") sind nun klickbar und filtern die Ticketliste sofort nach dem entsprechenden Status.
+- **Erweitertes Archiv:** Neue Filter für Zeitraum (Start/Ende) und Autor hinzugefügt sowie die Spalte "Erstellt von" in der Tabelle ergänzt.
+- **Benutzerverwaltung:** Die Mitarbeiterliste wurde für Tablets optimiert (Action-Dropdowns statt Buttons), und die Sidebar wurde visuell modernisiert.
+
+### Fixed
+- **Layout:** Kritischer Fehler in der `ticket_detail.html` behoben, bei dem der Bearbeitungsmodus das restliche Layout verschob.
+- **Navigation:** Konsolidierung der Navbar ("Mitarbeiter"-Link in Admin-Dropdown verschoben, "Neues Ticket" reduziert).
+- **Accessibility:** Kontraste der Status-Badges für WCAG AA optimiert und Syntax-Fehler im CSS behoben.
+
+
 ## [1.6.4] - 2026-03-22
 ### Added
 - **Benutzerverwaltung:** Administratoren können nun neue Mitarbeiter anlegen, ohne sofort einen PIN festzulegen. Das System nutzt dann automatisch den Standard-PIN '0000', der beim ersten Login geändert werden muss.

@@ -222,15 +222,31 @@ class TicketService:
             raise
 
     @staticmethod
-    def get_dashboard_tickets(worker_id=None, search=None, status_filter=None, page=1, per_page=10, assigned_to_me=False, unassigned_only=False):
+    def get_dashboard_tickets(worker_id=None, search=None, status_filter=None, page=1, per_page=10, 
+                             assigned_to_me=False, unassigned_only=False, 
+                             start_date=None, end_date=None, author_name=None):
         """Fetch tickets for the dashboard with search, filtering, and pagination."""
         from sqlalchemy.orm import joinedload
+        from models import Comment
         query = Ticket.query.filter_by(is_deleted=False).options(joinedload(Ticket.comments))
 
         if assigned_to_me and worker_id:
             query = query.filter(Ticket.assigned_to_id == worker_id)
         elif unassigned_only:
             query = query.filter(Ticket.assigned_to_id == None)
+
+        if start_date:
+            query = query.filter(Ticket.created_at >= start_date)
+        if end_date:
+            query = query.filter(Ticket.created_at <= end_date)
+            
+        if author_name:
+            # Subquery to find tickets created by a specific author
+            author_subquery = db.session.query(Comment.ticket_id).filter(
+                Comment.event_type == 'TICKET_CREATED',
+                Comment.author.ilike(f"%{author_name}%")
+            ).subquery()
+            query = query.filter(Ticket.id.in_(author_subquery))
 
         if search:
             query = query.filter(

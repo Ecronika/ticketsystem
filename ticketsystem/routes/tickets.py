@@ -48,18 +48,38 @@ def _archive_view():
     """Handle the ticket archive view (completed tickets)."""
     search = request.args.get('q', '').strip()
     page = request.args.get('page', 1, type=int)
+    author = request.args.get('author', '').strip()
+    start_date_str = request.args.get('start_date', '')
+    end_date_str = request.args.get('end_date', '')
+
+    start_date = None
+    end_date = None
+    try:
+        if start_date_str:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+        if end_date_str:
+            # Set end_date to end of the day
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+    except ValueError:
+        pass
 
     tickets_data = TicketService.get_dashboard_tickets(
         search=search,
         status_filter=TicketStatus.ERLEDIGT.value,
         page=page,
-        per_page=15
+        per_page=15,
+        start_date=start_date,
+        end_date=end_date,
+        author_name=author
     )
     
     return render_template('archive.html', 
                           pagination=tickets_data['focus_pagination'], 
                           tickets=tickets_data['focus_pagination'].items,
                           query=search,
+                          author=author,
+                          start_date=start_date_str,
+                          end_date=end_date_str,
                           current_status=TicketStatus.ERLEDIGT.value)
 
 def _new_ticket_view():

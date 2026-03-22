@@ -46,43 +46,49 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- Bento Summary Row (UX-4) -->
 <div class="row g-3 mb-4">
     <div class="col-md-4">
-        <div class="card shadow-sm border-0 rounded-4 border-theme-danger-subtle bg-theme-danger-subtle p-3 h-100 animate__animated animate__fadeInDown">
-            <div class="d-flex align-items-center">
-                <div class="bg-danger text-white rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
-                    <i class="bi bi-exclamation-circle fs-5"></i>
-                </div>
-                <div>
-                    <h4 class="h6 fw-bold mb-0">OFFEN</h4>
-                    <span class="h3 fw-bold">{{ summary_counts.offen }}</span>
+        <a href="{{ ingress_path }}{{ url_for('main.index', status='offen') }}" class="text-decoration-none h-100 d-block">
+            <div class="card shadow-sm border-0 rounded-4 border-theme-danger-subtle bg-theme-danger-subtle p-3 h-100 animate__animated animate__fadeInDown bg-white-hover">
+                <div class="d-flex align-items-center">
+                    <div class="bg-danger text-white rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                        <i class="bi bi-exclamation-circle fs-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="h6 fw-bold mb-0">OFFEN</h4>
+                        <span class="h3 fw-bold">{{ summary_counts.offen }}</span>
+                    </div>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
     <div class="col-md-4">
-        <div class="card shadow-sm border-0 rounded-4 border-theme-warning-subtle bg-theme-warning-subtle p-3 h-100 animate__animated animate__fadeInDown" style="animation-delay: 0.1s">
-            <div class="d-flex align-items-center">
-                <div class="bg-warning text-dark rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
-                    <i class="bi bi-tools fs-5"></i>
-                </div>
-                <div>
-                    <h4 class="h6 fw-bold mb-0" style="color: #856404;">IN ARBEIT</h4>
-                    <span class="h3 fw-bold" style="color: #856404;">{{ summary_counts.in_bearbeitung }}</span>
+        <a href="{{ ingress_path }}{{ url_for('main.index', status='in_bearbeitung') }}" class="text-decoration-none h-100 d-block">
+            <div class="card shadow-sm border-0 rounded-4 border-theme-warning-subtle bg-theme-warning-subtle p-3 h-100 animate__animated animate__fadeInDown bg-white-hover" style="animation-delay: 0.1s">
+                <div class="d-flex align-items-center">
+                    <div class="bg-warning text-dark rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                        <i class="bi bi-tools fs-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="h6 fw-bold mb-0 text-theme-warning">IN ARBEIT</h4>
+                        <span class="h3 fw-bold text-theme-warning">{{ summary_counts.in_bearbeitung }}</span>
+                    </div>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
     <div class="col-md-4">
-        <div class="card shadow-sm border-0 rounded-4 border-color bg-surface-subtle p-3 h-100 animate__animated animate__fadeInDown" style="animation-delay: 0.2s">
-            <div class="d-flex align-items-center">
-                <div class="bg-secondary text-white rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
-                    <i class="bi bi-hourglass-split fs-5"></i>
-                </div>
-                <div>
-                    <h4 class="h6 fw-bold mb-0 text-muted">WARTET</h4>
-                    <span class="h3 fw-bold">{{ summary_counts.wartet }}</span>
+        <a href="{{ ingress_path }}{{ url_for('main.index', status='wartet') }}" class="text-decoration-none h-100 d-block">
+            <div class="card shadow-sm border-0 rounded-4 border-color bg-surface-subtle p-3 h-100 animate__animated animate__fadeInDown bg-white-hover" style="animation-delay: 0.2s">
+                <div class="d-flex align-items-center">
+                    <div class="bg-secondary text-white rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                        <i class="bi bi-hourglass-split fs-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="h6 fw-bold mb-0 text-muted">WARTET</h4>
+                        <span class="h3 fw-bold">{{ summary_counts.wartet }}</span>
+                    </div>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
 </div>
 
@@ -105,14 +111,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     <option value="erledigt" {{ 'selected' if current_status == 'erledigt' }}>Erledigt</option>
                 </select>
             </div>
-            <div class="col-md-4 col-lg-2 d-flex align-items-center">
-                <div class="form-check form-switch mb-0">
-                    <input class="form-check-input" type="checkbox" name="unassigned" id="filterUnassigned" value="1" {{ 'checked' if unassigned_only }}>
-                    <label class="form-check-label x-small fw-bold text-muted" for="filterUnassigned">Unzugewiesen</label>
+            <div class="col-md-12 d-flex flex-wrap align-items-center gap-3">
+                <div class="form-check form-switch mb-0 bg-surface px-3 py-2 rounded-pill border shadow-sm">
+                    <input class="form-check-input ms-0 me-2" type="checkbox" name="unassigned" id="filterUnassigned" value="1" {{ 'checked' if unassigned_only }} onchange="this.form.submit()">
+                    <label class="form-check-label small fw-bold text-muted" for="filterUnassigned">Nur Unzugewiesen</label>
                 </div>
-            </div>
-            <div class="col-md-12 col-lg-2 d-grid">
-                <button type="submit" class="btn btn-dark rounded-3 px-3">Filtern</button>
+                <button type="submit" class="btn btn-dark rounded-pill px-4 ms-auto">
+                    <i class="bi bi-funnel me-1"></i> Filtern
+                </button>
             </div>
         </form>
     </div>
