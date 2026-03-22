@@ -83,6 +83,7 @@ app.config.update(
     SESSION_COOKIE_SECURE=SSL_ACTIVE,
     # CSRF protection re-enabled now that session cookies bypass browser isolation
     WTF_CSRF_ENABLED=True,
+    DATA_DIR=Config.get_data_dir(),
 )
 
 # --- Environment Validation ---

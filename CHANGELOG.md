@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.2] - 2026-03-22
+### Fixed
+- **Attachment Fix (Windows):** Korrektur der `DATA_DIR` Konfiguration, die das Speichern von Fotos auf Windows-Systemen verhinderte.
+- **Robustheit:** Fallback-Logik für Pfade in `TicketService` und Bild-Bereitstellung ergänzt.
+
+
 ## [1.6.1] - 2026-03-22
 ### Fixed (Regressions from 1.6.0)
 - **Attachments:** Behobener Endpunkt für Ticket-Anhänge; Fotos sind nun wieder in allen Ansichten sichtbar.

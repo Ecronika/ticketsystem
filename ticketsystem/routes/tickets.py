@@ -70,6 +70,8 @@ def _new_ticket_view():
         priority_val = request.form.get('priority', 2)
         author_name = request.form.get('author_name') or "Anonym"
         image_base64 = request.form.get('image_base64')
+        from flask import current_app
+        current_app.logger.info(f"POST /ticket/new - image_base64 present: {bool(image_base64)}, length: {len(image_base64) if image_base64 else 0}")
         due_date_str = request.form.get('due_date')
         
         due_date = None
@@ -191,7 +193,8 @@ def _serve_attachment(attachment_id):
     if not attachment:
         return "Not Found", 404
         
-    data_dir = current_app.config.get('DATA_DIR', '/data')
+    from extensions import Config
+    data_dir = current_app.config.get('DATA_DIR', Config.get_data_dir())
     attachments_dir = os.path.join(data_dir, 'attachments')
     
     # Path is stored as just the filename in DB

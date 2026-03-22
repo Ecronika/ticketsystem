@@ -57,7 +57,8 @@ class TicketService:
                         import uuid
                         
                         # Ensure attachments directory exists
-                        data_dir = current_app.config.get('DATA_DIR', '/data')
+                        from extensions import Config
+                        data_dir = current_app.config.get('DATA_DIR', Config.get_data_dir())
                         attachments_dir = os.path.join(data_dir, 'attachments')
                         os.makedirs(attachments_dir, exist_ok=True)
                         
