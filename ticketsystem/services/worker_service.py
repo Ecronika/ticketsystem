@@ -23,7 +23,6 @@ class WorkerService:
         
         # Default PIN to '0000' if not provided
         effective_pin = pin if pin else "0000"
-        needs_change = True if not pin or pin == "0000" else True # Always force change for new users for safety
         
         if Worker.query.filter_by(name=name).first():
             raise ValueError(f"Mitarbeiter '{name}' existiert bereits.")

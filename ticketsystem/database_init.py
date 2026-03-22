@@ -43,18 +43,14 @@ def _ensure_critical_columns(logger):
     """
     Manually ensure critical columns exist before migrations run.
     This fixes inconsistent states from previous failed or non-Alembic upgrades.
-    """
-    try:
+        try:
         engine = db.engine
         inspector = db.inspect(engine)
         tables = inspector.get_table_names()
         
-        if 'worker' in tables:
-            columns = [c['name'] for c in inspector.get_columns('worker')]
-            with engine.connect() as conn:
-                # Critical columns that might be missing from v1.2.0 or failed v1.3.0 attempts
-                # Note: SQLite doesn't support Multiple ADD COLUMN in one statement easily without batch
-                # but these are single ADD COLUMNs which are safe.
+        with engine.connect() as conn:
+            if 'worker' in tables:
+                columns = [c['name'] for c in inspector.get_columns('worker')]
                 if 'failed_login_count' not in columns:
                     logger.info("Repair: Adding worker.failed_login_count")
                     conn.execute(db.text("ALTER TABLE worker ADD COLUMN failed_login_count INTEGER DEFAULT 0"))
@@ -73,22 +69,18 @@ def _ensure_critical_columns(logger):
                 if 'is_admin' not in columns:
                     logger.info("Repair: Adding worker.is_admin")
                     conn.execute(db.text("ALTER TABLE worker ADD COLUMN is_admin BOOLEAN DEFAULT 0"))
-                conn.commit()
 
-        if 'ticket' in tables:
-            columns = [c['name'] for c in inspector.get_columns('ticket')]
-            with engine.connect() as conn:
+            if 'ticket' in tables:
+                columns = [c['name'] for c in inspector.get_columns('ticket')]
                 if 'is_deleted' not in columns:
                     logger.info("Repair: Adding ticket.is_deleted")
                     conn.execute(db.text("ALTER TABLE ticket ADD COLUMN is_deleted BOOLEAN DEFAULT 0"))
                 if 'due_date' not in columns:
                     logger.info("Repair: Adding ticket.due_date")
                     conn.execute(db.text("ALTER TABLE ticket ADD COLUMN due_date DATETIME"))
-                conn.commit()
 
-        if 'comment' in tables:
-            columns = [c['name'] for c in inspector.get_columns('comment')]
-            with engine.connect() as conn:
+            if 'comment' in tables:
+                columns = [c['name'] for c in inspector.get_columns('comment')]
                 if 'author_id' not in columns:
                     logger.info("Repair: Adding comment.author_id")
                     conn.execute(db.text("ALTER TABLE comment ADD COLUMN author_id INTEGER"))
@@ -98,7 +90,9 @@ def _ensure_critical_columns(logger):
                 if 'event_type' not in columns:
                     logger.info("Repair: Adding comment.event_type")
                     conn.execute(db.text("ALTER TABLE comment ADD COLUMN event_type VARCHAR(30)"))
-                conn.commit()
+            
+            conn.commit()
+)
                 
     except Exception as e:
         logger.warning("Repair: Auto-repair encountered an issue (non-fatal): %s", e)

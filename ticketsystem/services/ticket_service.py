@@ -226,9 +226,8 @@ class TicketService:
                              assigned_to_me=False, unassigned_only=False, 
                              start_date=None, end_date=None, author_name=None):
         """Fetch tickets for the dashboard with search, filtering, and pagination."""
-        from sqlalchemy.orm import joinedload
         from models import Comment
-        query = Ticket.query.filter_by(is_deleted=False).options(joinedload(Ticket.comments))
+        query = Ticket.query.filter_by(is_deleted=False)
 
         if assigned_to_me and worker_id:
             query = query.filter(Ticket.assigned_to_id == worker_id)
@@ -279,11 +278,16 @@ class TicketService:
             self_total = self_query.count()
             self_tickets = self_query.order_by(Ticket.updated_at.desc()).limit(5).all()
 
-        summary_counts = {
-            'offen': Ticket.query.filter_by(is_deleted=False, status=TicketStatus.OFFEN.value).count(),
-            'in_bearbeitung': Ticket.query.filter_by(is_deleted=False, status=TicketStatus.IN_BEARBEITUNG.value).count(),
-            'wartet': Ticket.query.filter_by(is_deleted=False, status=TicketStatus.WARTET.value).count(),
-        }
+        from sqlalchemy import func
+        counts = db.session.query(
+            Ticket.status, func.count(Ticket.id)
+        ).filter_by(is_deleted=False).filter(
+            Ticket.status.in_([TicketStatus.OFFEN.value, TicketStatus.IN_BEARBEITUNG.value, TicketStatus.WARTET.value])
+        ).group_by(Ticket.status).all()
+        
+        summary_counts = {s: 0 for s in ['offen', 'in_bearbeitung', 'wartet']}
+        for status, count in counts:
+            summary_counts[status] = count
 
         return {
             'focus_pagination': focus_pagination,
@@ -340,7 +344,6 @@ class TicketService:
     @staticmethod
     def update_ticket_meta(ticket_id, title, priority, author_name, author_id, due_date=None):
         """Update ticket title and priority with system event log."""
-        from models import Ticket, Comment
         try:
             ticket = db.session.get(Ticket, ticket_id)
             if not ticket:
@@ -352,15 +355,16 @@ class TicketService:
             
             # Update fields
             ticket.title = title
-            ticket.priority = int(priority)
+            if priority is not None:
+                ticket.priority = int(priority)
             ticket.due_date = due_date
-            ticket.updated_at = datetime.now(timezone.utc)
+            ticket.updated_at = datetime.utcnow()
             
             # Log changes
             changes = []
             if old_title != title:
                 changes.append(f"Titel: '{old_title}' -> '{title}'")
-            if int(old_prio) != int(priority):
+            if priority is not None and int(old_prio) != int(priority):
                 changes.append(f"Priorität: {old_prio} -> {priority}")
             
             if old_due != due_date:

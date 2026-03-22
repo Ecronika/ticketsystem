@@ -13,11 +13,24 @@ from extensions import db, limiter
 from models import SystemSettings, Worker
 
 
-def is_safe_url(test):
-    """Prüft ob eine Redirect-URL safe ist (innerhalb des Ingress-Pfads)."""
-    ingress = request.headers.get('X-Ingress-Path', '')
-    if ingress and test.path.startswith(ingress):
+def is_safe_url(target):
+    """Robustly check if a redirect target is safe (on the same host/ingress)."""
+    if not target:
+        return False
+        
+    from urllib.parse import urljoin
+    ref_url = urlparse(request.host_url)
+    test_url = urlparse(urljoin(request.host_url, target))
+    
+    # Check if target is same host
+    if test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc:
         return True
+        
+    # Check if it matches Ingress path
+    ingress = request.headers.get('X-Ingress-Path', '')
+    if ingress and target.startswith(ingress):
+        return True
+        
     return False
 
 
@@ -152,14 +165,20 @@ def _login_view():
                 session.permanent = True
                 session['worker_id'] = worker.id
                 session['worker_name'] = worker.name
-                session['is_admin'] = (worker.role == 'admin' or worker.is_admin)
-                session['role'] = worker.role or ('admin' if worker.is_admin else 'worker')
+                session['is_admin'] = (worker.role == 'admin')  # SEC-07: Use role as single source of truth
+                session['role'] = worker.role or 'worker'
 
                 if worker.needs_pin_change:
                     flash('Bitte ändern Sie zu Ihrer Sicherheit zuerst Ihren PIN.', 'info')
                     return redirect_to('main.change_pin')
 
                 flash(f'Willkommen zurück, {worker.name}!', 'success')
+                
+                # SEC-06: Safe Redirect
+                next_url = request.args.get('next') or request.form.get('next')
+                if next_url and is_safe_url(next_url):
+                    return redirect(next_url)
+                    
                 return redirect_to('main.index')
             else:
                 # Log failure to console for admin diagnostics
@@ -182,12 +201,18 @@ def _login_view():
     return render_template('login.html', workers=workers)
 
 def _logout_view():
-    """Handle worker logout with Clear-Site-Data for shared terminals."""
+    """Handle worker logout with thorough session clearing."""
     from flask import make_response
+    
+    # Clear session data
     session.clear()
+    session.modified = True
     flash('Erfolgreich ausgeloggt.', 'info')
     
-    response = make_response(redirect_to('main.index'))
+    response = make_response(redirect_to('main.login'))
+    
+    # SEC-09: Explicitly expire session cookie
+    response.set_cookie(current_app.config['SESSION_COOKIE_NAME'], '', expires=0)
     
     # GDPR & Shopfloor Security: Clear all local data on logout
     response.headers['Clear-Site-Data'] = '"cache", "cookies", "storage"'

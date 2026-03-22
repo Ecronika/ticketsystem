@@ -207,6 +207,7 @@ def _assign_to_me_view(ticket_id):
     
     return redirect_to('main.ticket_detail', ticket_id=ticket_id)
 
+@worker_required
 def _serve_attachment(attachment_id):
     """Securely serve uploaded attachments."""
     attachment = db.session.get(Attachment, attachment_id)
@@ -217,8 +218,9 @@ def _serve_attachment(attachment_id):
     data_dir = current_app.config.get('DATA_DIR', Config.get_data_dir())
     attachments_dir = os.path.join(data_dir, 'attachments')
     
-    # Path is stored as just the filename in DB
-    return send_from_directory(attachments_dir, attachment.path)
+    # Path-Traversal protection: only use basename
+    safe_filename = os.path.basename(attachment.path)
+    return send_from_directory(attachments_dir, safe_filename)
 
 @worker_required
 def _update_ticket_api(ticket_id):
@@ -238,6 +240,9 @@ def _update_ticket_api(ticket_id):
             due_date = datetime.fromisoformat(new_due_str.split('T')[0])
         except (ValueError, TypeError):
             due_date = None
+
+    if new_prio is None:
+        return jsonify({'success': False, 'error': 'Priorität fehlt'}), 400
 
     try:
         TicketService.update_ticket_meta(ticket_id, new_title, new_prio, author_name, session.get('worker_id'), due_date)

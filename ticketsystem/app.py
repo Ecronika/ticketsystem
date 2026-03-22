@@ -71,8 +71,8 @@ app.config.update(
     # Over plain HTTP we fall back to Lax (works everywhere except cross-site iframes).
     SESSION_COOKIE_SAMESITE='None' if SSL_ACTIVE else 'Lax',
     MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB Upload Limit
-    # 7 Days Validity (Prevent expiry in long sessions)
-    WTF_CSRF_TIME_LIMIT=604800,
+    # 8 Hours Validity (Aligned with session lifetime)
+    WTF_CSRF_TIME_LIMIT=28800,
     # Disable strict HTTPS referer check ÃƒÂ¢€Ã¢â‚¬Â required for both plain HTTP and proxied setups
     WTF_CSRF_SSL_STRICT=False,
     # CSRF cookie SameSite must match session cookie policy
@@ -219,15 +219,16 @@ migrate = Migrate(app, db, directory=migrations_dir, render_as_batch=True)
 
 
 if not scheduler.running:
-    scheduler.init_app(app)
-    scheduler.start()
-
-    # Restore Backup Schedule from DB
     try:
+        scheduler.init_app(app)
+        scheduler.start()
+
+        # Restore Backup Schedule from DB
         with app.app_context():
             BackupService.schedule_backup_job(app)
     except Exception as e:  # pylint: disable=broad-exception-caught
-        app.logger.error("Failed to restore backup schedule: %s", e)
+        # In multi-worker environments, the scheduler might already be running
+        app.logger.warning("Scheduler initialization skipped or failed: %s", e)
 
 # SQLite Connection Optimization (Fix for Worker Timeouts)
 
@@ -248,6 +249,9 @@ def set_sqlite_pragma(dbapi_conn, _connection_record):
         cursor.execute("PRAGMA temp_store = MEMORY")  # Temp data in RAM
         # 256MB memory-mapped I/O
         cursor.execute("PRAGMA mmap_size = 268435456")
+        
+        # Use debug level for pragma logging to avoid log spam (PERF-03)
+        current_app.logger.debug("SQLite pragmas set: WAL=on, busy_timeout=30s")
         # Less frequent WAL checkpoints
         cursor.execute("PRAGMA wal_autocheckpoint = 1000")
         cursor.close()

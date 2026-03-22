@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.8.0] - 2026-03-22
+### Security (Hardening)
+- **Attachment-Sicherheit:** `serve_attachment` ist nun durch `@worker_required` geschützt und nutzt robuste Pfad-Validierung (`os.path.basename`), um Path-Traversal-Angriffe zu verhindern (SEC-03, SEC-04).
+- **Notfall-Codes (SEC-02):** Rohe Recovery-Tokens werden nun sofort nach der Anzeige in der Datenbank gelöscht.
+- **Sicherer Logout (SEC-09):** Der Logout-Prozess löscht nun explizit alle Sitzungsdaten, setzt das Cookie-Ablaufdatum auf Null und nutzt den `Clear-Site-Data`-Header für maximale Sicherheit auf geteilten Terminals.
+- **Open-Redirect Schutz (SEC-06):** Die `is_safe_url`-Validierung wurde grundlegend überarbeitet und schützt nun zuverlässig vor bösartigen Weiterleitungen beim Login.
+- **RBAC-Härtung (SEC-07):** Die `is_admin`-Flag in der Session wird nun strikt aus der zugewiesenen Rolle abgeleitet, um Inkonsistenzen zu vermeiden.
+- **CSRF-Synchronisation:** Das CSRF-Token-Timeout wurde auf 8 Stunden reduziert, passend zur maximalen Sitzungsdauer.
+
+### Performance & Stabilität
+- **Dashboard-Optimierung (PERF-01, PERF-02):** N+1 Query-Probleme in der Ticket-Historie behoben und die Zusammenfassungs-Kacheln auf performante Datenbank-Aggregationen umgestellt.
+- **Datenbank-Initialisierung (BUG-11):** Zusammenführung mehrerer Datenbank-Verbindungen beim Start, um "Database Locked"-Fehler in Multi-Worker-Umgebungen zu verhindern.
+- **Scheduler-Fix (BUG-03):** Renne-Bedingungen beim Start des Hintergrund-Schedulers durch neue Protective-Guards behoben.
+- **Timestamp-Standardisierung (BUG-12):** Alle Zeitstempel wurden auf naive UTC-Werte vereinheitlicht, um Inkompatibilitäten und Abstürze in SQLite zu vermeiden.
+
+### Fixed
+- **Login-Fix (BUG-01):** Template-Vererbung der `login.html` korrigiert; die Seite nutzt nun korrekt die Basis-Styles, JS-Bibliotheken und CSRF-Meta-Tags.
+- **Prioritäts-Validierung (BUG-05, BUG-06):** Serverseitige Validierung für Ticket-Prioritäten implementiert, um 500er-Fehler bei fehlenden Werten zu verhindern.
+- **ServiceWorker:** Cache-Versioning (v1.8.0) und Asset-Busting via `{{ config.VERSION }}` synchronisiert (BUG-13, BUG-14).
+- **Unit Tests:** Regex für Mitarbeiter-Degradierung in `test_workers.py` an die präzisen Fehlermeldungen angepasst (BUG-04).
+
+---
+
 ## [1.7.1] - 2026-03-22
 ### Fixed
 - **Ticket-Detail Layout:** HTML-Struktur korrigiert (Spaltenzuordnung), um Layout-Kollaps und falsches "Sticky"-Verhalten des Kommentar-Formulars zu verhindern.

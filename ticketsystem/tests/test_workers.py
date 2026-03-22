@@ -46,5 +46,5 @@ def test_update_worker(test_app):
     assert worker.is_admin is True
     
     # Prevent degrading last admin
-    with pytest.raises(ValueError, match="Der letzte Administrator kann nicht .* degradiert werden"):
+    with pytest.raises(ValueError, match="Der letzte aktive Administrator"):
         WorkerService.update_worker(worker.id, "NewName", is_admin=False)

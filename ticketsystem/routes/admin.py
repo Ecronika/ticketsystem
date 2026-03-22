@@ -67,6 +67,10 @@ def workers():
 def show_tokens():
     """Display the generated recovery tokens."""
     tokens_json = SystemSettings.get_setting('recovery_tokens_raw', '[]')
+    
+    # SOFORT nach Lesen leeren (SEC-02)
+    SystemSettings.set_setting('recovery_tokens_raw', '[]')
+    
     import json
     tokens = json.loads(tokens_json)
     return render_template('show_recovery_tokens.html', tokens=tokens)
