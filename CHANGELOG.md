@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.2] - 2026-03-22
+### Fixed
+- **Datenbank:** Formale Alembic-Migration für das in v1.5.1 eingeführte Feld `last_active` hinzugefügt, um Abstürze beim Start zu verhindern.
+
+---
+
 ## [1.5.1] - 2026-03-22
 ### Fixed
 - **P0-1:** Verschachteltes Formular in Mitarbeiterverwaltung behoben (PIN-Reset funktioniert nun browserübergreifend).
