@@ -319,3 +319,45 @@ class TicketService:
             db.session.rollback()
             current_app.logger.error(f"Error assigning ticket: {e}")
             raise
+
+    @staticmethod
+    def update_ticket_meta(ticket_id, title, priority, author_name, author_id):
+        """Update ticket title and priority with system event log."""
+        from models import Ticket, Comment
+        try:
+            ticket = db.session.get(Ticket, ticket_id)
+            if not ticket:
+                raise ValueError("Ticket nicht gefunden")
+
+            old_title = ticket.title
+            old_prio = ticket.priority
+            
+            # Update fields
+            ticket.title = title
+            ticket.priority = int(priority)
+            ticket.updated_at = datetime.now(timezone.utc)
+            
+            # Log changes
+            changes = []
+            if old_title != title:
+                changes.append(f"Titel: '{old_title}' -> '{title}'")
+            if int(old_prio) != int(priority):
+                changes.append(f"Priorität: {old_prio} -> {priority}")
+                
+            if changes:
+                comment = Comment(
+                    ticket_id=ticket.id,
+                    author=author_name,
+                    author_id=author_id,
+                    text="Metadaten geändert: " + ", ".join(changes),
+                    is_system_event=True,
+                    event_type='META_UPDATE'
+                )
+                db.session.add(comment)
+                db.session.commit()
+            
+            return ticket
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error updating ticket meta: {e}")
+            raise

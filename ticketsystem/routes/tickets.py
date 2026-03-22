@@ -195,7 +195,22 @@ def _serve_attachment(attachment_id):
     attachments_dir = os.path.join(data_dir, 'attachments')
     
     # Path is stored as just the filename in DB
-    return send_from_directory(attachments_dir, attachment.path)
+@worker_required
+def _update_ticket_api(ticket_id):
+    """Handle ticket meta updates (title/priority)."""
+    data = request.get_json()
+    new_title = data.get('title')
+    new_prio = data.get('priority')
+    author_name = session.get('worker_name', 'System')
+    
+    if not new_title:
+        return jsonify({'success': False, 'error': 'Titel fehlt'}), 400
+        
+    try:
+        TicketService.update_ticket_meta(ticket_id, new_title, new_prio, author_name, session.get('worker_id'))
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 def register_routes(bp):
     """Register ticket routes."""
