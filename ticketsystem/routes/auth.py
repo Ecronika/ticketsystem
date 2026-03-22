@@ -7,7 +7,7 @@ from functools import wraps
 from datetime import datetime, timezone, timedelta
 from urllib.parse import urljoin, urlparse
 
-from flask import flash, redirect, render_template, request, session, url_for
+from flask import flash, redirect, render_template, request, session, url_for, make_response, current_app
 from werkzeug.security import check_password_hash, generate_password_hash
 from extensions import db, limiter
 from models import SystemSettings, Worker
@@ -18,7 +18,6 @@ def is_safe_url(target):
     if not target:
         return False
         
-    from urllib.parse import urljoin
     ref_url = urlparse(request.host_url)
     test_url = urlparse(urljoin(request.host_url, target))
     
@@ -103,7 +102,8 @@ def _setup_view():
         admin = Worker.query.filter_by(is_admin=True).first()
         if admin:
             admin.name = name
-            admin.pin_hash = generate_password_hash(pin)
+            # SEC-01: Explicitly use pbkdf2:sha256 with 600k iterations (standard in Werkzeug 3.x)
+            admin.pin_hash = generate_password_hash(pin, method='pbkdf2:sha256', salt_length=16)
             
             # Mark onboarding as complete
             setting = SystemSettings.query.filter_by(key="onboarding_complete").first()
@@ -202,7 +202,6 @@ def _login_view():
 
 def _logout_view():
     """Handle worker logout with thorough session clearing."""
-    from flask import make_response, current_app
     
     # Clear session data
     session.clear()
@@ -248,6 +247,8 @@ def _recover_pin_view():
             # Patch H-1: Fix inconsistent auth state by binding to an admin account
             admin = Worker.query.filter_by(is_admin=True, is_active=True).first()
             if admin:
+                # SEC-02: Protect against Session Fixation
+                session.clear()
                 session['worker_id'] = admin.id
                 session['worker_name'] = admin.name
                 session['is_admin'] = True
@@ -287,7 +288,8 @@ def _change_pin_view():
 
         worker = db.session.get(Worker, session['worker_id'])
         if worker:
-            worker.pin_hash = generate_password_hash(new_pin)
+            # SEC-01: Explicitly use pbkdf2:sha256
+            worker.pin_hash = generate_password_hash(new_pin, method='pbkdf2:sha256', salt_length=16)
             worker.needs_pin_change = False
             db.session.commit()
             flash('PIN erfolgreich geändert.', 'success')

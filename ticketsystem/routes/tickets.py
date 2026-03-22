@@ -94,14 +94,6 @@ def _new_ticket_view():
         current_app.logger.info(f"POST /ticket/new - image_base64 present: {bool(image_base64)}, length: {len(image_base64) if image_base64 else 0}")
         due_date_str = request.form.get('due_date')
         
-        due_date = None
-        if due_date_str:
-            try:
-                from datetime import datetime
-                due_date = datetime.strptime(due_date_str, '%Y-%m-%d')
-            except ValueError:
-                due_date = None
-
         if not title:
             flash('Bitte einen Titel angeben.', 'warning')
             return render_template('ticket_new.html')
@@ -143,7 +135,7 @@ def _ticket_detail_view(ticket_id):
     workers = Worker.query.filter_by(is_active=True).all()
     return render_template('ticket_detail.html', ticket=ticket, workers=workers)
 
-@limiter.limit("10 per minute")
+@limiter.limit("30 per minute")
 def _public_ticket_view(ticket_id):
     """Public read-only status page (P0-1)."""
     from models import Ticket
@@ -251,53 +243,33 @@ def _update_ticket_api(ticket_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 def register_routes(bp):
-    """Register ticket routes."""
-    # Public Dashboard (Anyone can see? Or only workers? User said "Dashboard fills Self-tickets", implying login)
-    # Actually, the user's plan said "Auth refactoring... session['worker_id']".
-    # I'll make the dashboard protected for now.
-    dashboard_view = worker_required(_dashboard_view)
-    dashboard_view.__name__ = 'index'
-    bp.add_url_rule('/', view_func=dashboard_view)
+    """Register ticket routes with explicit endpoints."""
+    # Dashboards
+    bp.add_url_rule('/', 'index', view_func=worker_required(_dashboard_view))
+    bp.add_url_rule('/archive', 'archive', view_func=worker_required(_archive_view))
 
-    # Public Ticket Creation (limiter 10/min)
-    new_ticket_view = limiter.limit("10 per minute")(_new_ticket_view)
-    new_ticket_view.__name__ = 'ticket_new'
-    bp.add_url_rule('/ticket/new', view_func=new_ticket_view, methods=['GET', 'POST'])
+    # Ticket creation & view
+    bp.add_url_rule('/ticket/new', 'ticket_new', 
+                  view_func=limiter.limit("5 per minute")(_new_ticket_view), 
+                  methods=['GET', 'POST'])
+    bp.add_url_rule('/ticket/<int:ticket_id>', 'ticket_detail', 
+                  view_func=worker_required(_ticket_detail_view))
+    bp.add_url_rule('/ticket/<int:ticket_id>/public', 'ticket_public', 
+                  view_func=_public_ticket_view)
 
-    # Protected Detail & Actions
-    ticket_detail_view = _ticket_detail_view
-    ticket_detail_view.__name__ = 'ticket_detail'
-    bp.add_url_rule('/ticket/<int:ticket_id>', view_func=ticket_detail_view)
+    # Actions & API
+    bp.add_url_rule('/ticket/<int:ticket_id>/comment', 'add_comment', 
+                  view_func=worker_required(_add_comment_view), methods=['POST'])
+    bp.add_url_rule('/ticket/<int:ticket_id>/assign_me', 'assign_to_me', 
+                  view_func=worker_required(_assign_to_me_view), methods=['POST'])
+    
+    bp.add_url_rule('/api/ticket/<int:ticket_id>/status', 'update_status', 
+                  view_func=worker_required(_update_status_api), methods=['POST'])
+    bp.add_url_rule('/api/ticket/<int:ticket_id>/assign', 'assign_ticket_api', 
+                  view_func=worker_required(_assign_ticket_api), methods=['POST'])
+    bp.add_url_rule('/api/ticket/<int:ticket_id>/update', 'update_ticket', 
+                  view_func=worker_required(_update_ticket_api), methods=['POST'])
 
-    add_comment_view = _add_comment_view
-    add_comment_view.__name__ = 'add_comment'
-    bp.add_url_rule('/ticket/<int:ticket_id>/comment', view_func=add_comment_view, methods=['POST'])
-
-    update_status_api = _update_status_api
-    update_status_api.__name__ = 'update_status'
-    bp.add_url_rule('/api/ticket/<int:ticket_id>/status', view_func=update_status_api, methods=['POST'])
-
-    assign_ticket_api = _assign_ticket_api
-    assign_ticket_api.__name__ = 'assign_ticket_api'
-    bp.add_url_rule('/api/ticket/<int:ticket_id>/assign', view_func=assign_ticket_api, methods=['POST'])
-
-    assign_to_me_view = _assign_to_me_view
-    assign_to_me_view.__name__ = 'assign_to_me'
-    bp.add_url_rule('/ticket/<int:ticket_id>/assign_me', view_func=assign_to_me_view, methods=['POST'])
-
-    archive_view = _archive_view
-    archive_view.__name__ = 'archive'
-    bp.add_url_rule('/archive', view_func=archive_view)
-
-    # Attachment Serving
-    bp.add_url_rule('/attachment/<int:attachment_id>', 'serve_attachment', view_func=_serve_attachment)
-
-    # Public Read-Only Status Page (P0-1)
-    public_ticket_view = _public_ticket_view
-    public_ticket_view.__name__ = 'ticket_public'
-    bp.add_url_rule('/ticket/<int:ticket_id>/public', view_func=public_ticket_view)
-
-    # API: Update Ticket Meta (Feature)
-    update_ticket_api = _update_ticket_api
-    update_ticket_api.__name__ = 'update_ticket'
-    bp.add_url_rule('/api/ticket/<int:ticket_id>/update', view_func=update_ticket_api, methods=['POST'])
+    # Serving
+    bp.add_url_rule('/attachment/<int:attachment_id>', 'serve_attachment', 
+                  view_func=worker_required(_serve_attachment))

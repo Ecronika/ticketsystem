@@ -226,8 +226,11 @@ class TicketService:
                              assigned_to_me=False, unassigned_only=False, 
                              start_date=None, end_date=None, author_name=None):
         """Fetch tickets for the dashboard with search, filtering, and pagination."""
-        from models import Comment
-        query = Ticket.query.filter_by(is_deleted=False)
+        from sqlalchemy.orm import joinedload
+        query = Ticket.query.filter_by(is_deleted=False).options(
+            joinedload(Ticket.comments),
+            joinedload(Ticket.assigned_to)
+        )
 
         if assigned_to_me and worker_id:
             query = query.filter(Ticket.assigned_to_id == worker_id)
@@ -318,7 +321,7 @@ class TicketService:
                 return ticket
                 
             ticket.assigned_to_id = worker_id
-            ticket.updated_at = datetime.now(timezone.utc)
+            ticket.updated_at = datetime.utcnow()
             
             # Log to history
             comment_text = f"Zuständigkeit geändert: {old_worker_name} -> {new_worker_name}."

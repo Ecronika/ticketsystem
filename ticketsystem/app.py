@@ -357,6 +357,19 @@ def after_request_metrics(response):
     return response
 
 
+@app.after_request
+def add_security_headers(response):
+    """Add standard security headers to every response."""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    
+    # SEC-05: Strict-Transport-Security (HSTS)
+    if os.environ.get('REQUIRE_HTTPS', '0') == '1':
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        
+    return response
+
 
 @app.teardown_request
 def teardown_request_gauge(_exception=None):

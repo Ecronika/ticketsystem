@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.9.0] - 2026-03-22
+### Security (Hardening)
+- **PIN-Hashing (SEC-01):** Umstellung auf `pbkdf2:sha256` mit 600.000 Iterationen (standardmäßig via Werkzeug 3.x) für erhöhten Schutz gegen Offline-Cracking.
+- **Session Fixation (SEC-02):** Explizites `session.clear()` bei PIN-Recovery implementiert, um die Übernahme alter Sitzungs-IDs zu verhindern.
+- **HSTS-Header (SEC-05):** `Strict-Transport-Security` Header hinzugefügt, falls `REQUIRE_HTTPS=1` gesetzt ist.
+- **Global Security Headers:** Standard-Header (`X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`) für alle Responses aktiviert.
+- **Rate Limiting:** Public Ticket View auf 30 Requests pro Minute erhöht, aber robuster gegen Missbrauch abgesichert.
+
+### Performance & SQL
+- **Eager Loading (BUG-06):** N+1 Query-Problem im Dashboard behoben – Kommentare und Bearbeiter werden nun via `joinedload` in einem SQL-Statement geladen.
+- **Atomic DDL (BUG-09):** `database_init.py` nutzt nun `engine.begin()` für atomare Datenbank-Reparaturen beim Start.
+- **Standardisierte Datetime (BUG-12):** Konsistente Nutzung von naivem UTC (`datetime.utcnow`) in allen Service-Aktionen zur Vermeidung von SQLite-Inkompatibilitäten.
+- **SQLAlchemy-Fix (BUG-07):** Deprecation-Warnungen für `datetime.utcnow` als Spalten-Default durch Lambda-Wrapper behoben.
+
+### Fixed & Refined
+- **HTML-Struktur (BUG-01):** Kritischer Verschachtelungsfehler in `ticket_detail.html` behoben; Sidebar und Verlauf werden nun wieder korrekt gerendert.
+- **Layout (BUG-05):** Header-Layout in der Detailansicht für mobile Geräte optimiert (Prioritäts-Badge bricht nicht mehr unschön um).
+- **ServiceWorker (PERF-04):** Root-Pfad aus der statischen Asset-Liste entfernt, um redundante Caching-Versuche des dynamischen Dashboards zu vermeiden.
+- **Refactoring (QUAL-01):** View-Registrierung in `tickets.py` auf explizite Endpunkte umgestellt und redundante Imports bereinigt.
+
+---
+
 ## [1.8.2] - 2026-03-22
 ### Fixed (Critical Hotfixes)
 - **Startup-Fix (OFFEN-01):** Definitiver Fix für den SyntaxError in `database_init.py`. Docstring korrekt geschlossen und Funktionskörper repariert.

@@ -49,7 +49,7 @@ def _ensure_critical_columns(logger):
         inspector = db.inspect(engine)
         tables = inspector.get_table_names()
         
-        with engine.connect() as conn:
+        with engine.begin() as conn:
             if 'worker' in tables:
                 columns = [c['name'] for c in inspector.get_columns('worker')]
                 if 'failed_login_count' not in columns:
@@ -91,8 +91,6 @@ def _ensure_critical_columns(logger):
                 if 'event_type' not in columns:
                     logger.info("Repair: Adding comment.event_type")
                     conn.execute(db.text("ALTER TABLE comment ADD COLUMN event_type VARCHAR(30)"))
-            
-            conn.commit()
                 
     except Exception as e:
         logger.warning("Repair: Auto-repair encountered an issue (non-fatal): %s", e)

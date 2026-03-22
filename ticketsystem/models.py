@@ -102,9 +102,9 @@ class Ticket(db.Model):
     
     tags = db.relationship('Tag', secondary=ticket_tags, backref=db.backref('tickets', lazy='dynamic'))
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, 
-                           onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.utcnow())
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.utcnow(), 
+                           onupdate=lambda: datetime.utcnow())
 
     def __repr__(self):
         return f'<Ticket {self.title} ({self.status})>'
@@ -121,7 +121,7 @@ class Attachment(db.Model):
     path = db.Column(db.String(255), nullable=False)
     filename = db.Column(db.String(100), nullable=False)
     mime_type = db.Column(db.String(50), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.utcnow())
 
     def __repr__(self):
         return f'<Attachment {self.filename} for Ticket {self.ticket_id}>'
