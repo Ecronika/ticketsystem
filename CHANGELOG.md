@@ -10,6 +10,7 @@
 - **Dashboard-API-Optimierung (Medium):** Die `/api/dashboard/summary` Route nutzt nun eine einzige `group_by` Abfrage anstelle von vier separaten Queries.
 - **Python 3.12 Readiness (Low):** Systemweite Ablösung der veralteten Methode `datetime.utcnow()` durch `datetime.now(timezone.utc).replace(tzinfo=None)`.
 - **Backend-Robustheit:** `_remove_with_retry` fängt nun gezielt `OSError` ab, anstatt eine breite `Exception`.
+- **Backup-Service:** Letztes `datetime.utcnow()` in `backup_service.py` durch moderne Variante ersetzt.
 
 ### Documentation
 - Version auf v2.0.0 angehoben (Enterprise Readiness Update).

@@ -258,7 +258,7 @@ class BackupService:
     def create_backup():
         """Create a zip backup of critical data."""
         data_dir = Config.get_data_dir()
-        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y%m%d_%H%M%S")
         backup_filename = f"backup_ticketsystem_{timestamp}.zip"
         backup_dir = os.path.join(data_dir, 'backups')
         backup_path = os.path.join(backup_dir, backup_filename)
