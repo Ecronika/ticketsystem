@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.4.1] - 2026-03-22
+
+### Beholfen (Fixed)
+- **P0-1:** Kritischer Fehler in der Ticket-Erstellung behoben (Ticket-Bestätigung wird nun korrekt angezeigt).
+- **Redirct:** Kommentare springen nach dem Absenden nun direkt zurück zum Formular (#comment-form).
+
+### Verbessert (Changed)
+- **Priorität:** Buttons in Ticket-Erstellung logischer sortiert (Hoch -> Mittel -> Niedrig).
+- **Dashboard:** Spalte "Meine Tickets" zeigt nun die Gesamtzahl der zugewiesenen Tickets.
+- **Benutzerverwaltung:** Warn-Icon für Mitarbeiter mit fehlgeschlagenen Logins hinzugefügt.
+- **Design:** Pflichtfelder nun mit Sternchen (*) markiert.
+- **Tablet:** Sidebar in Ticket-Details rückt auf kleinen Displays nach oben.
+- **Terminologie:** "Recovery-Token" systemweit in "Notfall-Code" umbenannt; IT-Jargon (soft-delete) entfernt.
+- **Archiv:** Status-Spalte hinzugefügt.
+- **Performance:** Benachrichtigungen mit Links bleiben nun länger sichtbar.
+
 ## [1.4.0] - 2026-03-22
 ### Added
 - **My Tickets Filter:** Added deep link and backend filter `?assigned_to_me=1` to the dashboard for quick access to personal assignments.

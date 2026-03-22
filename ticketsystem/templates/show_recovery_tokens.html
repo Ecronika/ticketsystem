@@ -4,16 +4,16 @@
 <div class="container mt-4">
     <div class="card shadow border-danger">
         <div class="card-header bg-danger text-white">
-            <h4 class="mb-0"><i class="bi bi-exclamation-triangle-fill"></i> WICHTIG: Ihre neuen Recovery-Tokens</h4>
+            <h4 class="mb-0"><i class="bi bi-exclamation-triangle-fill"></i> WICHTIG: Ihre neuen Notfall-Codes</h4>
         </div>
         <div class="card-body">
             <div class="alert alert-warning mb-4">
-                <strong>Achtung!</strong> Diese Tokens werden nur <strong>ein einziges Mal</strong> hier angezeigt.
-                Bitte drucken Sie diese Seite aus oder speichern Sie die Tokens sicher, idealerweise in einem
+                <strong>Achtung!</strong> Diese Codes werden nur <strong>ein einziges Mal</strong> hier angezeigt.
+                Bitte drucken Sie diese Seite aus oder speichern Sie die Codes sicher, idealerweise in einem
                 Passwort-Manager.
-                <br><br>Wenn Sie Ihren PIN vergessen, können Sie sich mit einem dieser Tokens über den "PIN vergessen?"
-                Link beim Login einloggen. Jeder Token verliert nach einmaliger Nutzung seine Gültigkeit.
-                <br>Das Generieren neuer Tokens macht alle vorherigen ungültig.
+                <br><br>Wenn Sie Ihren PIN vergessen, können Sie sich mit einem dieser Codes über den "Admin-Recovery (Notfall)"
+                Link beim Login einloggen. Jeder Code verliert nach einmaliger Nutzung seine Gültigkeit.
+                <br>Das Generieren neuer Codes macht alle vorherigen ungültig.
             </div>
 
             <div class="row justify-content-center">
@@ -29,7 +29,7 @@
                             <i class="bi bi-printer"></i> Drucken
                         </button>
                         <a href="{{ ingress_path }}{{ url_for('main.index') }}" class="btn btn-primary">
-                            <i class="bi bi-check-lg"></i> Ich habe die Tokens sicher gespeichert
+                            <i class="bi bi-check-lg"></i> Ich habe die Codes sicher gespeichert
                         </a>
 
                     </div>

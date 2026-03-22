@@ -80,7 +80,10 @@ document.addEventListener('DOMContentLoaded', function() {
     <div class="col-lg-8">
         <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden">
             <div class="card-header border-0 py-3 px-4 d-flex justify-content-between align-items-center">
-                <h3 class="h5 fw-bold mb-0"><i class="bi bi-fire text-danger me-2"></i> Alle offenen Tickets</h3>
+                <div class="d-flex flex-column">
+                    <h3 class="h5 fw-bold mb-0"><i class="bi bi-fire text-danger me-2"></i> Alle offenen Tickets</h3>
+                    <small class="text-muted x-small mt-1 ps-4">↑ Sortiert nach Priorität</small>
+                </div>
                 {% set has_high_prio = focus_tickets|selectattr('priority', 'equalto', 1)|list|length > 0 %}
                 <span class="badge badge-subtle-{{ 'danger' if has_high_prio else 'secondary' }} rounded-pill px-3">{{ pagination.total }}</span>
             </div>
@@ -139,8 +142,11 @@ document.addEventListener('DOMContentLoaded', function() {
     <!-- Self Box (Assigned to Me) -->
     <div class="col-lg-4">
         <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden bg-surface-subtle">
-            <div class="card-header bg-transparent border-0 py-3 px-4">
+            <div class="card-header bg-transparent border-0 py-3 px-4 d-flex justify-content-between align-items-center">
                 <h3 class="h5 fw-bold mb-0"><i class="bi bi-person-check-fill text-primary me-2"></i> Meine Tickets</h3>
+                {% if self_total > 5 %}
+                <span class="badge rounded-pill badge-subtle-primary">{{ self_total }}</span>
+                {% endif %}
             </div>
             <div class="card-body p-0">
                 <div class="list-group list-group-flush">
@@ -169,12 +175,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     {% endfor %}
                 </div>
             </div>
-            {% if self_tickets %}
-            <a href="{{ ingress_path }}{{ url_for('main.index', assigned_to_me=1) }}" 
-               class="list-group-item list-group-item-action text-center small py-2 text-primary border-0 bg-white-50">
-              Alle meine Tickets anzeigen →
-            </a>
-            {% endif %}
+            <div class="card-footer bg-transparent border-0 p-0 overflow-hidden">
+                <a href="{{ ingress_path }}{{ url_for('main.index', assigned_to_me=1) }}" 
+                   class="btn btn-link w-100 text-center small py-3 text-primary text-decoration-none border-top rounded-0 bg-white-hover">
+                  Alle meine Tickets anzeigen ({{ self_total }}) →
+                </a>
+            </div>
         </div>
     </div>
 </div>

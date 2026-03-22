@@ -151,7 +151,7 @@ class TicketService:
                 ticket_id=ticket.id,
                 author=author_name,
                 author_id=author_id,
-                text="Ticket wurde gelöscht (soft-delete).",
+                text="Ticket wurde vom System archiviert.",
                 is_system_event=True,
                 event_type='TICKET_DELETED'
             )
@@ -248,17 +248,21 @@ class TicketService:
 
         # Self: Always keep an eye on "My Tickets" (limit to top 5 for sidebar)
         self_tickets = []
+        self_total = 0
         if worker_id:
-            self_tickets = Ticket.query.filter_by(
+            self_query = Ticket.query.filter_by(
                 assigned_to_id=worker_id,
                 is_deleted=False
             ).filter(
                 Ticket.status != TicketStatus.ERLEDIGT.value
-            ).order_by(Ticket.updated_at.desc()).limit(5).all()
+            )
+            self_total = self_query.count()
+            self_tickets = self_query.order_by(Ticket.updated_at.desc()).limit(5).all()
 
         return {
             'focus_pagination': focus_pagination,
-            'self': self_tickets
+            'self': self_tickets,
+            'self_total': self_total
         }
 
     @staticmethod

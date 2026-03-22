@@ -31,7 +31,14 @@
                         <tbody>
                             {% for worker in workers %}
                             <tr class="{{ 'text-muted' if not worker.is_active }}">
-                                <td class="px-4 fw-bold">{{ worker.name }}</td>
+                                <td class="px-4 fw-bold">
+                                    {{ worker.name }}
+                                    {% if worker.failed_login_count > 0 %}
+                                    <span class="badge bg-warning text-dark x-small ms-1" title="{{ worker.failed_login_count }} Fehlversuche">
+                                        <i class="bi bi-exclamation-triangle"></i>
+                                    </span>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     {% if worker.is_admin %}
                                     <span class="badge badge-subtle-danger rounded-pill px-2">Admin</span>
@@ -187,7 +194,7 @@
                 </form>
             </div>
             <div class="card-footer bg-transparent border-0 py-3 px-4">
-                <p class="x-small text-muted mb-0">Hinweis: Diese Codes (Recovery-Tokens) sollten ausgedruckt im Tresor liegen.</p>
+                <p class="x-small text-muted mb-0">Hinweis: Diese Codes (Notfall-Codes) sollten ausgedruckt im Tresor liegen.</p>
             </div>
         </div>
     </div>

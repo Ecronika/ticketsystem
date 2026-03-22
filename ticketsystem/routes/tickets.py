@@ -27,6 +27,7 @@ def _dashboard_view():
                           pagination=tickets_data['focus_pagination'], 
                           focus_tickets=tickets_data['focus_pagination'].items,
                           self_tickets=tickets_data['self'],
+                          self_total=tickets_data['self_total'],
                           query=search,
                           current_status=status_filter,
                           assigned_to_me=assigned_to_me)
@@ -65,7 +66,7 @@ def _new_ticket_view():
 
         try:
             priority = TicketPriority(int(priority_val))
-            TicketService.create_ticket(
+            ticket = TicketService.create_ticket(
                 title=title,
                 description=description,
                 priority=priority,
@@ -110,7 +111,7 @@ def _add_comment_view(ticket_id):
         TicketService.add_comment(ticket_id, author_name, session.get('worker_id'), text)
         flash('Kommentar hinzugefügt.', 'success')
     
-    return redirect_to('main.ticket_detail', ticket_id=ticket_id)
+    return redirect_to('main.ticket_detail', ticket_id=ticket_id, _anchor='comment-form')
 
 @worker_required
 def _update_status_api(ticket_id):

@@ -33,10 +33,11 @@
         container.appendChild(alertEl);
         const announcer = document.getElementById('ajaxStatusAnnouncer');
         if (announcer) announcer.textContent = msg;
+        const delay = alertEl.querySelector('a') ? 9000 : 6000;
         setTimeout(() => {
             const el = document.getElementById(id);
             if (el) { try { bootstrap.Alert.getOrCreateInstance(el).close(); } catch(e) { el.remove(); } }
-        }, 6000);
+        }, delay);
     };
 
     // Promise-based Confirm Function
@@ -93,13 +94,14 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         // Auto-Dismiss Alerts
-        const alerts = document.querySelectorAll('.auto-dismiss-alert');
+        const alerts = document.querySelectorAll('.alert-dismissible');
         alerts.forEach(alert => {
+            const delay = alert.querySelector('a') ? 9000 : 5000;
             setTimeout(() => {
                 if (document.body.contains(alert)) {
-                    try { (new bootstrap.Alert(alert)).close(); } catch(e) { alert.remove(); }
+                    try { (bootstrap.Alert.getInstance(alert) || new bootstrap.Alert(alert)).close(); } catch(e) { alert.remove(); }
                 }
-            }, 5000);
+            }, delay);
         });
 
         // Theme Toggle

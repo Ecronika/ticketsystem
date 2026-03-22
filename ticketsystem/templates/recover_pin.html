@@ -8,14 +8,16 @@
                 <h4 class="mb-0"><i class="bi bi-life-preserver"></i> Notfall-Login</h4>
             </div>
             <div class="card-body">
-                <p class="text-muted small mb-4">Geben Sie einen Ihrer Notfall-Recovery-Tokens ein. Jeder Token ist nur
-                    <strong>einmalig</strong> gültig.</p>
+                <p class="text-muted small mb-1">Geben Sie einen Ihrer Notfall-Codes ein. Jeder Code ist nur <strong>einmalig</strong> gültig.</p>
+                <div class="alert alert-info py-2 px-3 small border-0 rounded-3 mb-4">
+                    <i class="bi bi-info-circle me-1"></i> Dieser Weg ist für Notfälle (z.B. Admin nicht erreichbar). Bei vergessenem PIN bitte Teamleiter ansprechen.
+                </div>
                 <form method="POST">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                     <div class="mb-3">
-                        <label for="token" class="form-label">Recovery-Token</label>
+                        <label for="token" class="form-label small fw-bold">Notfall-Code</label>
                         <input type="text" class="form-control form-control-lg text-center font-monospace" id="token"
-                            name="token" required autofocus placeholder="RT-XXXX-XXXX">
+                            name="token" required autofocus placeholder="CODE-XXXX-XXXX">
                     </div>
                     <div class="d-grid">
                         <button type="submit" class="btn btn-danger btn-lg">

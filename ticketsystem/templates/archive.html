@@ -34,6 +34,7 @@
                     <tr>
                         <th class="ps-4">ID</th>
                         <th>TITEL</th>
+                        <th>STATUS</th>
                         <th>PRIORITÄT</th>
                         <th>ZULETZT AKTUALISIERT</th>
                         <th class="text-end pe-4">AKTION</th>
@@ -46,6 +47,11 @@
                         <td>
                             <div class="fw-bold small">{{ ticket.title }}</div>
                             <div class="x-small text-muted text-truncate" style="max-width: 300px;">{{ ticket.description or '-' }}</div>
+                        </td>
+                        <td>
+                            <span class="badge badge-subtle-success rounded-pill px-2 py-1 x-small fw-normal">
+                                {{ ticket.status|status_label|upper }}
+                            </span>
                         </td>
                         <td>
                             <span class="badge badge-subtle-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} px-2 py-1 x-small rounded">
@@ -61,7 +67,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="5" class="text-center py-5 text-muted">
+                        <td colspan="6" class="text-center py-5 text-muted">
                             <i class="bi bi-inbox fs-1 mb-2"></i>
                             <p>Keine archivierten Tickets gefunden.</p>
                         </td>

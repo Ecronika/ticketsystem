@@ -23,7 +23,7 @@ def workers():
                 pin = request.form.get('pin')
                 is_admin = request.form.get('is_admin') == 'on'
                 WorkerService.create_worker(name, pin, is_admin)
-                flash(f"Mitarbeiter '{name}' wurde angelegt.", "success")
+                flash(f"Mitarbeiter '{name}' wurde angelegt. Erster Login mit PIN: {pin} – er wird sofort zur PIN-Änderung aufgefordert.", "success")
             
             elif action == 'toggle_status':
                 worker_id = request.form.get('worker_id')
@@ -46,7 +46,7 @@ def workers():
             elif action == 'generate_tokens':
                 from services.system_service import SystemService
                 SystemService.generate_recovery_tokens()
-                flash("Neue Notfall-Codes wurden generiert. Bitte sicher verwahren!", "warning")
+                flash("Neue Notfall-Codes wurden generiert. Bitte sofort sicher verwahren!", "warning")
                 return redirect(url_for('admin.show_tokens'))
                 
         except ValueError as e:

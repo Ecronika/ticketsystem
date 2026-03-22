@@ -29,11 +29,12 @@
                 {% endif %}
             </div>
             <div class="card-body px-4 pb-4">
+                <p class="x-small text-muted mb-3"><span class="text-danger">*</span> Pflichtfelder</p>
                 <form method="POST">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                     
                     <div class="mb-3">
-                        <label for="author_name" class="form-label fw-bold">Dein Name</label>
+                        <label for="author_name" class="form-label fw-bold">Dein Name <span class="text-danger" aria-hidden="true">*</span></label>
                         <input type="text" class="form-control form-control-lg bg-light" id="author_name" name="author_name" 
                                value="{{ session.get('worker_name', '') }}" 
                                {% if session.get('worker_id') %}readonly{% endif %} 
@@ -41,7 +42,7 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="title" class="form-label fw-bold">Titel / Betreff</label>
+                        <label for="title" class="form-label fw-bold">Titel / Betreff <span class="text-danger" aria-hidden="true">*</span></label>
                         <input type="text" class="form-control form-control-lg" id="title" name="title" 
                                placeholder="Kurze Zusammenfassung" required autofocus>
                     </div>
@@ -55,14 +56,14 @@
                     <div class="mb-4">
                         <label class="form-label fw-bold">Dringlichkeit</label>
                         <div class="d-flex gap-2">
-                            <input type="radio" class="btn-check" name="priority" id="prio3" value="3">
-                            <label class="btn btn-outline-success flex-fill" for="prio3">Niedrig</label>
+                            <input type="radio" class="btn-check" name="priority" id="prio1" value="1">
+                            <label class="btn btn-outline-danger flex-fill" for="prio1">Hoch</label>
 
                             <input type="radio" class="btn-check" name="priority" id="prio2" value="2" checked>
                             <label class="btn btn-outline-primary flex-fill" for="prio2">Mittel</label>
 
-                            <input type="radio" class="btn-check" name="priority" id="prio1" value="1">
-                            <label class="btn btn-outline-danger flex-fill" for="prio1">Hoch</label>
+                            <input type="radio" class="btn-check" name="priority" id="prio3" value="3">
+                            <label class="btn btn-outline-success flex-fill" for="prio3">Niedrig</label>
                         </div>
                     </div>
 
