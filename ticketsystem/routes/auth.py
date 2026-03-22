@@ -187,7 +187,7 @@ def _login_view():
                 # Increment failed attempts
                 worker.failed_login_count += 1
                 if worker.failed_login_count >= 5:
-                    worker.locked_until = datetime.utcnow() + timedelta(minutes=15)
+                    worker.locked_until = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=15)
                     flash('Zu viele Fehlversuche. Konto für 15 Minuten gesperrt.', 'danger')
                 else:
                     flash(f'Falscher PIN. (Versuch {worker.failed_login_count}/5)', 'danger')

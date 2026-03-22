@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+from sqlalchemy.exc import SQLAlchemyError
 from extensions import db
 
 

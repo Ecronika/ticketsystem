@@ -1,5 +1,10 @@
 # Changelog
  
+## [1.10.2] - 2026-03-22
+### Fixed
+- **Auth-Fix:** Letztes verbliebenes `datetime.utcnow()` in der Login-Lockout-Logik ersetzt.
+- **Regression-Fix:** Fehlender `SQLAlchemyError` Import in `models.py` hinzugefügt.
+
 ## [1.10.1] - 2026-03-22
 ### Fixed (P0-P1 Bugfixes)
 - **Startup-Fix (P0):** Syntaxfehler in `app.py` behoben (Backslash in f-string auf Python 3.11).
