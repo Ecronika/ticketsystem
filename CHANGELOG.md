@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.6.3] - 2026-03-22
+### Fixed
+- **Admin Management:** Fehlermeldungen beim Deaktivieren oder Degradieren von Administratoren präzisiert. Es wird nun explizit darauf hingewiesen, dass mindestens ein **aktiver** Administrator im System verbleiben muss, um Lockouts zu verhindern.
+
+
 ## [1.6.2] - 2026-03-22
 ### Fixed
 - **Attachment Fix (Windows):** Korrektur der `DATA_DIR` Konfiguration, die das Speichern von Fotos auf Windows-Systemen verhinderte.

@@ -80,7 +80,7 @@ class WorkerService:
         if (worker.is_admin or worker.role == 'admin') and role != 'admin':
             active_admins = Worker.query.filter_by(role='admin', is_active=True).count()
             if active_admins <= 1:
-                raise ValueError("Der letzte Administrator kann nicht zum normalen Mitarbeiter degradiert werden.")
+                raise ValueError("Der letzte aktive Administrator kann nicht zum normalen Mitarbeiter degradiert werden. Aktivieren Sie erst einen anderen Administrator.")
 
         worker.name = name
         worker.is_admin = is_admin
