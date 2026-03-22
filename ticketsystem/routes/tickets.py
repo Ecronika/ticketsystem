@@ -195,19 +195,29 @@ def _serve_attachment(attachment_id):
     attachments_dir = os.path.join(data_dir, 'attachments')
     
     # Path is stored as just the filename in DB
+    return send_from_directory(attachments_dir, attachment.path)
+
 @worker_required
 def _update_ticket_api(ticket_id):
-    """Handle ticket meta updates (title/priority)."""
+    """Handle ticket meta updates (title/priority/due_date)."""
     data = request.get_json()
     new_title = data.get('title')
     new_prio = data.get('priority')
+    new_due_str = data.get('due_date')
     author_name = session.get('worker_name', 'System')
     
     if not new_title:
         return jsonify({'success': False, 'error': 'Titel fehlt'}), 400
         
+    due_date = None
+    if new_due_str:
+        try:
+            due_date = datetime.fromisoformat(new_due_str.split('T')[0])
+        except (ValueError, TypeError):
+            due_date = None
+
     try:
-        TicketService.update_ticket_meta(ticket_id, new_title, new_prio, author_name, session.get('worker_id'))
+        TicketService.update_ticket_meta(ticket_id, new_title, new_prio, author_name, session.get('worker_id'), due_date)
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

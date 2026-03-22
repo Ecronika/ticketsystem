@@ -321,7 +321,7 @@ class TicketService:
             raise
 
     @staticmethod
-    def update_ticket_meta(ticket_id, title, priority, author_name, author_id):
+    def update_ticket_meta(ticket_id, title, priority, author_name, author_id, due_date=None):
         """Update ticket title and priority with system event log."""
         from models import Ticket, Comment
         try:
@@ -331,10 +331,12 @@ class TicketService:
 
             old_title = ticket.title
             old_prio = ticket.priority
+            old_due = ticket.due_date
             
             # Update fields
             ticket.title = title
             ticket.priority = int(priority)
+            ticket.due_date = due_date
             ticket.updated_at = datetime.now(timezone.utc)
             
             # Log changes
@@ -343,6 +345,10 @@ class TicketService:
                 changes.append(f"Titel: '{old_title}' -> '{title}'")
             if int(old_prio) != int(priority):
                 changes.append(f"Priorität: {old_prio} -> {priority}")
+            
+            if old_due != due_date:
+                fmt = lambda d: d.strftime('%d.%m.%Y') if d else 'Keines'
+                changes.append(f"Fälligkeit: {fmt(old_due)} -> {fmt(due_date)}")
                 
             if changes:
                 comment = Comment(

@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.6.1] - 2026-03-22
+### Fixed (Regressions from 1.6.0)
+- **Attachments:** Behobener Endpunkt für Ticket-Anhänge; Fotos sind nun wieder in allen Ansichten sichtbar.
+- **Interaktivität:** Login-Chips (Mitarbeiternamen) sind nun durch robuste JavaScript-Eventlistener browserübergreifend funktionsfähig.
+- **Shortcuts:** Die Kommentar-Schnellauswahl befüllt nun zuverlässig das Textfeld.
+- **Security:** "Unerwarteter Fehler" bei der Generierung von Notfall-Codes durch Implementierung des fehlenden `SystemService` behoben.
+
+### Added (Features & UX)
+- **Deadline Edit:** Das "Zu bearbeiten bis"-Datum kann nun direkt in der Ticket-Detailansicht bearbeitet werden.
+- **Dashboard UI:** Dynamisches Layout und verbesserte Beschriftung bei aktivem "Mir zugewiesen" Filter. Redundante Seitenleisten werden nun ausgeblendet.
+
+
 ## [1.6.0] - 2026-03-22
 ### Added (UX & Features)
 - **Public Status:** Neue Status-Seite unter `/ticket/<id>/public` ermöglicht Einsicht ohne Login (Aussprache: "Anonymer Pfad").

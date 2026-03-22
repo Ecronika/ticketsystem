@@ -1,5 +1,20 @@
-{% extends "base.html" %}
 {% block title %}Login{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const workerNameInput = document.getElementById('worker_name');
+    const pinInput = document.getElementById('pin');
+    
+    document.querySelectorAll('.worker-chip').forEach(chip => {
+        chip.addEventListener('click', function() {
+            workerNameInput.value = this.dataset.name;
+            pinInput.focus();
+        });
+    });
+});
+</script>
+{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center mt-5">
@@ -21,8 +36,8 @@
                         <input type="text" class="form-control form-control-lg bg-light" id="worker_name" name="worker_name" required autofocus autocomplete="username" placeholder="z.B. Schmidt">
                         <div class="d-flex flex-wrap gap-2 mt-2">
                             {% for worker in workers %}
-                            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill py-1 px-3 bg-white shadow-sm"
-                                    onclick="document.getElementById('worker_name').value='{{ worker.name }}'; document.getElementById('pin').focus();">
+                            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill py-1 px-3 bg-white shadow-sm worker-chip"
+                                    data-name="{{ worker.name }}">
                                 <i class="bi bi-person me-1"></i>{{ worker.name }}
                             </button>
                             {% endfor %}

@@ -126,12 +126,19 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 
     <!-- Focus Box (High Priority / Unassigned) -->
-    <div class="col-lg-8">
+    <div class="{{ 'col-12' if assigned_to_me else 'col-lg-8' }}">
         <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden">
             <div class="card-header border-0 py-3 px-4 d-flex justify-content-between align-items-center">
                 <div class="d-flex flex-column">
-                    <h3 class="h5 fw-bold mb-0"><i class="bi bi-fire text-danger me-2"></i> Alle offenen Tickets</h3>
+                    <h3 class="h5 fw-bold mb-0">
+                        <i class="bi {{ 'bi-person-check-fill text-primary' if assigned_to_me else 'bi-fire text-danger' }} me-2"></i> 
+                        {{ 'Mir zugewiesen' if assigned_to_me else 'Alle offenen Tickets' }}
+                    </h3>
+                    {% if assigned_to_me %}
+                    <a href="{{ ingress_path }}{{ url_for('main.index') }}" class="x-small text-muted mt-1 ps-4"><i class="bi bi-x-circle me-1"></i> Filter aufheben / Alle anzeigen</a>
+                    {% else %}
                     <small class="text-muted x-small mt-1 ps-4">↑ Sortiert nach Priorität</small>
+                    {% endif %}
                 </div>
                 {% set has_high_prio = focus_tickets|selectattr('priority', 'equalto', 1)|list|length > 0 %}
                 <span class="badge badge-subtle-{{ 'danger' if has_high_prio else 'secondary' }} rounded-pill px-3">{{ pagination.total }}</span>
@@ -172,11 +179,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     {% else %}
                     <li class="list-group-item border-0 py-5 text-center text-muted">
                         <i class="bi bi-ticket-perforated display-4 mb-2 opacity-25"></i>
-                        <p class="h6 fw-bold text-secondary">Noch keine offenen Tickets.</p>
-                        <p class="small opacity-75 mb-3">Das System ist bereit – melden Sie das erste Problem.</p>
+                        <p class="h6 fw-bold text-secondary">Keine Tickets gefunden.</p>
+                        <p class="small opacity-75 mb-3">{{ 'Sie haben aktuell keine zugewiesenen Tickets.' if assigned_to_me else 'Das System ist bereit – melden Sie das erste Problem.' }}</p>
+                        {% if not assigned_to_me %}
                         <a href="{{ ingress_path }}{{ url_for('main.ticket_new') }}" class="btn btn-primary rounded-pill px-4 shadow-sm">
                             <i class="bi bi-plus-circle me-2"></i>Erstes Ticket melden
                         </a>
+                        {% endif %}
                     </li>
                     {% endfor %}
                 </ul>
@@ -186,19 +195,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 <nav aria-label="Ticket pagination">
                     <ul class="pagination pagination-sm mb-0">
                         <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
-                            <a class="page-link rounded-start-pill px-3" href="{{ ingress_path }}{{ url_for('main.index', page=pagination.prev_num, q=query, status=current_status) }}">Vorherige</a>
+                            <a class="page-link rounded-start-pill px-3" href="{{ ingress_path }}{{ url_for('main.index', page=pagination.prev_num, q=query, status=current_status, assigned_to_me=(1 if assigned_to_me else None)) }}">Vorherige</a>
                         </li>
                         {% for p in pagination.iter_pages() %}
                             {% if p %}
                                 <li class="page-item {{ 'active' if p == pagination.page }}">
-                                    <a class="page-link" href="{{ ingress_path }}{{ url_for('main.index', page=p, q=query, status=current_status) }}">{{ p }}</a>
+                                    <a class="page-link" href="{{ ingress_path }}{{ url_for('main.index', page=p, q=query, status=current_status, assigned_to_me=(1 if assigned_to_me else None)) }}">{{ p }}</a>
                                 </li>
                             {% else %}
                                 <li class="page-item disabled"><span class="page-link">...</span></li>
                             {% endif %}
                         {% endfor %}
                         <li class="page-item {{ 'disabled' if not pagination.has_next }}">
-                            <a class="page-link rounded-end-pill px-3" href="{{ ingress_path }}{{ url_for('main.index', page=pagination.next_num, q=query, status=current_status) }}">Nächste</a>
+                            <a class="page-link rounded-end-pill px-3" href="{{ ingress_path }}{{ url_for('main.index', page=pagination.next_num, q=query, status=current_status, assigned_to_me=(1 if assigned_to_me else None)) }}">Nächste</a>
                         </li>
                     </ul>
                 </nav>
@@ -207,6 +216,7 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 
+    {% if not assigned_to_me %}
     <!-- Self Box (Assigned to Me / Restricted View) -->
     <div class="col-lg-4">
         <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden bg-surface-subtle">
@@ -257,5 +267,6 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         </div>
     </div>
+    {% endif %}
 </div>
 {% endblock %}

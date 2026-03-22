@@ -145,6 +145,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const editTitleInput = document.getElementById('editTitleInput');
     const editPrioritySelect = document.getElementById('editPrioritySelect');
+    const editDueDateInput = document.getElementById('editDueDateInput');
 
     if (editBtn && saveBtn && cancelEditBtn) {
         editBtn.addEventListener('click', () => {
@@ -165,6 +166,7 @@ document.addEventListener('DOMContentLoaded', function() {
         saveBtn.addEventListener('click', async () => {
             const newTitle = editTitleInput.value.trim();
             const newPrio = editPrioritySelect.value;
+            const newDue = editDueDateInput ? editDueDateInput.value : null;
 
             if (!newTitle) {
                 window.showUiAlert('Titel darf nicht leer sein.');
@@ -181,7 +183,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': csrfToken
                     },
-                    body: JSON.stringify({ title: newTitle, priority: newPrio })
+                    body: JSON.stringify({ 
+                        title: newTitle, 
+                        priority: newPrio,
+                        due_date: newDue 
+                    })
                 });
                 const data = await response.json();
                 if (data.success) {
@@ -198,18 +204,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         prioContainer.className = `badge bg-${classMap[newPrio]}-subtle text-${classMap[newPrio]} rounded-pill px-3 py-2`;
                     }
 
-                    headerStatic.classList.remove('d-none');
-                    headerEdit.classList.add('d-none');
-                    priorityStatic.classList.remove('d-none');
-                    priorityEdit.classList.add('d-none');
-                    
-                    window.showUiAlert('Ticket-Details aktualisiert.', 'success');
+                    // Reload page to reflect all changes (especially if due date changed and affects badge elsewhere)
+                    // Or more elegantly update the local view. Given the complexity of date formatting, a reload is robust or we just show a success message.
+                    window.location.reload(); 
                 } else {
                     window.showUiAlert('Fehler: ' + data.error);
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Speichern';
                 }
             } catch (err) {
                 window.showUiAlert('Netzwerkfehler beim Speichern.');
-            } finally {
                 saveBtn.disabled = false;
                 saveBtn.textContent = 'Speichern';
             }

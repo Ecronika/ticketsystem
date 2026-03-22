@@ -21,10 +21,13 @@
                     </div>
 
                     <!-- Edit Mode Content (UX-5 / Feature) -->
-                    <div id="ticketHeaderEdit" class="d-none w-100">
                         <div class="mb-3">
                             <label class="form-label small fw-bold">Titel</label>
                             <input type="text" id="editTitleInput" class="form-control fw-bold h4 border-primary" value="{{ ticket.title }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Zu bearbeiten bis (Deadline)</label>
+                            <input type="date" id="editDueDateInput" class="form-control" value="{{ ticket.due_date.strftime('%Y-%m-%d') if ticket.due_date else '' }}">
                         </div>
                         <div class="d-flex gap-2">
                             <button type="button" class="btn btn-primary rounded-pill px-4" id="saveTicketBtn">Speichern</button>
@@ -126,13 +129,13 @@
                                 {% set wait_shortcuts = ['Wartet auf: Lieferung', 'Wartet auf: Rückruf', 'Wartet auf: Rückmeldung'] %}
                                 {% for shortcut in basic_shortcuts %}
                                 <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill py-1 px-3 shortcut-btn" 
-                                        onclick="document.querySelectorAll('.shortcut-btn').forEach(b => b.classList.remove('btn-secondary', 'active')); this.classList.add('btn-secondary', 'active'); this.form.text.value = '{{ shortcut }}'; this.form.text.focus();">
+                                        onclick="document.querySelectorAll('.shortcut-btn').forEach(b => b.classList.remove('btn-secondary', 'active')); this.classList.add('btn-secondary', 'active'); document.getElementById('commentForm').text.value = '{{ shortcut }}'; document.getElementById('commentForm').text.focus();">
                                     <i class="bi bi-lightning-charge-fill x-small text-warning"></i> {{ shortcut }}
                                 </button>
                                 {% endfor %}
                                 {% for shortcut in wait_shortcuts %}
                                 <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill py-1 px-3 shortcut-btn" 
-                                        onclick="document.querySelectorAll('.shortcut-btn').forEach(b => b.classList.remove('btn-secondary', 'active')); this.classList.add('btn-secondary', 'active'); this.form.text.value = '{{ shortcut }}'; this.form.text.focus();">
+                                        onclick="document.querySelectorAll('.shortcut-btn').forEach(b => b.classList.remove('btn-secondary', 'active')); this.classList.add('btn-secondary', 'active'); document.getElementById('commentForm').text.value = '{{ shortcut }}'; document.getElementById('commentForm').text.focus();">
                                     <i class="bi bi-hourglass-split x-small text-secondary"></i> {{ shortcut|replace('Wartet auf: ', '⏳ ') }}
                                 </button>
                                 {% endfor %}
