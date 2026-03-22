@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.1] - 2026-03-22
+### Fixed
+- **Ticket-Detail Layout:** HTML-Struktur korrigiert (Spaltenzuordnung), um Layout-Kollaps und falsches "Sticky"-Verhalten des Kommentar-Formulars zu verhindern.
+- **Verlauf-Visibilität:** System-Events (Timeline-Stil) und menschliche Kommentare (Chat-Bubbles) sind nun visuell klar voneinander getrennt.
+- **Sidebar-UX:** Status-Anzeige in der Management-Sidebar dezentralisiert und neutraler gestaltet.
+- **Archiv-Accessibility:** Beschriftung der Datumsfilter für Screenreader und Nutzerführung verbessert.
+
+
 ## [1.7.0] - 2026-03-22
 ### Added
 - **Interaktives Dashboard:** Status-Tiles ("Offen", "In Arbeit", "Wartet") sind nun klickbar und filtern die Ticketliste sofort nach dem entsprechenden Status.

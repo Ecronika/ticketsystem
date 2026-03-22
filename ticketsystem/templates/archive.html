@@ -23,8 +23,14 @@
                 <input type="text" name="author" class="form-control border-0 bg-surface-subtle rounded-3 small" placeholder="Autor..." value="{{ author }}">
             </div>
             <div class="col-md-5 col-lg-3 d-flex gap-2">
-                <input type="date" name="start_date" class="form-control border-0 bg-surface-subtle rounded-3 small" value="{{ start_date }}" title="Von">
-                <input type="date" name="end_date" class="form-control border-0 bg-surface-subtle rounded-3 small" value="{{ end_date }}" title="Bis">
+                <div class="flex-grow-1">
+                    <label class="x-small text-muted mb-1 d-block ms-1">Von</label>
+                    <input type="date" name="start_date" class="form-control border-0 bg-surface-subtle rounded-3 small py-1" value="{{ start_date }}">
+                </div>
+                <div class="flex-grow-1">
+                    <label class="x-small text-muted mb-1 d-block ms-1">Bis</label>
+                    <input type="date" name="end_date" class="form-control border-0 bg-surface-subtle rounded-3 small py-1" value="{{ end_date }}">
+                </div>
             </div>
             <div class="col-md-12 col-lg-2 d-grid">
                 <button type="submit" class="btn btn-secondary rounded-pill px-3">Suchen</button>

@@ -77,27 +77,35 @@
             </div>
             {% endif %}
         </div>
-    </div>
 
-        <!-- Comment History -->
         <h3 class="h5 fw-bold mb-3 px-2"><i class="bi bi-chat-left-text me-2"></i> Verlauf</h3>
-        <div class="comment-history mb-5">
+        <div class="comment-history mb-4 px-2">
             {% for comment in ticket.comments|sort(attribute='created_at') %}
             {% if comment.is_system_event %}
-            <div class="d-flex align-items-center gap-2 py-2 px-3 text-muted x-small border-start border-2 border-secondary-subtle ms-3 my-1 animate__animated animate__fadeIn">
-                <i class="bi bi-arrow-right-circle-fill text-secondary-emphasis" aria-hidden="true"></i>
-                <span>{{ comment.text }}</span>
-                <span class="ms-auto text-meta">{{ comment.created_at|local_time|datetime('%d.%m. %H:%M') }}</span>
+            <!-- System-Event: Timeline-Stil -->
+            <div class="d-flex align-items-center gap-3 py-1 my-1 px-2 text-muted x-small animate__animated animate__fadeIn">
+                <div class="flex-shrink-0 rounded-circle bg-surface-subtle border d-flex align-items-center justify-content-center" 
+                     style="width: 24px; height: 24px;">
+                    <i class="bi bi-arrow-right fs-6 opacity-50" aria-hidden="true"></i>
+                </div>
+                <span class="flex-grow-1 fst-italic">{{ comment.text }}</span>
+                <span class="text-meta ms-auto text-nowrap">{{ comment.created_at|local_time|datetime('%d.%m. %H:%M') }}</span>
             </div>
             {% else %}
-            <div class="card border-0 shadow-sm rounded-4 mb-3 {{ 'ms-auto bg-primary-subtle border-primary-subtle' if comment.author == session.get('worker_name') else 'me-auto' }}" 
-                 style="max-width: 85%;">
-                <div class="card-body py-2 px-3">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="fw-bold small text-primary">{{ comment.author }}</span>
-                        <span class="text-meta x-small">{{ comment.created_at|local_time|datetime('%d.%m. %H:%M') }}</span>
+            <!-- Echter Kommentar: Chat-Bubble -->
+            <div class="d-flex gap-3 mb-3 {{ 'flex-row-reverse' if comment.author == session.get('worker_name') else '' }} animate__animated animate__fadeIn">
+                <div class="flex-shrink-0 rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center fw-bold shadow-sm"
+                     style="width: 36px; height: 36px; font-size: 13px;">
+                    {{ comment.author[0]|upper }}
+                </div>
+                <div class="flex-grow-1" style="max-width: 85%;">
+                    <div class="card border-0 rounded-3 shadow-sm p-3 {{ 'bg-primary-subtle border-primary-subtle' if comment.author == session.get('worker_name') else 'bg-surface' }}">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="fw-semibold small {{ 'text-primary' if comment.author != session.get('worker_name') else '' }}">{{ comment.author }}</span>
+                            <span class="text-meta x-small">{{ comment.created_at|local_time|datetime('%d.%m. %H:%M') }}</span>
+                        </div>
+                        <p class="mb-0 small" style="white-space: pre-wrap;">{{ comment.text }}</p>
                     </div>
-                    <p class="mb-0 small">{{ comment.text }}</p>
                 </div>
             </div>
             {% endif %}
@@ -148,6 +156,7 @@
                 </form>
             </div>
         </div>
+        </div>
     </div>
 
     <!-- Sidebar: Status & Info -->
@@ -180,9 +189,14 @@
                     </select>
                 </div>
 
-                <div class="mb-2">
-                    <small class="text-muted d-block mb-1">Aktuell zugewiesen:</small>
-                    <span id="ticketAssigneeBadge" class="fw-bold text-primary">{{ ticket.assigned_to.name|upper if ticket.assigned_to_id else 'NICHT ZUGEWIESEN' }}</span>
+                <div class="mb-3 px-1">
+                    <small class="text-muted d-block mb-1 x-small text-uppercase ls-wide">Aktuelle Zuweisung</small>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="rounded-circle {{ 'bg-primary' if ticket.assigned_to_id else 'bg-secondary' }} opacity-75" style="width: 8px; height: 8px;"></div>
+                        <span id="ticketAssigneeBadge" class="small fw-semibold {{ 'text-dark' if ticket.assigned_to_id else 'text-muted' }} d-block">
+                            {{ ticket.assigned_to.name|upper if ticket.assigned_to_id else 'NOCH NICHT ZUGEWIESEN' }}
+                        </span>
+                    </div>
                 </div>
 
                 <hr class="text-muted opacity-25">
