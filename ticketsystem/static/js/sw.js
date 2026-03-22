@@ -1,8 +1,8 @@
-const CACHE_NAME = 'ticketsystem-v1';
+const CACHE_NAME = 'ticketsystem-v1.6.0';
 const ASSETS = [
   '/',
   '/static/css/style.css',
-  '/static/js/main.js'
+  '/static/js/base_ui.js'
 ];
 
 self.addEventListener('install', event => {

@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.6.0] - 2026-03-22
+### Added (UX & Features)
+- **Public Status:** Neue Status-Seite unter `/ticket/<id>/public` ermöglicht Einsicht ohne Login (Aussprache: "Anonymer Pfad").
+- **Edit Feature:** Mitarbeiter können nun Titel und Priorität von Tickets direkt in der Detailansicht bearbeiten.
+- **Bento Dashboard:** Neue Zusammenfassungs-Kacheln ("Offen", "In Arbeit", "Wartet") für schnellen Überblick.
+- **Quick Jump:** Suchen nach `#ID` (z.B. `#42`) führt direkt zum entsprechenden Ticket.
+- **Empfty State:** Verbesserte Hilfestellung und "Erstes Ticket"-Button für leere Dashboards.
+
+### Fixed (P0-P1 Bugs)
+- **PWA:** Service Worker Asset-Liste korrigiert – "Add to Home Screen" funktioniert nun wieder.
+- **Logic:** Bestätigungsbanner (`?created=1`) sind nun idempotent und URL-basiert.
+- **Security:** CSRF-Schutz für Ticket-Bestätigungen durch Idempotenz verbessert.
+- **Templates:** Jinja2-Template-Vererbung in `ticket_new.html` korrigiert.
+- **Feedback:** Flash-Meldungen unterstützen nun korrektes HTML (z.B. für Links).
+
+### Accessibility (WCAG 2.2 AA)
+- **Kontrast:** Manuelle Rekalibrierung der Kontraste für "Subtle Badges" und Warnmeldungen (A-2).
+- **Navigation:** ARIA-Labels für Breadcrumbs, Pagination und Navbars ergänzt.
+- **Touch Targets:** Minimale Klickgröße von 44x44px für Alert-Schließen-Buttons implementiert (Apple/WCAG).
+- **Focus:** Automatischer Fokus auf Aktions-Buttons in Bestätigungsdialogen (A-3).
+- **Semantik:** Korrekte Listen-Rollen (`role="list"`) für Dashboard-Einträge.
+
+---
+
 ## [1.5.2] - 2026-03-22
 ### Fixed
 - **Datenbank:** Formale Alembic-Migration für das in v1.5.1 eingeführte Feld `last_active` hinzugefügt, um Abstürze beim Start zu verhindern.

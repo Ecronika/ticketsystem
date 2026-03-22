@@ -262,10 +262,17 @@ class TicketService:
             self_total = self_query.count()
             self_tickets = self_query.order_by(Ticket.updated_at.desc()).limit(5).all()
 
+        summary_counts = {
+            'offen': Ticket.query.filter_by(is_deleted=False, status=TicketStatus.OFFEN.value).count(),
+            'in_bearbeitung': Ticket.query.filter_by(is_deleted=False, status=TicketStatus.IN_BEARBEITUNG.value).count(),
+            'wartet': Ticket.query.filter_by(is_deleted=False, status=TicketStatus.WARTET.value).count(),
+        }
+
         return {
             'focus_pagination': focus_pagination,
             'self': self_tickets,
-            'self_total': self_total
+            'self_total': self_total,
+            'summary_counts': summary_counts
         }
 
     @staticmethod

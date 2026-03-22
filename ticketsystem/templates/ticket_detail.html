@@ -10,46 +10,71 @@
         <div class="card shadow-sm border-0 rounded-4 mb-4">
             <div class="card-body p-4">
                 <div class="d-flex justify-content-between align-items-start mb-3">
-                    <div>
-                        <a href="{{ ingress_path }}{{ url_for('main.index') }}" class="btn btn-light btn-sm rounded-pill px-3 me-2 mb-2">
-                            <i class="bi bi-chevron-left me-1"></i> Dashboard
-                        </a>
-                        <h1 class="h3 fw-bold mb-1">{{ ticket.title }}</h1>
+                    <div id="ticketHeaderStatic">
+                        <div class="d-flex align-items-center mb-1">
+                            <h1 class="h3 fw-bold mb-0 me-3" id="staticTitle">{{ ticket.title }}</h1>
+                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill border-0 px-2" id="editTicketBtn" aria-label="Ticket bearbeiten">
+                                <i class="bi bi-pencil-square"></i> Bearbeiten
+                            </button>
+                        </div>
                         <p class="text-meta small mb-0">Ticket #{{ ticket.id }} • Erstellt am {{ ticket.created_at|local_time|datetime }}</p>
                     </div>
-                    <div class="d-flex flex-column align-items-end gap-2">
-                        <span class="badge bg-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }}-subtle text-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} rounded-pill px-3 py-2">
-                            Priorität: {{ ticket.priority|priority_label }}
-                        </span>
-                        <span id="ticketStatusBadge" class="badge-subtle-{{ 'danger' if ticket.status == 'offen' else 'warning' if ticket.status == 'in_bearbeitung' else 'secondary' if ticket.status == 'wartet' else 'success' }} rounded-pill px-3 py-1 small fw-bold">
-                            {{ ticket.status|status_label|upper }}
-                        </span>
-                    </div>
-                </div>
 
-                <div class="bg-surface-subtle p-3 rounded-3 mb-2 border">
-                    <p class="mb-0" style="white-space: pre-wrap;">{{ ticket.description or 'Keine Beschreibung.' }}</p>
-                </div>
-
-                {% if ticket.attachments %}
-                <div class="mt-4">
-                    <h4 class="h6 fw-bold mb-3"><i class="bi bi-paperclip me-2"></i>Anhänge</h4>
-                    <div class="row g-2">
-                        {% for attachment in ticket.attachments %}
-                        <div class="col-6 col-md-4 col-lg-3">
-                            <a href="{{ ingress_path }}{{ url_for('main.serve_attachment', attachment_id=attachment.id) }}" target="_blank">
-                                <img src="{{ ingress_path }}{{ url_for('main.serve_attachment', attachment_id=attachment.id) }}" 
-                                     class="img-fluid rounded-3 shadow-sm border" 
-                                     alt="Anhang {{ loop.index }}"
-                                     loading="lazy">
-                            </a>
+                    <!-- Edit Mode Content (UX-5 / Feature) -->
+                    <div id="ticketHeaderEdit" class="d-none w-100">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Titel</label>
+                            <input type="text" id="editTitleInput" class="form-control fw-bold h4 border-primary" value="{{ ticket.title }}">
                         </div>
-                        {% endfor %}
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-primary rounded-pill px-4" id="saveTicketBtn">Speichern</button>
+                            <button type="button" class="btn btn-light rounded-pill px-4" id="cancelEditBtn">Abbrechen</button>
+                        </div>
                     </div>
                 </div>
-                {% endif %}
+
+                <div class="d-flex flex-column align-items-end gap-2" id="priorityBadgeWrapper">
+                    <div id="priorityStatic">
+                        <span class="badge bg-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }}-subtle text-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} rounded-pill px-3 py-2">
+                             {{ ticket.priority|priority_label }}
+                        </span>
+                    </div>
+                    <div id="priorityEdit" class="d-none">
+                        <select id="editPrioritySelect" class="form-select form-select-sm rounded-pill fw-bold">
+                            <option value="1" {{ 'selected' if ticket.priority == 1 }}>🔥 HOCH</option>
+                            <option value="2" {{ 'selected' if ticket.priority == 2 }}>⚡ MITTEL</option>
+                            <option value="3" {{ 'selected' if ticket.priority == 3 }}>✅ NIEDRIG</option>
+                        </select>
+                    </div>
+                    <span id="ticketStatusBadge" class="badge-subtle-{{ 'danger' if ticket.status == 'offen' else 'warning' if ticket.status == 'in_bearbeitung' else 'secondary' if ticket.status == 'wartet' else 'success' }} rounded-pill px-3 py-1 small fw-bold">
+                        {{ ticket.status|status_label|upper }}
+                    </span>
+                </div>
             </div>
+
+            <div class="bg-surface-subtle p-3 rounded-3 mb-2 border">
+                <p class="mb-0" style="white-space: pre-wrap;">{{ ticket.description or 'Keine Beschreibung.' }}</p>
+            </div>
+
+            {% if ticket.attachments %}
+            <div class="mt-4">
+                <h4 class="h6 fw-bold mb-3"><i class="bi bi-paperclip me-2"></i>Anhänge</h4>
+                <div class="row g-2">
+                    {% for attachment in ticket.attachments %}
+                    <div class="col-6 col-md-4 col-lg-3">
+                        <a href="{{ ingress_path }}{{ url_for('main.serve_attachment', attachment_id=attachment.id) }}" target="_blank">
+                            <img src="{{ ingress_path }}{{ url_for('main.serve_attachment', attachment_id=attachment.id) }}" 
+                                 class="img-fluid rounded-3 shadow-sm border" 
+                                 alt="Anhang zu Ticket #{{ ticket.id }} (Bild {{ loop.index }})"
+                                 loading="lazy">
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </div>
+    </div>
 
         <!-- Comment History -->
         <h3 class="h5 fw-bold mb-3 px-2"><i class="bi bi-chat-left-text me-2"></i> Verlauf</h3>

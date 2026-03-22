@@ -61,6 +61,8 @@
             confirmBtn?.addEventListener('click', handleConfirm);
             modalEl.addEventListener('hidden.bs.modal', handleCancel);
             bsModal.show();
+            // P1-4 (v1.6.0): Focus the action button for WCAG 2.4.3
+            setTimeout(() => confirmBtn?.focus(), 150);
         });
     };
 

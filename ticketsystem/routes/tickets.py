@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
 from flask import flash, redirect, render_template, request, session, url_for, jsonify, send_from_directory, current_app
+from markupsafe import Markup
 from extensions import limiter, db
 from services.ticket_service import TicketService
 from enums import TicketStatus, TicketPriority
@@ -15,6 +16,10 @@ def _dashboard_view():
     page = request.args.get('page', 1, type=int)
     assigned_to_me = request.args.get('assigned_to_me') == '1'
     unassigned_only = request.args.get('unassigned') == '1'
+    
+    # Feature: Direct jump via #ID
+    if search.startswith('#') and search[1:].isdigit():
+        return redirect_to('main.ticket_detail', ticket_id=int(search[1:]))
 
     tickets_data = TicketService.get_dashboard_tickets(
         worker_id=worker_id,
@@ -31,6 +36,7 @@ def _dashboard_view():
                           focus_tickets=tickets_data['focus_pagination'].items,
                           self_tickets=tickets_data['self'],
                           self_total=tickets_data['self_total'],
+                          summary_counts=tickets_data['summary_counts'],
                           query=search,
                           current_status=status_filter,
                           assigned_to_me=assigned_to_me,
@@ -96,7 +102,7 @@ def _new_ticket_view():
             if not session.get('worker_id'):
                 return redirect_to('main.ticket_new', created=ticket.id)
             
-            flash(f'Ticket #{ticket.id} erfolgreich erstellt!', 'success')
+            flash(Markup(f'Ticket {link_html} erfolgreich erstellt!'), 'success')
             return redirect_to('main.index')
         except Exception:
             flash('Fehler beim Erstellen des Tickets.', 'error')
@@ -114,6 +120,16 @@ def _ticket_detail_view(ticket_id):
     
     workers = Worker.query.filter_by(is_active=True).all()
     return render_template('ticket_detail.html', ticket=ticket, workers=workers)
+
+@limiter.limit("10 per minute")
+def _public_ticket_view(ticket_id):
+    """Public read-only status page (P0-1)."""
+    from models import Ticket
+    ticket = db.session.get(Ticket, ticket_id)
+    if not ticket:
+        return render_template('404.html'), 404
+        
+    return render_template('ticket_public.html', ticket=ticket)
 
 @worker_required
 def _add_comment_view(ticket_id):
@@ -222,3 +238,13 @@ def register_routes(bp):
 
     # Attachment Serving
     bp.add_url_rule('/attachment/<int:attachment_id>', 'serve_attachment', view_func=_serve_attachment)
+
+    # Public Read-Only Status Page (P0-1)
+    public_ticket_view = _public_ticket_view
+    public_ticket_view.__name__ = 'ticket_public'
+    bp.add_url_rule('/ticket/<int:ticket_id>/public', view_func=public_ticket_view)
+
+    # API: Update Ticket Meta (Feature)
+    update_ticket_api = _update_ticket_api
+    update_ticket_api.__name__ = 'update_ticket'
+    bp.add_url_rule('/api/ticket/<int:ticket_id>/update', view_func=update_ticket_api, methods=['POST'])

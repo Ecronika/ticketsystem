@@ -7,14 +7,14 @@
         <div class="card shadow-sm border-0 rounded-4">
             <div class="card-header bg-transparent border-0 pt-4 px-4">
                 <div class="d-flex align-items-center mb-2">
-                    <a href="{{ ingress_path }}{{ url_for('main.index') }}" class="btn btn-light btn-sm rounded-circle me-3">
+                    <a href="{{ ingress_path }}{{ url_for('main.index') }}" class="btn btn-light btn-sm rounded-circle me-3" aria-label="Zurück zum Dashboard">
                         <i class="bi bi-arrow-left"></i>
                     </a>
                     <h2 class="h4 fw-bold mb-0">Neues Ticket melden</h2>
                 </div>
                 <p class="text-muted small">Erstellen Sie ein neues Ticket für die Werkstatt oder das Büro.</p>
                 
-                {% set created_id = request.args.get('created') or session.get('last_created_ticket_id') %}
+                {% set created_id = request.args.get('created') %}
                 {% if created_id %}
                 <div class="alert alert-success border-0 shadow-sm rounded-3 py-3 mb-4 animate__animated animate__pulse">
                     <div class="d-flex align-items-center mb-1">
@@ -23,10 +23,13 @@
                     </div>
                     <p class="small mb-2">Ihr Anliegen wurde unter der Nummer <strong>#{{ created_id }}</strong> erfasst.</p>
                     <div class="d-flex gap-2">
+                        <a href="{{ url_for('main.ticket_public', ticket_id=created_id) }}" class="btn btn-sm btn-primary rounded-pill px-3">
+                            <i class="bi bi-eye me-1"></i> Status einsehen
+                        </a>
                         {% if session.get('worker_id') %}
-                        <a href="{{ ingress_path }}{{ url_for('main.index') }}" class="btn btn-sm btn-success rounded-pill px-3">Zum Dashboard</a>
+                        <a href="{{ ingress_path }}{{ url_for('main.index') }}" class="btn btn-sm btn-outline-success rounded-pill px-3">Dashboard</a>
                         {% endif %}
-                        <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3" onclick="this.closest('.alert').remove()">Schließen</button>
+                        <button type="button" class="btn btn-sm btn-link text-muted text-decoration-none ms-auto" onclick="this.closest('.alert').remove()">Schließen</button>
                     </div>
                 </div>
                 {% endif %}
@@ -37,7 +40,7 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                     
                     <div class="mb-3">
-                        <label for="author_name" class="form-label fw-bold">Dein Name <span class="text-danger" aria-hidden="true">*</span></label>
+                        <label for="author_name" class="form-label fw-bold">Ihr Name <span class="text-danger" aria-hidden="true">*</span></label>
                         <input type="text" class="form-control form-control-lg bg-light" id="author_name" name="author_name" 
                                value="{{ session.get('worker_name', '') }}" 
                                {% if session.get('worker_id') %}readonly{% endif %} 
@@ -82,7 +85,7 @@
                         <input type="hidden" name="image_base64" id="image-base64">
                         <div id="image-preview" class="mt-2 d-none">
                             <div class="position-relative d-inline-block">
-                                <img src="" class="img-thumbnail" style="max-height: 200px;">
+                                <img src="" class="img-thumbnail" style="max-height: 200px;" alt="Vorschau">
                                 <div id="image-upload-status" class="position-absolute top-50 start-50 translate-middle d-none">
                                     <div class="spinner-border text-primary" role="status"></div>
                                 </div>
@@ -97,7 +100,7 @@
                         <ul class="small text-muted mb-0 ps-3">
                             <li>Das Ticket erscheint sofort im <strong>Dashboard</strong>.</li>
                             <li>Zuständige Mitarbeiter werden über neue Tickets informiert.</li>
-                            <li>Sie können den Status jederzeit ohne Login einsehen.</li>
+                            <li>Geben Sie Ihre Ticketnummer <strong>#{{ created_id or '...' }}</strong> bei Rückfragen an den Teamleiter an.</li>
                         </ul>
                     </div>
 
@@ -111,6 +114,7 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
 {% block scripts %}
 <script>
@@ -185,5 +189,4 @@ document.addEventListener('DOMContentLoaded', function() {
     removeBtn.addEventListener('click', resetImage);
 });
 </script>
-{% endblock %}
 {% endblock %}

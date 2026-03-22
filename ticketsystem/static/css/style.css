@@ -895,3 +895,10 @@ textarea:focus-visible {
 .canvas-clear-flash {
     animation: canvas-flash 0.5s ease-out;
 }
+/* --- v1.6.0: WCAG 2.2 AA & Dashboard Scanning Fixes --- */
+.badge-subtle-warning { color: #856404 !important; }
+.badge-subtle-secondary { color: #4a5056 !important; }
+[data-theme=" dark\] .badge-subtle-secondary { color: #d0d0d0 !important; }
+.alert .btn-close { min-width: 44px; min-height: 44px; }
+.border-danger.border-3 { border-left-width: 6px !important; }
+stiky-top [tabindex], .sticky-top a, .sticky-top select, .sticky-top button { scroll-margin-top: 6rem; }

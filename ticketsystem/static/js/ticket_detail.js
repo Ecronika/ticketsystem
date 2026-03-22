@@ -132,4 +132,87 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // --- Ticket Basic Data Edit (Title, Priority) (UX-5 / Feature) ---
+    const editBtn = document.getElementById('editTicketBtn');
+    const saveBtn = document.getElementById('saveTicketBtn');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    
+    const headerStatic = document.getElementById('ticketHeaderStatic');
+    const headerEdit = document.getElementById('ticketHeaderEdit');
+    const priorityStatic = document.getElementById('priorityStatic');
+    const priorityEdit = document.getElementById('priorityEdit');
+
+    const editTitleInput = document.getElementById('editTitleInput');
+    const editPrioritySelect = document.getElementById('editPrioritySelect');
+
+    if (editBtn && saveBtn && cancelEditBtn) {
+        editBtn.addEventListener('click', () => {
+            headerStatic.classList.add('d-none');
+            headerEdit.classList.remove('d-none');
+            priorityStatic.classList.add('d-none');
+            priorityEdit.classList.remove('d-none');
+            editTitleInput.focus();
+        });
+
+        cancelEditBtn.addEventListener('click', () => {
+            headerStatic.classList.remove('d-none');
+            headerEdit.classList.add('d-none');
+            priorityStatic.classList.remove('d-none');
+            priorityEdit.classList.add('d-none');
+        });
+
+        saveBtn.addEventListener('click', async () => {
+            const newTitle = editTitleInput.value.trim();
+            const newPrio = editPrioritySelect.value;
+
+            if (!newTitle) {
+                window.showUiAlert('Titel darf nicht leer sein.');
+                return;
+            }
+
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Speichern...';
+
+            try {
+                const response = await fetch(`${getIngress()}/api/ticket/${ticketId}/update`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ title: newTitle, priority: newPrio })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    // Update UI
+                    document.getElementById('staticTitle').textContent = newTitle;
+                    
+                    // Priority Badge Update
+                    const prioContainer = priorityStatic.querySelector('.badge');
+                    const prioMap = { '1': 'HOCH', '2': 'MITTEL', '3': 'NIEDRIG' };
+                    const classMap = { '1': 'danger', '2': 'primary', '3': 'success' };
+                    
+                    if (prioContainer) {
+                        prioContainer.textContent = prioMap[newPrio];
+                        prioContainer.className = `badge bg-${classMap[newPrio]}-subtle text-${classMap[newPrio]} rounded-pill px-3 py-2`;
+                    }
+
+                    headerStatic.classList.remove('d-none');
+                    headerEdit.classList.add('d-none');
+                    priorityStatic.classList.remove('d-none');
+                    priorityEdit.classList.add('d-none');
+                    
+                    window.showUiAlert('Ticket-Details aktualisiert.', 'success');
+                } else {
+                    window.showUiAlert('Fehler: ' + data.error);
+                }
+            } catch (err) {
+                window.showUiAlert('Netzwerkfehler beim Speichern.');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Speichern';
+            }
+        });
+    }
 });

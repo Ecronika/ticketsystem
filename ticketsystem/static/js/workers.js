@@ -24,5 +24,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 editModal.show(this);
             });
         });
+        
+        document.querySelectorAll('.reset-pin-trigger').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const confirmed = await window.showConfirm(
+                    'PIN zurücksetzen?',
+                    'Möchten Sie den PIN wirklich auf 0000 zurücksetzen?',
+                    true
+                );
+                if (confirmed) {
+                    document.getElementById('reset_pin_form').submit();
+                }
+            });
+        });
     }
 });

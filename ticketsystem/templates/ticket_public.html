@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Status Ticket #{{ ticket.id }}{% endblock %}
+
+{% block content %}
+<div class="row g-4 d-flex justify-content-center">
+    <div class="col-lg-8">
+        <!-- Ticket Header Card -->
+        <div class="card shadow-sm border-0 rounded-4 mb-4">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h1 class="h3 fw-bold mb-1">{{ ticket.title }}</h1>
+                        <p class="text-meta small mb-0">Ticket #{{ ticket.id }} • Erstellt am {{ ticket.created_at|local_time|datetime }}</p>
+                    </div>
+                    <div class="d-flex flex-column align-items-end gap-2">
+                        <span class="badge-subtle-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} rounded-pill px-3 py-1 small fw-bold">
+                            {{ ticket.status|status_label|upper }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="bg-surface-subtle p-3 rounded-3 mb-2 border">
+                    <p class="mb-0" style="white-space: pre-wrap;">{{ ticket.description or 'Keine Beschreibung.' }}</p>
+                </div>
+
+                {% if ticket.attachments %}
+                <div class="mt-4">
+                    <h4 class="h6 fw-bold mb-3"><i class="bi bi-paperclip me-2"></i>Anhänge</h4>
+                    <div class="row g-2">
+                        {% for attachment in ticket.attachments %}
+                        <div class="col-6 col-md-4 col-lg-3">
+                            <img src="{{ ingress_path }}{{ url_for('main.serve_attachment', attachment_id=attachment.id) }}" 
+                                 class="img-fluid rounded-3 shadow-sm border" 
+                                 alt="Foto zu Ticket #{{ ticket.id }}, Anhang {{ loop.index }}"
+                                 loading="lazy"
+                                 decoding="async">
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Comment History -->
+        <h3 class="h5 fw-bold mb-3 px-2"><i class="bi bi-chat-left-text me-2"></i> Verlauf</h3>
+        <div class="comment-history mb-5">
+            {% for comment in ticket.comments|sort(attribute='created_at') %}
+            {% if comment.is_system_event %}
+            <div class="d-flex align-items-center gap-2 py-2 px-3 text-muted x-small border-start border-2 border-secondary-subtle ms-3 my-1">
+                <i class="bi bi-arrow-right-circle-fill text-secondary-emphasis" aria-hidden="true"></i>
+                <span>{{ comment.text }}</span>
+                <span class="ms-auto text-meta">{{ comment.created_at|local_time|datetime('%d.%m. %H:%M') }}</span>
+            </div>
+            {% else %}
+            <div class="card border-0 shadow-sm rounded-4 mb-3 me-auto" style="max-width: 85%;">
+                <div class="card-body py-2 px-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="fw-bold small text-primary">{{ comment.author }}</span>
+                        <span class="text-meta x-small">{{ comment.created_at|local_time|datetime('%d.%m. %H:%M') }}</span>
+                    </div>
+                    <p class="mb-0 small">{{ comment.text }}</p>
+                </div>
+            </div>
+            {% endif %}
+            {% else %}
+            <p class="text-center text-muted py-4">Noch keine Kommentare.</p>
+            {% endfor %}
+        </div>
+
+        <div class="text-center mt-5 mb-5 opacity-75">
+            <p class="small text-muted mb-3">Dies ist eine öffentlich einsehbare Status-Seite für Ticket #{{ ticket.id }}.</p>
+            <a href="{{ url_for('main.login') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-4">
+                <i class="bi bi-person-circle me-2"></i>Mitarbeiter-Login
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
