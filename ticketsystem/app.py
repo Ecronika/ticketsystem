@@ -409,11 +409,30 @@ def remove_session(_exception=None):
 
 @app.context_processor
 def inject_globals():
-    """Inject global variables into templates."""
-    from models import SystemSettings
+    """Inject global variables into templates (v1.11.0)."""
+    from models import SystemSettings, Ticket
+    from enums import TicketStatus
+    from flask import session
+    
+    urgent_count = 0
+    if session.get('worker_id'):
+        # Dringend: Überfällig oder heute fällig
+        now = datetime.now(timezone.utc).replace(tzinfo=None).date()
+        try:
+            urgent_count = Ticket.query.filter(
+                Ticket.assigned_to_id == session['worker_id'],
+                Ticket.is_deleted == False,
+                Ticket.status != TicketStatus.ERLEDIGT.value,
+                Ticket.due_date != None,
+                db.func.date(Ticket.due_date) <= now
+            ).count()
+        except Exception:
+            urgent_count = 0
+
     return {
         'ingress_path': request.headers.get('X-Ingress-Path', ''),
-        'system_settings': SystemSettings
+        'system_settings': SystemSettings,
+        'urgent_count': urgent_count
     }
 
 

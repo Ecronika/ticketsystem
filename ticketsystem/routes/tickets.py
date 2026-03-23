@@ -254,11 +254,66 @@ def _update_ticket_api(ticket_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@worker_required
+def _my_queue_view():
+    """Persönliche Aufgaben-Queue, gruppiert nach Dringlichkeit (v1.11.0)."""
+    from datetime import timedelta, datetime, timezone
+    from models import Ticket, TicketStatus
+    from services import TicketService
+    from flask import request, session, render_template
+    from extensions import db
+    
+    worker_id = session.get('worker_id')
+    days_horizon = request.args.get('days', 7, type=int)
+    
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    horizon = now + timedelta(days=days_horizon) if days_horizon > 0 else None
+    
+    query = Ticket.query.filter(
+        Ticket.assigned_to_id == worker_id,
+        Ticket.is_deleted == False,
+        Ticket.status != TicketStatus.ERLEDIGT.value
+    )
+    
+    if horizon:
+        # Überfällige IMMER + fällige inerhalb des Horizonts + ohne Datum
+        query = query.filter(
+            db.or_(
+                Ticket.due_date <= horizon,
+                Ticket.due_date == None
+            )
+        )
+    
+    tickets = query.all()
+    
+    # Sortieren nach Urgency Score
+    tickets.sort(key=lambda t: TicketService._urgency_score(t, now))
+    
+    # Gruppierung
+    groups = {
+        'overdue':    [t for t in tickets if t.due_date and t.due_date.date() < now.date()],
+        'today':      [t for t in tickets if t.due_date and t.due_date.date() == now.date()],
+        'this_week':  [t for t in tickets if t.due_date and 0 < (t.due_date.date() - now.date()).days <= 7],
+        'later':      [t for t in tickets if not t.due_date or (t.due_date and (t.due_date.date() - now.date()).days > 7)],
+    }
+    
+    urgent_count = len(groups['overdue']) + len(groups['today'])
+    
+    return render_template(
+        'my_queue.html',
+        groups=groups,
+        urgent_count=urgent_count,
+        days_horizon=days_horizon,
+        today=now
+    )
+
+
 def register_routes(bp):
     """Register ticket routes with explicit endpoints."""
     # Dashboards
     bp.add_url_rule('/', 'index', view_func=worker_required(_dashboard_view))
     bp.add_url_rule('/archive', 'archive', view_func=worker_required(_archive_view))
+    bp.add_url_rule('/my-queue', 'my_queue', view_func=worker_required(_my_queue_view))
 
     # Ticket creation & view
     bp.add_url_rule('/ticket/new', 'ticket_new', 

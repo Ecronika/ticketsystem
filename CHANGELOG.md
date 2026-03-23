@@ -1,5 +1,12 @@
 # Changelog
  
+## [1.11.0] - 2026-03-23
+### Added
+- **Feature: „Meine Aufgaben“**: Neues Dashboard speziell für Mitarbeiter, das Tickets nach Dringlichkeit (Überfällig, Heute, Diese Woche) gruppiert.
+- **Urgency Score**: Intelligente Sortierlogik im Backend, die Priorität und Fälligkeit kombiniert.
+- **Navbar-Badge**: Anzeige der Anzahl dringender Aufgaben direkt in der Navigation.
+- **Login-Redirect**: Mitarbeiter werden nach dem Login nun direkt zu ihrer persönlichen Aufgaben-Queue geleitet.
+
 ## [1.10.3] - 2026-03-23
 ### Fixed
 - **UI-Fix:** Das „Auge“ zum Anzeigen von PINs funktioniert nun auch mit der neuen restriktiven CSP (Umstellung von Inline-JS auf Event-Listener).
