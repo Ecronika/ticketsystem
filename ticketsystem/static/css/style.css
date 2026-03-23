@@ -842,3 +842,21 @@ textarea:focus-visible {
 .alert .btn-close { min-width: 44px; min-height: 44px; }
 .border-danger.border-3 { border-left-width: 6px !important; }
 stiky-top [tabindex], .sticky-top a, .sticky-top select, .sticky-top button { scroll-margin-top: 6rem; }
+
+/* v1.11.3: My Queue UI Enhancements */
+.hover-card {
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+    cursor: pointer;
+}
+@media (hover: hover) and (pointer: fine) {
+    .hover-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+        transform: translateY(-1px);
+    }
+}
+.truncate-1 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+}
