@@ -17,7 +17,13 @@
                                 <i class="bi bi-pencil-square me-1"></i> Bearbeiten
                             </button>
                         </div>
-                        <p class="text-meta small mb-0">Ticket #{{ ticket.id }} • Erstellt am {{ ticket.created_at|local_time|datetime }}</p>
+                        <p class="text-meta small mb-0">
+                            Ticket #{{ ticket.id }} 
+                            {% if ticket.order_reference %}
+                            • <span class="badge bg-light text-dark border"><i class="bi bi-hash me-1"></i>{{ ticket.order_reference }}</span>
+                            {% endif %}
+                            • Erstellt am {{ ticket.created_at|local_time|datetime }}
+                        </p>
                     </div>
 
                     <div id="ticketHeaderEdit" class="d-none flex-grow-1">
@@ -25,9 +31,20 @@
                             <label class="form-label small fw-bold">Titel</label>
                             <input type="text" id="editTitleInput" class="form-control fw-bold h4 border-primary" value="{{ ticket.title }}">
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold">Zu bearbeiten bis (Deadline)</label>
-                            <input type="date" id="editDueDateInput" class="form-control" value="{{ ticket.due_date.strftime('%Y-%m-%d') if ticket.due_date else '' }}">
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Kunden- / Auftragsnummer</label>
+                                <input type="text" id="editOrderRefInput" class="form-control" value="{{ ticket.order_reference or '' }}" placeholder="z.B. A-2024-123">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold">Zu bearbeiten bis (Deadline)</label>
+                                <input type="date" id="editDueDateInput" class="form-control" value="{{ ticket.due_date.strftime('%Y-%m-%d') if ticket.due_date else '' }}">
+                            </div>
+                        </div>
+                        <div class="mb-3 d-none" id="reminderDateWrapper">
+                            <label class="form-label small fw-bold text-primary"><i class="bi bi-alarm me-1"></i>Wiedervorlage am</label>
+                            <input type="date" id="editReminderDateInput" class="form-control border-primary" value="{{ ticket.reminder_date.strftime('%Y-%m-%d') if ticket.reminder_date else '' }}">
+                            <p class="x-small text-muted mt-1">Automatische Erinnerung im Dashboard für diesen Tag.</p>
                         </div>
                         <div class="d-flex gap-2">
                             <button type="button" class="btn btn-primary rounded-pill px-4" id="saveTicketBtn">Speichern</button>

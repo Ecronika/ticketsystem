@@ -8,6 +8,7 @@ from extensions import db
 from models import Ticket, Comment, Worker, Tag, Attachment
 from sqlalchemy.exc import SQLAlchemyError
 from enums import TicketStatus, TicketPriority
+from .email_service import EmailService
 
 class TicketService:
     """
@@ -51,7 +52,7 @@ class TicketService:
             return 300 + min(150, days_left) + prio * 10
 
     @staticmethod
-    def create_ticket(title, description=None, priority=TicketPriority.MITTEL, author_name="System", author_id=None, assigned_to_id=None, due_date=None, tags=None, image_base64=None):
+    def create_ticket(title, description=None, priority=TicketPriority.MITTEL, author_name="System", author_id=None, assigned_to_id=None, due_date=None, tags=None, image_base64=None, order_reference=None, reminder_date=None):
         """Create a new ticket and an initial comment."""
         try:
             ticket = Ticket(
@@ -60,7 +61,9 @@ class TicketService:
                 priority=int(priority.value if hasattr(priority, 'value') else priority),
                 status=TicketStatus.OFFEN.value,
                 assigned_to_id=assigned_to_id,
-                due_date=due_date
+                due_date=due_date,
+                order_reference=order_reference,
+                reminder_date=reminder_date
             )
             
             if tags:
@@ -317,7 +320,8 @@ class TicketService:
         if search:
             query = query.filter(
                 (Ticket.title.ilike(f"%{search}%")) | 
-                (Ticket.description.ilike(f"%{search}%"))
+                (Ticket.description.ilike(f"%{search}%")) |
+                (Ticket.order_reference.ilike(f"%{search}%"))
             )
         
         if status_filter:
@@ -401,6 +405,11 @@ class TicketService:
                 event_type='ASSIGNMENT'
             )
             db.session.add(comment)
+
+            # Task 2.3: Email notification for high-priority tickets
+            if ticket.priority == 1 and worker_id:
+                EmailService.send_notification(new_worker_name, ticket.id, ticket.priority)
+            
             db.session.commit()
             return ticket
         except Exception as e:
@@ -409,7 +418,7 @@ class TicketService:
             raise
 
     @staticmethod
-    def update_ticket_meta(ticket_id, title, priority, author_name, author_id, due_date=None):
+    def update_ticket_meta(ticket_id, title, priority, author_name, author_id, due_date=None, order_reference=None, reminder_date=None):
         """Update ticket title and priority with system event log."""
         try:
             ticket = db.session.get(Ticket, ticket_id)
@@ -419,12 +428,16 @@ class TicketService:
             old_title = ticket.title
             old_prio = ticket.priority
             old_due = ticket.due_date
+            old_order_ref = ticket.order_reference
+            old_reminder = ticket.reminder_date
             
             # Update fields
             ticket.title = title
             if priority is not None:
                 ticket.priority = int(priority)
             ticket.due_date = due_date
+            ticket.order_reference = order_reference
+            ticket.reminder_date = reminder_date
             ticket.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
             
             # Log changes
@@ -437,6 +450,13 @@ class TicketService:
             if old_due != due_date:
                 fmt = lambda d: d.strftime('%d.%m.%Y') if d else 'Keines'
                 changes.append(f"Fälligkeit: {fmt(old_due)} -> {fmt(due_date)}")
+            
+            if old_order_ref != order_reference:
+                changes.append(f"Auftragsreferenz: '{old_order_ref or 'Keine'}' -> '{order_reference or 'Keine'}'")
+            
+            if old_reminder != reminder_date:
+                fmt = lambda d: d.strftime('%d.%m.%Y') if d else 'Keine'
+                changes.append(f"Wiedervorlage: {fmt(old_reminder)} -> {fmt(reminder_date)}")
                 
             if changes:
                 comment = Comment(

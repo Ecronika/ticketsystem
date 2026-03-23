@@ -91,6 +91,7 @@ def _new_ticket_view():
         author_name = request.form.get('author_name') or "Anonym"
         image_base64 = request.form.get('image_base64')
         due_date_str = request.form.get('due_date')
+        order_reference = request.form.get('order_reference')
         
         # v1.12.0: Zuweisungs-Logik
         assigned_to_id_raw = request.form.get('assigned_to_id')
@@ -124,7 +125,8 @@ def _new_ticket_view():
                 author_id=session.get('worker_id'),
                 image_base64=image_base64,
                 due_date=due_date,
-                assigned_to_id=assigned_to_id
+                assigned_to_id=assigned_to_id,
+                order_reference=order_reference
             )
             session['last_created_ticket_id'] = ticket.id
             ticket_url = f"{request.headers.get('X-Ingress-Path', '')}{url_for('main.ticket_detail', ticket_id=ticket.id)}"
@@ -241,6 +243,8 @@ def _update_ticket_api(ticket_id):
     new_title = data.get('title')
     new_prio = data.get('priority')
     new_due_str = data.get('due_date')
+    order_reference = data.get('order_reference')
+    reminder_date_str = data.get('reminder_date')
     author_name = session.get('worker_name', 'System')
     
     if not new_title:
@@ -253,11 +257,21 @@ def _update_ticket_api(ticket_id):
         except (ValueError, TypeError):
             due_date = None
 
+    reminder_date = None
+    if reminder_date_str:
+        try:
+            reminder_date = datetime.fromisoformat(reminder_date_str.split('T')[0])
+        except (ValueError, TypeError):
+            reminder_date = None
+
     if new_prio is None:
         return jsonify({'success': False, 'error': 'Priorität fehlt'}), 400
 
     try:
-        TicketService.update_ticket_meta(ticket_id, new_title, new_prio, author_name, session.get('worker_id'), due_date)
+        TicketService.update_ticket_meta(
+            ticket_id, new_title, new_prio, author_name, session.get('worker_id'), 
+            due_date=due_date, order_reference=order_reference, reminder_date=reminder_date
+        )
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

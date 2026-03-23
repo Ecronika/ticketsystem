@@ -7,6 +7,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
     if (!ticketId || !csrfToken) return;
+    
+    const reminderWrapper = document.getElementById('reminderDateWrapper');
+    const editReminderInput = document.getElementById('editReminderDateInput');
+
+    const toggleReminderField = (status) => {
+        if (!reminderWrapper) return;
+        if (status === 'wartet') {
+            reminderWrapper.classList.remove('d-none');
+        } else {
+            reminderWrapper.classList.add('d-none');
+            if (editReminderInput) editReminderInput.value = '';
+        }
+    };
 
     const getIngress = () => document.querySelector('.navbar')?.getAttribute('data-ingress') || '';
 
@@ -22,6 +35,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (statusSelect) {
         applySelectColor(statusSelect);
+        toggleReminderField(statusSelect.value);
+
         statusSelect.addEventListener('change', async function() {
             const newStatus = this.value;
             const originalValue = this.dataset.original;
@@ -52,6 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.disabled = false;
                     this.classList.remove('opacity-50');
                     applySelectColor(this);
+                    toggleReminderField(newStatus);
                     
                     // UX Update: Badge in header
                     const statusBadge = document.getElementById('ticketStatusBadge');
@@ -146,6 +162,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const editTitleInput = document.getElementById('editTitleInput');
     const editPrioritySelect = document.getElementById('editPrioritySelect');
     const editDueDateInput = document.getElementById('editDueDateInput');
+    const editOrderRefInput = document.getElementById('editOrderRefInput');
+    // editReminderInput already defined above
 
     if (editBtn && saveBtn && cancelEditBtn) {
         editBtn.addEventListener('click', () => {
@@ -167,6 +185,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const newTitle = editTitleInput.value.trim();
             const newPrio = editPrioritySelect.value;
             const newDue = editDueDateInput ? editDueDateInput.value : null;
+            const newOrderRef = editOrderRefInput ? editOrderRefInput.value.trim() : null;
+            const newReminder = editReminderInput ? editReminderInput.value : null;
 
             if (!newTitle) {
                 window.showUiAlert('Titel darf nicht leer sein.');
@@ -186,7 +206,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     body: JSON.stringify({ 
                         title: newTitle, 
                         priority: newPrio,
-                        due_date: newDue 
+                        due_date: newDue,
+                        order_reference: newOrderRef,
+                        reminder_date: newReminder
                     })
                 });
                 const data = await response.json();

@@ -99,6 +99,8 @@ class Ticket(db.Model):
     assigned_to = db.relationship('Worker', backref='tickets')
     
     due_date = db.Column(db.DateTime, nullable=True)
+    order_reference = db.Column(db.String(50), nullable=True)
+    reminder_date = db.Column(db.DateTime, nullable=True)
     is_deleted = db.Column(db.Boolean, default=False, nullable=False)
     
     tags = db.relationship('Tag', secondary=ticket_tags, backref=db.backref('tickets', lazy='dynamic'))

@@ -1,5 +1,12 @@
 # Changelog
- 
+
+## [1.13.0] - 2026-03-23
+### Added
+- **Feature: Auftragsreferenzen**: Einführung des Feldes `order_reference` für die Verknüpfung mit Kunden- oder Auftragsnummern (Dashboard, Ticket-Details, Suche).
+- **Feature: Smarte Wiedervorlage**: Status "Wartet" aktiviert dynamisch ein Wiedervorlage-Feld. Fällige Items werden auf dem Dashboard visualisiert.
+- **Feature: Email-Benachrichtigung**: Simulation von E-Mail-Benachrichtigungen bei Zuweisung von Prio-1-Tickets.
+- **Technik**: Datenbank-Erweiterung via Alembic-Migrationen.
+
 ## [1.12.0] - 2026-03-23
 ### Added
 - **Feature: Zuweisung bei Erstellung**: Mitarbeiter können Tickets direkt bei der Erstellung sich selbst oder Kollegen zuweisen.
