@@ -15,6 +15,42 @@ class TicketService:
     """
 
     @staticmethod
+    def _urgency_score(ticket, now=None):
+        """
+        Kombinierter Dringlichkeitswert. Kleinerer Score = dringender.
+        
+        Logik:
+        - Überfällig: 0-99 (Prio 1 überfällig = 0, Prio 3 überfällig = 20)
+        - Heute fällig: 100-199
+        - Diese Woche (2-7 Tage): 200-299
+        - Später (> 7 Tage): 300-499
+        - Kein Datum: Fallback auf 500 + Prio * 100
+        """
+        if now is None:
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+        
+        prio = ticket.priority  # 1=Hoch, 2=Mittel, 3=Niedrig
+        
+        if ticket.due_date is None:
+            return 500 + prio * 100
+        
+        # Deadlines immer als naive Datetimes für SQLite Vergleich
+        _due = ticket.due_date
+        if _due.tzinfo is not None:
+            _due = _due.astimezone(timezone.utc).replace(tzinfo=None)
+
+        days_left = (_due.date() - now.date()).days
+        
+        if days_left < 0:      # Überfällig
+            return 0 + prio * 5 + max(-50, days_left)  # Negativere days_left = dringender
+        elif days_left == 0:   # Heute
+            return 100 + prio * 10
+        elif days_left <= 7:   # Diese Woche
+            return 200 + days_left * 10 + prio * 2
+        else:                  # Später
+            return 300 + min(150, days_left) + prio * 10
+
+    @staticmethod
     def create_ticket(title, description=None, priority=TicketPriority.MITTEL, author_name="System", author_id=None, assigned_to_id=None, due_date=None, tags=None, image_base64=None):
         """Create a new ticket and an initial comment."""
         try:
