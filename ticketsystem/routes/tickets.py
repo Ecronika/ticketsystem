@@ -268,7 +268,8 @@ def _my_queue_view():
     days_horizon = request.args.get('days', 7, type=int)
     
     now = datetime.now(timezone.utc).replace(tzinfo=None)
-    horizon = now + timedelta(days=days_horizon) if days_horizon > 0 else None
+    # PWA-Filter: Horizon immer bis zum Ende des Ziel-Tages (23:59:59)
+    horizon = (now + timedelta(days=days_horizon)).replace(hour=23, minute=59, second=59) if days_horizon > 0 else None
     
     query = Ticket.query.filter(
         Ticket.assigned_to_id == worker_id,
@@ -290,12 +291,13 @@ def _my_queue_view():
     # Sortieren nach Urgency Score
     tickets.sort(key=lambda t: TicketService._urgency_score(t, now))
     
-    # Gruppierung
+    # Gruppierung (v1.11.2: dynamische 'upcoming' Gruppe für bessere Filter-Sichtbarkeit)
     groups = {
         'overdue':    [t for t in tickets if t.due_date and t.due_date.date() < now.date()],
         'today':      [t for t in tickets if t.due_date and t.due_date.date() == now.date()],
         'this_week':  [t for t in tickets if t.due_date and 0 < (t.due_date.date() - now.date()).days <= 7],
-        'later':      [t for t in tickets if not t.due_date or (t.due_date and (t.due_date.date() - now.date()).days > 7)],
+        'upcoming':   [t for t in tickets if t.due_date and 7 < (t.due_date.date() - now.date()).days <= days_horizon] if days_horizon > 7 else [],
+        'later':      [t for t in tickets if not t.due_date or (t.due_date and (t.due_date.date() - now.date()).days > max(7, days_horizon))],
     }
     
     urgent_count = len(groups['overdue']) + len(groups['today'])

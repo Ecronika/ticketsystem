@@ -1,5 +1,10 @@
 # Changelog
  
+## [1.11.2] - 2026-03-23
+### Fixed
+- **UI-UX Verbesserung:** Die Sektion „Demnächst“ visualisiert nun explizit Tickets, die durch die Fälligkeits-Filter (14/30 Tage) zusätzlich eingeblendet werden.
+- **Fehlerbehebung:** Zeitberechnung der Filter-Horizonte auf das Tagesende (23:59:59) korrigiert.
+
 ## [1.11.1] - 2026-03-23
 ### Fixed
 - **Hotfix:** Behebung eines 500-Fehlers (ImportError) beim Aufruf von „Meine Aufgaben“.
