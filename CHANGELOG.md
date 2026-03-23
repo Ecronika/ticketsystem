@@ -1,5 +1,9 @@
 # Changelog
  
+## [1.11.1] - 2026-03-23
+### Fixed
+- **Hotfix:** Behebung eines 500-Fehlers (ImportError) beim Aufruf von „Meine Aufgaben“.
+
 ## [1.11.0] - 2026-03-23
 ### Added
 - **Feature: „Meine Aufgaben“**: Neues Dashboard speziell für Mitarbeiter, das Tickets nach Dringlichkeit (Überfällig, Heute, Diese Woche) gruppiert.

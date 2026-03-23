@@ -258,7 +258,8 @@ def _update_ticket_api(ticket_id):
 def _my_queue_view():
     """Persönliche Aufgaben-Queue, gruppiert nach Dringlichkeit (v1.11.0)."""
     from datetime import timedelta, datetime, timezone
-    from models import Ticket, TicketStatus
+    from models import Ticket
+    from enums import TicketStatus
     from services import TicketService
     from flask import request, session, render_template
     from extensions import db
