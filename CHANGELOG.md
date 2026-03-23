@@ -1,5 +1,13 @@
 # Changelog
  
+## [1.11.3] - 2026-03-23
+### Fixed
+- **Bugfix:** Korrektur des fehlerhaften „Leermeldungs“-Zustands in der persönlichen Queue.
+- **Logik:** Gruppierung von Tickets bei „Alle Tickets“ verbessert; Tickets $> 7$ Tage erscheinen nun korrekt in „Demnächst“.
+- **Navigation:** Login-Redirect auf `main.my_queue` korrigiert.
+- **UI:** Fehlende CSS-Klassen für Karten-Hover und Text-Kürzung hinzugefügt.
+- **Code:** Redundante Imports entfernt und DB-Vergleich in `inject_globals` stabilisiert.
+
 ## [1.11.2] - 2026-03-23
 ### Fixed
 - **UI-UX Verbesserung:** Die Sektion „Demnächst“ visualisiert nun explizit Tickets, die durch die Fälligkeits-Filter (14/30 Tage) zusätzlich eingeblendet werden.

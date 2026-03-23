@@ -256,14 +256,7 @@ def _update_ticket_api(ticket_id):
 
 @worker_required
 def _my_queue_view():
-    """Persönliche Aufgaben-Queue, gruppiert nach Dringlichkeit (v1.11.0)."""
-    from datetime import timedelta, datetime, timezone
-    from models import Ticket
-    from enums import TicketStatus
-    from services import TicketService
-    from flask import request, session, render_template
-    from extensions import db
-    
+    """Persönliche Aufgaben-Queue, gruppiert nach Dringlichkeit (v1.11.3)."""
     worker_id = session.get('worker_id')
     days_horizon = request.args.get('days', 7, type=int)
     
@@ -286,18 +279,19 @@ def _my_queue_view():
             )
         )
     
-    tickets = query.all()
+    # Sortieren nach Urgency Score (Service Layer handling)
+    tickets_list = query.all()
+    tickets_list.sort(key=lambda t: TicketService._urgency_score(t, now))
     
-    # Sortieren nach Urgency Score
-    tickets.sort(key=lambda t: TicketService._urgency_score(t, now))
+    # Gruppierung (v1.11.3: Verbesserte Logik für 'upcoming' bei horizon=0)
+    effective_horizon = days_horizon if days_horizon > 0 else 999
     
-    # Gruppierung (v1.11.2: dynamische 'upcoming' Gruppe für bessere Filter-Sichtbarkeit)
     groups = {
-        'overdue':    [t for t in tickets if t.due_date and t.due_date.date() < now.date()],
-        'today':      [t for t in tickets if t.due_date and t.due_date.date() == now.date()],
-        'this_week':  [t for t in tickets if t.due_date and 0 < (t.due_date.date() - now.date()).days <= 7],
-        'upcoming':   [t for t in tickets if t.due_date and 7 < (t.due_date.date() - now.date()).days <= days_horizon] if days_horizon > 7 else [],
-        'later':      [t for t in tickets if not t.due_date or (t.due_date and (t.due_date.date() - now.date()).days > max(7, days_horizon))],
+        'overdue':    [t for t in tickets_list if t.due_date and t.due_date.date() < now.date()],
+        'today':      [t for t in tickets_list if t.due_date and t.due_date.date() == now.date()],
+        'this_week':  [t for t in tickets_list if t.due_date and 0 < (t.due_date.date() - now.date()).days <= 7],
+        'upcoming':   [t for t in tickets_list if t.due_date and 7 < (t.due_date.date() - now.date()).days <= effective_horizon],
+        'later':      [t for t in tickets_list if not t.due_date or (t.due_date and (t.due_date.date() - now.date()).days > effective_horizon)],
     }
     
     urgent_count = len(groups['overdue']) + len(groups['today'])
@@ -305,6 +299,7 @@ def _my_queue_view():
     return render_template(
         'my_queue.html',
         groups=groups,
+        tickets=tickets_list,
         urgent_count=urgent_count,
         days_horizon=days_horizon,
         today=now
