@@ -32,11 +32,32 @@
       </button>
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ms-auto align-items-center">
+          {% if session.get('worker_id') %}
+          <li class="nav-item">
+            <a class="nav-link {{ 'active fw-bold' if request.endpoint == 'main.my_queue' else '' }}" 
+               href="{{ ingress_path }}{{ url_for('main.my_queue') }}">
+              <i class="bi bi-list-check me-1"></i>Meine Aufgaben
+              {% if urgent_count > 0 %}
+              <span class="badge bg-danger rounded-pill ms-1 animate-pulse" style="font-size:0.65rem">
+                {{ urgent_count }}
+              </span>
+              {% endif %}
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {{ 'active fw-bold' if request.endpoint == 'main.index' else '' }}" 
+               href="{{ ingress_path }}{{ url_for('main.index') }}">
+              <i class="bi bi-people me-1"></i>Team-Übersicht
+            </a>
+          </li>
+          {% else %}
           <li class="nav-item">
             <a class="nav-link {{ 'active' if request.endpoint and request.endpoint == 'main.index' else '' }}"
               href="{{ ingress_path }}{{ url_for('main.index') }}" {% if request.endpoint and
               request.endpoint=='main.index' %}aria-current="page" {% endif %}>Dashboard</a>
           </li>
+          {% endif %}
+          
           <li class="nav-item">
             <a class="nav-link {{ 'active' if request.endpoint and request.endpoint == 'main.archive' else '' }}"
               href="{{ ingress_path }}{{ url_for('main.archive') }}">Archiv</a>
@@ -49,24 +70,10 @@
             </a>
             <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end border-0 shadow mt-2" aria-labelledby="adminDropdown">
               <li><h6 class="dropdown-header small text-muted uppercase">Verwaltung</h6></li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active fw-bold' if request.endpoint == 'main.my_queue' }}" 
-                           href="{{ ingress_path }}{{ url_for('main.my_queue') }}">
-                            <i class="bi bi-list-check me-1"></i>Meine Aufgaben
-                            {% if urgent_count > 0 %}
-                            <span class="badge bg-danger rounded-pill ms-1 animate-pulse" style="font-size:0.65rem">
-                                {{ urgent_count }}
-                            </span>
-                            {% endif %}
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active fw-bold' if request.endpoint == 'main.index' }}" 
-                           href="{{ ingress_path }}{{ url_for('main.index') }}">
-                            <i class="bi bi-people me-1"></i>Team-Übersicht
-                        </a>
-                    </li>
-<hr class="dropdown-divider opacity-10"></li>
+              <li><a class="dropdown-item small {{ 'active' if request.endpoint == 'admin.workers' else '' }}" href="{{ ingress_path }}{{ url_for('admin.workers') }}">
+                <i class="bi bi-people me-2"></i> Mitarbeiter
+              </a></li>
+              <li><hr class="dropdown-divider opacity-10"></li>
               <li><a class="dropdown-item small" href="#">
                 <i class="bi bi-gear me-2"></i> Einstellungen
               </a></li>
