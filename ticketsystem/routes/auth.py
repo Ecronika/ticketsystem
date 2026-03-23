@@ -179,7 +179,7 @@ def _login_view():
                 if next_url and is_safe_url(next_url):
                     return redirect(next_url)
                     
-                return redirect_to('main.index')
+                return redirect_to('main.my_queue')
             else:
                 # Log failure to console for admin diagnostics
                 current_app.logger.debug("Login FAILED for '%s' - PIN mismatch.", worker.name)
