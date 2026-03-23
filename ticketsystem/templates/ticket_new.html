@@ -79,6 +79,23 @@
                         <p class="x-small text-muted mt-1">Geben Sie ein Datum an, falls die Erledigung zu einem bestimmten Termin wichtig ist.</p>
                     </div>
 
+                    {% if session.get('worker_id') %}
+                    <div class="mb-4">
+                        <label for="assigned_to_id" class="form-label fw-bold">Zuweisung (optional)</label>
+                        <select class="form-select form-select-lg" id="assigned_to_id" name="assigned_to_id">
+                            <option value="">-- Nicht zugewiesen --</option>
+                            <option value="{{ session.get('worker_id') }}" selected>Mir selbst ({{ session.get('worker_name') }})</option>
+                            <hr class="dropdown-divider">
+                            {% for worker in workers %}
+                                {% if worker.id != session.get('worker_id') %}
+                                <option value="{{ worker.id }}">{{ worker.name }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                        <p class="x-small text-muted mt-1">Wählen Sie einen Verantwortlichen aus, oder lassen Sie das Feld leer für die Team-Queue.</p>
+                    </div>
+                    {% endif %}
+
                     <div class="mb-4">
                         <label for="attachment" class="form-label fw-bold">Foto / Anhang (optional)</label>
                         <input type="file" class="form-control" id="attachment-input" accept="image/*">

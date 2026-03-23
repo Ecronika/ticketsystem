@@ -1,5 +1,10 @@
 # Changelog
  
+## [1.12.0] - 2026-03-23
+### Added
+- **Feature: Zuweisung bei Erstellung**: Mitarbeiter können Tickets direkt bei der Erstellung sich selbst oder Kollegen zuweisen.
+- **Auto-Zuweisung**: Tickets von eingeloggten Mitarbeitern werden standardmäßig direkt dem Ersteller zugewiesen (einstellbar).
+
 ## [1.11.4] - 2026-03-23
 ### Fixed
 - **NameError:** Fehlende Importe (`timedelta`, `Ticket`) am Dateianfang von `tickets.py` nach Bereinigung der Inline-Imports hinzugefügt.

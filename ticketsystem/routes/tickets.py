@@ -83,7 +83,7 @@ def _archive_view():
                           current_status=TicketStatus.ERLEDIGT.value)
 
 def _new_ticket_view():
-    """Handle new ticket creation (unauthenticated)."""
+    """Handle new ticket creation (v1.12.0: includes optional assignment)."""
     if request.method == 'POST':
         title = request.form.get('title')
         description = request.form.get('description')
@@ -91,17 +91,24 @@ def _new_ticket_view():
         author_name = request.form.get('author_name') or "Anonym"
         image_base64 = request.form.get('image_base64')
         due_date_str = request.form.get('due_date')
-        current_app.logger.info(
-            "POST /ticket/new - image_base64 present: %s, length: %s",
-            bool(image_base64),
-            len(image_base64) if image_base64 else 0
-        )
+        
+        # v1.12.0: Zuweisungs-Logik
+        assigned_to_id_raw = request.form.get('assigned_to_id')
+        if assigned_to_id_raw is not None:
+            # Wert aus dem Formular (kann leerer String für "Nicht zugewiesen" sein)
+            assigned_to_id = int(assigned_to_id_raw) if assigned_to_id_raw else None
+        elif session.get('worker_id'):
+            # Fallback: Ersteller ist Worker -> Auto-Zuweisung
+            assigned_to_id = session.get('worker_id')
+        else:
+            assigned_to_id = None
+
         due_date = None
         if due_date_str:
             try:
                 due_date = datetime.strptime(due_date_str, '%Y-%m-%d')
-            except (ValueError, TypeError):
-                due_date = None
+            except ValueError:
+                pass
 
         if not title:
             flash('Bitte einen Titel angeben.', 'warning')
@@ -116,7 +123,8 @@ def _new_ticket_view():
                 author_name=author_name,
                 author_id=session.get('worker_id'),
                 image_base64=image_base64,
-                due_date=due_date
+                due_date=due_date,
+                assigned_to_id=assigned_to_id
             )
             session['last_created_ticket_id'] = ticket.id
             ticket_url = f"{request.headers.get('X-Ingress-Path', '')}{url_for('main.ticket_detail', ticket_id=ticket.id)}"

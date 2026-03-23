@@ -4,7 +4,7 @@ This repository contains the Home Assistant Add-on for the **Ticket System**.
 
 ## Add-ons in this repository
 
-### Ticket System (v1.11.4)
+### Ticket System (v1.12.0)
 A clean, modern boilerplate for a Ticket Management System, optimized for Shopfloor use cases. Featuring PWA support, client-side image resizing, and robust RBAC security.
 
 ## Installation
