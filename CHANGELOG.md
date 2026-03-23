@@ -1,5 +1,9 @@
 # Changelog
  
+## [1.11.4] - 2026-03-23
+### Fixed
+- **NameError:** Fehlende Importe (`timedelta`, `Ticket`) am Dateianfang von `tickets.py` nach Bereinigung der Inline-Imports hinzugefügt.
+
 ## [1.11.3] - 2026-03-23
 ### Fixed
 - **Bugfix:** Korrektur des fehlerhaften „Leermeldungs“-Zustands in der persönlichen Queue.

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ticketsystem-v1.11.3';
+const CACHE_NAME = 'ticketsystem-v1.11.4';
 const ASSETS = [
   '/static/css/style.css',
   '/static/js/base_ui.js',

@@ -1,12 +1,12 @@
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from flask import flash, redirect, render_template, request, session, url_for, jsonify, send_from_directory, current_app
 from markupsafe import Markup
 from extensions import limiter, db
 from services.ticket_service import TicketService
 from enums import TicketStatus, TicketPriority
 from .auth import worker_required, redirect_to
-from models import Worker, Attachment
+from models import Worker, Attachment, Ticket
 
 def _dashboard_view():
     """Handle the main dashboard view."""
