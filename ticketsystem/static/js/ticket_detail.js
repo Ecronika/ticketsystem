@@ -283,3 +283,126 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+window.approveTicket = async function(tId) {
+    if (!confirm('Dieses Ticket kaufmännisch freigeben?')) return;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const ingress = document.querySelector('.navbar')?.getAttribute('data-ingress') || '';
+    
+    try {
+        const response = await fetch(`${ingress}/api/ticket/${tId}/approve`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
+        });
+        const data = await response.json();
+        if (data.success) {
+            window.showUiAlert('Ticket freigegeben!', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            window.showUiAlert('Fehler: ' + data.error);
+        }
+    } catch (e) {
+        window.showUiAlert('Netzwerkfehler');
+    }
+};
+
+// Checklist Logic
+document.addEventListener('DOMContentLoaded', function() {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const ingress = document.querySelector('.navbar')?.getAttribute('data-ingress') || '';
+    const ticketWrapper = document.getElementById('ticketDetailWrapper');
+    const tId = ticketWrapper ? ticketWrapper.dataset.ticketId : null;
+    
+    if (!tId) return;
+
+    // Add Checklist Item
+    const addBtn = document.getElementById('add-checklist-btn');
+    if (addBtn) {
+        addBtn.addEventListener('click', async () => {
+            const titleInput = document.getElementById('new-checklist-title');
+            const assignInput = document.getElementById('new-checklist-assignee');
+            const title = titleInput.value.trim();
+            const assignee = assignInput ? assignInput.value : '';
+            
+            if (!title) return;
+            addBtn.disabled = true;
+            
+            try {
+                const response = await fetch(`${ingress}/api/ticket/${tId}/checklist`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify({ title: title, assigned_to_id: assignee })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    location.reload();
+                } else {
+                    window.showUiAlert('Fehler: ' + data.error);
+                    addBtn.disabled = false;
+                }
+            } catch (e) {
+                addBtn.disabled = false;
+            }
+        });
+    }
+
+    // Toggle Checklist items
+    document.querySelectorAll('.checklist-toggle').forEach(el => {
+        el.addEventListener('change', async (e) => {
+            const cb = e.target;
+            const itemDiv = cb.closest('.checklist-item');
+            const itemId = itemDiv.dataset.id;
+            cb.disabled = true;
+            
+            try {
+                const response = await fetch(`${ingress}/api/checklist/${itemId}/toggle`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    cb.disabled = false;
+                    const label = itemDiv.querySelector('label');
+                    if (data.is_completed) {
+                        label.classList.add('text-decoration-line-through', 'text-muted');
+                        label.classList.remove('fw-semibold');
+                    } else {
+                        label.classList.remove('text-decoration-line-through', 'text-muted');
+                        label.classList.add('fw-semibold');
+                    }
+                } else {
+                    cb.checked = !cb.checked; // revert
+                    cb.disabled = false;
+                }
+            } catch (err) {
+                cb.checked = !cb.checked;
+                cb.disabled = false;
+            }
+        });
+    });
+
+    // Delete Checklist items
+    document.querySelectorAll('.checklist-delete').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            if (!confirm('Unteraufgabe löschen?')) return;
+            const itemDiv = e.target.closest('.checklist-item');
+            const itemId = itemDiv.dataset.id;
+            
+            try {
+                const response = await fetch(`${ingress}/api/checklist/${itemId}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    itemDiv.remove();
+                    if (document.querySelectorAll('.checklist-item').length === 0) {
+                        location.reload(); // To show empty state
+                    }
+                } else {
+                    window.showUiAlert('Fehler: ' + data.error);
+                }
+            } catch (err) {}
+        });
+    });
+});

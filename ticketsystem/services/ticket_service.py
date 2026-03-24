@@ -52,7 +52,7 @@ class TicketService:
             return 300 + min(150, days_left) + prio * 10
 
     @staticmethod
-    def create_ticket(title, description=None, priority=TicketPriority.MITTEL, author_name="System", author_id=None, assigned_to_id=None, due_date=None, tags=None, image_base64=None, order_reference=None, reminder_date=None):
+    def create_ticket(title, description=None, priority=TicketPriority.MITTEL, author_name="System", author_id=None, assigned_to_id=None, assigned_team_id=None, due_date=None, tags=None, attachments=None, order_reference=None, reminder_date=None, is_confidential=False, recurrence_rule=None):
         """Create a new ticket and an initial comment."""
         try:
             ticket = Ticket(
@@ -61,6 +61,9 @@ class TicketService:
                 priority=int(priority.value if hasattr(priority, 'value') else priority),
                 status=TicketStatus.OFFEN.value,
                 assigned_to_id=assigned_to_id,
+                assigned_team_id=assigned_team_id,
+                is_confidential=is_confidential,
+                recurrence_rule=recurrence_rule,
                 due_date=due_date,
                 order_reference=order_reference,
                 reminder_date=reminder_date
@@ -91,56 +94,32 @@ class TicketService:
             )
             db.session.add(comment)
 
-            # Handle Image/Attachment
-            if image_base64:
-                current_app.logger.info("Processing attachment for ticket %s. Length: %s", ticket.id, len(image_base64))
-                if "," in image_base64:
+            # Handle Multi-File Attachments
+            if attachments:
+                from extensions import Config
+                data_dir = current_app.config.get('DATA_DIR', Config.get_data_dir())
+                attachments_dir = os.path.join(data_dir, 'attachments')
+                os.makedirs(attachments_dir, exist_ok=True)
+                for file in attachments:
+                    if file.filename == '':
+                        continue
                     try:
-                        # P1-7: Initialize variables to avoid UnboundLocalError
-                        attachments_dir = None
-                        mime_type = 'application/octet-stream'
-                        ext = 'bin'
-                        image_data = None
-                        filename = None
+                        mime_type = file.mimetype or 'application/octet-stream'
+                        ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else 'bin'
+                        new_filename = f"ticket_{ticket.id}_{uuid.uuid4().hex[:8]}.{ext}"
+                        filepath = os.path.join(attachments_dir, new_filename)
                         
-                        # Ensure attachments directory exists
-                        from extensions import Config
-                        data_dir = current_app.config.get('DATA_DIR', Config.get_data_dir())
-                        attachments_dir = os.path.join(data_dir, 'attachments')
-                        os.makedirs(attachments_dir, exist_ok=True)
-                        
-                        # Decode base64
-                        try:
-                            header, encoded = image_base64.split(",", 1)
-                            mime_type = header.split(";")[0].split(":")[1]
-                            ext = mime_type.split("/")[-1]
-                            if ext == 'jpeg': ext = 'jpg'
-                            
-                            image_data = base64.b64decode(encoded, validate=True)
-                        except (ValueError, binascii.Error, IndexError) as decode_err:
-                            current_app.logger.error("Malformed Base64 data for ticket %s: %s", ticket.id, decode_err)
-                            image_data = None
-                            
-                        if image_data:
-                            filename = f"ticket_{ticket.id}_{uuid.uuid4().hex[:8]}.{ext}"
-                            filepath = os.path.join(attachments_dir, filename)
-                            
-                            with open(filepath, "wb") as f:
-                                f.write(image_data)
-                            
-                            # P0-3: Only create attachment if data was written successfully
-                            attachment = Attachment(
-                                ticket_id=ticket.id,
-                                path=filename,
-                                filename=filename,
-                                mime_type=mime_type
-                            )
-                            db.session.add(attachment)
-                            current_app.logger.info("Successfully saved attachment: %s", filename)
-                    except Exception as img_err:
-                        current_app.logger.error("Error saving attachment for ticket %s: %s", ticket.id, img_err, exc_info=True)
-                else:
-                    current_app.logger.warning("image_base64 present but missing comma separator for ticket %s", ticket.id)
+                        file.save(filepath)
+                        attachment = Attachment(
+                            ticket_id=ticket.id,
+                            path=new_filename,
+                            filename=file.filename,
+                            mime_type=mime_type
+                        )
+                        db.session.add(attachment)
+                        current_app.logger.info("Saved attachment %s for ticket %s", new_filename, ticket.id)
+                    except Exception as err:
+                        current_app.logger.error("Error saving attachment %s: %s", file.filename, err)
 
             db.session.commit()
             return ticket
@@ -291,16 +270,41 @@ class TicketService:
     @staticmethod
     def get_dashboard_tickets(worker_id=None, search=None, status_filter=None, page=1, per_page=10, 
                              assigned_to_me=False, unassigned_only=False, 
-                             start_date=None, end_date=None, author_name=None):
+                             start_date=None, end_date=None, author_name=None, worker_role=None):
         """Fetch tickets for the dashboard with search, filtering, and pagination."""
         from sqlalchemy.orm import joinedload
+        from models import ChecklistItem
         query = Ticket.query.filter_by(is_deleted=False).options(
             joinedload(Ticket.comments),
             joinedload(Ticket.assigned_to)
         )
+        
+        if worker_role not in ['admin', 'management'] and worker_id is not None:
+            author_subquery = db.session.query(Comment.ticket_id).filter(
+                Comment.event_type == 'TICKET_CREATED',
+                Comment.author_id == worker_id
+            ).subquery()
+            query = query.filter(
+                db.or_(
+                    Ticket.is_confidential == False,
+                    Ticket.id.in_(author_subquery),
+                    Ticket.assigned_to_id == worker_id,
+                    Ticket.checklists.any(ChecklistItem.assigned_to_id == worker_id)
+                )
+            )
 
         if assigned_to_me and worker_id:
-            query = query.filter(Ticket.assigned_to_id == worker_id)
+            query = query.filter(
+                db.or_(
+                    Ticket.assigned_to_id == worker_id,
+                    Ticket.checklists.any(
+                        db.and_(
+                            ChecklistItem.assigned_to_id == worker_id,
+                            ChecklistItem.is_completed == False
+                        )
+                    )
+                )
+            )
         elif unassigned_only:
             query = query.filter(Ticket.assigned_to_id == None)
 
@@ -341,11 +345,33 @@ class TicketService:
         self_total = 0
         if worker_id:
             self_query = Ticket.query.filter_by(
-                assigned_to_id=worker_id,
                 is_deleted=False
             ).filter(
                 Ticket.status != TicketStatus.ERLEDIGT.value
+            ).filter(
+                db.or_(
+                    Ticket.assigned_to_id == worker_id,
+                    Ticket.checklists.any(
+                        db.and_(
+                            ChecklistItem.assigned_to_id == worker_id,
+                            ChecklistItem.is_completed == False
+                        )
+                    )
+                )
             )
+            if worker_role not in ['admin', 'management']:
+                author_subs = db.session.query(Comment.ticket_id).filter(
+                    Comment.event_type == 'TICKET_CREATED',
+                    Comment.author_id == worker_id
+                ).subquery()
+                self_query = self_query.filter(
+                    db.or_(
+                        Ticket.is_confidential == False,
+                        Ticket.id.in_(author_subs),
+                        Ticket.assigned_to_id == worker_id,
+                        Ticket.checklists.any(ChecklistItem.assigned_to_id == worker_id)
+                    )
+                )
             self_total = self_query.count()
             self_tickets = self_query.order_by(Ticket.updated_at.desc()).limit(5).all()
 
@@ -492,4 +518,88 @@ class TicketService:
         except Exception as e:
             db.session.rollback()
             current_app.logger.error("Unexpected error updating ticket meta: %s", e)
+            raise
+
+    @staticmethod
+    def approve_ticket(ticket_id, worker_id, worker_name):
+        try:
+            ticket = db.session.get(Ticket, ticket_id)
+            if not ticket or ticket.is_deleted:
+                raise ValueError("Ticket nicht gefunden.")
+            
+            if ticket.approved_by_id:
+                return ticket  # already approved
+                
+            ticket.approved_by_id = worker_id
+            ticket.approved_at = datetime.now(timezone.utc).replace(tzinfo=None)
+            
+            comment = Comment(
+                ticket_id=ticket.id,
+                author="System",
+                author_id=None,
+                text=f"Kaufmännisch freigegeben durch {worker_name}",
+                is_system_event=True,
+                event_type='APPROVAL'
+            )
+            db.session.add(comment)
+            db.session.commit()
+            return ticket
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error("Error approving ticket: %s", e)
+            raise
+
+    @staticmethod
+    def add_checklist_item(ticket_id, title, assigned_to_id=None):
+        try:
+            from models import ChecklistItem
+            item = ChecklistItem(ticket_id=ticket_id, title=title, assigned_to_id=assigned_to_id)
+            db.session.add(item)
+            db.session.commit()
+            return item
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error("Error adding checklist item: %s", e)
+            raise
+
+    @staticmethod
+    def toggle_checklist_item(item_id, worker_name="System", worker_id=None):
+        try:
+            from models import ChecklistItem, Comment
+            from enums import TicketStatus
+            item = db.session.get(ChecklistItem, item_id)
+            if item:
+                item.is_completed = not item.is_completed
+                ticket = item.ticket
+                db.session.commit()
+                
+                if item.is_completed and ticket.status != TicketStatus.ERLEDIGT.value:
+                    if len(ticket.checklists) > 0 and all(c.is_completed for c in ticket.checklists):
+                        ticket.status = TicketStatus.ERLEDIGT.value
+                        comment = Comment(
+                            ticket_id=ticket.id,
+                            author=worker_name,
+                            author_id=worker_id,
+                            text="Status automatisch auf ERLEDIGT gesetzt (alle Unteraufgaben beendet).",
+                            is_system_event=True,
+                            event_type='STATUS_CHANGE'
+                        )
+                        db.session.add(comment)
+                        db.session.commit()
+            return item
+        except Exception as e:
+            db.session.rollback()
+            raise
+
+    @staticmethod
+    def delete_checklist_item(item_id):
+        try:
+            from models import ChecklistItem
+            item = db.session.get(ChecklistItem, item_id)
+            if item:
+                db.session.delete(item)
+                db.session.commit()
+            return True
+        except Exception as e:
+            db.session.rollback()
             raise

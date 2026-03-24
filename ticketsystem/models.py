@@ -70,6 +70,22 @@ ticket_tags = db.Table('ticket_tags',
     db.Column('tag_id', db.Integer, db.ForeignKey('tag.id'), primary_key=True)
 )
 
+worker_team = db.Table('worker_team',
+    db.Column('worker_id', db.Integer, db.ForeignKey('worker.id'), primary_key=True),
+    db.Column('team_id', db.Integer, db.ForeignKey('team.id'), primary_key=True)
+)
+
+class Team(db.Model):
+    """
+    Team model for grouping workers.
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False, unique=True)
+    members = db.relationship('Worker', secondary=worker_team, backref=db.backref('teams', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<Team {self.name}>'
+
 
 class Tag(db.Model):
     """
@@ -80,6 +96,21 @@ class Tag(db.Model):
 
     def __repr__(self):
         return f'<Tag {self.name}>'
+
+
+class ChecklistItem(db.Model):
+    """
+    Sub-tasks for a ticket.
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    ticket_id = db.Column(db.Integer, db.ForeignKey('ticket.id'), nullable=False)
+    title = db.Column(db.String(150), nullable=False)
+    is_completed = db.Column(db.Boolean, default=False)
+    assigned_to_id = db.Column(db.Integer, db.ForeignKey('worker.id'), nullable=True)
+    assigned_to = db.relationship('Worker', foreign_keys=[assigned_to_id])
+
+    def __repr__(self):
+        return f'<ChecklistItem {self.title}>'
 
 
 class Ticket(db.Model):
@@ -96,12 +127,24 @@ class Ticket(db.Model):
     priority = db.Column(db.Integer, default=2, nullable=False) # 1=High, 2=Medium, 3=Low
     
     assigned_to_id = db.Column(db.Integer, db.ForeignKey('worker.id'), nullable=True)
-    assigned_to = db.relationship('Worker', backref='tickets')
+    assigned_to = db.relationship('Worker', backref='tickets', foreign_keys=[assigned_to_id])
     
     due_date = db.Column(db.DateTime, nullable=True)
     order_reference = db.Column(db.String(50), nullable=True)
     reminder_date = db.Column(db.DateTime, nullable=True)
     is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    
+    # Handwerk-Edition features
+    assigned_team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=True)
+    assigned_team = db.relationship('Team', backref='tickets')
+    is_confidential = db.Column(db.Boolean, default=False, nullable=False)
+    recurrence_rule = db.Column(db.String(50), nullable=True)
+    next_recurrence_date = db.Column(db.DateTime, nullable=True)
+    approved_by_id = db.Column(db.Integer, db.ForeignKey('worker.id'), nullable=True)
+    approved_by = db.relationship('Worker', foreign_keys=[approved_by_id])
+    approved_at = db.Column(db.DateTime, nullable=True)
+    
+    checklists = db.relationship('ChecklistItem', backref='ticket', cascade='all, delete-orphan')
     
     tags = db.relationship('Tag', secondary=ticket_tags, backref=db.backref('tickets', lazy='dynamic'))
     

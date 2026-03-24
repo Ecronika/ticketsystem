@@ -1,0 +1,57 @@
+<div class="card shadow-sm border-0 rounded-4 mb-4">
+    <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+        <h4 class="h6 fw-bold mb-0"><i class="bi bi-list-check me-2"></i>Checkliste / Unteraufgaben</h4>
+    </div>
+    <div class="card-body p-4">
+        <!-- List of existing checklists -->
+        <div id="checklist-container" class="mb-3">
+            {% for item in ticket.checklists|sort(attribute='id') %}
+            <div class="d-flex align-items-center justify-content-between border-bottom py-2 checklist-item" data-id="{{ item.id }}">
+                <div class="d-flex align-items-center gap-2 flex-grow-1">
+                    <div class="form-check m-0">
+                        <input class="form-check-input checklist-toggle" type="checkbox" value="" id="check_{{ item.id }}" {% if item.is_completed %}checked{% endif %} {% if session.get('role') == 'viewer' %}disabled{% endif %}>
+                        <label class="form-check-label {{ 'text-decoration-line-through text-muted' if item.is_completed else 'fw-semibold' }}" for="check_{{ item.id }}">
+                            {{ item.title }}
+                        </label>
+                    </div>
+                    {% if item.assigned_to_id %}
+                    <span class="badge bg-secondary-subtle text-secondary rounded-pill fw-normal" style="font-size: 0.65rem;">
+                        <i class="bi bi-person me-1"></i>{{ item.assigned_to.name }}
+                    </span>
+                    {% endif %}
+                </div>
+                {% if session.get('role') != 'viewer' %}
+                <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-2 checklist-delete" aria-label="Löschen">
+                    <i class="bi bi-trash"></i>
+                </button>
+                {% endif %}
+            </div>
+            {% else %}
+            <p class="text-muted small mb-0" id="empty-checklist-msg">Keine Unteraufgaben vorhanden.</p>
+            {% endfor %}
+        </div>
+
+        <!-- Add new item form -->
+        {% if session.get('role') != 'viewer' %}
+        <div class="bg-surface-subtle p-3 rounded-3 mt-3 border">
+            <h5 class="small fw-bold mb-2">Neue Unteraufgabe</h5>
+            <div class="row g-2">
+                <div class="col-md-7">
+                    <input type="text" class="form-control form-control-sm" id="new-checklist-title" placeholder="Aufgabenbeschreibung...">
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm" id="new-checklist-assignee">
+                        <option value="">-- Zuweisung (optional) --</option>
+                        {% for worker in workers %}
+                        <option value="{{ worker.id }}">{{ worker.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-sm btn-primary w-100" id="add-checklist-btn">Hinzufügen</button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>

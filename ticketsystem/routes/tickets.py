@@ -5,7 +5,7 @@ from markupsafe import Markup
 from extensions import limiter, db
 from services.ticket_service import TicketService
 from enums import TicketStatus, TicketPriority
-from .auth import worker_required, redirect_to
+from .auth import worker_required, redirect_to, admin_required
 from models import Worker, Attachment, Ticket
 
 def _dashboard_view():
@@ -28,7 +28,8 @@ def _dashboard_view():
         page=page,
         per_page=10,
         assigned_to_me=assigned_to_me,
-        unassigned_only=unassigned_only
+        unassigned_only=unassigned_only,
+        worker_role=session.get('role')
     )
     
     return render_template('index.html', 
@@ -64,13 +65,15 @@ def _archive_view():
         pass
 
     tickets_data = TicketService.get_dashboard_tickets(
+        worker_id=session.get('worker_id'),
         search=search,
         status_filter=TicketStatus.ERLEDIGT.value,
         page=page,
         per_page=15,
         start_date=start_date,
         end_date=end_date,
-        author_name=author
+        author_name=author,
+        worker_role=session.get('role')
     )
     
     return render_template('archive.html', 
@@ -89,22 +92,29 @@ def _new_ticket_view():
         description = request.form.get('description')
         priority_val = request.form.get('priority', 2)
         author_name = request.form.get('author_name') or "Anonym"
-        image_base64 = request.form.get('image_base64')
+        attachments = request.files.getlist('attachments')
         due_date_str = request.form.get('due_date')
         order_reference = request.form.get('order_reference')
         tags_raw = request.form.get('tags', '')
         tags = [t.strip() for t in tags_raw.split(',') if t.strip()]
+        is_confidential = request.form.get('is_confidential') == 'True' or request.form.get('is_confidential') == 'on'
+        recurrence_rule = request.form.get('recurrence_rule')
         
         # v1.12.0: Zuweisungs-Logik
         assigned_to_id_raw = request.form.get('assigned_to_id')
-        if assigned_to_id_raw is not None:
-            # Wert aus dem Formular (kann leerer String für "Nicht zugewiesen" sein)
-            assigned_to_id = int(assigned_to_id_raw) if assigned_to_id_raw else None
-        elif session.get('worker_id'):
-            # Fallback: Ersteller ist Worker -> Auto-Zuweisung
+        assigned_team_id_raw = request.form.get('assigned_team_id')
+        
+        assigned_to_id = None
+        assigned_team_id = None
+        
+        if assigned_to_id_raw:
+            assigned_to_id = int(assigned_to_id_raw)
+        elif session.get('worker_id') and not assigned_team_id_raw:
+            # Fallback: Ersteller ist Worker -> Auto-Zuweisung, es sei denn es ist einem Team zugewiesen
             assigned_to_id = session.get('worker_id')
-        else:
-            assigned_to_id = None
+        
+        if assigned_team_id_raw:
+            assigned_team_id = int(assigned_team_id_raw)
 
         due_date = None
         if due_date_str:
@@ -125,9 +135,12 @@ def _new_ticket_view():
                 priority=priority,
                 author_name=author_name,
                 author_id=session.get('worker_id'),
-                image_base64=image_base64,
+                attachments=attachments,
                 due_date=due_date,
                 assigned_to_id=assigned_to_id,
+                assigned_team_id=assigned_team_id,
+                is_confidential=is_confidential,
+                recurrence_rule=recurrence_rule,
                 order_reference=order_reference,
                 tags=tags
             )
@@ -143,7 +156,10 @@ def _new_ticket_view():
         except Exception:
             flash('Fehler beim Erstellen des Tickets.', 'error')
 
-    return render_template('ticket_new.html')
+    from models import Worker, Team
+    workers = Worker.query.filter_by(is_active=True).all()
+    teams = Team.query.all()
+    return render_template('ticket_new.html', workers=workers, teams=teams)
 
 @worker_required
 def _ticket_detail_view(ticket_id):
@@ -155,7 +171,9 @@ def _ticket_detail_view(ticket_id):
         return redirect_to('main.index')
     
     workers = Worker.query.filter_by(is_active=True).all()
-    return render_template('ticket_detail.html', ticket=ticket, workers=workers)
+    from models import Team
+    teams = Team.query.all()
+    return render_template('ticket_detail.html', ticket=ticket, workers=workers, teams=teams)
 
 @limiter.limit("30 per minute")
 def _public_ticket_view(ticket_id):
@@ -281,6 +299,49 @@ def _update_ticket_api(ticket_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@admin_required
+def _approve_ticket_api(ticket_id):
+    author_name = session.get('worker_name', 'System')
+    try:
+        TicketService.approve_ticket(ticket_id, session.get('worker_id'), author_name)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@worker_required
+def _add_checklist_api(ticket_id):
+    data = request.get_json()
+    title = data.get('title')
+    assigned_to_id_raw = data.get('assigned_to_id')
+    assigned_to_id = int(assigned_to_id_raw) if assigned_to_id_raw else None
+    
+    if not title:
+        return jsonify({'success': False, 'error': 'Titel fehlt'}), 400
+        
+    try:
+        item = TicketService.add_checklist_item(ticket_id, title, assigned_to_id)
+        return jsonify({'success': True, 'item_id': item.id})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@worker_required
+def _toggle_checklist_api(item_id):
+    try:
+        worker_name = session.get('worker_name', 'System')
+        worker_id = session.get('worker_id')
+        item = TicketService.toggle_checklist_item(item_id, worker_name=worker_name, worker_id=worker_id)
+        return jsonify({'success': True, 'is_completed': item.is_completed if item else False})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@worker_required
+def _delete_checklist_api(item_id):
+    try:
+        TicketService.delete_checklist_item(item_id)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @worker_required
 def _my_queue_view():
     """Persönliche Aufgaben-Queue, gruppiert nach Dringlichkeit (v1.11.3)."""
@@ -291,10 +352,20 @@ def _my_queue_view():
     # PWA-Filter: Horizon immer bis zum Ende des Ziel-Tages (23:59:59)
     horizon = (now + timedelta(days=days_horizon)).replace(hour=23, minute=59, second=59) if days_horizon > 0 else None
     
+    from models import ChecklistItem
     query = Ticket.query.filter(
-        Ticket.assigned_to_id == worker_id,
         Ticket.is_deleted == False,
         Ticket.status != TicketStatus.ERLEDIGT.value
+    ).filter(
+        db.or_(
+            Ticket.assigned_to_id == worker_id,
+            Ticket.checklists.any(
+                db.and_(
+                    ChecklistItem.assigned_to_id == worker_id,
+                    ChecklistItem.is_completed == False
+                )
+            )
+        )
     )
     
     if horizon:
@@ -354,6 +425,15 @@ def register_routes(bp):
                   view_func=worker_required(_add_comment_view), methods=['POST'])
     bp.add_url_rule('/ticket/<int:ticket_id>/assign_me', 'assign_to_me', 
                   view_func=worker_required(_assign_to_me_view), methods=['POST'])
+    
+    bp.add_url_rule('/api/ticket/<int:ticket_id>/approve', 'approve_ticket_api', 
+                  view_func=_approve_ticket_api, methods=['POST'])
+    bp.add_url_rule('/api/ticket/<int:ticket_id>/checklist', 'add_checklist', 
+                  view_func=_add_checklist_api, methods=['POST'])
+    bp.add_url_rule('/api/checklist/<int:item_id>/toggle', 'toggle_checklist', 
+                  view_func=_toggle_checklist_api, methods=['POST'])
+    bp.add_url_rule('/api/checklist/<int:item_id>', 'delete_checklist', 
+                  view_func=_delete_checklist_api, methods=['DELETE'])
     
     bp.add_url_rule('/api/ticket/<int:ticket_id>/status', 'update_status', 
                   view_func=worker_required(_update_status_api), methods=['POST'])

@@ -15,25 +15,54 @@
         </div>
 
         <div class="mb-4">
-            <label for="assignSelect" class="form-label small text-muted fw-bold">Mitarbeiter zuweisen</label>
+            <label for="assignSelect" class="form-label small text-muted fw-bold">Zuweisung ändern</label>
             <select id="assignSelect" class="form-select border-0 bg-surface-subtle fw-bold" 
-                    data-original="{{ ticket.assigned_to_id or '' }}"
+                    data-original="{{ ticket.assigned_to_id or ('team_' ~ ticket.assigned_team_id if ticket.assigned_team_id else '') }}"
                     {{ 'disabled' if session.get('role') == 'viewer' }}>
-                <option value="" {{ 'selected' if not ticket.assigned_to_id }}>NICHT ZUGEWIESEN</option>
+                <option value="" {% if not ticket.assigned_to_id and not ticket.assigned_team_id %}selected{% endif %}>NICHT ZUGEWIESEN</option>
                 {% for worker in workers %}
-                <option value="{{ worker.id }}" {{ 'selected' if ticket.assigned_to_id == worker.id }}>
+                <option value="{{ worker.id }}" {% if ticket.assigned_to_id == worker.id %}selected{% endif %}>
                     {{ worker.name|upper }}
                 </option>
                 {% endfor %}
+                {% if teams %}
+                <optgroup label="Teams">
+                    {% for team in teams %}
+                    <option value="team_{{ team.id }}" {% if ticket.assigned_team_id == team.id %}selected{% endif %}>
+                        TEAM: {{ team.name|upper }}
+                    </option>
+                    {% endfor %}
+                </optgroup>
+                {% endif %}
             </select>
         </div>
 
         <div class="mb-3 px-1">
             <small class="text-muted d-block mb-1 x-small text-uppercase ls-wide">Aktuelle Zuweisung</small>
             <div class="d-flex align-items-center gap-2">
-                <div class="rounded-circle {{ 'bg-primary' if ticket.assigned_to_id else 'bg-secondary' }} opacity-75" style="width: 8px; height: 8px;"></div>
-                <span id="ticketAssigneeBadge" class="small fw-semibold {{ 'text-dark' if ticket.assigned_to_id else 'text-muted' }} d-block text-truncate">
-                    {{ ticket.assigned_to.name|upper if ticket.assigned_to_id else 'NOCH NICHT ZUGEWIESEN' }}
+                <div class="rounded-circle {{ 'bg-primary' if (ticket.assigned_to_id or ticket.assigned_team_id) else 'bg-secondary' }} opacity-75" style="width: 8px; height: 8px;"></div>
+                <span id="ticketAssigneeBadge" class="small fw-semibold {{ 'text-dark' if (ticket.assigned_to_id or ticket.assigned_team_id) else 'text-muted' }} d-block text-truncate">
+                    {% if ticket.assigned_to_id %}
+                        {{ ticket.assigned_to.name|upper }}
+                    {% elif ticket.assigned_team_id %}
+                        TEAM: {{ ticket.assigned_team.name|upper }}
+                    {% else %}
+                        NOCH NICHT ZUGEWIESEN
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+
+        {% if ticket.recurrence_rule %}
+        <div class="mb-3 px-1 mt-3">
+            <small class="text-muted d-block mb-1 x-small text-uppercase ls-wide">Serienticket</small>
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-arrow-repeat text-primary"></i>
+                <span class="small fw-semibold text-dark d-block">
+                    {{ ticket.recurrence_rule|capitalize }}
+                    {% if ticket.next_recurrence_date %}
+                    <br><small class="text-muted fw-normal">Nächstes: {{ ticket.next_recurrence_date.strftime('%d.%m.%Y') }}</small>
+                    {% endif %}
                 </span>
             </div>
         </div>

@@ -159,6 +159,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="d-flex justify-content-between align-items-start mb-1">
                                 <h4 class="h6 fw-bold mb-0">
                                     {{ ticket.title }}
+                                    {% if ticket.is_confidential %}<i class="bi bi-lock-fill text-warning ms-1" title="Vertraulich"></i>{% endif %}
+                                    {% if ticket.recurrence_rule %}<i class="bi bi-arrow-repeat text-primary ms-1" title="Serienticket"></i>{% endif %}
                                     {% if ticket.order_reference %}
                                     <span class="badge border bg-light text-dark fw-normal ms-1 x-small"><i class="bi bi-hash"></i>{{ ticket.order_reference }}</span>
                                     {% endif %}
@@ -254,6 +256,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         <a href="{{ ingress_path }}{{ url_for('main.ticket_detail', ticket_id=ticket.id) }}" class="list-group-item list-group-item-action py-3 px-4 border-0 border-bottom bg-transparent">
                             <h4 class="h6 fw-bold mb-1">
                                 {{ ticket.title }}
+                                {% if ticket.is_confidential %}<i class="bi bi-lock-fill text-warning ms-1" title="Vertraulich"></i>{% endif %}
+                                {% if ticket.recurrence_rule %}<i class="bi bi-arrow-repeat text-primary ms-1" title="Serienticket"></i>{% endif %}
                                 {% if ticket.order_reference %}
                                 <span class="badge border bg-light text-dark fw-normal ms-1 x-small"><i class="bi bi-hash"></i>{{ ticket.order_reference }}</span>
                                 {% endif %}

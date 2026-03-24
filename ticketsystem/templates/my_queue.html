@@ -54,6 +54,8 @@
                         <h3 class="h6 mb-2">
                             <a href="{{ ingress_path }}{{ url_for('main.ticket_detail', ticket_id=ticket.id) }}" class="text-dark text-decoration-none fw-bold stretched-link">
                                 {{ ticket.title }}
+                                {% if ticket.is_confidential %}<i class="bi bi-lock-fill text-warning ms-1" title="Vertraulich"></i>{% endif %}
+                                {% if ticket.recurrence_rule %}<i class="bi bi-arrow-repeat text-primary ms-1" title="Serienticket"></i>{% endif %}
                             </a>
                         </h3>
                         <div class="d-flex align-items-center gap-2">
@@ -94,6 +96,8 @@
                         <h3 class="h6 mb-1">
                             <a href="{{ ingress_path }}{{ url_for('main.ticket_detail', ticket_id=ticket.id) }}" class="text-dark text-decoration-none fw-bold stretched-link">
                                 {{ ticket.title }}
+                                {% if ticket.is_confidential %}<i class="bi bi-lock-fill text-warning ms-1" title="Vertraulich"></i>{% endif %}
+                                {% if ticket.recurrence_rule %}<i class="bi bi-arrow-repeat text-primary ms-1" title="Serienticket"></i>{% endif %}
                             </a>
                         </h3>
                     </div>
@@ -122,6 +126,8 @@
                     <h3 class="h6 mb-0">
                         <a href="{{ ingress_path }}{{ url_for('main.ticket_detail', ticket_id=ticket.id) }}" class="text-dark text-decoration-none fw-bold stretched-link">
                             {{ ticket.title }}
+                            {% if ticket.is_confidential %}<i class="bi bi-lock-fill text-warning ms-1" title="Vertraulich"></i>{% endif %}
+                            {% if ticket.recurrence_rule %}<i class="bi bi-arrow-repeat text-primary ms-1" title="Serienticket"></i>{% endif %}
                         </a>
                     </h3>
                 </div>
@@ -149,6 +155,8 @@
                     <div class="fw-bold small text-dark truncate-1">
                         <a href="{{ ingress_path }}{{ url_for('main.ticket_detail', ticket_id=ticket.id) }}" class="text-dark text-decoration-none stretched-link">
                             {{ ticket.title }}
+                            {% if ticket.is_confidential %}<i class="bi bi-lock-fill text-warning ms-1" title="Vertraulich"></i>{% endif %}
+                            {% if ticket.recurrence_rule %}<i class="bi bi-arrow-repeat text-primary ms-1" title="Serienticket"></i>{% endif %}
                         </a>
                     </div>
                 </div>
@@ -178,6 +186,8 @@
                     <div class="fw-bold small text-dark truncate-1">
                         <a href="{{ ingress_path }}{{ url_for('main.ticket_detail', ticket_id=ticket.id) }}" class="text-dark text-decoration-none stretched-link">
                             {{ ticket.title }}
+                            {% if ticket.is_confidential %}<i class="bi bi-lock-fill text-warning ms-1" title="Vertraulich"></i>{% endif %}
+                            {% if ticket.recurrence_rule %}<i class="bi bi-arrow-repeat text-primary ms-1" title="Serienticket"></i>{% endif %}
                         </a>
                     </div>
                 </div>

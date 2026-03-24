@@ -36,7 +36,7 @@
             </div>
             <div class="card-body px-4 pb-4">
                 <p class="x-small text-muted mb-3"><span class="text-danger">*</span> Pflichtfelder</p>
-                <form method="POST">
+                <form method="POST" enctype="multipart/form-data" id="ticket-form">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                     
                     <div class="mb-3">
@@ -92,6 +92,26 @@
                     </div>
 
                     {% if session.get('worker_id') %}
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="is_confidential" name="is_confidential">
+                            <label class="form-check-label fw-bold" for="is_confidential">
+                                <i class="bi bi-lock-fill text-warning"></i> Als vertraulich markieren
+                            </label>
+                        </div>
+                        <p class="x-small text-muted mt-1">Nur zugewiesene Personen und die Administration können dieses Ticket sehen.</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="recurrence_rule" class="form-label fw-bold">Serienticket (Wiederkehrend)</label>
+                        <select class="form-select form-select-lg" id="recurrence_rule" name="recurrence_rule">
+                            <option value="">Einmalig</option>
+                            <option value="monthly">Monatlich</option>
+                            <option value="quarterly">Quartalsweise</option>
+                            <option value="yearly">Jährlich</option>
+                        </select>
+                    </div>
+
                     <div class="mb-4">
                         <label for="assigned_to_id" class="form-label fw-bold">Zuweisung (optional)</label>
                         <select class="form-select form-select-lg" id="assigned_to_id" name="assigned_to_id">
@@ -103,25 +123,25 @@
                                 <option value="{{ worker.id }}">{{ worker.name }}</option>
                                 {% endif %}
                             {% endfor %}
+                            {% if teams %}
+                            <optgroup label="Teams">
+                                {% for team in teams %}
+                                <option value="team_{{ team.id }}">Team: {{ team.name }}</option>
+                                {% endfor %}
+                            </optgroup>
+                            {% endif %}
                         </select>
                         <p class="x-small text-muted mt-1">Wählen Sie einen Verantwortlichen aus, oder lassen Sie das Feld leer für die Team-Queue.</p>
                     </div>
                     {% endif %}
 
                     <div class="mb-4">
-                        <label for="attachment" class="form-label fw-bold">Foto / Anhang (optional)</label>
-                        <input type="file" class="form-control" id="attachment-input" accept="image/*">
-                        <input type="hidden" name="image_base64" id="image-base64">
-                        <div id="image-preview" class="mt-2 d-none">
-                            <div class="position-relative d-inline-block">
-                                <img src="" class="img-thumbnail" style="max-height: 200px;" alt="Vorschau">
-                                <div id="image-upload-status" class="position-absolute top-50 start-50 translate-middle d-none">
-                                    <div class="spinner-border text-primary" role="status"></div>
-                                </div>
-                            </div>
-                            <button type="button" class="btn btn-sm btn-danger d-block mt-1" id="remove-image">Entfernen</button>
-                        </div>
-                        <p class="text-meta x-small mt-1">Bilder werden automatisch für den Upload optimiert.</p>
+                        <label for="attachment-input" class="form-label fw-bold">Foto / Anhang (optional)</label>
+                        <input type="file" class="form-control form-control-lg" id="attachment-input" multiple accept="image/*, application/pdf, .doc, .docx, .xls, .xlsx">
+                        <!-- Hidden input where compiled files go -->
+                        <input type="file" class="d-none" id="hidden-attachments" name="attachments" multiple>
+                        <div id="attachment-gallery" class="mt-3 d-flex flex-wrap gap-2"></div>
+                        <p class="text-meta x-small mt-1">Bilder werden automatisch für den Upload optimiert. Dokumente bleiben im Original erhalten.</p>
                     </div>
 
                     <div class="bg-light p-3 rounded-3 mb-4 border-start border-4 border-primary">
@@ -149,73 +169,121 @@
 <script nonce="{{ g.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     const input = document.getElementById('attachment-input');
-    const base64Input = document.getElementById('image-base64');
-    const preview = document.getElementById('image-preview');
-    const previewImg = preview.querySelector('img');
-    const removeBtn = document.getElementById('remove-image');
+    const hiddenInput = document.getElementById('hidden-attachments');
+    const gallery = document.getElementById('attachment-gallery');
     const submitBtn = document.getElementById('submit-btn');
-    const statusIdx = document.getElementById('image-upload-status');
+    const form = document.getElementById('ticket-form');
 
-    input.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
+    let processedFiles = [];
 
-        // Show preview and loading
-        preview.classList.remove('d-none');
-        previewImg.style.opacity = '0.3';
-        statusIdx?.classList.remove('d-none');
+    input.addEventListener('change', async function(e) {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
         submitBtn.disabled = true;
 
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            const img = new Image();
-            img.onload = function() {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-                const max_size = 1200;
-
-                if (width > height) {
-                    if (width > max_size) {
-                        height *= max_size / width;
-                        width = max_size;
-                    }
-                } else {
-                    if (height > max_size) {
-                        width *= max_size / height;
-                        height = max_size;
-                    }
-                }
-
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-                base64Input.value = dataUrl;
-                previewImg.src = dataUrl;
-                previewImg.style.opacity = '1';
-                statusIdx?.classList.add('d-none');
-                submitBtn.disabled = false;
-            };
-            img.onerror = function() {
-                alert('Fehler beim Laden des Bildes.');
-                resetImage();
-            };
-            img.src = event.target.result;
-        };
-        reader.readAsDataURL(file);
+        for (const file of files) {
+            if (file.type.startsWith('image/')) {
+                const compressedBlob = await compressImage(file);
+                processedFiles.push(new File([compressedBlob], file.name, {
+                    type: 'image/jpeg',
+                    lastModified: new Date().getTime()
+                }));
+            } else {
+                processedFiles.push(file);
+            }
+        }
+        
+        renderGallery();
+        updateHiddenInput();
+        input.value = ''; // Reset raw input
+        submitBtn.disabled = false;
     });
 
-    function resetImage() {
-        input.value = '';
-        base64Input.value = '';
-        preview.classList.add('d-none');
-        submitBtn.disabled = false;
+    function renderGallery() {
+        gallery.innerHTML = '';
+        processedFiles.forEach((file, index) => {
+            const item = document.createElement('div');
+            item.className = 'position-relative border rounded p-1 d-flex flex-column align-items-center justify-content-center bg-white shadow-sm';
+            item.style.width = '100px';
+            item.style.height = '100px';
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'btn btn-sm btn-danger position-absolute top-0 end-0 rounded-circle p-0';
+            removeBtn.style.width = '24px';
+            removeBtn.style.height = '24px';
+            removeBtn.style.transform = 'translate(50%, -50%)';
+            removeBtn.innerHTML = '<i class="bi bi-x"></i>';
+            removeBtn.onclick = () => {
+                processedFiles.splice(index, 1);
+                renderGallery();
+                updateHiddenInput();
+            };
+            
+            if (file.type.startsWith('image/')) {
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(file);
+                img.className = 'img-fluid object-fit-cover rounded';
+                img.style.height = '100%';
+                img.style.width = '100%';
+                item.appendChild(img);
+            } else {
+                const icon = document.createElement('i');
+                icon.className = 'bi bi-file-earmark-text fs-1 text-primary';
+                const label = document.createElement('small');
+                label.className = 'text-truncate mt-1 w-100 text-center';
+                label.style.fontSize = '0.65rem';
+                label.textContent = file.name;
+                item.appendChild(icon);
+                item.appendChild(label);
+            }
+
+            item.appendChild(removeBtn);
+            gallery.appendChild(item);
+        });
     }
 
-    removeBtn.addEventListener('click', resetImage);
+    function updateHiddenInput() {
+        const dt = new DataTransfer();
+        processedFiles.forEach(file => dt.items.add(file));
+        hiddenInput.files = dt.files;
+    }
+
+    function compressImage(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let { width, height } = img;
+                    const max_size = 1200;
+                    if (width > height) {
+                        if (width > max_size) { height *= max_size / width; width = max_size; }
+                    } else {
+                        if (height > max_size) { width *= max_size / height; height = max_size; }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.8);
+                };
+                img.onerror = () => reject(new Error('Image load error'));
+                img.src = event.target.result;
+            };
+            reader.onerror = () => reject(new Error('File read error'));
+            reader.readAsDataURL(file);
+        });
+    }
+
+    form.addEventListener('submit', function(e) {
+        if (processedFiles.length > 0 && hiddenInput.files.length === 0) {
+            e.preventDefault();
+            updateHiddenInput();
+            form.submit();
+        }
+    });
 });
 </script>
 {% endblock %}
