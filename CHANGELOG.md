@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.14.0] - 2026-03-24
+### Added
+- **Tags Integration:** Tickets can now be categorized with comma-separated tags.
+- **Visual Tags:** Tags are displayed on dashboard cards and in the ticket detail view.
+- **Viewer Role:** Dedicated read-only navigation and dashboard for workers with the `viewer` role.
+- **AJAX Metadata Updates:** Changes to ticket title, tags, and due dates no longer require a page reload.
+
+### Improved
+- **Template Refactoring:** Modularized `ticket_detail.html` into reusable Jinja components.
+- **Dashboard Responsiveness:** Reduced polling interval from 30s to 10s for faster updates on shared terminals.
+
 ## [1.13.0] - 2026-03-23
 ### Added
 - **Feature: Auftragsreferenzen**: Einführung des Feldes `order_reference` für die Verknüpfung mit Kunden- oder Auftragsnummern (Dashboard, Ticket-Details, Suche).

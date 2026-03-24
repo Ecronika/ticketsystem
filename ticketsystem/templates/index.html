@@ -5,7 +5,7 @@
 {% block scripts %}
 <script nonce="{{ g.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
-    const POLL_INTERVAL = 30000; // 30 seconds
+    const POLL_INTERVAL = 10000; // 10 seconds
     
     let lastCount = parseInt("{{ pagination.total or 0 }}");
 
@@ -162,6 +162,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                     {% if ticket.order_reference %}
                                     <span class="badge border bg-light text-dark fw-normal ms-1 x-small"><i class="bi bi-hash"></i>{{ ticket.order_reference }}</span>
                                     {% endif %}
+                                    {% for tag in ticket.tags %}
+                                    <span class="badge bg-secondary-subtle text-secondary rounded-pill fw-normal ms-1" style="font-size: 0.65rem;">
+                                        <i class="bi bi-tag"></i> {{ tag.name }}
+                                    </span>
+                                    {% endfor %}
                                 </h4>
                                 <span class="badge badge-subtle-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} px-2 py-1 small rounded">
                                     {{ ticket.priority|priority_label }}
@@ -252,6 +257,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                 {% if ticket.order_reference %}
                                 <span class="badge border bg-light text-dark fw-normal ms-1 x-small"><i class="bi bi-hash"></i>{{ ticket.order_reference }}</span>
                                 {% endif %}
+                                {% for tag in ticket.tags %}
+                                <span class="badge bg-secondary-subtle text-secondary rounded-pill fw-normal ms-1" style="font-size: 0.65rem;">
+                                    <i class="bi bi-tag"></i> {{ tag.name }}
+                                </span>
+                                {% endfor %}
                             </h4>
                             <p class="text-meta small mb-0">
                                 Ticket #{{ ticket.id }} • Erstellt am {{ ticket.created_at|local_time|datetime }}

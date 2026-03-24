@@ -81,6 +81,7 @@
           </li>
           {% endif %}
           
+          {% if session.get('role') != 'viewer' %}
           <li class="nav-item ms-lg-3">
             <a class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm d-flex align-items-center" 
                href="{{ ingress_path }}{{ url_for('main.ticket_new') }}"
@@ -90,6 +91,7 @@
                 <span class="d-lg-none">Melden</span>
             </a>
           </li>
+          {% endif %}
             <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
             <button class="btn btn-outline-light btn-sm" id="themeToggle" title="Theme wechseln"
               aria-label="Theme umschalten">

@@ -1,0 +1,54 @@
+<div class="card shadow-sm border-0 rounded-4 sticky-top" style="top: 1rem;">
+    <div class="card-body p-4">
+        <h4 class="h6 fw-bold mb-3">Ticket Management</h4>
+        
+        <div class="mb-4">
+            <label for="statusSelect" class="form-label small text-muted fw-bold">Status ändern</label>
+            <select id="statusSelect" class="form-select border-0 bg-surface-subtle fw-bold" 
+                    data-original="{{ ticket.status }}"
+                    {{ 'disabled' if session.get('role') == 'viewer' }}>
+                <option value="offen" {{ 'selected' if ticket.status == 'offen' }}>{{ 'offen'|status_label|upper }}</option>
+                <option value="in_bearbeitung" {{ 'selected' if ticket.status == 'in_bearbeitung' }}>{{ 'in_bearbeitung'|status_label|upper }}</option>
+                <option value="wartet" {{ 'selected' if ticket.status == 'wartet' }} title="Warten auf externe Aktion (Lieferung, Rückruf, ...)">{{ 'wartet'|status_label|upper }}</option>
+                <option value="erledigt" {{ 'selected' if ticket.status == 'erledigt' }}>{{ 'erledigt'|status_label|upper }}</option>
+            </select>
+        </div>
+
+        <div class="mb-4">
+            <label for="assignSelect" class="form-label small text-muted fw-bold">Mitarbeiter zuweisen</label>
+            <select id="assignSelect" class="form-select border-0 bg-surface-subtle fw-bold" 
+                    data-original="{{ ticket.assigned_to_id or '' }}"
+                    {{ 'disabled' if session.get('role') == 'viewer' }}>
+                <option value="" {{ 'selected' if not ticket.assigned_to_id }}>NICHT ZUGEWIESEN</option>
+                {% for worker in workers %}
+                <option value="{{ worker.id }}" {{ 'selected' if ticket.assigned_to_id == worker.id }}>
+                    {{ worker.name|upper }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3 px-1">
+            <small class="text-muted d-block mb-1 x-small text-uppercase ls-wide">Aktuelle Zuweisung</small>
+            <div class="d-flex align-items-center gap-2">
+                <div class="rounded-circle {{ 'bg-primary' if ticket.assigned_to_id else 'bg-secondary' }} opacity-75" style="width: 8px; height: 8px;"></div>
+                <span id="ticketAssigneeBadge" class="small fw-semibold {{ 'text-dark' if ticket.assigned_to_id else 'text-muted' }} d-block text-truncate">
+                    {{ ticket.assigned_to.name|upper if ticket.assigned_to_id else 'NOCH NICHT ZUGEWIESEN' }}
+                </span>
+            </div>
+        </div>
+
+        <hr class="text-muted opacity-25">
+        
+        {% if session.get('role') != 'viewer' %}
+        <div class="d-grid">
+            {% if not ticket.assigned_to_id == session.get('worker_id') %}
+            <form action="{{ ingress_path }}{{ url_for('main.assign_to_me', ticket_id=ticket.id) }}" method="POST">
+                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                 <button type="submit" class="btn btn-outline-primary btn-sm rounded-pill w-100">Mir zuweisen</button>
+            </form>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>

@@ -1,0 +1,116 @@
+<div class="card shadow-sm border-0 rounded-4 mb-4">
+    <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+            <!-- Static View -->
+            <div id="ticketHeaderStatic" class="{{ 'd-none' if edit_mode else '' }}">
+                <div class="d-flex align-items-center mb-1">
+                    <h1 class="h3 fw-bold mb-0 me-3" id="staticTitle">{{ ticket.title }}</h1>
+                    {% if session.get('role') != 'viewer' %}
+                    <button type="button" class="btn btn-sm btn-link text-secondary text-decoration-none rounded-pill px-2" id="editTicketBtn" aria-label="Ticket bearbeiten">
+                        <i class="bi bi-pencil-square me-1"></i> Bearbeiten
+                    </button>
+                    {% endif %}
+                </div>
+                <p class="text-meta small mb-0">
+                    Ticket #{{ ticket.id }} 
+                    <span id="staticOrderRefWrapper">
+                        {% if ticket.order_reference %}
+                        • <span class="badge bg-light text-dark border"><i class="bi bi-hash me-1"></i>{{ ticket.order_reference }}</span>
+                        {% endif %}
+                    </span>
+                    • <span id="staticDueWrapper">
+                        {% if ticket.due_date %}
+                        Fällig am <span class="fw-bold">{{ ticket.due_date|local_time|datetime('%d.%m.%Y') }}</span>
+                        {% else %}
+                        Keine Deadline
+                        {% endif %}
+                    </span>
+                    • Erstellt am {{ ticket.created_at|local_time|datetime }}
+                </p>
+                <!-- Tags Display -->
+                <div id="staticTagsWrapper" class="mt-2 d-flex flex-wrap gap-1">
+                    {% for tag in ticket.tags %}
+                    <span class="badge bg-secondary-subtle text-secondary rounded-pill fw-normal" style="font-size: 0.7rem;">
+                        <i class="bi bi-tag me-1"></i>{{ tag.name }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Edit View -->
+            {% if session.get('role') != 'viewer' %}
+            <div id="ticketHeaderEdit" class="d-none flex-grow-1">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Titel</label>
+                    <input type="text" id="editTitleInput" class="form-control fw-bold h4 border-primary" value="{{ ticket.title }}">
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Kunden- / Auftragsnummer</label>
+                        <input type="text" id="editOrderRefInput" class="form-control" value="{{ ticket.order_reference or '' }}" placeholder="z.B. A-2024-123">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Zu bearbeiten bis (Deadline)</label>
+                        <input type="date" id="editDueDateInput" class="form-control" value="{{ ticket.due_date.strftime('%Y-%m-%d') if ticket.due_date else '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Tags (kommagetrennt)</label>
+                        <input type="text" id="editTagsInput" class="form-control" value="{{ ticket.tags|map(attribute='name')|join(', ') }}" placeholder="z.B. Service, Elektro">
+                    </div>
+                </div>
+                <div class="mb-3 {{ 'd-none' if ticket.status != 'wartet' }}" id="reminderDateWrapper">
+                    <label class="form-label small fw-bold text-primary"><i class="bi bi-alarm me-1"></i>Wiedervorlage am</label>
+                    <input type="date" id="editReminderDateInput" class="form-control border-primary" value="{{ ticket.reminder_date.strftime('%Y-%m-%d') if ticket.reminder_date else '' }}">
+                    <p class="x-small text-muted mt-1">Automatische Erinnerung im Dashboard für diesen Tag.</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-primary rounded-pill px-4" id="saveTicketBtn">Speichern</button>
+                    <button type="button" class="btn btn-light rounded-pill px-4" id="cancelEditBtn">Abbrechen</button>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="d-flex flex-column align-items-end gap-2" id="priorityBadgeWrapper">
+                <div id="priorityStatic">
+                    <span class="badge bg-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }}-subtle text-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} rounded-pill px-3 py-2">
+                         {{ ticket.priority|priority_label }}
+                    </span>
+                </div>
+                {% if session.get('role') != 'viewer' %}
+                <div id="priorityEdit" class="d-none">
+                    <select id="editPrioritySelect" class="form-select form-select-sm rounded-pill fw-bold">
+                        <option value="1" {{ 'selected' if ticket.priority == 1 }}>🔥 HOCH</option>
+                        <option value="2" {{ 'selected' if ticket.priority == 2 }}>⚡ MITTEL</option>
+                        <option value="3" {{ 'selected' if ticket.priority == 3 }}>✅ NIEDRIG</option>
+                    </select>
+                </div>
+                {% endif %}
+                <span id="ticketStatusBadge" class="badge-subtle-{{ 'danger' if ticket.status == 'offen' else 'warning' if ticket.status == 'in_bearbeitung' else 'secondary' if ticket.status == 'wartet' else 'success' }} rounded-pill px-3 py-1 small fw-bold">
+                    {{ ticket.status|status_label|upper }}
+                </span>
+            </div>
+        </div>
+
+        <div class="bg-surface-subtle p-3 rounded-4 mb-2 border border-light-subtle">
+            <p class="mb-0 text-secondary-emphasis" style="white-space: pre-wrap; line-height: 1.6;">{{ ticket.description or 'Keine Beschreibung.' }}</p>
+        </div>
+
+        {% if ticket.attachments %}
+        <div class="mt-4">
+            <h4 class="h6 fw-bold mb-3"><i class="bi bi-paperclip me-2"></i>Anhänge</h4>
+            <div class="row g-2">
+                {% for attachment in ticket.attachments %}
+                <div class="col-6 col-md-4 col-lg-3">
+                    <a href="{{ ingress_path }}{{ url_for('main.serve_attachment', attachment_id=attachment.id) }}" target="_blank">
+                        <img src="{{ ingress_path }}{{ url_for('main.serve_attachment', attachment_id=attachment.id) }}" 
+                             class="img-fluid rounded-3 shadow-sm border" 
+                             alt="Anhang zu Ticket #{{ ticket.id }} (Bild {{ loop.index }})"
+                             loading="lazy">
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>

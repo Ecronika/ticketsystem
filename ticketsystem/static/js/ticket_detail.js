@@ -188,6 +188,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const newOrderRef = editOrderRefInput ? editOrderRefInput.value.trim() : null;
             const newReminder = editReminderInput ? editReminderInput.value : null;
 
+            // Tags Handling: Convert comma-separated string to Array
+            const tagsInput = document.getElementById('editTagsInput');
+            const newTags = tagsInput ? tagsInput.value.split(',').map(t => t.trim()).filter(t => t !== '') : [];
+
             if (!newTitle) {
                 window.showUiAlert('Titel darf nicht leer sein.');
                 return;
@@ -208,7 +212,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         priority: newPrio,
                         due_date: newDue,
                         order_reference: newOrderRef,
-                        reminder_date: newReminder
+                        reminder_date: newReminder,
+                        tags: newTags
                     })
                 });
                 const data = await response.json();
@@ -226,9 +231,45 @@ document.addEventListener('DOMContentLoaded', function() {
                         prioContainer.className = `badge bg-${classMap[newPrio]}-subtle text-${classMap[newPrio]} rounded-pill px-3 py-2`;
                     }
 
-                    // Reload page to reflect all changes (especially if due date changed and affects badge elsewhere)
-                    // Or more elegantly update the local view. Given the complexity of date formatting, a reload is robust or we just show a success message.
-                    window.location.reload(); 
+                    // AJAX UI-Updates WITHOUT Reload
+                    // 1. Order Reference
+                    const orderWrapper = document.getElementById('staticOrderRefWrapper');
+                    if (orderWrapper) {
+                        orderWrapper.innerHTML = newOrderRef ? `• <span class="badge bg-light text-dark border"><i class="bi bi-hash me-1"></i>${newOrderRef}</span>` : '';
+                    }
+
+                    // 2. Due Date
+                    const dueWrapper = document.getElementById('staticDueWrapper');
+                    if (dueWrapper) {
+                        if (newDue) {
+                            // Date formatting helper for JS (YYYY-MM-DD -> DD.MM.YYYY)
+                            const parts = newDue.split('-');
+                            const formatted = `${parts[2]}.${parts[1]}.${parts[0]}`;
+                            dueWrapper.innerHTML = `Fällig am <span class="fw-bold">${formatted}</span>`;
+                        } else {
+                            dueWrapper.innerHTML = 'Keine Deadline';
+                        }
+                    }
+
+                    // 3. Tags Update
+                    const tagsInput = document.getElementById('editTagsInput');
+                    const tagsWrapper = document.getElementById('staticTagsWrapper');
+                    if (tagsInput && tagsWrapper) {
+                        const tagsList = tagsInput.value.split(',').map(t => t.trim()).filter(t => t !== '');
+                        tagsWrapper.innerHTML = tagsList.map(tag => `
+                            <span class="badge bg-secondary-subtle text-secondary rounded-pill fw-normal" style="font-size: 0.7rem;">
+                                <i class="bi bi-tag me-1"></i>${tag}
+                            </span>
+                        `).join('');
+                    }
+
+                    // 4. Switch back to static view
+                    headerStatic.classList.remove('d-none');
+                    headerEdit.classList.add('d-none');
+                    priorityStatic.classList.remove('d-none');
+                    priorityEdit.classList.add('d-none');
+
+                    window.showUiAlert('Ticket erfolgreich aktualisiert.', 'success');
                 } else {
                     window.showUiAlert('Fehler: ' + data.error);
                     saveBtn.disabled = false;

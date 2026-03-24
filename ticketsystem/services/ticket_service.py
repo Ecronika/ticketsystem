@@ -418,8 +418,8 @@ class TicketService:
             raise
 
     @staticmethod
-    def update_ticket_meta(ticket_id, title, priority, author_name, author_id, due_date=None, order_reference=None, reminder_date=None):
-        """Update ticket title and priority with system event log."""
+    def update_ticket_meta(ticket_id, title, priority, author_name, author_id, due_date=None, order_reference=None, reminder_date=None, tags=None):
+        """Update ticket title, priority and tags with system event log."""
         try:
             ticket = db.session.get(Ticket, ticket_id)
             if not ticket:
@@ -430,6 +430,7 @@ class TicketService:
             old_due = ticket.due_date
             old_order_ref = ticket.order_reference
             old_reminder = ticket.reminder_date
+            old_tags = [t.name for t in ticket.tags]
             
             # Update fields
             ticket.title = title
@@ -458,6 +459,19 @@ class TicketService:
                 fmt = lambda d: d.strftime('%d.%m.%Y') if d else 'Keine'
                 changes.append(f"Wiedervorlage: {fmt(old_reminder)} -> {fmt(reminder_date)}")
                 
+            if tags is not None:
+                new_tags = [t.strip() for t in tags if t.strip()]
+                if set(old_tags) != set(new_tags):
+                    changes.append(f"Tags: {', '.join(old_tags) or 'Keine'} -> {', '.join(new_tags) or 'Keine'}")
+                    # Clear and rebuild tags
+                    ticket.tags = []
+                    for tag_name in new_tags:
+                        tag = Tag.query.filter_by(name=tag_name).first()
+                        if not tag:
+                            tag = Tag(name=tag_name)
+                            db.session.add(tag)
+                        ticket.tags.append(tag)
+
             if changes:
                 comment = Comment(
                     ticket_id=ticket.id,
