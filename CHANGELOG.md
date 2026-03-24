@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.15.0] - 2026-03-25
+### Added (Handwerk-Edition)
+- **Teams & Queues**: Tickets können nun ganzen Teams (inkl. Vertreter-Logik) zugewiesen werden.
+- **Vertrauliche Tickets**: HR- und Personalthemen lassen sich per Flag vor Standardnutzern verbergen.
+- **Multi-Bild Upload**: Galerie-Funktion zur umfassenden Dokumentation im Ticket-Formular mit Client-Side Compression.
+- **Serientickets (Wartungen)**: Automatische Ticket-Generierung nach CRON-Zeitplan (APScheduler) für wiederkehrende Wartungsverträge.
+- **Digitale Postmappe (Checklisten)**: Unteraufgaben mit fester Zuweisung, dynamischer Dashboard-Aggregation und Auto-Close Logik.
+- **Kaufmännische Freigabe**: Prio-1 Tickets besitzen nun einen formellen Freigabe-Workflow mit Zeit- und Personalstempel.
+
+### Changed
+- **Datenbankschema**: `models.py` um entsprechende Attribute (`assigned_team_id`, `is_confidential`, etc.) und Relationen erweitert.
+- **Frontend-UX**: Detailansicht mit Badges und Approval-Buttons erweitert, Queue-Ansichten um Status-Icons (Vertraulich, Serie) ergänzt.
+
 ## [1.14.0] - 2026-03-24
 ### Added
 - **Tags Integration:** Tickets can now be categorized with comma-separated tags.
