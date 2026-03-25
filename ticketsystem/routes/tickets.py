@@ -1,3 +1,4 @@
+from utils import get_utc_now
 import os
 from datetime import datetime, timezone, timedelta
 from flask import flash, redirect, render_template, request, session, url_for, jsonify, send_from_directory, current_app
@@ -42,7 +43,7 @@ def _dashboard_view():
                           current_status=status_filter,
                           assigned_to_me=assigned_to_me,
                           unassigned_only=unassigned_only,
-                          today=datetime.now(timezone.utc).replace(tzinfo=None))
+                          today=get_utc_now())
 
 
 def _archive_view():
@@ -170,6 +171,18 @@ def _ticket_detail_view(ticket_id):
         flash('Ticket nicht gefunden.', 'error')
         return redirect_to('main.index')
     
+    # Security Check: Confidentiality IDOR protection
+    user_role = session.get('role')
+    user_id = session.get('worker_id')
+    if ticket.is_confidential and user_role not in ['admin', 'management']:
+        is_assigned = (ticket.assigned_to_id == user_id)
+        is_in_checklist = any(c.assigned_to_id == user_id for c in ticket.checklists)
+        is_author = any(c.author_id == user_id for c in ticket.comments if c.event_type == 'TICKET_CREATED')
+        
+        if not (is_assigned or is_in_checklist or is_author):
+            flash('Keine Berechtigung für dieses Ticket.', 'danger')
+            return redirect_to('main.index')
+            
     workers = Worker.query.filter_by(is_active=True).all()
     from models import Team
     teams = Team.query.all()
@@ -246,6 +259,17 @@ def _serve_attachment(attachment_id):
     if not attachment:
         return "Not Found", 404
         
+    ticket = attachment.ticket
+    user_role = session.get('role')
+    user_id = session.get('worker_id')
+    if ticket and ticket.is_confidential and user_role not in ['admin', 'management']:
+        is_assigned = (ticket.assigned_to_id == user_id)
+        is_in_checklist = any(c.assigned_to_id == user_id for c in ticket.checklists)
+        is_author = any(c.author_id == user_id for c in ticket.comments if c.event_type == 'TICKET_CREATED')
+        
+        if not (is_assigned or is_in_checklist or is_author):
+            return "Forbidden", 403
+            
     from extensions import Config
     data_dir = current_app.config.get('DATA_DIR', Config.get_data_dir())
     attachments_dir = os.path.join(data_dir, 'attachments')
@@ -348,7 +372,7 @@ def _my_queue_view():
     worker_id = session.get('worker_id')
     days_horizon = request.args.get('days', 7, type=int)
     
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = get_utc_now()
     # PWA-Filter: Horizon immer bis zum Ende des Ziel-Tages (23:59:59)
     horizon = (now + timedelta(days=days_horizon)).replace(hour=23, minute=59, second=59) if days_horizon > 0 else None
     

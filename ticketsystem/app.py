@@ -1,3 +1,4 @@
+from utils import get_utc_now
 
 """
 Main Application Entry Point.
@@ -419,7 +420,7 @@ def inject_globals():
     urgent_count = 0
     if session.get('worker_id'):
         # Dringend: Überfällig oder heute fällig (bis Ende des Tages)
-        now_dt = datetime.now(timezone.utc).replace(tzinfo=None)
+        now_dt = get_utc_now()
         limit_dt = now_dt.replace(hour=23, minute=59, second=59)
         try:
             urgent_count = Ticket.query.filter(

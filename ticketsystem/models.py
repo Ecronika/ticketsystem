@@ -1,7 +1,11 @@
+from utils import get_utc_now
 from datetime import datetime, timezone
 
+import os
+import logging
+from sqlalchemy import event
 from sqlalchemy.exc import SQLAlchemyError
-from extensions import db
+from extensions import db, Config
 
 
 
@@ -148,9 +152,9 @@ class Ticket(db.Model):
     
     tags = db.relationship('Tag', secondary=ticket_tags, backref=db.backref('tickets', lazy='dynamic'))
     
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
-    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), 
-                           onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    created_at = db.Column(db.DateTime, default=lambda: get_utc_now())
+    updated_at = db.Column(db.DateTime, default=lambda: get_utc_now(), 
+                           onupdate=lambda: get_utc_now())
 
     def __repr__(self):
         return f'<Ticket {self.title} ({self.status})>'
@@ -167,7 +171,7 @@ class Attachment(db.Model):
     path = db.Column(db.String(255), nullable=False)
     filename = db.Column(db.String(100), nullable=False)
     mime_type = db.Column(db.String(50), nullable=True)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    created_at = db.Column(db.DateTime, default=lambda: get_utc_now())
 
     def __repr__(self):
         return f'<Attachment {self.filename} for Ticket {self.ticket_id}>'
@@ -189,8 +193,23 @@ class Comment(db.Model):
     is_system_event = db.Column(db.Boolean, default=False)
     event_type = db.Column(db.String(30), nullable=True) # e.g., 'STATUS_CHANGE', 'ASSIGNMENT'
     
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    created_at = db.Column(db.DateTime, default=lambda: get_utc_now())
 
     def __repr__(self):
         return f'<Comment by {self.author} on Ticket {self.ticket_id}>'
 
+
+@event.listens_for(Attachment, 'after_delete')
+def receive_after_delete(mapper, connection, target):
+    """Delete the physical file when Attachment is deleted from DB."""
+    try:
+        if target.path:
+            safe_filename = os.path.basename(target.path)
+            if safe_filename and safe_filename not in ['.', '..']:
+                data_dir = Config.get_data_dir()
+                filepath = os.path.join(data_dir, 'attachments', safe_filename)
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+                    logging.getLogger(__name__).info(f"Deleted orphaned attachment file: {filepath}")
+    except Exception as e:
+        logging.getLogger(__name__).error(f"Failed to delete attachment {target.path}: {e}")

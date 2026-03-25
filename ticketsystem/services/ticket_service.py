@@ -1,3 +1,4 @@
+from utils import get_utc_now
 import binascii
 import base64
 import os
@@ -28,7 +29,7 @@ class TicketService:
         - Kein Datum: Fallback auf 500 + Prio * 100
         """
         if now is None:
-            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            now = get_utc_now()
         
         prio = ticket.priority  # 1=Hoch, 2=Mittel, 3=Niedrig
         
@@ -157,7 +158,7 @@ class TicketService:
                 ticket.due_date = due_date
 
             if changes:
-                ticket.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+                ticket.updated_at = get_utc_now()
                 comment = Comment(
                     ticket_id=ticket.id,
                     author=author_name,
@@ -188,7 +189,7 @@ class TicketService:
                 return False
             
             ticket.is_deleted = True
-            ticket.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+            ticket.updated_at = get_utc_now()
             
             comment = Comment(
                 ticket_id=ticket.id,
@@ -226,7 +227,7 @@ class TicketService:
             # Update updated_at on ticket
             ticket = db.session.get(Ticket, ticket_id)
             if ticket:
-                ticket.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+                ticket.updated_at = get_utc_now()
             
             db.session.commit()
             return comment
@@ -248,7 +249,7 @@ class TicketService:
             
             if old_status != new_status:
                 ticket.status = new_status
-                ticket.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+                ticket.updated_at = get_utc_now()
                 
                 comment = Comment(
                     ticket_id=ticket_id,
@@ -272,11 +273,13 @@ class TicketService:
                              assigned_to_me=False, unassigned_only=False, 
                              start_date=None, end_date=None, author_name=None, worker_role=None):
         """Fetch tickets for the dashboard with search, filtering, and pagination."""
-        from sqlalchemy.orm import joinedload
+        from sqlalchemy.orm import joinedload, selectinload
         from models import ChecklistItem
         query = Ticket.query.filter_by(is_deleted=False).options(
             joinedload(Ticket.comments),
-            joinedload(Ticket.assigned_to)
+            joinedload(Ticket.assigned_to),
+            selectinload(Ticket.tags),
+            selectinload(Ticket.checklists)
         )
         
         if worker_role not in ['admin', 'management'] and worker_id is not None:
@@ -346,6 +349,11 @@ class TicketService:
         if worker_id:
             self_query = Ticket.query.filter_by(
                 is_deleted=False
+            ).options(
+                joinedload(Ticket.comments),
+                joinedload(Ticket.assigned_to),
+                selectinload(Ticket.tags),
+                selectinload(Ticket.checklists)
             ).filter(
                 Ticket.status != TicketStatus.ERLEDIGT.value
             ).filter(
@@ -415,7 +423,7 @@ class TicketService:
                 return ticket
                 
             ticket.assigned_to_id = worker_id
-            ticket.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+            ticket.updated_at = get_utc_now()
             
             # Log to history
             comment_text = f"Zuständigkeit geändert: {old_worker_name} -> {new_worker_name}."
@@ -465,7 +473,7 @@ class TicketService:
             ticket.due_date = due_date
             ticket.order_reference = order_reference
             ticket.reminder_date = reminder_date
-            ticket.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+            ticket.updated_at = get_utc_now()
             
             # Log changes
             changes = []
@@ -531,7 +539,7 @@ class TicketService:
                 return ticket  # already approved
                 
             ticket.approved_by_id = worker_id
-            ticket.approved_at = datetime.now(timezone.utc).replace(tzinfo=None)
+            ticket.approved_at = get_utc_now()
             
             comment = Comment(
                 ticket_id=ticket.id,

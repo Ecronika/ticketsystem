@@ -128,3 +128,60 @@ def test_assign_ticket(test_app, db):
         TicketService.assign_ticket(ticket.id, worker.id, worker.name)
         comment = Comment.query.filter_by(ticket_id=ticket.id).order_by(Comment.id.desc()).first()
         assert "hat sich das Ticket selbst zugewiesen" in comment.text
+
+
+def test_confidential_ticket_access(client, db, test_app):
+    """Test that confidential tickets are protected against unauthorized access."""
+    # Create users
+    admin = Worker(name="Admin", pin_hash="hash", is_admin=True)
+    worker1 = Worker(name="Worker 1", pin_hash="hash")
+    worker2 = Worker(name="Worker 2", pin_hash="hash")
+    db.session.add_all([admin, worker1, worker2])
+    db.session.commit()
+    
+    with test_app.app_context():
+        ticket = TicketService.create_ticket(
+            title="Geheim", 
+            description="Lohnabrechnung", 
+            author_name="Worker 1",
+            author_id=worker1.id,
+            is_confidential=True
+        )
+        ticket_id = ticket.id
+        
+    # Test Worker 2 (No Access)
+    with client.session_transaction() as sess:
+        sess['worker_id'] = worker2.id
+        sess['worker_name'] = worker2.name
+        sess['role'] = 'worker'
+    response = client.get(f'/ticket/{ticket_id}', follow_redirects=True)
+    assert b'Keine Berechtigung' in response.data
+    
+    # Test Admin (Access)
+    with client.session_transaction() as sess:
+        sess['worker_id'] = admin.id
+        sess['worker_name'] = admin.name
+        sess['role'] = 'admin'
+    response = client.get(f'/ticket/{ticket_id}')
+    assert response.status_code == 200
+    assert b'Geheim' in response.data
+    
+    # Test Worker 1 (Author Access)
+    with client.session_transaction() as sess:
+        sess['worker_id'] = worker1.id
+        sess['worker_name'] = worker1.name
+        sess['role'] = 'worker'
+    response = client.get(f'/ticket/{ticket_id}')
+    assert response.status_code == 200
+    assert b'Geheim' in response.data
+    
+    # Test Worker 2 after Assignment (Access)
+    with test_app.app_context():
+        TicketService.assign_ticket(ticket_id, worker2.id, "Admin", admin.id)
+    with client.session_transaction() as sess:
+        sess['worker_id'] = worker2.id
+        sess['worker_name'] = worker2.name
+        sess['role'] = 'worker'
+    response = client.get(f'/ticket/{ticket_id}')
+    assert response.status_code == 200
+    assert b'Geheim' in response.data

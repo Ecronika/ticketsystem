@@ -1,3 +1,4 @@
+from utils import get_utc_now
 from datetime import datetime, timezone
 from dateutil.relativedelta import relativedelta
 from extensions import db
@@ -8,7 +9,7 @@ import logging
 def process_recurring_tickets(app):
     """Job to process recurring tickets."""
     with app.app_context():
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        now = get_utc_now()
         
         try:
             # Find all active recurring tickets that are due
@@ -39,15 +40,15 @@ def process_recurring_tickets(app):
                 rule = ticket.recurrence_rule.lower()
                 next_date = ticket.next_recurrence_date
                 
-                if rule == 'monthly':
-                    next_date += relativedelta(months=1)
-                elif rule == 'quarterly':
-                    next_date += relativedelta(months=3)
-                elif rule == 'yearly':
-                    next_date += relativedelta(years=1)
-                else:
-                    # fallback to monthly if unknown
-                    next_date += relativedelta(months=1)
+                def get_increment():
+                    if rule == 'monthly': return relativedelta(months=1)
+                    if rule == 'quarterly': return relativedelta(months=3)
+                    if rule == 'yearly': return relativedelta(years=1)
+                    return relativedelta(months=1)
+                
+                increment = get_increment()
+                while next_date <= now:
+                    next_date += increment
                     
                 ticket.next_recurrence_date = next_date
                 count += 1

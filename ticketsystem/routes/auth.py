@@ -1,3 +1,4 @@
+from utils import get_utc_now
 """
 Authentication routes.
 
@@ -145,7 +146,7 @@ def _login_view():
             return render_template('login.html', workers=workers)
 
         # Naive UTC lookup for SQLite compatibility
-        _now = datetime.now(timezone.utc).replace(tzinfo=None)
+        _now = get_utc_now()
         worker = Worker.query.filter(Worker.name.ilike(worker_name), Worker.is_active == True).with_for_update().first()
         if worker:
             # Check for active lockout
@@ -159,7 +160,7 @@ def _login_view():
                 # Reset lockout on success
                 worker.failed_login_count = 0
                 worker.locked_until = None
-                worker.last_active = datetime.now(timezone.utc).replace(tzinfo=None)
+                worker.last_active = get_utc_now()
                 db.session.commit()
 
                 session.permanent = True
@@ -187,7 +188,7 @@ def _login_view():
                 # Increment failed attempts
                 worker.failed_login_count += 1
                 if worker.failed_login_count >= 5:
-                    worker.locked_until = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=15)
+                    worker.locked_until = get_utc_now() + timedelta(minutes=15)
                     flash('Zu viele Fehlversuche. Konto für 15 Minuten gesperrt.', 'danger')
                 else:
                     flash(f'Falscher PIN. (Versuch {worker.failed_login_count}/5)', 'danger')

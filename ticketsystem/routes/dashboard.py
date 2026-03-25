@@ -1,3 +1,4 @@
+from utils import get_utc_now
 """
 Dashboard routes.
 
@@ -98,7 +99,7 @@ def register_routes(bp):
             return jsonify({
                 'success': True,
                 'counts': counts,
-                'timestamp': datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+                'timestamp': get_utc_now().isoformat()
             })
         except Exception as e:
             current_app.logger.error("Error in dashboard_summary: %s", e)
