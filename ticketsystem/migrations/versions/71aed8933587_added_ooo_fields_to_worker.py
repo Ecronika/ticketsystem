@@ -17,18 +17,30 @@ depends_on = None
 
 
 def upgrade():
-    with op.batch_alter_table('worker', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('is_out_of_office', sa.Boolean(), nullable=True))
-        
-    with op.batch_alter_table('worker', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('delegate_to_id', sa.Integer(), nullable=True))
-        batch_op.create_foreign_key('fk_worker_delegate', 'worker', ['delegate_to_id'], ['id'])
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    worker_columns = [c['name'] for c in inspector.get_columns('worker')]
+
+    if 'is_out_of_office' not in worker_columns:
+        with op.batch_alter_table('worker', schema=None) as batch_op:
+            batch_op.add_column(sa.Column('is_out_of_office', sa.Boolean(), nullable=True))
+            
+    if 'delegate_to_id' not in worker_columns:
+        with op.batch_alter_table('worker', schema=None) as batch_op:
+            batch_op.add_column(sa.Column('delegate_to_id', sa.Integer(), nullable=True))
+            batch_op.create_foreign_key('fk_worker_delegate', 'worker', ['delegate_to_id'], ['id'])
 
 
 def downgrade():
-    with op.batch_alter_table('worker', schema=None) as batch_op:
-        batch_op.drop_constraint('fk_worker_delegate', type_='foreignkey')
-        batch_op.drop_column('delegate_to_id')
-        
-    with op.batch_alter_table('worker', schema=None) as batch_op:
-        batch_op.drop_column('is_out_of_office')
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    worker_columns = [c['name'] for c in inspector.get_columns('worker')]
+
+    if 'delegate_to_id' in worker_columns:
+        with op.batch_alter_table('worker', schema=None) as batch_op:
+            batch_op.drop_constraint('fk_worker_delegate', type_='foreignkey')
+            batch_op.drop_column('delegate_to_id')
+            
+    if 'is_out_of_office' in worker_columns:
+        with op.batch_alter_table('worker', schema=None) as batch_op:
+            batch_op.drop_column('is_out_of_office')
