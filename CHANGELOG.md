@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.16.0] - 2026-03-25
+### Added (Enterprise Readiness)
+- **Kaufmännische Freigabe**: Prio-1 Tickets besitzen nun einen formellen Freigabe-Workflow (Approve/Reject) mit Zeit- und Personalstempel. Sperre von Ausführungen in Wartestellung.
+- **Team-Checklisten & Abhängigkeiten**: Unteraufgaben unterstützen team-basierte Zuordnungen, Fristen und Abhängigkeiten untereinander (`depends_on_item_id`).
+
+### Changed
+- **Frontend-UX**: Detailansicht um Genehmigungs-Overlays und geschachtelte Checklisten ergänzt. Unterstützung für Tastatur-Hotkeys (Cmd+K).
+- **Backend-Sicherheit**: `check_approval_lock` Middleware schützt API-Routen vor Veränderungen während der Freigabephase.
+
 ## [1.15.0] - 2026-03-25
 ### Added (Handwerk-Edition)
 - **Teams & Queues**: Tickets können nun ganzen Teams (inkl. Vertreter-Logik) zugewiesen werden.
@@ -7,11 +16,10 @@
 - **Multi-Bild Upload**: Galerie-Funktion zur umfassenden Dokumentation im Ticket-Formular mit Client-Side Compression.
 - **Serientickets (Wartungen)**: Automatische Ticket-Generierung nach CRON-Zeitplan (APScheduler) für wiederkehrende Wartungsverträge.
 - **Digitale Postmappe (Checklisten)**: Unteraufgaben mit fester Zuweisung, dynamischer Dashboard-Aggregation und Auto-Close Logik.
-- **Kaufmännische Freigabe**: Prio-1 Tickets besitzen nun einen formellen Freigabe-Workflow mit Zeit- und Personalstempel.
 
 ### Changed
-- **Datenbankschema**: `models.py` um entsprechende Attribute (`assigned_team_id`, `is_confidential`, etc.) und Relationen erweitert.
-- **Frontend-UX**: Detailansicht mit Badges und Approval-Buttons erweitert, Queue-Ansichten um Status-Icons (Vertraulich, Serie) ergänzt.
+- **Datenbankschema**: `models.py` um entsprechende Attribute (`is_confidential`, `delegate_to_id`, etc.) und Relationen erweitert.
+- **Frontend-UX**: Queue-Ansichten um Status-Icons (Vertraulich, Serie) ergänzt.
 
 ## [1.14.0] - 2026-03-24
 ### Added
