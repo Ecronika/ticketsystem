@@ -23,6 +23,7 @@ COPY app.py .
 COPY extensions.py .
 COPY models.py .
 COPY enums.py .
+COPY utils.py .
 COPY routes/ routes/
 COPY services/ ./services/
 COPY migrations/ migrations/
