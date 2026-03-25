@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.20.0] - 2026-03-26
+### Changed
+- **Ticket-Formular Redesign (UX/UI):** Komplett überarbeitetes Erstellungsformular für deutlich reduzierten Cognitive Load.
+- **Progressive Disclosure:** Optionale Felder (Auftragsnummer, Tags, Datum, Serienticket, Zuweisung) sind nun hinter einem "Erweiterte Optionen"-Akkordeon verborgen — das Formular zeigt initial nur 4 Core-Felder.
+- **2-Spalten-Grid:** Die erweiterten Optionen sind auf Desktop/Tablet in zwei thematische Spalten ("Referenzen" und "Planung") unterteilt.
+- **Dark Mode Fixes:** Entfernung sämtlicher `bg-light` Klassen aus Inputs. Die Info-Box nutzt nun `bg-info-subtle` für Dark-Mode-kompatible, weiche Kontraste.
+- **Dropzone Upload:** Der Datei-Upload wurde zur visuellen, klickbaren Dropzone (gestrichelter Rahmen, Cloud-Icon) modernisiert.
+- **Soft-Button Priorität:** Prioritäts-Buttons nutzen nun flächigere Soft-Button Styles mit subtiler Farbfüllung bei Auswahl.
+
 ## [1.19.0] - 2026-03-26
 ### Added
 - **In-App Notification Center**: Neue Navigations-Glocke, um Bürofachkräfte und Projektleiter sofort über wichtige Ereignisse in Echtzeit zu informieren, ohne auf E-Mails angewiesen zu sein.
