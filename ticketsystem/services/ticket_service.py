@@ -218,8 +218,19 @@ class TicketService:
             raise
 
     @staticmethod
+    def create_notification(user_id, message, link=None):
+        """Helper to create an in-app notification."""
+        from models import Notification
+        try:
+            notif = Notification(user_id=user_id, message=message, link=link)
+            db.session.add(notif)
+        except Exception as e:
+            current_app.logger.error("Failed to create notification: %s", e)
+
+    @staticmethod
     def add_comment(ticket_id, author_name, author_id, text):
         """Add a comment to an existing ticket."""
+        import re
         try:
             comment = Comment(
                 ticket_id=ticket_id,
@@ -234,6 +245,20 @@ class TicketService:
             ticket = db.session.get(Ticket, ticket_id)
             if ticket:
                 ticket.updated_at = get_utc_now()
+                
+            # Trigger Mention Notifications
+            mentions = set(re.findall(r'@(\w+)', text))
+            if mentions:
+                for mention in mentions:
+                    if mention.lower() == author_name.lower():
+                        continue
+                    mentioned_worker = Worker.query.filter(Worker.name.ilike(mention)).first()
+                    if mentioned_worker:
+                        TicketService.create_notification(
+                            user_id=mentioned_worker.id,
+                            message=f"{author_name} hat Sie in Ticket #{ticket_id} erwähnt.",
+                            link=f"/ticket/{ticket_id}"
+                        )
             
             db.session.commit()
             return comment
@@ -408,6 +433,91 @@ class TicketService:
         }
 
     @staticmethod
+    def get_pending_approvals(page=1, per_page=15):
+        """Fetch all tickets that are currently pending GF/admin approval."""
+        from sqlalchemy.orm import joinedload, selectinload
+        query = Ticket.query.filter_by(
+            is_deleted=False, 
+            approval_status='pending'
+        ).options(
+            joinedload(Ticket.assigned_to),
+            selectinload(Ticket.tags)
+        ).order_by(Ticket.updated_at.desc())
+        
+        return query.paginate(page=page, per_page=per_page, error_out=False)
+
+    @staticmethod
+    def get_projects_summary():
+        """Fetch all projects (grouped by order_reference) and calculate progress."""
+        from sqlalchemy.orm import selectinload
+        from models import Ticket
+        from enums import TicketStatus
+        
+        query = Ticket.query.filter(
+            Ticket.is_deleted == False,
+            Ticket.order_reference != None,
+            Ticket.order_reference != ''
+        ).options(selectinload(Ticket.checklists))
+        
+        tickets = query.all()
+        projects = {}
+        
+        for t in tickets:
+            ref = t.order_reference.strip()
+            if not ref:
+                continue
+                
+            if ref not in projects:
+                projects[ref] = {
+                    'order_reference': ref,
+                    'total_tickets': 0,
+                    'completed_tickets': 0,
+                    'last_updated': t.updated_at or t.created_at,
+                    'ticket_progress_sum': 0.0,
+                    'status_counts': {'offen': 0, 'in_bearbeitung': 0, 'wartet': 0, 'erledigt': 0}
+                }
+            
+            p = projects[ref]
+            p['total_tickets'] += 1
+            
+            t_time = t.updated_at or t.created_at
+            if t_time and (not p['last_updated'] or t_time > p['last_updated']):
+                p['last_updated'] = t_time
+                
+            if t.status in p['status_counts']:
+                p['status_counts'][t.status] += 1
+            else:
+                p['status_counts'][t.status] = 1
+                
+            is_ticket_erledigt = (t.status == TicketStatus.ERLEDIGT.value)
+            if is_ticket_erledigt:
+                p['completed_tickets'] += 1
+                
+            # Ticket Progress Calculation
+            if t.checklists:
+                completed_cl = sum(1 for c in t.checklists if c.is_completed)
+                total_cl = len(t.checklists)
+                t_prog = completed_cl / total_cl if total_cl > 0 else 0.0
+            else:
+                t_prog = 1.0 if is_ticket_erledigt else 0.0
+                
+            p['ticket_progress_sum'] += t_prog
+
+        project_list = []
+        for ref, p in projects.items():
+            if p['total_tickets'] > 0:
+                p['progress'] = int((p['ticket_progress_sum'] / p['total_tickets']) * 100)
+            else:
+                p['progress'] = 0
+            
+            p['is_completed'] = (p['progress'] == 100)
+            project_list.append(p)
+            
+        # Sort: Active projects first, then by last_updated descending
+        project_list.sort(key=lambda x: (x['is_completed'], -x['last_updated'].timestamp() if x['last_updated'] else 0))
+        return project_list
+
+    @staticmethod
     def _resolve_delegation(worker_id):
         """Resolves the final worker ID, gracefully handling OOO and loops."""
         if not worker_id:
@@ -470,6 +580,14 @@ class TicketService:
             ticket.assigned_to_id = worker_id
             ticket.updated_at = get_utc_now()
             
+            # Trigger Assignment Notification
+            if worker_id and worker_id != author_id:
+                TicketService.create_notification(
+                    user_id=worker_id,
+                    message=f"Ihnen wurde Ticket #{ticket_id} zugewiesen.",
+                    link=f"/ticket/{ticket_id}"
+                )
+            
             # Log to history
             comment_text = f"Zuständigkeit geändert: {old_worker_name} -> {new_worker_name}."
             if author_name == new_worker_name:
@@ -488,7 +606,7 @@ class TicketService:
             )
             db.session.add(comment)
 
-            # Task 2.3: Email notification for high-priority tickets
+            # Email notification for high-priority tickets
             if ticket.priority == 1 and worker_id:
                 EmailService.send_notification(new_worker_name, ticket.id, ticket.priority)
             

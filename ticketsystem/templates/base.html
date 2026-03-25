@@ -50,6 +50,12 @@
               <i class="bi bi-people me-1"></i>Team-Übersicht
             </a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link {{ 'active fw-bold' if request.endpoint == 'main.projects' else '' }}" 
+               href="{{ ingress_path }}{{ url_for('main.projects') }}">
+              <i class="bi bi-building me-1"></i>Projekte
+            </a>
+          </li>
           {% else %}
           <li class="nav-item">
             <a class="nav-link {{ 'active' if request.endpoint and request.endpoint == 'main.index' else '' }}"
@@ -84,6 +90,20 @@
           </li>
           {% endif %}
           
+          {% if session.get('is_admin') %}
+          <li class="nav-item">
+            <a class="nav-link {{ 'active fw-bold text-danger' if request.endpoint == 'main.approvals' else '' }}"
+               href="{{ ingress_path }}{{ url_for('main.approvals') }}">
+              <i class="bi bi-shield-check me-1"></i>Meine Freigaben
+              {% if pending_approval_count > 0 %}
+              <span class="badge bg-danger rounded-pill ms-1 animate-pulse" style="font-size:0.65rem">
+                {{ pending_approval_count }}
+              </span>
+              {% endif %}
+            </a>
+          </li>
+          {% endif %}
+
           {% if session.get('role') != 'viewer' %}
           <li class="nav-item ms-lg-3">
             <a class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm d-flex align-items-center" 
@@ -103,6 +123,20 @@
           </li>
 
           {% if session.get('worker_id') %}
+          <!-- Notification Bell -->
+          <li class="nav-item dropdown ms-lg-2 mt-2 mt-lg-0" id="notificationDropdownContainer">
+            <a class="nav-link btn btn-outline-light btn-sm d-flex align-items-center gap-1 position-relative px-2 dropdown-toggle" href="#" id="navbarDropdownNotifications" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Benachrichtigungen">
+              <i class="bi bi-bell-fill" aria-hidden="true"></i>
+              <span id="navNotificationBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light {{ 'd-none' if unread_notifications_count == 0 else 'animate-pulse' }}" style="font-size: 0.65rem;">
+                {{ unread_notifications_count }}
+                <span class="visually-hidden">ungelesene Nachrichten</span>
+              </span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-0 mt-2" aria-labelledby="navbarDropdownNotifications" style="width: 320px; max-height: 400px; overflow-y: auto;" id="notificationList">
+                <li><h6 class="dropdown-header fw-bold bg-light py-2 border-bottom text-dark">Lade Benachrichtigungen...</h6></li>
+            </ul>
+          </li>
+
           <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
             <a class="btn btn-outline-light btn-sm d-flex align-items-center gap-1 {{ 'active' if request.endpoint == 'main.profile' else '' }}" href="{{ ingress_path }}{{ url_for('main.profile') }}" aria-label="Mein Profil">
               <i class="bi bi-person-badge" aria-hidden="true"></i>
@@ -162,6 +196,9 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   <script src="{{ ingress_path }}{{ url_for('static', filename='js/base_ui.js') }}?v={{ config.VERSION }}"></script>
+  {% if session.get('worker_id') %}
+  <script src="{{ ingress_path }}{{ url_for('static', filename='js/notifications.js') }}?v={{ config.VERSION }}"></script>
+  {% endif %}
   {% block scripts %}{% endblock %}
 
   <div class="modal fade" id="globalConfirmModal" tabindex="-1" aria-labelledby="globalConfirmTitle" aria-hidden="true">

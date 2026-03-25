@@ -433,10 +433,33 @@ def inject_globals():
         except Exception:
             urgent_count = 0
 
+    pending_approval_count = 0
+    if session.get('is_admin'):
+        try:
+            pending_approval_count = Ticket.query.filter_by(
+                is_deleted=False, 
+                approval_status='pending'
+            ).count()
+        except Exception:
+            pending_approval_count = 0
+
+    unread_notifications_count = 0
+    if session.get('worker_id'):
+        from models import Notification
+        try:
+            unread_notifications_count = Notification.query.filter_by(
+                user_id=session['worker_id'], 
+                is_read=False
+            ).count()
+        except Exception:
+            unread_notifications_count = 0
+
     return {
         'ingress_path': request.headers.get('X-Ingress-Path', ''),
         'system_settings': SystemSettings,
-        'urgent_count': urgent_count
+        'urgent_count': urgent_count,
+        'pending_approval_count': pending_approval_count,
+        'unread_notifications_count': unread_notifications_count
     }
 
 

@@ -203,6 +203,23 @@ class Ticket(db.Model):
         return f'<Ticket {self.title} ({self.status})>'
 
 
+class Notification(db.Model):
+    """
+    In-App Notification model for tracking user alerts (Mentions, Assignments).
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('worker.id'), nullable=False)
+    user = db.relationship('Worker', backref=db.backref('notifications', lazy='dynamic', cascade='all, delete-orphan'))
+    
+    message = db.Column(db.String(255), nullable=False)
+    link = db.Column(db.String(255), nullable=True) # E.g., '/ticket/123'
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=lambda: get_utc_now())
+
+    def __repr__(self):
+        return f'<Notification for Worker {self.user_id}: {self.message[:20]}>'
+
+
 class Attachment(db.Model):
     """
     Attachment model for storing metadata about uploaded files/images.

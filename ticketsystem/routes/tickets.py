@@ -86,6 +86,19 @@ def _archive_view():
                           end_date=end_date_str,
                           current_status=TicketStatus.ERLEDIGT.value)
 
+@admin_required
+def _approvals_view():
+    """GF/Prokurist Dashboard for specific ticket approvals."""
+    page = request.args.get('page', 1, type=int)
+    pagination = TicketService.get_pending_approvals(page=page)
+    return render_template('approvals.html', pagination=pagination, tickets=pagination.items)
+
+@worker_required
+def _projects_view():
+    """Project/Baustellen Dashboard."""
+    projects = TicketService.get_projects_summary()
+    return render_template('projects.html', projects=projects)
+
 def _new_ticket_view():
     """Handle new ticket creation (v1.12.0: includes optional assignment)."""
     if request.method == 'POST':
@@ -518,12 +531,58 @@ def _my_queue_view():
     )
 
 
+def _api_get_notifications():
+    """Fetch recent notifications for the dropdown."""
+    from models import Notification
+    from flask import jsonify, session
+    
+    worker_id = session.get('worker_id')
+    notifs = Notification.query.filter_by(user_id=worker_id).order_by(Notification.created_at.desc()).limit(15).all()
+    
+    return jsonify({
+        'notifications': [
+            {
+                'id': n.id,
+                'message': n.message,
+                'link': n.link or '#',
+                'is_read': n.is_read
+            } for n in notifs
+        ],
+        'unread_count': sum(1 for n in notifs if not n.is_read)
+    })
+
+def _api_read_notification(notif_id):
+    from models import Notification
+    from flask import jsonify, session
+    from extensions import db
+    
+    worker_id = session.get('worker_id')
+    n = db.session.get(Notification, notif_id)
+    if n and n.user_id == worker_id:
+        n.is_read = True
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'success': False}), 404
+
+def _api_read_all_notifications():
+    from models import Notification
+    from flask import jsonify, session
+    from extensions import db
+    
+    worker_id = session.get('worker_id')
+    Notification.query.filter_by(user_id=worker_id, is_read=False).update({'is_read': True})
+    db.session.commit()
+    return jsonify({'success': True})
+
+
 def register_routes(bp):
     """Register ticket routes with explicit endpoints."""
     # Dashboards
     bp.add_url_rule('/', 'index', view_func=worker_required(_dashboard_view))
     bp.add_url_rule('/archive', 'archive', view_func=worker_required(_archive_view))
     bp.add_url_rule('/my-queue', 'my_queue', view_func=worker_required(_my_queue_view))
+    bp.add_url_rule('/approvals', 'approvals', view_func=_approvals_view)
+    bp.add_url_rule('/projects', 'projects', view_func=worker_required(_projects_view))
 
     # Ticket creation & view
     bp.add_url_rule('/ticket/new', 'ticket_new', 
@@ -563,3 +622,11 @@ def register_routes(bp):
     # Serving
     bp.add_url_rule('/attachment/<int:attachment_id>', 'serve_attachment', 
                   view_func=worker_required(_serve_attachment))
+
+    # Notifications
+    bp.add_url_rule('/api/notifications', 'get_notifications', 
+                  view_func=worker_required(_api_get_notifications), methods=['GET'])
+    bp.add_url_rule('/api/notifications/<int:notif_id>/read', 'read_notification', 
+                  view_func=worker_required(_api_read_notification), methods=['POST'])
+    bp.add_url_rule('/api/notifications/read_all', 'read_all_notifications', 
+                  view_func=worker_required(_api_read_all_notifications), methods=['POST'])

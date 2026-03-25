@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Projekte & Baustellen{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="h4 fw-bold mb-0">Projekte & Baustellen</h2>
+</div>
+
+<!-- Progressive Disclosure / Bento Grid Layout -->
+<div class="row g-4">
+    {% if not projects %}
+    <div class="col-12 text-center py-5">
+        <i class="bi bi-building text-muted" style="font-size: 3rem;"></i>
+        <h5 class="mt-3 text-muted">Keine Bauvorhaben/Projekte gefunden</h5>
+        <p class="small text-muted">Tickets, die mit einer Auftragsnummer (`order_reference`) versehen sind, werden hier automatisch als Projekt gruppiert.</p>
+    </div>
+    {% else %}
+        {% for p in projects %}
+        <div class="col-12 col-xl-6">
+            <!-- Clickable Card linking to Dashboard with filter -->
+            <a href="{{ ingress_path }}{{ url_for('main.index', q=p.order_reference) }}" class="text-decoration-none text-body">
+                <div class="card h-100 border-0 shadow-sm hover-elevate transition-all {{ 'opacity-75' if p.is_completed else '' }}">
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <h5 class="card-title fw-bold mb-1">
+                                    <i class="bi bi-folder2-open me-2 text-primary"></i>{{ p.order_reference }}
+                                </h5>
+                                <span class="text-muted small">
+                                    <i class="bi bi-ticket-detailed me-1"></i>{{ p.total_tickets }} Vorgänge
+                                    <i class="bi bi-clock ms-2 me-1"></i>Letztes Update: {{ p.last_updated | time_ago }}
+                                </span>
+                            </div>
+                            {% if p.is_completed %}
+                            <span class="badge bg-success-subtle text-success rounded-pill px-3 py-2">
+                                <i class="bi bi-check-all me-1"></i>ABGESCHLOSSEN
+                            </span>
+                            {% else %}
+                            <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-2">
+                                <i class="bi bi-activity me-1"></i>AKTIV
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Status Distribution (Bento) -->
+                        <div class="d-flex gap-2 mb-4 small flex-wrap">
+                            {% if p.status_counts.offen > 0 %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" style="font-size: 0.70rem;">
+                                {{ p.status_counts.offen }} Offen
+                            </span>
+                            {% endif %}
+                            {% if p.status_counts.in_bearbeitung > 0 %}
+                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1" style="font-size: 0.70rem;">
+                                {{ p.status_counts.in_bearbeitung }} In Bearbeitung
+                            </span>
+                            {% endif %}
+                            {% if p.status_counts.wartet > 0 %}
+                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="font-size: 0.70rem;">
+                                {{ p.status_counts.wartet }} Wartet
+                            </span>
+                            {% endif %}
+                            {% if p.completed_tickets > 0 %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 0.70rem;">
+                                {{ p.completed_tickets }} Erledigt
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="mt-auto">
+                            <div class="d-flex justify-content-between align-items-end mb-1">
+                                <span class="small fw-semibold text-muted">Gesamtfortschritt</span>
+                                <span class="small fw-bold {{ 'text-success' if p.is_completed else 'text-primary' }}">{{ p.progress }}%</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar {{ 'bg-success' if p.is_completed else 'bg-primary progress-bar-striped progress-bar-animated' }}" 
+                                     role="progressbar" 
+                                     style="width: {{ p.progress }}%;" 
+                                     aria-valuenow="{{ p.progress }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.19.0] - 2026-03-26
+### Added
+- **In-App Notification Center**: Neue Navigations-Glocke, um Bürofachkräfte und Projektleiter sofort über wichtige Ereignisse in Echtzeit zu informieren, ohne auf E-Mails angewiesen zu sein.
+- **Agentic Trigger**: Automatisiertes Benachrichtigen bei `@Name` Mentions in Ticket-Kommentaren und bei Echtzeit-Zuweisung eines Tickets an einen neuen Mitarbeiter.
+- **Async Polling**: Resilientes und ressourcenschonendes Hintergrund-Polling (`fetch`) via AJAX, wodurch ein Page-Reload für Notification-Badges hinfällig wird. LCP/CLS optimiert durch initiale `inject_globals` Serverr-Side Rendering Befüllung.
+
+## [1.18.0] - 2026-03-26
+### Added
+- **Baustellen & Projekt-Ansicht**: Neue Übersicht für Projektleiter, die Tickets automatisch anhand der Auftragsnummer (`order_reference`) in Projekte bündelt.
+- **Detaillierter Fortschrittstracker**: Dynamische Berechnung des Projektfortschritts basierend auf dem Abschluss-Score individueller Ticket-Checklisten.
+- **Progressive Offenlegung**: Bento-Grid basierte Kacheln, die per Klick auf die gefilterte Dashboard-Matrix der spezifischen Baustelle weiterleiten.
+## [1.17.0] - 2026-03-26
+### Added
+- **Dediziertes Freigabe-Dashboard**: Neuer Reiter "Meine Freigaben" für Geschäftsführung und Admins zur zentralisierten Freigabe von Vorgängen.
+- **Bento Grid UI**: Übersichtliche Darstellung der Freigaben mit Fokus auf Progressive Disclosure und Fitt's Law, ermöglicht "1-Klick"-Genehmigungen direkt aus der Übersicht.
+- **Sicherheit & UX**: Ablehnungsgrund (Pflichtfeld) via Modal direkt im Freigabe-Dashboard integriert, ohne die Ansicht wechseln zu müssen.
+
 ## [1.16.0] - 2026-03-25
 ### Added (Enterprise Readiness)
 - **Kaufmännische Freigabe**: Prio-1 Tickets besitzen nun einen formellen Freigabe-Workflow (Approve/Reject) mit Zeit- und Personalstempel. Sperre von Ausführungen in Wartestellung.

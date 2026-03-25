@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Meine Freigaben{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="h4 fw-bold mb-0">Meine Freigaben</h2>
+    {% if pagination.total > 0 %}
+    <span class="badge bg-danger rounded-pill px-3 py-2 animate-pulse">
+        {{ pagination.total }} noch zu prüfen
+    </span>
+    {% endif %}
+</div>
+
+<!-- Progressive Disclosure / Bento Grid Layout -->
+<div class="row g-4">
+    {% if not tickets %}
+    <div class="col-12 text-center py-5">
+        <i class="bi bi-shield-check text-success" style="font-size: 3rem;"></i>
+        <h5 class="mt-3 text-muted">Keine ausstehenden Freigaben</h5>
+        <p class="small text-muted">Alle Vorgänge wurden geprüft.</p>
+    </div>
+    {% else %}
+        {% for ticket in tickets %}
+        <div class="col-12 col-xl-6">
+            <div class="card h-100 border-0 shadow-sm hover-elevate transition-all">
+                <div class="card-body p-4 d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <span class="badge bg-danger-subtle text-danger rounded-pill px-2 py-1 mb-2 fw-bold" style="font-size: 0.70rem;">
+                                PRIO {{ ticket.priority }}
+                            </span>
+                            <span class="badge bg-warning-subtle text-warning rounded-pill px-2 py-1 mb-2 fw-bold ms-1" style="font-size: 0.70rem;">
+                                PENDING
+                            </span>
+                            <h5 class="card-title fw-bold mb-1">#{{ ticket.id }}: {{ ticket.title }}</h5>
+                            <span class="text-muted small">
+                                <i class="bi bi-person me-1"></i>Zugeordnet: {{ ticket.assigned_to.name if ticket.assigned_to else 'Niemand' }}
+                                <i class="bi bi-clock ms-2 me-1"></i>Erstellt {{ ticket.created_at|time_ago }}
+                            </span>
+                        </div>
+                        <a href="{{ ingress_path }}{{ url_for('main.ticket_detail', ticket_id=ticket.id) }}" class="btn btn-sm btn-light rounded-circle flex-shrink-0" title="Ticket Details ansehen">
+                            <i class="bi bi-arrow-up-right"></i>
+                        </a>
+                    </div>
+                    
+                    <div class="bg-surface rounded-3 p-3 mb-4 flex-grow-1 border">
+                        <p class="card-text small text-muted mb-0" style="display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+                            {{ ticket.description or 'Keine ausführliche Beschreibung vorhanden.' }}
+                        </p>
+                        {% if ticket.order_reference %}
+                        <div class="mt-2 pt-2 border-top">
+                            <span class="badge bg-light text-dark border"><i class="bi bi-hash me-1"></i>{{ ticket.order_reference }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="d-flex gap-2 mt-auto">
+                        <button class="btn btn-success flex-fill fw-bold rounded-pill text-white shadow-sm" onclick="window.approveTicket({{ ticket.id }})">
+                            <i class="bi bi-check-circle me-1"></i>Freigabe erteilen
+                        </button>
+                        <button class="btn btn-outline-danger flex-fill fw-bold rounded-pill shadow-sm" onclick="window.showRejectModal({{ ticket.id }})">
+                            <i class="bi bi-x-circle me-1"></i>Ablehnen
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% endif %}
+</div>
+
+{% if pagination.pages > 1 %}
+<nav aria-label="Page navigation" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if pagination.has_prev %}
+        <li class="page-item"><a class="page-link rounded-start-pill px-3" href="{{ url_for('main.approvals', page=pagination.prev_num) }}">Zurück</a></li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link rounded-start-pill px-3">Zurück</span></li>
+        {% endif %}
+
+        <li class="page-item disabled"><span class="page-link fw-bold text-dark">Seite {{ pagination.page }} von {{ pagination.pages }}</span></li>
+
+        {% if pagination.has_next %}
+        <li class="page-item"><a class="page-link rounded-end-pill px-3" href="{{ url_for('main.approvals', page=pagination.next_num) }}">Weiter</a></li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link rounded-end-pill px-3">Weiter</span></li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectApprovalModal" tabindex="-1" aria-labelledby="rejectApprovalModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-danger" id="rejectApprovalModalLabel"><i class="bi bi-x-circle-fill me-2"></i>Freigabe ablehnen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <input type="hidden" id="rejectTicketId">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Ablehnungsgrund (Pflichtfeld)</label>
+                    <textarea id="rejectReasonInput" class="form-control focus-ring focus-ring-danger border-danger-subtle" rows="3" placeholder="Bitte geben Sie an, warum das Ticket nicht freigegeben wurde..." required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-danger rounded-pill px-4" id="submitRejectBtn">Ablehnen</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ ingress_path }}{{ url_for('static', filename='js/ticket_detail.js') }}?v={{ config.VERSION }}"></script>
+{% endblock %}
