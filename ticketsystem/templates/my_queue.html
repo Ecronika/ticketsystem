@@ -41,7 +41,7 @@
         <!-- Header: Titel & ID -->
         <div class="d-flex justify-content-between align-items-start mb-2">
             <h3 class="h6 mb-0 pe-2 lh-sm fw-bold">
-                <a href="{{ ingress_path }}{{ url_for('main.ticket_detail', ticket_id=ticket.id) }}" class="text-dark text-decoration-none stretched-link">
+                <a href="{{ ingress_path }}{{ url_for('main.ticket_detail', ticket_id=ticket.id) }}" class="text-body text-decoration-none stretched-link">
                     {{ ticket.title }}
                 </a>
                 {% if ticket.is_confidential %}<i class="bi bi-lock-fill text-warning ms-1" title="Vertraulich"></i>{% endif %}
