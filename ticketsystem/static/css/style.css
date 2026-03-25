@@ -860,3 +860,17 @@ stiky-top [tabindex], .sticky-top a, .sticky-top select, .sticky-top button { sc
     -webkit-line-clamp: 1;
     -webkit-box-orient: vertical;
 }
+
+/* === Kanban Priority Left Stripe (v1.21) === */
+.card-prio-high  { border-left: 3px solid var(--color-danger)  !important; }
+.card-prio-medium { border-left: 3px solid var(--color-warning) !important; }
+.card-prio-low   { border-left: 3px solid var(--color-info)    !important; }
+
+/* Animate Pulse (Notification Badge) */
+@keyframes pulse-scale {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50%       { transform: translate(-50%, -50%) scale(1.25); }
+}
+.animate-pulse {
+    animation: pulse-scale 1.8s ease infinite;
+}

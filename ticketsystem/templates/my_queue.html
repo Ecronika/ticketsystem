@@ -2,41 +2,40 @@
 {% block title %}Meine Aufgaben{% endblock %}
 
 {% block content %}
-<div class="row mb-4 align-items-center">
-    <div class="col">
-        <h1 class="h3 fw-bold mb-1">Guten Morgen, {{ session.get('worker_name') }}</h1>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-0">
-                <li class="breadcrumb-item active text-muted">
-                    {% if urgent_count > 0 %}
-                    <span class="text-danger fw-bold"><i class="bi bi-exclamation-circle-fill me-1"></i>{{ urgent_count }} Ticket{{ 's' if urgent_count != 1 }} brauchen sofortige Aufmerksamkeit.</span>
-                    {% else %}
-                    <i class="bi bi-check-circle-fill text-success me-1"></i>Alles im Griff — keine dringenden Aufgaben.
-                    {% endif %}
-                </li>
-            </ol>
-        </nav>
+<div class="d-flex align-items-center justify-content-between mb-4 gap-3 flex-wrap">
+    <div>
+        <h1 class="h3 fw-bold mb-0">Meine Aufgaben</h1>
+        {% if urgent_count > 0 %}
+        <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-semibold mt-1 d-inline-flex align-items-center gap-1">
+            <i class="bi bi-exclamation-circle-fill"></i> {{ urgent_count }} Ticket{{ 's' if urgent_count != 1 }} benötigen Aufmerksamkeit
+        </span>
+        {% else %}
+        <span class="text-muted small"><i class="bi bi-check-circle-fill text-success me-1"></i>Keine dringenden Aufgaben.</span>
+        {% endif %}
     </div>
-    <div class="col-auto">
-        <form method="GET" class="d-flex align-items-center gap-2 bg-surface border p-2 rounded-pill shadow-sm">
-            <label class="small text-muted ms-2 d-none d-md-inline">Fällig in:</label>
-            <select name="days" class="form-select form-select-sm border-0 bg-transparent fw-bold" onchange="this.form.submit()" style="width: auto;">
-                <option value="7"  {{ 'selected' if days_horizon == 7  }}>nächsten 7 Tage</option>
-                <option value="14" {{ 'selected' if days_horizon == 14 }}>nächsten 14 Tage</option>
-                <option value="30" {{ 'selected' if days_horizon == 30 }}>nächsten 30 Tage</option>
-                <option value="0"  {{ 'selected' if days_horizon == 0  }}>Alle Tickets</option>
-            </select>
-        </form>
-    </div>
+    <form method="GET" class="d-flex align-items-center gap-2 bg-surface border p-2 rounded-pill shadow-sm flex-shrink-0">
+        <label class="small text-muted ms-2 d-none d-md-inline">Fällig in:</label>
+        <select name="days" class="form-select form-select-sm border-0 bg-transparent fw-bold" onchange="this.form.submit()" style="width: auto;">
+            <option value="7"  {{ 'selected' if days_horizon == 7  }}>nächsten 7 Tage</option>
+            <option value="14" {{ 'selected' if days_horizon == 14 }}>nächsten 14 Tage</option>
+            <option value="30" {{ 'selected' if days_horizon == 30 }}>nächsten 30 Tage</option>
+            <option value="0"  {{ 'selected' if days_horizon == 0  }}>Alle Tickets</option>
+        </select>
+    </form>
 </div>
 
 {# ------------------------------------------------------------
-   KANBAN MACRO: Ticket Card
-   Design: Kompakt, Icons statt Text, Touch-Ergonomie
+   KANBAN MACRO: Ticket Card (Redesigned v1.21)
+   - Priorität als linker farbiger Randbalken (kein freischwebendes Icon)
+   - Keine Trennlinie im Card-Body
+   - Keine Zuweisung (wir sind in "Meine Aufgaben")
+   - OOO als gedimmtes Badge, nicht knallrot
+   - Status-Badge: "Offen" = Grau, nicht Rot (Rot = echter Notfall)
 ------------------------------------------------------------- #}
 {% macro kanban_card(ticket, today) %}
 {% set days_overdue = (today.date() - ticket.due_date.date()).days if ticket.due_date else 0 %}
-<div class="card border-0 shadow-sm overflow-hidden hover-card position-relative mb-2">
+<div class="card border-0 shadow-sm overflow-hidden hover-card position-relative mb-2
+    {%- if ticket.priority == 1 %} card-prio-high{%- elif ticket.priority == 2 %} card-prio-medium{%- else %} card-prio-low{%- endif %}">
     <div class="card-body p-3">
         <!-- Header: Titel & ID -->
         <div class="d-flex justify-content-between align-items-start mb-2">
@@ -47,83 +46,57 @@
                 {% if ticket.is_confidential %}<i class="bi bi-lock-fill text-warning ms-1" title="Vertraulich"></i>{% endif %}
                 {% if ticket.recurrence_rule %}<i class="bi bi-arrow-repeat text-primary ms-1" title="Serienticket"></i>{% endif %}
             </h3>
-            <div class="d-flex align-items-center gap-2 flex-shrink-0">
-                {% if ticket.priority == 1 %}
-                    <i class="bi bi-lightning-fill text-danger text-theme-danger" title="Priorität: Hoch"></i>
-                {% elif ticket.priority == 2 %}
-                    <i class="bi bi-dash text-warning text-theme-warning" title="Priorität: Mittel"></i>
-                {% else %}
-                    <i class="bi bi-arrow-down text-info text-theme-info" title="Priorität: Niedrig"></i>
-                {% endif %}
-                <span class="text-meta x-small text-muted">#{{ ticket.id }}</span>
-            </div>
+            <span class="text-meta x-small text-muted flex-shrink-0">#{{ ticket.id }}</span>
         </div>
         
-        <!-- Metadata: Order Ref & Gewerke (Tags) -->
-        <div class="d-flex flex-wrap gap-2 mb-3 mt-2">
+        <!-- Tags & Referenz -->
+        {% if ticket.order_reference or ticket.tags %}
+        <div class="d-flex flex-wrap gap-1 mb-2">
             {% if ticket.order_reference %}
-            <span class="badge badge-subtle-secondary border fw-normal x-small position-relative z-1">
-                <i class="bi bi-hash text-muted"></i> {{ ticket.order_reference }}
+            <span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal x-small position-relative z-1">
+                <i class="bi bi-hash"></i>{{ ticket.order_reference }}
             </span>
             {% endif %}
-            
             {% for tag in ticket.tags %}
-            <span class="badge badge-subtle-secondary border fw-normal x-small position-relative z-1">
-                <i class="bi bi-tag text-muted"></i> {{ tag.name }}
+            <span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal x-small position-relative z-1">
+                {{ tag.name }}
             </span>
             {% endfor %}
         </div>
+        {% endif %}
         
-        <!-- Footer: Priority, Status, Assignee, Date -->
-        <div class="d-flex justify-content-between align-items-center mt-auto border-top pt-2" style="border-color: var(--border-color) !important;">
-            <!-- Status -->
-            <div class="d-flex align-items-center position-relative z-1">
-                
-                <span class="badge {{ 'badge-subtle-danger' if ticket.status == 'offen' else 'badge-subtle-primary' if ticket.status == 'in_bearbeitung' else 'badge-subtle-warning' if ticket.status == 'wartet' else 'badge-subtle-success' }} x-small fw-semibold border-0">
+        <!-- Footer: Status & Datum -->
+        <div class="d-flex justify-content-between align-items-center mt-2">
+            <div class="d-flex align-items-center gap-1 position-relative z-1">
+                {# Status: Offen = neutral (nicht rot!), andere wie bisher #}
+                <span class="badge x-small fw-semibold border-0
+                    {{ 'bg-secondary-subtle text-secondary-emphasis' if ticket.status == 'offen'
+                    else 'badge-subtle-primary' if ticket.status == 'in_bearbeitung'
+                    else 'badge-subtle-warning' if ticket.status == 'wartet'
+                    else 'badge-subtle-success' }}">
                     {{ ticket.status|status_label }}
                 </span>
-                
                 {% if ticket.approval_status == 'pending' %}
-                <span class="badge badge-subtle-warning ms-1 border-0" title="Wartet auf Freigabe"><i class="bi bi-hourglass-split"></i></span>
+                <span class="badge badge-subtle-warning border-0" title="Wartet auf Freigabe"><i class="bi bi-hourglass-split"></i></span>
                 {% elif ticket.approval_status == 'rejected' %}
-                <span class="badge badge-subtle-danger ms-1 border-0" title="Freigabe abgelehnt"><i class="bi bi-x-circle-fill"></i></span>
+                <span class="badge badge-subtle-danger border-0" title="Freigabe abgelehnt"><i class="bi bi-x-circle-fill"></i></span>
+                {% endif %}
+                {% if ticket.assigned_to_id and ticket.assigned_to.is_out_of_office %}
+                <span class="badge bg-warning-subtle text-warning-emphasis border-0 position-relative z-1" style="font-size: 0.55rem;" title="Mitarbeiter abwesend">OOO</span>
                 {% endif %}
             </div>
-            
-            <!-- Assignee & Date -->
-            <div class="text-end lh-1 position-relative z-1">
-                <div class="x-small text-muted mb-1 d-flex justify-content-end align-items-center flex-wrap gap-1">
-                    <span>
-                        <i class="bi bi-person opacity-50"></i> 
-                        {% if ticket.assigned_to_id %}
-                            {{ ticket.assigned_to.name }}
-                        {% elif ticket.assigned_team_id %}
-                            Team: {{ ticket.assigned_team.name }}
-                        {% else %}
-                            Unzugewiesen
-                        {% endif %}
-                    </span>
-                    {% if ticket.assigned_to_id and ticket.assigned_to.is_out_of_office %}
-                        <span class="badge bg-danger shadow-sm fw-bold px-1" style="font-size: 0.55rem; padding-top:2px; padding-bottom:2px;" title="Mitarbeiter abwesend">OOO</span>
-                    {% endif %}
-                </div>
-                <div class="x-small {{ 'text-danger text-theme-danger fw-bold' if days_overdue > 0 else 'text-muted' }}">
-                    <i class="bi bi-calendar opacity-50"></i>
-                    {% if ticket.due_date %}
-                        {% if days_overdue > 0 %}
-                            {{ days_overdue }} Tag(e) überfällig
-                        {% else %}
-                            {{ ticket.due_date|datetime('%d.%m.') }}
-                        {% endif %}
-                    {% else %}
-                        Kein Datum
-                    {% endif %}
-                </div>
+            <div class="x-small position-relative z-1 {{ 'text-danger fw-bold' if days_overdue > 0 else 'text-muted' }}">
+                <i class="bi bi-calendar opacity-50"></i>
+                {% if ticket.due_date %}
+                    {% if days_overdue > 0 %}{{ days_overdue }}T überfällig
+                    {% else %}{{ ticket.due_date|datetime('%d.%m.') }}{% endif %}
+                {% else %}kein Datum{% endif %}
             </div>
         </div>
     </div>
 </div>
 {% endmacro %}
+
 
 {# ------------------------------------------------------------
    KANBAN BOARD: 3 Spalten (Sofort, Heute, Woche & Zukunft)

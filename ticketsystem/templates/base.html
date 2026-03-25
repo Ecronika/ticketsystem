@@ -36,7 +36,7 @@
           <li class="nav-item">
             <a class="nav-link {{ 'active fw-bold' if request.endpoint == 'main.my_queue' else '' }}" 
                href="{{ ingress_path }}{{ url_for('main.my_queue') }}">
-              <i class="bi bi-list-check me-1"></i>Meine Aufgaben
+              <i class="bi bi-list-check me-1" aria-hidden="true"></i>Meine Aufgaben
               {% if urgent_count > 0 %}
               <span class="badge bg-danger rounded-pill ms-1 animate-pulse" style="font-size:0.65rem">
                 {{ urgent_count }}
@@ -47,13 +47,13 @@
           <li class="nav-item">
             <a class="nav-link {{ 'active fw-bold' if request.endpoint == 'main.index' else '' }}" 
                href="{{ ingress_path }}{{ url_for('main.index') }}">
-              <i class="bi bi-people me-1"></i>Team-Übersicht
+              <i class="bi bi-people me-1" aria-hidden="true"></i>Team-Übersicht
             </a>
           </li>
           <li class="nav-item">
             <a class="nav-link {{ 'active fw-bold' if request.endpoint == 'main.projects' else '' }}" 
                href="{{ ingress_path }}{{ url_for('main.projects') }}">
-              <i class="bi bi-building me-1"></i>Projekte
+              <i class="bi bi-diagram-3 me-1" aria-hidden="true"></i>Projekte
             </a>
           </li>
           {% else %}
@@ -70,12 +70,26 @@
           </li>
 
           {% if session.get('is_admin') %}
+          <li class="nav-item">
+            <a class="nav-link {{ 'active fw-bold' if request.endpoint == 'main.approvals' else '' }}"
+               href="{{ ingress_path }}{{ url_for('main.approvals') }}">
+              <i class="bi bi-shield-check me-1" aria-hidden="true"></i>Freigaben
+              {% if pending_approval_count > 0 %}
+              <span class="badge bg-danger rounded-pill ms-1 animate-pulse" style="font-size:0.65rem">
+                {{ pending_approval_count }}
+              </span>
+              {% endif %}
+            </a>
+          </li>
+          {% endif %}
+
+          {% if session.get('is_admin') %}
           <li class="nav-item dropdown ms-lg-2">
             <a class="nav-link dropdown-toggle d-flex align-items-center gap-1" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
               <span class="badge-subtle-success px-2 py-1 rounded-pill small fw-bold">Admin</span>
             </a>
             <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end border-0 shadow mt-2" aria-labelledby="adminDropdown">
-              <li><h6 class="dropdown-header small text-muted uppercase">Verwaltung</h6></li>
+              <li><h6 class="dropdown-header small text-muted">Verwaltung</h6></li>
               <li><a class="dropdown-item small {{ 'active' if request.endpoint == 'admin.workers' else '' }}" href="{{ ingress_path }}{{ url_for('admin.workers') }}">
                 <i class="bi bi-people me-2"></i> Mitarbeiter
               </a></li>
@@ -87,20 +101,6 @@
                 <i class="bi bi-gear me-2"></i> Einstellungen
               </a></li>
             </ul>
-          </li>
-          {% endif %}
-          
-          {% if session.get('is_admin') %}
-          <li class="nav-item">
-            <a class="nav-link {{ 'active fw-bold text-danger' if request.endpoint == 'main.approvals' else '' }}"
-               href="{{ ingress_path }}{{ url_for('main.approvals') }}">
-              <i class="bi bi-shield-check me-1"></i>Meine Freigaben
-              {% if pending_approval_count > 0 %}
-              <span class="badge bg-danger rounded-pill ms-1 animate-pulse" style="font-size:0.65rem">
-                {{ pending_approval_count }}
-              </span>
-              {% endif %}
-            </a>
           </li>
           {% endif %}
 
@@ -115,12 +115,6 @@
             </a>
           </li>
           {% endif %}
-            <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
-            <button class="btn btn-outline-light btn-sm" id="themeToggle" title="Theme wechseln"
-              aria-label="Theme umschalten">
-              <i class="bi bi-moon-stars" id="themeIcon" aria-hidden="true"></i>
-            </button>
-          </li>
 
           {% if session.get('worker_id') %}
           <!-- Notification Bell -->
@@ -137,20 +131,36 @@
             </ul>
           </li>
 
-          <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
-            <a class="btn btn-outline-light btn-sm d-flex align-items-center gap-1 {{ 'active' if request.endpoint == 'main.profile' else '' }}" href="{{ ingress_path }}{{ url_for('main.profile') }}" aria-label="Mein Profil">
-              <i class="bi bi-person-badge" aria-hidden="true"></i>
-              <span class="d-lg-none d-xl-inline">Profil</span>
+          <!-- User Avatar Dropdown (Profil, Theme, Abmelden) -->
+          {% set initials = session.get('worker_name', 'U')[:2]|upper %}
+          <li class="nav-item dropdown ms-lg-2 mt-2 mt-lg-0">
+            <a class="nav-link dropdown-toggle d-flex align-items-center gap-2 p-0" href="#" id="userMenuDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Benutzermenü">
+              <span class="d-flex align-items-center justify-content-center rounded-circle bg-primary text-white fw-bold" 
+                    style="width: 32px; height: 32px; font-size: 0.7rem; flex-shrink:0;">
+                {{ initials }}
+              </span>
             </a>
-          </li>
-          <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
-            <form action="{{ ingress_path }}{{ url_for('main.logout') }}" method="POST" class="m-0 p-0 d-inline-flex align-items-center">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn btn-outline-light btn-sm d-flex align-items-center gap-1" aria-label="Abmelden">
-                <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
-                <span class="d-lg-none d-xl-inline">Abmelden</span>
-              </button>
-            </form>
+            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end border-0 shadow-lg mt-2 rounded-3" aria-labelledby="userMenuDropdown" style="min-width: 190px;">
+              <li><h6 class="dropdown-header small text-muted pb-1">{{ session.get('worker_name') }}</h6></li>
+              <li><a class="dropdown-item small {{ 'active' if request.endpoint == 'main.profile' else '' }}" href="{{ ingress_path }}{{ url_for('main.profile') }}">
+                <i class="bi bi-person-badge me-2"></i>Mein Profil
+              </a></li>
+              <li><hr class="dropdown-divider opacity-10"></li>
+              <li>
+                <button class="dropdown-item small" id="themeToggleDropdown" type="button" aria-label="Theme umschalten">
+                  <i class="bi bi-moon-stars me-2" id="themeIconDropdown" aria-hidden="true"></i>Dark Mode
+                </button>
+              </li>
+              <li><hr class="dropdown-divider opacity-10"></li>
+              <li>
+                <form action="{{ ingress_path }}{{ url_for('main.logout') }}" method="POST" class="m-0 p-0">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="dropdown-item small text-danger">
+                    <i class="bi bi-box-arrow-right me-2"></i>Abmelden
+                  </button>
+                </form>
+              </li>
+            </ul>
           </li>
           {% else %}
           <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
@@ -164,6 +174,7 @@
       </div>
     </div>
   </nav>
+
 
   <main id="main-content" class="container-fluid px-4 py-4">
     {% with messages = get_flashed_messages(with_categories=true) %}
