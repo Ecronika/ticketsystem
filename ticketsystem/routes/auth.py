@@ -298,6 +298,40 @@ def _change_pin_view():
     return render_template('change_pin.html')
 
 
+def _profile_view():
+    """Handle user profile displaying and updating OOO status."""
+    if not session.get('worker_id'):
+        ingress = request.headers.get('X-Ingress-Path', '')
+        return redirect(f"{ingress}{url_for('main.login')}")
+
+    worker = db.session.get(Worker, session['worker_id'])
+    if not worker:
+        return redirect_to('main.logout')
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'update_ooo':
+            is_ooo = request.form.get('is_out_of_office') == 'on'
+            delegate_id_str = request.form.get('delegate_to_id')
+            
+            worker.is_out_of_office = is_ooo
+            if delegate_id_str and delegate_id_str.isdigit():
+                delegate_id = int(delegate_id_str)
+                if delegate_id != worker.id:
+                    worker.delegate_to_id = delegate_id
+            else:
+                worker.delegate_to_id = None
+                
+            db.session.commit()
+            flash('Abwesenheitseinstellungen aktualisiert.', 'success')
+            return redirect_to('main.profile')
+
+    # Get active workers for delegation dropdown
+    workers = Worker.query.filter(Worker.is_active == True, Worker.id != worker.id).order_by(Worker.name).all()
+    
+    return render_template('profile.html', worker=worker, workers=workers)
+
+
 def register_routes(bp):
     """Register auth routes."""
     bp.add_url_rule('/login', 'login', view_func=_login_view, methods=['GET', 'POST'])
@@ -305,3 +339,4 @@ def register_routes(bp):
     bp.add_url_rule('/setup', 'setup', view_func=_setup_view, methods=['GET', 'POST'])
     bp.add_url_rule('/recover_pin', 'recover_pin', view_func=_recover_pin_view, methods=['GET', 'POST'])
     bp.add_url_rule('/change-pin', 'change_pin', view_func=_change_pin_view, methods=['GET', 'POST'])
+    bp.add_url_rule('/profile', 'profile', view_func=_profile_view, methods=['GET', 'POST'])

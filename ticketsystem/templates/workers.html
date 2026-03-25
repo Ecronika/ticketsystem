@@ -41,8 +41,12 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if worker.is_admin %}
+                                    {% if worker.role == 'admin' %}
                                     <span class="badge badge-subtle-danger rounded-pill px-2">Admin</span>
+                                    {% elif worker.role == 'hr' %}
+                                    <span class="badge badge-subtle-warning rounded-pill px-2">HR / Management</span>
+                                    {% elif worker.role == 'viewer' %}
+                                    <span class="badge badge-subtle-secondary rounded-pill px-2">Viewer</span>
                                     {% else %}
                                     <span class="badge badge-subtle-primary rounded-pill px-2">Mitarbeiter</span>
                                     {% endif %}
@@ -69,7 +73,7 @@
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
                                             <li><button type="button" class="dropdown-item small edit-worker-btn" 
-                                                        data-id="{{ worker.id }}" data-name="{{ worker.name }}" data-admin="{{ 'true' if worker.is_admin else 'false' }}">
+                                                        data-id="{{ worker.id }}" data-name="{{ worker.name }}" data-role="{{ worker.role }}">
                                                 <i class="bi bi-pencil me-2 text-primary"></i> Bearbeiten
                                             </button></li>
                                             <li><hr class="dropdown-divider opacity-50"></li>
@@ -120,9 +124,14 @@
                             <input type="text" name="name" id="edit_name" class="form-control" required>
                         </div>
                         
-                        <div class="form-check form-switch mb-2">
-                            <input class="form-check-input" type="checkbox" name="is_admin" id="edit_is_admin">
-                            <label class="form-check-label small fw-bold" for="edit_is_admin">Administrator-Rechte</label>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">System-Rolle</label>
+                            <select name="role" id="edit_role" class="form-select border-1 rounded-pill">
+                                <option value="worker">Mitarbeiter</option>
+                                <option value="hr">HR / Management</option>
+                                <option value="viewer">Viewer</option>
+                                <option value="admin">Administrator</option>
+                            </select>
                         </div>
                         <p class="text-muted x-small mb-1">Hinweis: PIN-Änderungen erfolgen über den Reset-Button unten.</p>
                     </div>
@@ -171,9 +180,14 @@
                         <div class="form-text x-small text-muted">Wird das Feld leer gelassen, gilt die Standard-PIN '0000'.</div>
                     </div>
                     
-                    <div class="form-check form-switch mb-4">
-                        <input class="form-check-input" type="checkbox" name="is_admin" id="isAdminSwitch">
-                        <label class="form-check-label small fw-bold" for="isAdminSwitch">Administrator-Rechte</label>
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold">System-Rolle</label>
+                        <select name="role" class="form-select border-1 rounded-pill">
+                            <option value="worker">Mitarbeiter (Standard)</option>
+                            <option value="hr">HR / Management (Erweitert)</option>
+                            <option value="viewer">Viewer (Nur Lesen)</option>
+                            <option value="admin">Administrator (Vollzugriff)</option>
+                        </select>
                     </div>
                     
                     <div class="d-grid">

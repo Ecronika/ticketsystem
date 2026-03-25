@@ -82,18 +82,29 @@
                 <span class="badge {{ 'badge-subtle-danger' if ticket.status == 'offen' else 'badge-subtle-primary' if ticket.status == 'in_bearbeitung' else 'badge-subtle-warning' if ticket.status == 'wartet' else 'badge-subtle-success' }} x-small fw-semibold border-0">
                     {{ ticket.status|status_label }}
                 </span>
+                
+                {% if ticket.approval_status == 'pending' %}
+                <span class="badge badge-subtle-warning ms-1 border-0" title="Wartet auf Freigabe"><i class="bi bi-hourglass-split"></i></span>
+                {% elif ticket.approval_status == 'rejected' %}
+                <span class="badge badge-subtle-danger ms-1 border-0" title="Freigabe abgelehnt"><i class="bi bi-x-circle-fill"></i></span>
+                {% endif %}
             </div>
             
             <!-- Assignee & Date -->
             <div class="text-end lh-1 position-relative z-1">
-                <div class="x-small text-muted mb-1">
-                    <i class="bi bi-person opacity-50"></i> 
-                    {% if ticket.assigned_to_id %}
-                        {{ ticket.assigned_to.name }}
-                    {% elif ticket.assigned_team_id %}
-                        Team: {{ ticket.assigned_team.name }}
-                    {% else %}
-                        Unzugewiesen
+                <div class="x-small text-muted mb-1 d-flex justify-content-end align-items-center flex-wrap gap-1">
+                    <span>
+                        <i class="bi bi-person opacity-50"></i> 
+                        {% if ticket.assigned_to_id %}
+                            {{ ticket.assigned_to.name }}
+                        {% elif ticket.assigned_team_id %}
+                            Team: {{ ticket.assigned_team.name }}
+                        {% else %}
+                            Unzugewiesen
+                        {% endif %}
+                    </span>
+                    {% if ticket.assigned_to_id and ticket.assigned_to.is_out_of_office %}
+                        <span class="badge bg-danger shadow-sm fw-bold px-1" style="font-size: 0.55rem; padding-top:2px; padding-bottom:2px;" title="Mitarbeiter abwesend">OOO</span>
                     {% endif %}
                 </div>
                 <div class="x-small {{ 'text-danger text-theme-danger fw-bold' if days_overdue > 0 else 'text-muted' }}">

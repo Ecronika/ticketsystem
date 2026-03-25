@@ -21,8 +21,9 @@ def workers():
             if action == 'create':
                 name = request.form.get('name')
                 pin = request.form.get('pin')
-                is_admin = request.form.get('is_admin') == 'on'
-                WorkerService.create_worker(name, pin, is_admin)
+                role = request.form.get('role')
+                is_admin = (role == 'admin')
+                WorkerService.create_worker(name, pin, is_admin, role)
                 
                 if pin:
                     flash(f"Mitarbeiter '{name}' wurde angelegt. Erster Login mit PIN: {pin}.", "success")
@@ -38,8 +39,9 @@ def workers():
             elif action == 'update':
                 worker_id = request.form.get('worker_id')
                 name = request.form.get('name')
-                is_admin = request.form.get('is_admin') == 'on'
-                WorkerService.update_worker(worker_id, name, is_admin)
+                role = request.form.get('role')
+                is_admin = (role == 'admin')
+                WorkerService.update_worker(worker_id, name, is_admin, role)
                 flash(f"Mitarbeiter '{name}' wurde aktualisiert.", "success")
             
             elif action == 'reset_pin':
@@ -60,6 +62,46 @@ def workers():
 
     workers_list = WorkerService.get_all_workers()
     return render_template('workers.html', workers=workers_list)
+
+
+@admin_bp.route('/templates', methods=['GET', 'POST'])
+@admin_required
+def templates():
+    """List and manage checklist templates."""
+    from extensions import db
+    from models import ChecklistTemplate, ChecklistTemplateItem
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        try:
+            if action == 'create':
+                title = request.form.get('title')
+                desc = request.form.get('description')
+                t = ChecklistTemplate(title=title, description=desc)
+                db.session.add(t)
+                db.session.flush()
+                
+                # Items are sent as list of strings
+                items = request.form.getlist('items[]')
+                for item_title in items:
+                    if item_title.strip():
+                        db.session.add(ChecklistTemplateItem(template_id=t.id, title=item_title.strip()))
+                db.session.commit()
+                flash("Vorlage erfolgreich erstellt.", "success")
+                
+            elif action == 'delete':
+                t_id = request.form.get('template_id')
+                t = db.session.get(ChecklistTemplate, t_id)
+                if t:
+                    db.session.delete(t)
+                    db.session.commit()
+                    flash("Vorlage gelöscht.", "success")
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Fehler: {str(e)}", "danger")
+
+    templates_list = ChecklistTemplate.query.all()
+    return render_template('admin_templates.html', templates=templates_list)
 
 
 @admin_bp.route('/workers/tokens')

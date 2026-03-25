@@ -37,6 +37,57 @@
             </select>
         </div>
 
+        <div class="mb-4" id="approvalSection">
+            <label class="form-label small text-muted fw-bold">Freigabe-Status</label>
+            
+            {% if ticket.approval_status == 'pending' %}
+                <div class="alert alert-warning py-2 px-3 small mb-2 d-flex align-items-center">
+                    <i class="bi bi-hourglass-split fs-5 me-2"></i>
+                    <div>
+                        <strong>Wartet auf Freigabe</strong><br>
+                        Das Ticket ist für Bearbeitungen gesperrt.
+                    </div>
+                </div>
+                
+                {% if session.get('role') in ['admin', 'hr', 'management'] %}
+                <div class="d-flex gap-2 mt-2">
+                    <button type="button" class="btn btn-sm btn-success flex-grow-1" onclick="approveTicket({{ ticket.id }})">
+                        <i class="bi bi-check-lg me-1"></i>Freigeben
+                    </button>
+                    <button type="button" class="btn btn-sm btn-danger flex-grow-1" onclick="showRejectModal({{ ticket.id }})">
+                        <i class="bi bi-x-lg me-1"></i>Ablehnen
+                    </button>
+                </div>
+                {% endif %}
+                
+            {% elif ticket.approval_status == 'approved' %}
+                <div class="badge bg-success-subtle text-success w-100 p-2 text-start d-flex align-items-center mb-0 border border-success-subtle">
+                    <i class="bi bi-check-circle-fill fs-5 me-2"></i>
+                    <div>
+                        <strong class="d-block">Freigegeben</strong>
+                        <span class="x-small fw-normal">Am {{ ticket.approved_at|local_time|datetime('%d.%m.%Y') }}</span>
+                    </div>
+                </div>
+                
+            {% elif ticket.approval_status == 'rejected' %}
+                <div class="alert alert-danger py-2 px-3 small mb-2">
+                    <div class="fw-bold"><i class="bi bi-x-circle-fill me-1"></i>Freigabe abgelehnt</div>
+                    <div class="text-meta mt-1">{{ ticket.reject_reason }}</div>
+                </div>
+                {% if session.get('role') not in ['viewer'] %}
+                <button class="btn btn-sm btn-outline-secondary w-100 mt-2" onclick="requestApproval({{ ticket.id }})">Erneut Freigabe anfordern</button>
+                {% endif %}
+                
+            {% else %}
+                <div class="badge bg-secondary-subtle text-secondary w-100 p-2 text-start d-flex align-items-center mb-2">
+                    <i class="bi bi-dash-circle fs-5 me-2"></i> Keine Freigabe erforderlich
+                </div>
+                {% if session.get('role') not in ['viewer'] %}
+                <button class="btn btn-sm btn-outline-primary w-100" onclick="requestApproval({{ ticket.id }})">Freigabe anfordern</button>
+                {% endif %}
+            {% endif %}
+        </div>
+
         <div class="mb-3 px-1">
             <small class="text-muted d-block mb-1 x-small text-uppercase ls-wide">Aktuelle Zuweisung</small>
             <div class="d-flex align-items-center gap-2">

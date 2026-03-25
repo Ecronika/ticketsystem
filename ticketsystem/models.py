@@ -64,6 +64,11 @@ class Worker(db.Model):
     failed_login_count = db.Column(db.Integer, default=0)
     locked_until = db.Column(db.DateTime, nullable=True)
 
+    # Absence Management
+    is_out_of_office = db.Column(db.Boolean, default=False)
+    delegate_to_id = db.Column(db.Integer, db.ForeignKey('worker.id'), nullable=True)
+    delegate_to = db.relationship('Worker', remote_side=[id], foreign_keys=[delegate_to_id])
+
     def __repr__(self):
         return f'<Worker {self.name}>'
 
@@ -112,9 +117,39 @@ class ChecklistItem(db.Model):
     is_completed = db.Column(db.Boolean, default=False)
     assigned_to_id = db.Column(db.Integer, db.ForeignKey('worker.id'), nullable=True)
     assigned_to = db.relationship('Worker', foreign_keys=[assigned_to_id])
+    assigned_team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=True)
+    assigned_team = db.relationship('Team', foreign_keys=[assigned_team_id])
+    due_date = db.Column(db.DateTime, nullable=True)
+    depends_on_item_id = db.Column(db.Integer, db.ForeignKey('checklist_item.id'), nullable=True)
+    depends_on_item = db.relationship('ChecklistItem', remote_side='ChecklistItem.id', backref='dependent_items')
 
     def __repr__(self):
         return f'<ChecklistItem {self.title}>'
+
+
+class ChecklistTemplate(db.Model):
+    """
+    Template for standardized checklist items (e.g., recurring maintenance).
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(150), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    
+    items = db.relationship('ChecklistTemplateItem', backref='template', cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f'<ChecklistTemplate {self.title}>'
+
+class ChecklistTemplateItem(db.Model):
+    """
+    Individual items within a ChecklistTemplate.
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    template_id = db.Column(db.Integer, db.ForeignKey('checklist_template.id'), nullable=False)
+    title = db.Column(db.String(150), nullable=False)
+
+    def __repr__(self):
+        return f'<ChecklistTemplateItem {self.title}>'
 
 
 class Ticket(db.Model):
@@ -144,9 +179,17 @@ class Ticket(db.Model):
     is_confidential = db.Column(db.Boolean, default=False, nullable=False)
     recurrence_rule = db.Column(db.String(50), nullable=True)
     next_recurrence_date = db.Column(db.DateTime, nullable=True)
+    checklist_template_id = db.Column(db.Integer, db.ForeignKey('checklist_template.id'), nullable=True)
+    checklist_template = db.relationship('ChecklistTemplate', backref='legacy_tickets')
+    
+    # Approval Workflow
+    approval_status = db.Column(db.String(20), default='none', nullable=False) # none, pending, approved, rejected
     approved_by_id = db.Column(db.Integer, db.ForeignKey('worker.id'), nullable=True)
     approved_by = db.relationship('Worker', foreign_keys=[approved_by_id])
     approved_at = db.Column(db.DateTime, nullable=True)
+    rejected_by_id = db.Column(db.Integer, db.ForeignKey('worker.id'), nullable=True)
+    rejected_by = db.relationship('Worker', foreign_keys=[rejected_by_id])
+    reject_reason = db.Column(db.Text, nullable=True)
     
     checklists = db.relationship('ChecklistItem', backref='ticket', cascade='all, delete-orphan')
     

@@ -21,6 +21,30 @@
     </div>
 </div>
 </div>
+
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectApprovalModal" tabindex="-1" aria-labelledby="rejectApprovalModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-danger" id="rejectApprovalModalLabel"><i class="bi bi-x-circle-fill me-2"></i>Freigabe ablehnen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <input type="hidden" id="rejectTicketId">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">Ablehnungsgrund (Pflichtfeld)</label>
+                    <textarea id="rejectReasonInput" class="form-control focus-ring focus-ring-danger border-danger-subtle" rows="3" placeholder="Bitte geben Sie an, warum das Ticket nicht freigegeben wurde..." required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-danger rounded-pill px-4" id="submitRejectBtn">Ablehnen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}

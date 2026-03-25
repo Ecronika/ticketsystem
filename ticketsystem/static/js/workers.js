@@ -7,12 +7,11 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.edit-worker-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 const id = this.getAttribute('data-id');
-                const name = this.getAttribute('data-name');
-                const isAdmin = this.getAttribute('data-admin') === 'true';
+                const role = this.getAttribute('data-role');
                 
                 document.getElementById('edit_worker_id').value = id;
                 document.getElementById('edit_name').value = name;
-                document.getElementById('edit_is_admin').checked = isAdmin;
+                document.getElementById('edit_role').value = role || 'worker';
                 
                 // P0-1 (v1.5.1): Set worker ID for both possible reset form targets
                 ['reset_pin_worker_id', 'reset_pin_worker_id_hidden'].forEach(fieldId => {

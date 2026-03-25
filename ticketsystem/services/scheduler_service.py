@@ -32,9 +32,13 @@ def process_recurring_tickets(app):
                     is_confidential=ticket.is_confidential,
                 )
                 
-                # Clone checklists
-                for item in ticket.checklists:
-                    TicketService.add_checklist_item(new_ticket.id, item.title, item.assigned_to_id)
+                # Clone checklists from template if one is tied, otherwise fallback
+                if ticket.checklist_template_id and ticket.checklist_template:
+                    for item in ticket.checklist_template.items:
+                        TicketService.add_checklist_item(new_ticket.id, item.title)
+                else:
+                    for item in ticket.checklists:
+                        TicketService.add_checklist_item(new_ticket.id, item.title, item.assigned_to_id)
                 
                 # Calculate next date
                 rule = ticket.recurrence_rule.lower()

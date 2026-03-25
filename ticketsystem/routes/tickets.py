@@ -174,19 +174,25 @@ def _ticket_detail_view(ticket_id):
     # Security Check: Confidentiality IDOR protection
     user_role = session.get('role')
     user_id = session.get('worker_id')
-    if ticket.is_confidential and user_role not in ['admin', 'management']:
+    
+    has_full_access = True
+    if ticket.is_confidential:
         is_assigned = (ticket.assigned_to_id == user_id)
         is_in_checklist = any(c.assigned_to_id == user_id for c in ticket.checklists)
         is_author = any(c.author_id == user_id for c in ticket.comments if c.event_type == 'TICKET_CREATED')
         
-        if not (is_assigned or is_in_checklist or is_author):
+        if user_role == 'hr' or is_assigned or is_in_checklist or is_author:
+            has_full_access = True
+        elif user_role in ['admin', 'management']:
+            has_full_access = False # Only metadata access
+        else:
             flash('Keine Berechtigung für dieses Ticket.', 'danger')
             return redirect_to('main.index')
             
     workers = Worker.query.filter_by(is_active=True).all()
     from models import Team
     teams = Team.query.all()
-    return render_template('ticket_detail.html', ticket=ticket, workers=workers, teams=teams)
+    return render_template('ticket_detail.html', ticket=ticket, workers=workers, teams=teams, has_full_access=has_full_access)
 
 @limiter.limit("30 per minute")
 def _public_ticket_view(ticket_id):
@@ -197,6 +203,21 @@ def _public_ticket_view(ticket_id):
         return render_template('404.html'), 404
         
     return render_template('ticket_public.html', ticket=ticket)
+
+def check_approval_lock(ticket_id=None, item_id=None):
+    from models import Ticket, ChecklistItem
+    if item_id:
+        item = db.session.get(ChecklistItem, item_id)
+        if not item: return None
+        ticket = item.ticket
+    elif ticket_id:
+        ticket = db.session.get(Ticket, ticket_id)
+    else:
+        return None
+        
+    if ticket and ticket.approval_status == 'pending':
+        return jsonify({'success': False, 'error': 'Ticket ist für die Freigabe gesperrt.'}), 403
+    return None
 
 @worker_required
 def _add_comment_view(ticket_id):
@@ -213,6 +234,9 @@ def _add_comment_view(ticket_id):
 @worker_required
 def _update_status_api(ticket_id):
     """Handle AJAX status update."""
+    lock_err = check_approval_lock(ticket_id=ticket_id)
+    if lock_err: return lock_err
+    
     data = request.get_json()
     new_status_val = data.get('status')
     author_name = session.get('worker_name', 'System')
@@ -229,6 +253,9 @@ def _update_status_api(ticket_id):
 @worker_required
 def _assign_ticket_api(ticket_id):
     """Handle AJAX ticket assignment."""
+    lock_err = check_approval_lock(ticket_id=ticket_id)
+    if lock_err: return lock_err
+    
     data = request.get_json()
     worker_id = data.get('worker_id')
     author_name = session.get('worker_name', 'System')
@@ -243,6 +270,12 @@ def _assign_ticket_api(ticket_id):
 @worker_required
 def _assign_to_me_view(ticket_id):
     """Assign the ticket to the current logged-in worker."""
+    from models import Ticket
+    ticket = db.session.get(Ticket, ticket_id)
+    if ticket and ticket.approval_status == 'pending':
+        flash('Ticket ist für die Freigabe gesperrt.', 'error')
+        return redirect_to('main.ticket_detail', ticket_id=ticket_id)
+
     worker_id = session.get('worker_id')
     worker_name = session.get('worker_name', 'System')
     
@@ -262,12 +295,14 @@ def _serve_attachment(attachment_id):
     ticket = attachment.ticket
     user_role = session.get('role')
     user_id = session.get('worker_id')
-    if ticket and ticket.is_confidential and user_role not in ['admin', 'management']:
+    if ticket and ticket.is_confidential:
         is_assigned = (ticket.assigned_to_id == user_id)
         is_in_checklist = any(c.assigned_to_id == user_id for c in ticket.checklists)
         is_author = any(c.author_id == user_id for c in ticket.comments if c.event_type == 'TICKET_CREATED')
         
-        if not (is_assigned or is_in_checklist or is_author):
+        has_full_access = (user_role == 'hr') or is_assigned or is_in_checklist or is_author
+        
+        if not has_full_access:
             return "Forbidden", 403
             
     from extensions import Config
@@ -284,6 +319,9 @@ def _serve_attachment(attachment_id):
 @worker_required
 def _update_ticket_api(ticket_id):
     """Handle ticket meta updates (title/priority/due_date)."""
+    lock_err = check_approval_lock(ticket_id=ticket_id)
+    if lock_err: return lock_err
+    
     data = request.get_json()
     new_title = data.get('title')
     new_prio = data.get('priority')
@@ -323,6 +361,15 @@ def _update_ticket_api(ticket_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@worker_required
+def _request_approval_api(ticket_id):
+    author_name = session.get('worker_name', 'System')
+    try:
+        TicketService.request_approval(ticket_id, session.get('worker_id'), author_name)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @admin_required
 def _approve_ticket_api(ticket_id):
     author_name = session.get('worker_name', 'System')
@@ -332,24 +379,64 @@ def _approve_ticket_api(ticket_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@admin_required
+def _reject_ticket_api(ticket_id):
+    data = request.get_json()
+    reason = data.get('reason')
+    if not reason:
+        return jsonify({'success': False, 'error': 'Ablehnungsgrund fehlt.'}), 400
+        
+    author_name = session.get('worker_name', 'System')
+    try:
+        TicketService.reject_ticket(ticket_id, session.get('worker_id'), author_name, reason)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @worker_required
 def _add_checklist_api(ticket_id):
+    lock_err = check_approval_lock(ticket_id=ticket_id)
+    if lock_err: return lock_err
+    
     data = request.get_json()
     title = data.get('title')
     assigned_to_id_raw = data.get('assigned_to_id')
     assigned_to_id = int(assigned_to_id_raw) if assigned_to_id_raw else None
     
+    assigned_team_id_raw = data.get('assigned_team_id')
+    assigned_team_id = int(assigned_team_id_raw) if assigned_team_id_raw else None
+    
+    depends_on_item_id_raw = data.get('depends_on_item_id')
+    depends_on_item_id = int(depends_on_item_id_raw) if depends_on_item_id_raw else None
+    
+    due_date_str = data.get('due_date')
+    due_date = None
+    if due_date_str:
+        from datetime import datetime
+        try:
+            due_date = datetime.fromisoformat(due_date_str.split('T')[0])
+        except (ValueError, TypeError):
+            pass
+    
     if not title:
         return jsonify({'success': False, 'error': 'Titel fehlt'}), 400
         
     try:
-        item = TicketService.add_checklist_item(ticket_id, title, assigned_to_id)
+        item = TicketService.add_checklist_item(
+            ticket_id, title, assigned_to_id, 
+            assigned_team_id=assigned_team_id, 
+            due_date=due_date, 
+            depends_on_item_id=depends_on_item_id
+        )
         return jsonify({'success': True, 'item_id': item.id})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @worker_required
 def _toggle_checklist_api(item_id):
+    lock_err = check_approval_lock(item_id=item_id)
+    if lock_err: return lock_err
+    
     try:
         worker_name = session.get('worker_name', 'System')
         worker_id = session.get('worker_id')
@@ -360,6 +447,9 @@ def _toggle_checklist_api(item_id):
 
 @worker_required
 def _delete_checklist_api(item_id):
+    lock_err = check_approval_lock(item_id=item_id)
+    if lock_err: return lock_err
+    
     try:
         TicketService.delete_checklist_item(item_id)
         return jsonify({'success': True})
@@ -450,8 +540,12 @@ def register_routes(bp):
     bp.add_url_rule('/ticket/<int:ticket_id>/assign_me', 'assign_to_me', 
                   view_func=worker_required(_assign_to_me_view), methods=['POST'])
     
+    bp.add_url_rule('/api/ticket/<int:ticket_id>/request_approval', 'request_approval_api', 
+                  view_func=worker_required(_request_approval_api), methods=['POST'])
     bp.add_url_rule('/api/ticket/<int:ticket_id>/approve', 'approve_ticket_api', 
                   view_func=_approve_ticket_api, methods=['POST'])
+    bp.add_url_rule('/api/ticket/<int:ticket_id>/reject', 'reject_ticket_api', 
+                  view_func=_reject_ticket_api, methods=['POST'])
     bp.add_url_rule('/api/ticket/<int:ticket_id>/checklist', 'add_checklist', 
                   view_func=_add_checklist_api, methods=['POST'])
     bp.add_url_rule('/api/checklist/<int:item_id>/toggle', 'toggle_checklist', 

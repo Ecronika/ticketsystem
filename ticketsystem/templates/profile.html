@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Mein Profil{% endblock %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col">
+        <h1 class="h3 fw-bold mb-1 display-font">Mein Profil</h1>
+        <p class="text-secondary small mb-0">Verwalten Sie Ihre persönlichen Einstellungen und Abwesenheiten.</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
+            <div class="card-header border-0 py-3 px-4 bg-surface-subtle">
+                <h3 class="h5 fw-bold mb-0"><i class="bi bi-person-workspace text-primary me-2"></i> Anwesenheit & Vertretung</h3>
+            </div>
+            <div class="card-body p-4">
+                <form action="{{ ingress_path }}{{ url_for('main.profile') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="update_ooo">
+                    
+                    <div class="form-check form-switch form-switch-lg mb-4">
+                        <input class="form-check-input shadow-none" type="checkbox" role="switch" name="is_out_of_office" id="is_out_of_office" {% if worker.is_out_of_office %}checked{% endif %}>
+                        <label class="form-check-label ms-2 fw-bold" for="is_out_of_office">Ich bin aktuell abwesend (Out of Office)</label>
+                        <div class="form-text mt-2 text-muted x-small">
+                            Wenn Sie abwesend sind, werden neu zugewiesene Tickets automatisch an Ihren Vertreter weitergeleitet, oder das Büro wird gewarnt.
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4" id="delegation-wrapper" {% if not worker.is_out_of_office %}style="display:none; opacity:0; transition: opacity 0.2s;"{% else %}style="opacity:1; transition: opacity 0.2s;"{% endif %}>
+                        <label class="form-label small fw-bold">Meine Standard-Vertretung</label>
+                        <select class="form-select form-select-sm border-1" name="delegate_to_id">
+                            <option value="">Kein Vertreter (Fallback: Unzugewiesen)</option>
+                            {% for w in workers %}
+                            <option value="{{ w.id }}" {% if worker.delegate_to_id == w.id %}selected{% endif %}>{{ w.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4 shadow-sm fw-bold">
+                        <i class="bi bi-save me-1"></i> Speichern
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+            <div class="card-header border-0 py-3 px-4 bg-surface-subtle">
+                <h3 class="h5 fw-bold mb-0"><i class="bi bi-shield-lock text-primary me-2"></i> Sicherheit</h3>
+            </div>
+            <div class="card-body p-4">
+                 <p class="small text-muted mb-3">Aus Sicherheitsgründen wird empfohlen, die PIN regelmäßig zu ändern.</p>
+                 <a href="{{ ingress_path }}{{ url_for('main.change_pin') }}" class="btn btn-outline-secondary btn-sm rounded-pill fw-bold">
+                     <i class="bi bi-key"></i> PIN ändern
+                 </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script nonce="{{ g.csp_nonce }}">
+    document.addEventListener('DOMContentLoaded', function() {
+        const oooToggle = document.getElementById('is_out_of_office');
+        const delegationWrapper = document.getElementById('delegation-wrapper');
+        
+        if(oooToggle && delegationWrapper) {
+            oooToggle.addEventListener('change', function() {
+                if(this.checked) {
+                    delegationWrapper.style.display = 'block';
+                    // simple fade-in effect
+                    setTimeout(() => { delegationWrapper.style.opacity = '1'; }, 10);
+                } else {
+                    delegationWrapper.style.opacity = '0';
+                    setTimeout(() => { delegationWrapper.style.display = 'none'; }, 200);
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
+{% endblock %}

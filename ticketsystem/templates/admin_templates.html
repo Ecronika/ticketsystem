@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Checklisten-Vorlagen{% endblock %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col">
+        <h1 class="h3 fw-bold mb-1 display-font">Checklisten-Vorlagen</h1>
+        <p class="text-secondary small mb-0">Verwaltung wiederverwendbarer Vorlagen für Wartungsaufgaben und Serientickets.</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
+            <div class="card-header border-0 py-3 px-4 bg-surface-subtle">
+                <h3 class="h5 fw-bold mb-0"><i class="bi bi-card-checklist text-primary me-2"></i> Aktuelle Vorlagen</h3>
+            </div>
+            <div class="card-body p-0">
+                <div class="accordion accordion-flush" id="templatesAccordion">
+                    {% for t in templates %}
+                    <div class="accordion-item shadow-none border-bottom">
+                        <h2 class="accordion-header" id="heading-{{ t.id }}">
+                            <button class="accordion-button collapsed py-3 fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ t.id }}" aria-expanded="false" aria-controls="collapse-{{ t.id }}">
+                                {{ t.title }}
+                                <span class="badge bg-secondary ms-2 rounded-pill x-small">{{ t.items|length }} Schritte</span>
+                            </button>
+                        </h2>
+                        <div id="collapse-{{ t.id }}" class="accordion-collapse collapse bg-light bg-opacity-10" aria-labelledby="heading-{{ t.id }}" data-bs-parent="#templatesAccordion">
+                            <div class="accordion-body p-4">
+                                {% if t.description %}
+                                <p class="small text-muted mb-3">{{ t.description }}</p>
+                                {% endif %}
+                                <ul class="list-group list-group-flush mb-4 small rounded overflow-hidden shadow-sm">
+                                    {% for item in t.items %}
+                                    <li class="list-group-item d-flex align-items-center">
+                                        <i class="bi bi-check-square me-2 text-primary opacity-50"></i> {{ item.title }}
+                                    </li>
+                                    {% else %}
+                                    <li class="list-group-item text-muted fst-italic">Keine Checklisten-Schritte definiert.</li>
+                                    {% endfor %}
+                                </ul>
+                                
+                                <form action="{{ ingress_path }}{{ url_for('admin.templates') }}" method="POST" class="d-inline"
+                                      data-confirm="true"
+                                      data-confirm-title="Vorlage löschen?"
+                                      data-confirm-message="Möchten Sie '{{ t.title }}' wirklich löschen? Bestehende Serientickets könnten ihre Definition verlieren.">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="action" value="delete">
+                                    <input type="hidden" name="template_id" value="{{ t.id }}">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill fw-bold" aria-label="Löschen">
+                                        <i class="bi bi-trash"></i> Vorlage löschen
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="p-4 text-center text-muted small">
+                        Es wurden noch keine Checklisten-Vorlagen erstellt.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card shadow-sm border-0 border-primary-subtle rounded-4 bg-surface-subtle">
+            <div class="card-body p-4">
+                <h3 class="h5 fw-bold mb-3"><i class="bi bi-plus-square-fill text-primary me-2"></i> Neue Vorlage erstellen</h3>
+                <form action="{{ ingress_path }}{{ url_for('admin.templates') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="create">
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Titel der Vorlage</label>
+                        <input type="text" name="title" class="form-control" placeholder="z.B. Wartung BMA" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Beschreibung (optional)</label>
+                        <textarea name="description" class="form-control" rows="2" placeholder="Kurze Erläuterung"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold d-flex justify-content-between align-items-center">
+                            Checklisten-Punkte
+                            <button type="button" class="btn btn-sm btn-link text-decoration-none py-0 px-0" id="add-item-btn">
+                                <i class="bi bi-plus-circle"></i> Weitere Zeile
+                            </button>
+                        </label>
+                        <div id="items-container" class="d-flex flex-column gap-2">
+                            <input type="text" name="items[]" class="form-control form-control-sm" placeholder="1. Schritt..." required>
+                            <input type="text" name="items[]" class="form-control form-control-sm" placeholder="2. Schritt...">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary rounded-pill w-100 fw-bold shadow-sm">
+                        Vorlage sichern
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script nonce="{{ g.csp_nonce }}">
+    document.addEventListener('DOMContentLoaded', () => {
+        const btn = document.getElementById('add-item-btn');
+        const container = document.getElementById('items-container');
+        if(btn && container) {
+            btn.addEventListener('click', () => {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.name = 'items[]';
+                input.classList.add('form-control', 'form-control-sm');
+                input.placeholder = (container.children.length + 1) + '. Schritt...';
+                container.appendChild(input);
+                input.focus();
+            });
+        }
+    });
+</script>
+{% endblock %}
+{% endblock %}

@@ -306,6 +306,79 @@ window.approveTicket = async function(tId) {
     }
 };
 
+window.requestApproval = async function(tId) {
+    if (!confirm('Freigabe für dieses Ticket anfordern?')) return;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const ingress = document.querySelector('.navbar')?.getAttribute('data-ingress') || '';
+    
+    try {
+        const response = await fetch(`${ingress}/api/ticket/${tId}/request_approval`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
+        });
+        const data = await response.json();
+        if (data.success) {
+            window.showUiAlert('Freigabe erfolgreich angefordert.', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            window.showUiAlert('Fehler: ' + data.error);
+        }
+    } catch (e) {
+        window.showUiAlert('Netzwerkfehler');
+    }
+};
+
+window.showRejectModal = function(tId) {
+    const modalEl = document.getElementById('rejectApprovalModal');
+    if (modalEl) {
+        document.getElementById('rejectTicketId').value = tId;
+        document.getElementById('rejectReasonInput').value = '';
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    const submitRejectBtn = document.getElementById('submitRejectBtn');
+    if (submitRejectBtn) {
+        submitRejectBtn.addEventListener('click', async function() {
+            const tId = document.getElementById('rejectTicketId').value;
+            const reason = document.getElementById('rejectReasonInput').value.trim();
+            if (!reason) {
+                window.showUiAlert('Bitte geben Sie einen Grund an.', 'warning');
+                return;
+            }
+            
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            const ingress = document.querySelector('.navbar')?.getAttribute('data-ingress') || '';
+            
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Wird abgelehnt...';
+            
+            try {
+                const response = await fetch(`${ingress}/api/ticket/${tId}/reject`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify({ reason: reason })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    window.showUiAlert('Ticket wurde abgelehnt.', 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    window.showUiAlert('Fehler: ' + data.error);
+                    this.disabled = false;
+                    this.textContent = 'Ablehnen';
+                }
+            } catch (e) {
+                window.showUiAlert('Netzwerkfehler');
+                this.disabled = false;
+                this.textContent = 'Ablehnen';
+            }
+        });
+    }
+});
+
 // Checklist Logic
 document.addEventListener('DOMContentLoaded', function() {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -321,17 +394,32 @@ document.addEventListener('DOMContentLoaded', function() {
         addBtn.addEventListener('click', async () => {
             const titleInput = document.getElementById('new-checklist-title');
             const assignInput = document.getElementById('new-checklist-assignee');
+            const teamInput = document.getElementById('new-checklist-team');
+            const dueInput = document.getElementById('new-checklist-due');
+            const dependInput = document.getElementById('new-checklist-depends');
+            
             const title = titleInput.value.trim();
             const assignee = assignInput ? assignInput.value : '';
+            const team = teamInput ? teamInput.value : '';
+            const due = dueInput ? dueInput.value : '';
+            const depend = dependInput ? dependInput.value : '';
             
             if (!title) return;
             addBtn.disabled = true;
+            
+            const payload = { 
+                title: title, 
+                assigned_to_id: assignee,
+                assigned_team_id: team,
+                due_date: due,
+                depends_on_item_id: depend
+            };
             
             try {
                 const response = await fetch(`${ingress}/api/ticket/${tId}/checklist`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                    body: JSON.stringify({ title: title, assigned_to_id: assignee })
+                    body: JSON.stringify(payload)
                 });
                 const data = await response.json();
                 if (data.success) {
@@ -405,4 +493,22 @@ document.addEventListener('DOMContentLoaded', function() {
             } catch (err) {}
         });
     });
+
+    // Command Palette hotkey (Cmd+K) for advanced checklists
+    const clTitleInput = document.getElementById('new-checklist-title');
+    if (clTitleInput) {
+        clTitleInput.addEventListener('keydown', (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                const collapseEl = document.getElementById('advancedChecklistOptions');
+                if (collapseEl) {
+                    const bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseEl);
+                    bsCollapse.toggle();
+                }
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (addBtn) addBtn.click();
+            }
+        });
+    }
 });

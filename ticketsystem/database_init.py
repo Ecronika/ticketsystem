@@ -71,6 +71,12 @@ def _ensure_critical_columns(logger):
                 if 'is_admin' not in columns:
                     logger.info("Repair: Adding worker.is_admin")
                     conn.execute(db.text("ALTER TABLE worker ADD COLUMN is_admin BOOLEAN DEFAULT 0"))
+                if 'is_out_of_office' not in columns:
+                    logger.info("Repair: Adding worker.is_out_of_office")
+                    conn.execute(db.text("ALTER TABLE worker ADD COLUMN is_out_of_office BOOLEAN DEFAULT 0"))
+                if 'delegate_to_id' not in columns:
+                    logger.info("Repair: Adding worker.delegate_to_id")
+                    conn.execute(db.text("ALTER TABLE worker ADD COLUMN delegate_to_id INTEGER"))
 
             if 'ticket' in tables:
                 columns = [c['name'] for c in inspector.get_columns('ticket')]

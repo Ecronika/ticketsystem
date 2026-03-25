@@ -187,14 +187,21 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                             <p class="text-secondary small mb-2 text-truncate mt-2">{{ ticket.description or 'Keine Beschreibung vorhanden.' }}</p>
                             <div class="d-flex justify-content-between align-items-center">
-                                <span class="badge badge-subtle-{{ 'danger' if ticket.status == 'offen' else 'warning' if ticket.status == 'in_bearbeitung' else 'secondary' if ticket.status == 'wartet' else 'success' }} rounded-pill px-2 py-1 x-small fw-normal">
-                                    {% if ticket.status == 'wartet' %}
-                                        <i class="bi bi-hourglass-split me-1"></i>
-                                        {% if ticket.reminder_date and ticket.reminder_date.date() <= today.date() %}
-                                        <i class="bi bi-exclamation-triangle-fill text-danger me-1 animate__animated animate__flash animate__infinite" title="Wiedervorlage fällig!"></i>
-                                        {% endif %}
-                                    {% endif %}{{ ticket.status|status_label|upper }}
-                                </span>
+                                <div>
+                                    <span class="badge badge-subtle-{{ 'danger' if ticket.status == 'offen' else 'warning' if ticket.status == 'in_bearbeitung' else 'secondary' if ticket.status == 'wartet' else 'success' }} rounded-pill px-2 py-1 x-small fw-normal">
+                                        {% if ticket.status == 'wartet' %}
+                                            <i class="bi bi-hourglass-split me-1"></i>
+                                            {% if ticket.reminder_date and ticket.reminder_date.date() <= today.date() %}
+                                            <i class="bi bi-exclamation-triangle-fill text-danger me-1 animate__animated animate__flash animate__infinite" title="Wiedervorlage fällig!"></i>
+                                            {% endif %}
+                                        {% endif %}{{ ticket.status|status_label|upper }}
+                                    </span>
+                                    {% if ticket.approval_status == 'pending' %}
+                                    <span class="badge badge-subtle-warning ms-1 rounded-pill px-2 py-1 x-small fw-normal border-0" title="Wartet auf Freigabe"><i class="bi bi-hourglass-split me-1"></i>Freigabe ausstehend</span>
+                                    {% elif ticket.approval_status == 'rejected' %}
+                                    <span class="badge badge-subtle-danger ms-1 rounded-pill px-2 py-1 x-small fw-normal border-0" title="Freigabe abgelehnt"><i class="bi bi-x-circle-fill me-1"></i>Abgelehnt</span>
+                                    {% endif %}
+                                </div>
                                 <small class="text-meta x-small" title="{{ ticket.created_at|local_time|datetime }}">{{ ticket.created_at|local_time|time_ago }}</small>
                             </div>
                         </a>
@@ -275,14 +282,21 @@ document.addEventListener('DOMContentLoaded', function() {
                                 {% endif %}
                             </p>
                             <div class="d-flex justify-content-between align-items-center mt-2">
-                                <span class="badge badge-subtle-{{ 'danger' if ticket.status == 'offen' else 'warning' if ticket.status == 'in_bearbeitung' else 'secondary' if ticket.status == 'wartet' else 'success' }} rounded-pill px-2 py-1 x-small fw-normal">
-                                    {% if ticket.status == 'wartet' %}
-                                        <i class="bi bi-hourglass-split me-1"></i>
-                                        {% if ticket.reminder_date and ticket.reminder_date.date() <= today.date() %}
-                                        <span class="text-danger fw-bold me-1">!</span>
-                                        {% endif %}
-                                    {% endif %}{{ ticket.status|status_label|upper }}
-                                </span>
+                                <div>
+                                    <span class="badge badge-subtle-{{ 'danger' if ticket.status == 'offen' else 'warning' if ticket.status == 'in_bearbeitung' else 'secondary' if ticket.status == 'wartet' else 'success' }} rounded-pill px-2 py-1 x-small fw-normal">
+                                        {% if ticket.status == 'wartet' %}
+                                            <i class="bi bi-hourglass-split me-1"></i>
+                                            {% if ticket.reminder_date and ticket.reminder_date.date() <= today.date() %}
+                                            <span class="text-danger fw-bold me-1">!</span>
+                                            {% endif %}
+                                        {% endif %}{{ ticket.status|status_label|upper }}
+                                    </span>
+                                    {% if ticket.approval_status == 'pending' %}
+                                    <span class="badge badge-subtle-warning ms-1 rounded-pill px-2 py-1 x-small fw-normal border-0" title="Wartet auf Freigabe"><i class="bi bi-hourglass-split me-1"></i>Freigabe ausstehend</span>
+                                    {% elif ticket.approval_status == 'rejected' %}
+                                    <span class="badge badge-subtle-danger ms-1 rounded-pill px-2 py-1 x-small fw-normal border-0" title="Freigabe abgelehnt"><i class="bi bi-x-circle-fill me-1"></i>Abgelehnt</span>
+                                    {% endif %}
+                                </div>
                                 <small class="text-meta x-small" title="{{ ticket.updated_at|local_time|datetime }}">{{ ticket.updated_at|local_time|time_ago }}</small>
                             </div>
                         </a>

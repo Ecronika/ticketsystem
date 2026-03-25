@@ -22,7 +22,13 @@
                     <span class="fw-semibold small {{ 'text-primary' if comment.author != session.get('worker_name') else '' }}">{{ comment.author }}</span>
                     <span class="text-meta x-small">{{ comment.created_at|local_time|datetime('%d.%m. %H:%M') }}</span>
                 </div>
-                <p class="mb-0 small" style="white-space: pre-wrap;">{{ comment.text }}</p>
+                <p class="mb-0 small" style="white-space: pre-wrap;">
+                    {% if has_full_access %}
+                    {{ comment.text }}
+                    {% else %}
+                    <em class="text-muted"><i class="bi bi-lock-fill me-1"></i>Inhalt ausgeblendet</em>
+                    {% endif %}
+                </p>
             </div>
         </div>
     </div>

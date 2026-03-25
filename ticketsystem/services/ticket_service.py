@@ -56,6 +56,10 @@ class TicketService:
     def create_ticket(title, description=None, priority=TicketPriority.MITTEL, author_name="System", author_id=None, assigned_to_id=None, assigned_team_id=None, due_date=None, tags=None, attachments=None, order_reference=None, reminder_date=None, is_confidential=False, recurrence_rule=None):
         """Create a new ticket and an initial comment."""
         try:
+            path_logs = []
+            if assigned_to_id:
+                assigned_to_id, path_logs = TicketService._resolve_delegation(assigned_to_id)
+                
             ticket = Ticket(
                 title=title,
                 description=description,
@@ -84,6 +88,8 @@ class TicketService:
 
             # Add initial comment if description exists
             comment_text = f"Ticket erstellt von {author_name}. Beschreibung: {description}" if description else f"Ticket erstellt von {author_name}."
+            if path_logs:
+                comment_text += "\nDelegation:\n- " + "\n- ".join(path_logs)
             
             comment = Comment(
                 ticket_id=ticket.id,
@@ -282,7 +288,7 @@ class TicketService:
             selectinload(Ticket.checklists)
         )
         
-        if worker_role not in ['admin', 'management'] and worker_id is not None:
+        if worker_role not in ['admin', 'hr', 'management'] and worker_id is not None:
             author_subquery = db.session.query(Comment.ticket_id).filter(
                 Comment.event_type == 'TICKET_CREATED',
                 Comment.author_id == worker_id
@@ -367,7 +373,7 @@ class TicketService:
                     )
                 )
             )
-            if worker_role not in ['admin', 'management']:
+            if worker_role not in ['admin', 'hr', 'management']:
                 author_subs = db.session.query(Comment.ticket_id).filter(
                     Comment.event_type == 'TICKET_CREATED',
                     Comment.author_id == worker_id
@@ -402,6 +408,41 @@ class TicketService:
         }
 
     @staticmethod
+    def _resolve_delegation(worker_id):
+        """Resolves the final worker ID, gracefully handling OOO and loops."""
+        if not worker_id:
+            return None, []
+        
+        visited = set()
+        path_logs = []
+        current_id = worker_id
+        
+        while current_id:
+            if current_id in visited:
+                path_logs.append("Zirkuläre Vertretung erkannt. Fallback: Unzugewiesen.")
+                return None, path_logs
+                
+            visited.add(current_id)
+            w = db.session.get(Worker, current_id)
+            
+            if not w:
+                return None, path_logs
+                
+            if w.is_out_of_office:
+                if w.delegate_to_id:
+                    delegate = db.session.get(Worker, w.delegate_to_id)
+                    delegate_name = delegate.name if delegate else "Unbekannt"
+                    path_logs.append(f"{w.name} abwesend -> delegiert an {delegate_name}")
+                    current_id = w.delegate_to_id
+                else:
+                    path_logs.append(f"{w.name} abwesend (kein Vertreter). Fallback: Unzugewiesen.")
+                    return None, path_logs
+            else:
+                return current_id, path_logs
+                
+        return None, path_logs
+
+    @staticmethod
     def assign_ticket(ticket_id, worker_id, author_name, author_id=None):
         """Assign a ticket to a worker and log the change."""
         try:
@@ -411,6 +452,10 @@ class TicketService:
             
             old_worker_name = ticket.assigned_to.name if ticket.assigned_to else "Niemand"
             
+            path_logs = []
+            if worker_id:
+                worker_id, path_logs = TicketService._resolve_delegation(worker_id)
+                
             if worker_id:
                 worker = db.session.get(Worker, worker_id)
                 if not worker:
@@ -419,7 +464,7 @@ class TicketService:
             else:
                 new_worker_name = "Niemand"
 
-            if ticket.assigned_to_id == worker_id:
+            if ticket.assigned_to_id == worker_id and not path_logs:
                 return ticket
                 
             ticket.assigned_to_id = worker_id
@@ -429,6 +474,9 @@ class TicketService:
             comment_text = f"Zuständigkeit geändert: {old_worker_name} -> {new_worker_name}."
             if author_name == new_worker_name:
                 comment_text = f"Mitarbeiter {new_worker_name} hat sich das Ticket selbst zugewiesen."
+                
+            if path_logs:
+                comment_text += "\nDelegation:\n- " + "\n- ".join(path_logs)
             
             comment = Comment(
                 ticket_id=ticket.id,
@@ -529,23 +577,54 @@ class TicketService:
             raise
 
     @staticmethod
+    def request_approval(ticket_id, worker_id, worker_name):
+        try:
+            ticket = db.session.get(Ticket, ticket_id)
+            if not ticket or ticket.is_deleted:
+                raise ValueError("Ticket nicht gefunden.")
+                
+            if ticket.approval_status == 'pending':
+                return ticket
+                
+            ticket.approval_status = 'pending'
+            ticket.updated_at = get_utc_now()
+            
+            comment = Comment(
+                ticket_id=ticket.id,
+                author=worker_name,
+                author_id=worker_id,
+                text="Freigabe wurde angefordert. Das Ticket ist nun gesperrt.",
+                is_system_event=True,
+                event_type='APPROVAL_REQUEST'
+            )
+            db.session.add(comment)
+            db.session.commit()
+            return ticket
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error("Error requesting approval: %s", e)
+            raise
+
+    @staticmethod
     def approve_ticket(ticket_id, worker_id, worker_name):
         try:
             ticket = db.session.get(Ticket, ticket_id)
             if not ticket or ticket.is_deleted:
                 raise ValueError("Ticket nicht gefunden.")
             
-            if ticket.approved_by_id:
+            if ticket.approval_status == 'approved':
                 return ticket  # already approved
                 
+            ticket.approval_status = 'approved'
             ticket.approved_by_id = worker_id
             ticket.approved_at = get_utc_now()
+            ticket.updated_at = get_utc_now()
             
             comment = Comment(
                 ticket_id=ticket.id,
                 author="System",
                 author_id=None,
-                text=f"Kaufmännisch freigegeben durch {worker_name}",
+                text=f"Freigegeben durch {worker_name}",
                 is_system_event=True,
                 event_type='APPROVAL'
             )
@@ -558,10 +637,46 @@ class TicketService:
             raise
 
     @staticmethod
-    def add_checklist_item(ticket_id, title, assigned_to_id=None):
+    def reject_ticket(ticket_id, worker_id, worker_name, reason):
+        try:
+            ticket = db.session.get(Ticket, ticket_id)
+            if not ticket or ticket.is_deleted:
+                raise ValueError("Ticket nicht gefunden.")
+                
+            ticket.approval_status = 'rejected'
+            ticket.rejected_by_id = worker_id
+            ticket.reject_reason = reason
+            ticket.status = TicketStatus.OFFEN.value
+            ticket.updated_at = get_utc_now()
+            
+            comment = Comment(
+                ticket_id=ticket.id,
+                author="System",
+                author_id=None,
+                text=f"Freigabe abgelehnt durch {worker_name}. Grund: {reason}",
+                is_system_event=True,
+                event_type='APPROVAL_REJECTED'
+            )
+            db.session.add(comment)
+            db.session.commit()
+            return ticket
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error("Error rejecting ticket: %s", e)
+            raise
+
+    @staticmethod
+    def add_checklist_item(ticket_id, title, assigned_to_id=None, assigned_team_id=None, due_date=None, depends_on_item_id=None):
         try:
             from models import ChecklistItem
-            item = ChecklistItem(ticket_id=ticket_id, title=title, assigned_to_id=assigned_to_id)
+            item = ChecklistItem(
+                ticket_id=ticket_id, 
+                title=title, 
+                assigned_to_id=assigned_to_id,
+                assigned_team_id=assigned_team_id,
+                due_date=due_date,
+                depends_on_item_id=depends_on_item_id
+            )
             db.session.add(item)
             db.session.commit()
             return item
@@ -577,6 +692,11 @@ class TicketService:
             from enums import TicketStatus
             item = db.session.get(ChecklistItem, item_id)
             if item:
+                if not item.is_completed and item.depends_on_item_id:
+                    parent_item = db.session.get(ChecklistItem, item.depends_on_item_id)
+                    if parent_item and not parent_item.is_completed:
+                        raise ValueError(f"Abhängigkeit nicht erfüllt: '{parent_item.title}' muss zuerst abgeschlossen werden.")
+                        
                 item.is_completed = not item.is_completed
                 ticket = item.ticket
                 db.session.commit()
