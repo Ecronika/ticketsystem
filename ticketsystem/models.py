@@ -220,12 +220,19 @@ class Ticket(db.Model):
             return True
         if any(c.assigned_to_id == worker_id for c in self.checklists):
             return True
-        # Author check via initial system comment
-        if any(
-            c.author_id == worker_id and c.event_type == 'TICKET_CREATED'
-            for c in self.comments
-        ):
-            return True
+        # PERF-2: Avoid lazy-loading all comments — use a targeted COUNT query
+        # instead of iterating self.comments (which can be hundreds of rows).
+        from sqlalchemy.orm import object_session
+        sess = object_session(self)
+        if sess is not None:
+            from models import Comment  # local import to avoid circular ref
+            exists = sess.query(Comment).filter(
+                Comment.ticket_id == self.id,
+                Comment.author_id == worker_id,
+                Comment.event_type == 'TICKET_CREATED'
+            ).limit(1).count()
+            if exists:
+                return True
         return False
 
 

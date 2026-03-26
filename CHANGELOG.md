@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.25.0] - 2026-03-26
+### Added
+- **TX-1 & TX-2:** Atomic transaction batching for recurring tickets. `TicketService` now supports `commit=False` for batch operations, and the scheduler commits once per batch to prevent fragmented database states.
+- **LOG-1:** Bound async log queue to 10,000 entries in `app.py` to prevent OOM crashes on slow I/O (Raspberry Pi / SD Card).
+### Fixed
+- **SEC-1:** Masked internal API error details to prevent information leakage. Detailed errors are now logged server-side only.
+- **SEC-2:** Protection against session fixation attacks by rotating the session cookie on successful login.
+- **PERF-1:** Removed non-functioning `.with_for_update()` on SQLite queries to prevent potential driver bloat/errors.
+- **PERF-2:** Optimized `is_accessible_by` authorization check by replacing N+1 lazy-loading iteration with a single targeted SQL query.
+
 ## [1.24.0] - 2026-03-26
 ### Security
 - **IDOR (CRITICAL):** All writing API endpoints (`_add_comment_view`, `_update_status_api`, `_assign_ticket_api`, `_update_ticket_api`) now reject requests from workers without access to confidential tickets (HTTP 403). Previously any authenticated user could write to any ticket via direct POST regardless of the `is_confidential` flag.

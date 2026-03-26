@@ -153,7 +153,9 @@ def _login_view():
 
         # Naive UTC lookup for SQLite compatibility
         _now = get_utc_now()
-        worker = Worker.query.filter(Worker.name.ilike(worker_name), Worker.is_active == True).with_for_update().first()
+        # PERF-1: Removed .with_for_update() — SQLite has no row-level locking;
+        # WAL-mode handles concurrent writes at DB level.
+        worker = Worker.query.filter(Worker.name.ilike(worker_name), Worker.is_active == True).first()
         if worker:
             # Check for active lockout
             if worker.locked_until and worker.locked_until > _now:
@@ -169,10 +171,15 @@ def _login_view():
                 worker.last_active = get_utc_now()
                 db.session.commit()
 
+                # SEC-2: Session fixation prevention — clear and regenerate session
+                # cookie so an attacker who planted a session ID cannot reuse it.
+                session.clear()
+                session.modified = True
+
                 session.permanent = True
                 session['worker_id'] = worker.id
                 session['worker_name'] = worker.name
-                session['is_admin'] = (worker.role == 'admin')  # SEC-07: Use role as single source of truth
+                session['is_admin'] = (worker.role == 'admin')
                 session['role'] = worker.role or 'worker'
 
                 if worker.needs_pin_change:

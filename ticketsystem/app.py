@@ -131,7 +131,9 @@ console_handler.setFormatter(console_formatter)
 # HA Add-on: Use Async (QueueListener)
 # Standalone: Use Sync (Direct) to avoid missed logs in docker logs
 if not IS_STANDALONE:
-    log_queue = queue.Queue(-1)
+    # LOG-1: Bounded queue (10 000 entries) prevents unbounded memory growth
+    # if disk I/O stalls (e.g., full SD-card on Raspberry Pi).
+    log_queue = queue.Queue(10_000)
     queue_listener = QueueListener(
         log_queue, file_handler, console_handler, respect_handler_level=True
     )

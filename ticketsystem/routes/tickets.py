@@ -287,7 +287,8 @@ def _update_status_api(ticket_id):
         TicketService.update_status(ticket_id, new_status_val, author_name, session.get('worker_id'))
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        current_app.logger.error("API Error in _update_status_api: %s", e)
+        return jsonify({'success': False, 'error': 'Ein interner Fehler ist aufgetreten.'}), 500
 
 @worker_required
 def _assign_ticket_api(ticket_id):
@@ -307,7 +308,8 @@ def _assign_ticket_api(ticket_id):
         TicketService.assign_ticket(ticket_id, worker_id, author_name, session.get('worker_id'))
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        current_app.logger.error("API Error in _update_status_api: %s", e)
+        return jsonify({'success': False, 'error': 'Ein interner Fehler ist aufgetreten.'}), 500
 
 @worker_required
 def _assign_to_me_view(ticket_id):
@@ -401,7 +403,8 @@ def _update_ticket_api(ticket_id):
         )
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        current_app.logger.error("API Error in _update_ticket_api: %s", e)
+        return jsonify({'success': False, 'error': 'Ein interner Fehler ist aufgetreten.'}), 500
 
 @worker_required
 def _request_approval_api(ticket_id):
@@ -410,7 +413,8 @@ def _request_approval_api(ticket_id):
         TicketService.request_approval(ticket_id, session.get('worker_id'), author_name)
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        current_app.logger.error("API Error in _request_approval_api: %s", e)
+        return jsonify({'success': False, 'error': 'Ein interner Fehler ist aufgetreten.'}), 500
 
 @admin_required
 def _approve_ticket_api(ticket_id):
@@ -419,7 +423,8 @@ def _approve_ticket_api(ticket_id):
         TicketService.approve_ticket(ticket_id, session.get('worker_id'), author_name)
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        current_app.logger.error("API Error in _approve_ticket_api: %s", e)
+        return jsonify({'success': False, 'error': 'Ein interner Fehler ist aufgetreten.'}), 500
 
 @admin_required
 def _reject_ticket_api(ticket_id):
@@ -433,7 +438,8 @@ def _reject_ticket_api(ticket_id):
         TicketService.reject_ticket(ticket_id, session.get('worker_id'), author_name, reason)
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        current_app.logger.error("API Error in _reject_ticket_api: %s", e)
+        return jsonify({'success': False, 'error': 'Ein interner Fehler ist aufgetreten.'}), 500
 
 @worker_required
 def _add_checklist_api(ticket_id):
@@ -472,7 +478,8 @@ def _add_checklist_api(ticket_id):
         )
         return jsonify({'success': True, 'item_id': item.id})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        current_app.logger.error("API Error in _add_checklist_api: %s", e)
+        return jsonify({'success': False, 'error': 'Ein interner Fehler ist aufgetreten.'}), 500
 
 @worker_required
 def _toggle_checklist_api(item_id):
@@ -485,7 +492,8 @@ def _toggle_checklist_api(item_id):
         item = TicketService.toggle_checklist_item(item_id, worker_name=worker_name, worker_id=worker_id)
         return jsonify({'success': True, 'is_completed': item.is_completed if item else False})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        current_app.logger.error("API Error in _toggle_checklist_api: %s", e)
+        return jsonify({'success': False, 'error': 'Ein interner Fehler ist aufgetreten.'}), 500
 
 @worker_required
 def _delete_checklist_api(item_id):
@@ -496,7 +504,8 @@ def _delete_checklist_api(item_id):
         TicketService.delete_checklist_item(item_id)
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        current_app.logger.error("API Error in _delete_checklist_api: %s", e)
+        return jsonify({'success': False, 'error': 'Ein interner Fehler ist aufgetreten.'}), 500
 
 def _my_queue_view():
     """Persönliche Aufgaben-Queue, gruppiert nach Dringlichkeit (v1.11.3)."""

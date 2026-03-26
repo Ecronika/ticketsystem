@@ -103,5 +103,5 @@ def register_routes(bp):
             })
         except Exception as e:
             current_app.logger.error("Error in dashboard_summary: %s", e)
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return jsonify({'success': False, 'error': 'Ein interner Fehler ist aufgetreten.'}), 500
 

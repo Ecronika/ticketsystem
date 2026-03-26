@@ -53,8 +53,14 @@ class TicketService:
             return 300 + min(150, days_left) + prio * 10
 
     @staticmethod
-    def create_ticket(title, description=None, priority=TicketPriority.MITTEL, author_name="System", author_id=None, assigned_to_id=None, assigned_team_id=None, due_date=None, tags=None, attachments=None, order_reference=None, reminder_date=None, is_confidential=False, recurrence_rule=None):
-        """Create a new ticket and an initial comment."""
+    def create_ticket(title, description=None, priority=TicketPriority.MITTEL, author_name="System", author_id=None, assigned_to_id=None, assigned_team_id=None, due_date=None, tags=None, attachments=None, order_reference=None, reminder_date=None, is_confidential=False, recurrence_rule=None, commit=True):
+        """Create a new ticket and an initial comment.
+
+        Args:
+            commit: If True (default), commits the transaction immediately.
+                    Pass False in batch/scheduler contexts to keep the
+                    transaction open and commit once for the entire batch.
+        """
         try:
             path_logs = []
             if assigned_to_id:
@@ -130,7 +136,12 @@ class TicketService:
                     except Exception as err:
                         current_app.logger.error("Error saving attachment %s: %s", file.filename, err)
 
-            db.session.commit()
+            # TX-1: Commit if requested, else flush to get ID
+            if commit:
+                db.session.commit()
+            else:
+                db.session.flush()
+
             return ticket
         except SQLAlchemyError as e:
             db.session.rollback()
@@ -277,8 +288,13 @@ class TicketService:
             raise
 
     @staticmethod
-    def update_status(ticket_id, status, author_name="System", author_id=None):
-        """Update ticket status and add a system comment."""
+    def update_status(ticket_id, status, author_name="System", author_id=None, commit=True):
+        """Update ticket status and add a system comment.
+
+        Args:
+            commit: If True (default), commits immediately. Pass False in
+                    batch contexts to defer the commit to the caller.
+        """
         try:
             ticket = db.session.get(Ticket, ticket_id)
             if not ticket or ticket.is_deleted:
@@ -300,7 +316,11 @@ class TicketService:
                     event_type='STATUS_CHANGE'
                 )
                 db.session.add(comment)
-                db.session.commit()
+                # TX-1: Honour commit flag for batch-safe operation
+                if commit:
+                    db.session.commit()
+                else:
+                    db.session.flush()
             
             return ticket
         except Exception as e:

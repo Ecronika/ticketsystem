@@ -1,3 +1,8 @@
+"""
+Scheduler Service.
+
+Background job definitions for recurring ticket processing.
+"""
 from utils import get_utc_now
 from datetime import datetime, timezone
 from dateutil.relativedelta import relativedelta
@@ -17,21 +22,26 @@ _RECURRENCE_INCREMENTS = {
 
 
 def process_recurring_tickets(app):
-    """Job to process recurring tickets."""
+    """Job to process recurring tickets atomically.
+
+    TX-2: All service calls use commit=False so they only flush (getting IDs
+    without hard-committing).  A single db.session.commit() at the end of the
+    loop makes the entire batch atomic — if any ticket fails, db.session.rollback()
+    in the except clause reverts every change from that run.
+    """
     with app.app_context():
         now = get_utc_now()
-        
+
         try:
-            # Find all active recurring tickets that are due
             tickets = Ticket.query.filter(
                 Ticket.is_deleted == False,
                 Ticket.recurrence_rule != None,
                 Ticket.next_recurrence_date <= now
             ).all()
-            
+
             count = 0
             for ticket in tickets:
-                # Clone the ticket
+                # TX-2: commit=False keeps everything in one transaction
                 new_ticket = TicketService.create_ticket(
                     title=ticket.title,
                     description=ticket.description,
@@ -40,8 +50,9 @@ def process_recurring_tickets(app):
                     assigned_to_id=ticket.assigned_to_id,
                     assigned_team_id=ticket.assigned_team_id,
                     is_confidential=ticket.is_confidential,
+                    commit=False,
                 )
-                
+
                 # Clone checklists from template if one is tied, otherwise fallback
                 if ticket.checklist_template_id and ticket.checklist_template:
                     for item in ticket.checklist_template.items:
@@ -49,33 +60,36 @@ def process_recurring_tickets(app):
                 else:
                     for item in ticket.checklists:
                         TicketService.add_checklist_item(new_ticket.id, item.title, item.assigned_to_id)
-                
-                # Calculate next date using module-level lookup
+
+                # Calculate next recurrence date using module-level lookup
                 rule = ticket.recurrence_rule.lower()
                 increment = _RECURRENCE_INCREMENTS.get(rule)
                 if increment is None:
-                    _logger.warning("Unknown recurrence_rule '%s' for ticket %d — defaulting to monthly", rule, ticket.id)
+                    _logger.warning(
+                        "Unknown recurrence_rule '%s' for ticket %d — defaulting to monthly",
+                        rule, ticket.id
+                    )
                     increment = relativedelta(months=1)
 
                 next_date = ticket.next_recurrence_date
                 while next_date <= now:
                     next_date += increment
-                    
+
                 ticket.next_recurrence_date = next_date
                 count += 1
-            
+
             if count > 0:
+                # TX-2: Single atomic commit for the entire batch
                 db.session.commit()
-                # FIX-11: Use %s format instead of f-strings
                 _logger.info("Processed %d recurring tickets.", count)
-                
+
         except Exception as e:
             db.session.rollback()
             _logger.error("Error processing recurring tickets: %s", e)
 
 
 def schedule_recurring_job(app):
-    """Register the job with apscheduler."""
+    """Register the recurring ticket job with APScheduler."""
     try:
         from extensions import scheduler
         # FIX-08: replace_existing=True prevents ConflictingIdError on app restart
@@ -89,5 +103,4 @@ def schedule_recurring_job(app):
         )
         _logger.info("Scheduled job: process_recurring_tickets at 02:00")
     except Exception as e:
-        # FIX-11: Use %s format
         _logger.error("Failed to schedule recurring tickets job: %s", e)
