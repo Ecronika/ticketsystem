@@ -10,7 +10,7 @@ from flask import flash, redirect, render_template, request, session, url_for, j
 from flask_limiter import Limiter
 from extensions import db, limiter
 from services.ticket_service import TicketService
-from enums import TicketStatus, TicketPriority, WorkerRole
+from enums import TicketStatus, TicketPriority, WorkerRole, ApprovalStatus
 import os
 from .auth import worker_required, redirect_to, admin_required
 from models import Worker, Attachment, Ticket

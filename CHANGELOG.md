@@ -1,5 +1,9 @@
 # Changelog
  
+## [1.26.3] - 2026-03-26
+### Fixed
+- **FIX-ROUTES:** Added missing `ApprovalStatus` import in `routes/tickets.py`. This resolves the `NameError` when performing ticket updates or checklist operations.
+
 ## [1.26.2] - 2026-03-26
 ### Fixed
 - **FIX-ENUM:** Enums (`ApprovalStatus`, `WorkerRole`, `TicketPriority`) were missing from the global Jinja2 context in v1.26.1, causing `UndefinedError` on several pages. Now explicitly included in the context processor.
