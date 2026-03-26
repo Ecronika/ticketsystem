@@ -27,8 +27,12 @@
             }
             // Update avatar dropdown toggle icon
             const dropdownIcon = document.getElementById('themeIconDropdown');
+            const dropdownText = document.getElementById('themeTextDropdown');
             if (dropdownIcon) {
                 dropdownIcon.className = isDark ? 'bi bi-sun me-2' : 'bi bi-moon-stars me-2';
+            }
+            if (dropdownText) {
+                dropdownText.textContent = isDark ? 'Hellmodus' : 'Dunkelmodus';
             }
         } catch (e) { console.error('Theme Script Error:', e); }
     };

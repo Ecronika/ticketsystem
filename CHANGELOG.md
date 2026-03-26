@@ -1,5 +1,10 @@
 # Changelog
  
+## [1.26.8] - 2026-03-27
+### Fixed
+- **UI**: Fixed theme toggle text in the user menu; it now correctly alternates between "Hellmodus" and "Dunkelmodus" based on the active theme.
+- **Cleanup**: Removed redundant theme toggle listeners in `base_ui.js`.
+
 ## [1.26.7] - 2026-03-27
 ### Fixed
 - **Core**: Resolved `NameError: ApprovalStatus` in `TicketService.reject_ticket` by centralizing enum imports.

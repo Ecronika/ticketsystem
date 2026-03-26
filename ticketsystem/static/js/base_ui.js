@@ -125,17 +125,5 @@
             }
         });
 
-        // Theme Toggle
-        const toggleBtn = document.getElementById('themeToggle');
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', () => {
-                const activeTheme = document.documentElement.getAttribute('data-theme');
-                const newTheme = activeTheme === 'light' ? 'dark' : 'light';
-                localStorage.setItem('ui_theme', newTheme);
-                if (window.applyTheme) window.applyTheme(newTheme);
-                const themeSelect = document.getElementById('themeSelect');
-                if (themeSelect) themeSelect.value = newTheme;
-            });
-        }
     });
 })();
