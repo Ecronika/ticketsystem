@@ -115,6 +115,8 @@ def _new_ticket_view():
         
         # C-2 Fix: assigned_to_id selects can contain 'team_X' prefixed values
         # assigned_team_id is handled via the same select with 'team_' prefix
+        assigned_to_id_raw = request.form.get('assigned_to_id')
+        assigned_team_id_raw = request.form.get('assigned_team_id')
         assigned_to_id = None
         assigned_team_id = None
 
@@ -476,7 +478,6 @@ def _delete_checklist_api(item_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@worker_required
 def _my_queue_view():
     """Persönliche Aufgaben-Queue, gruppiert nach Dringlichkeit (v1.11.3)."""
     worker_id = session.get('worker_id')

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.22.1] - 2026-03-26 (Hotfix)
+### Fixed
+- **CRITICAL:** `_new_ticket_view` — `NameError` on every ticket POST: `assigned_to_id_raw` and `assigned_team_id_raw` were accidentally omitted in the C-2 fix. Restored both `request.form.get()` reads before the assignment logic block.
+- **H-2:** Removed duplicate `@worker_required` decorator from `_my_queue_view` (was applied on both function definition and `add_url_rule`).
+- **H-5:** `theme_init.js` — Theme toggle button in avatar dropdown (`#themeToggleDropdown`) now correctly wired to the `toggleTheme()` function via `DOMContentLoaded`; icon updates resolved for both light↔dark transitions.
+
 ## [1.22.0] - 2026-03-26
 ### Security
 - **XSS (SEC-05/06):** `ticket_detail.js` — `orderWrapper` and `tagsWrapper` now use DOM API (`createElement`/`textContent`) instead of `innerHTML` to prevent script injection from user-controlled fields.
