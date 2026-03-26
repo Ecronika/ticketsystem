@@ -191,11 +191,11 @@ def _login_view():
                     worker.locked_until = get_utc_now() + timedelta(minutes=15)
                     flash('Zu viele Fehlversuche. Konto für 15 Minuten gesperrt.', 'danger')
                 else:
-                    flash(f'Falscher PIN. (Versuch {worker.failed_login_count}/5)', 'danger')
+                    flash('Ungültige Zugangsdaten. Bitte versuchen Sie es erneut.', 'danger')
                 db.session.commit()
                 return render_template('login.html', workers=workers)
         else:
-            flash('Mitarbeiter nicht gefunden oder inaktiv.', 'danger')
+            flash('Ungültige Zugangsdaten oder Konto inaktiv.', 'danger')
             return render_template('login.html', workers=workers)
 
     return render_template('login.html', workers=workers)

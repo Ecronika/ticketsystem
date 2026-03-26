@@ -232,10 +232,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
 
                     // AJAX UI-Updates WITHOUT Reload
-                    // 1. Order Reference
+                    // 1. Order Reference (SEC-05: DOM API to prevent XSS)
                     const orderWrapper = document.getElementById('staticOrderRefWrapper');
                     if (orderWrapper) {
-                        orderWrapper.innerHTML = newOrderRef ? `• <span class="badge bg-light text-dark border"><i class="bi bi-hash me-1"></i>${newOrderRef}</span>` : '';
+                        orderWrapper.textContent = '';
+                        if (newOrderRef) {
+                            orderWrapper.appendChild(document.createTextNode('\u2022 '));
+                            const badge = document.createElement('span');
+                            badge.className = 'badge bg-light text-dark border';
+                            const icon = document.createElement('i');
+                            icon.className = 'bi bi-hash me-1';
+                            badge.appendChild(icon);
+                            badge.appendChild(document.createTextNode(newOrderRef));
+                            orderWrapper.appendChild(badge);
+                        }
                     }
 
                     // 2. Due Date
@@ -251,16 +261,22 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
 
-                    // 3. Tags Update
+                    // 3. Tags Update (SEC-06: DOM API prevents XSS)
                     const tagsInput = document.getElementById('editTagsInput');
                     const tagsWrapper = document.getElementById('staticTagsWrapper');
                     if (tagsInput && tagsWrapper) {
                         const tagsList = tagsInput.value.split(',').map(t => t.trim()).filter(t => t !== '');
-                        tagsWrapper.innerHTML = tagsList.map(tag => `
-                            <span class="badge bg-secondary-subtle text-secondary rounded-pill fw-normal" style="font-size: 0.7rem;">
-                                <i class="bi bi-tag me-1"></i>${tag}
-                            </span>
-                        `).join('');
+                        tagsWrapper.innerHTML = '';
+                        tagsList.forEach(tag => {
+                            const span = document.createElement('span');
+                            span.className = 'badge bg-secondary-subtle text-secondary rounded-pill fw-normal';
+                            span.style.fontSize = '0.7rem';
+                            const icon = document.createElement('i');
+                            icon.className = 'bi bi-tag me-1';
+                            span.appendChild(icon);
+                            span.appendChild(document.createTextNode(tag));
+                            tagsWrapper.appendChild(span);
+                        });
                     }
 
                     // 4. Switch back to static view

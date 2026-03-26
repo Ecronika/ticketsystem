@@ -4,11 +4,15 @@ Backup Service module.
 
 Handles system backups, pruning, and restoration logic.
 """
+import logging
 import os
 import shutil
 import time
 import zipfile
 from datetime import datetime, timezone
+
+import logging
+_logger = logging.getLogger(__name__)
 
 from flask import current_app
 from flask_migrate import upgrade
@@ -233,7 +237,8 @@ class BackupService:
             trigger='cron',
             **trigger_args
         )
-        current_app.logger.info(
+        # H-4 Fix: Use module-level logger; current_app not available in scheduler thread
+        _logger.info(
             "Scheduled auto-backup: %s at %02d:%02d",
             interval, hour, minute
         )

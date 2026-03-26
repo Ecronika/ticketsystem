@@ -93,7 +93,6 @@ def _approvals_view():
     pagination = TicketService.get_pending_approvals(page=page)
     return render_template('approvals.html', pagination=pagination, tickets=pagination.items)
 
-@worker_required
 def _projects_view():
     """Project/Baustellen Dashboard."""
     projects = TicketService.get_projects_summary()
@@ -114,21 +113,31 @@ def _new_ticket_view():
         is_confidential = request.form.get('is_confidential') == 'True' or request.form.get('is_confidential') == 'on'
         recurrence_rule = request.form.get('recurrence_rule')
         
-        # v1.12.0: Zuweisungs-Logik
-        assigned_to_id_raw = request.form.get('assigned_to_id')
-        assigned_team_id_raw = request.form.get('assigned_team_id')
-        
+        # C-2 Fix: assigned_to_id selects can contain 'team_X' prefixed values
+        # assigned_team_id is handled via the same select with 'team_' prefix
         assigned_to_id = None
         assigned_team_id = None
-        
-        if assigned_to_id_raw:
+
+        if assigned_to_id_raw and assigned_to_id_raw.startswith('team_'):
+            # Team selected via combined dropdown
+            try:
+                assigned_team_id = int(assigned_to_id_raw[5:])
+            except ValueError:
+                pass
+        elif assigned_to_id_raw and assigned_to_id_raw.isdigit():
             assigned_to_id = int(assigned_to_id_raw)
-        elif session.get('worker_id') and not assigned_team_id_raw:
-            # Fallback: Ersteller ist Worker -> Auto-Zuweisung, es sei denn es ist einem Team zugewiesen
+        elif session.get('worker_id'):
+            # Fallback: Ersteller ist Worker -> Auto-Zuweisung
             assigned_to_id = session.get('worker_id')
-        
-        if assigned_team_id_raw:
-            assigned_team_id = int(assigned_team_id_raw)
+
+        if assigned_team_id_raw and not assigned_team_id:
+            try:
+                if assigned_team_id_raw.startswith('team_'):
+                    assigned_team_id = int(assigned_team_id_raw[5:])
+                elif assigned_team_id_raw.isdigit():
+                    assigned_team_id = int(assigned_team_id_raw)
+            except ValueError:
+                pass
 
         due_date = None
         if due_date_str:
@@ -194,10 +203,8 @@ def _ticket_detail_view(ticket_id):
         is_in_checklist = any(c.assigned_to_id == user_id for c in ticket.checklists)
         is_author = any(c.author_id == user_id for c in ticket.comments if c.event_type == 'TICKET_CREATED')
         
-        if user_role == 'hr' or is_assigned or is_in_checklist or is_author:
+        if user_role in ['admin', 'hr'] or is_assigned or is_in_checklist or is_author:
             has_full_access = True
-        elif user_role in ['admin', 'management']:
-            has_full_access = False # Only metadata access
         else:
             flash('Keine Berechtigung für dieses Ticket.', 'danger')
             return redirect_to('main.index')

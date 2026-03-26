@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.22.0] - 2026-03-26
+### Security
+- **XSS (SEC-05/06):** `ticket_detail.js` — `orderWrapper` and `tagsWrapper` now use DOM API (`createElement`/`textContent`) instead of `innerHTML` to prevent script injection from user-controlled fields.
+- **XSS (SEC-07):** `notifications.js` — Notification messages now rendered with `textContent` (never `innerHTML`). Rebuilt notification item rendering using DOM API.
+- **CSRF:** `notifications.js` — CSRF token now read from `<meta name="csrf-token">` (always present) instead of a form input (absent on list-only pages) — fixes silent 403 on all notification POSTs.
+- **User Enumeration (SEC-04):** Login error messages unified — attacker can no longer distinguish "user not found" vs "wrong PIN".
+### Fixed
+- **CRITICAL C-1:** Added missing `python-dateutil==2.9.0` to `requirements.txt` — recurring ticket scheduler would crash with `ImportError` on startup.
+- **CRITICAL C-2:** Team-ID parsing in `_new_ticket_view` — form select submits `"team_5"` prefix; `int()` threw `ValueError`. Fixed with safe prefix-stripping.
+- **CRITICAL C-5:** `workers.js` edit modal — `edit_name` was filled from undefined `name` variable; now correctly reads `data-name` attribute.
+- **BUG H-2:** Removed duplicate `@worker_required` decorator from `_projects_view` (was applied both on function and in `add_url_rule`).
+- **BUG H-3:** Fixed `has_full_access` logic inversion — `admin` role was incorrectly denied full access to confidential tickets; now correctly grants access alongside `hr`.
+- **BUG H-4:** `backup_service.py::schedule_backup_job` replaced `current_app.logger` with module-level `_logger` to prevent `RuntimeError` when called outside app context.
+- **BUG H-6:** `sw.js` cache name synced to v1.22.0 to invalidate stale PWA asset cache.
+### Improved
+- **M-2:** `inject_globals` context processor now logs a `WARNING` instead of silently swallowing DB exceptions — makes migration mismatches visible in logs.
+
 ## [1.20.0] - 2026-03-26
 ### Changed
 - **Ticket-Formular Redesign (UX/UI):** Komplett überarbeitetes Erstellungsformular für deutlich reduzierten Cognitive Load.

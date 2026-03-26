@@ -77,15 +77,35 @@ document.addEventListener('DOMContentLoaded', () => {
             // Format time string if available natively or fallback
             let timeStr = 'Aktuell';
             
-            li.innerHTML = `
-                <a class="dropdown-item border-bottom px-3 py-2 ${isReadClass}" style="white-space: normal;" href="javascript:void(0)" data-id="${n.id}" data-link="${ingressPath}${n.link}">
-                    <div class="d-flex w-100 justify-content-between align-items-center mb-1">
-                        <small class="fw-bold ${n.is_read ? 'text-muted' : 'text-primary'}"><i class="bi bi-info-circle-fill me-1"></i>System</small>
-                        <small class="text-muted" style="font-size: 0.65rem;">${timeStr}</small>
-                    </div>
-                    <p class="mb-0 small" style="line-height: 1.3;">${n.message}</p>
-                </a>
-            `;
+            // SEC-07: Use textContent (never innerHTML) to prevent XSS from DB-stored messages
+            const anchor = document.createElement('a');
+            anchor.className = `dropdown-item border-bottom px-3 py-2 ${isReadClass}`;
+            anchor.style.whiteSpace = 'normal';
+            anchor.href = 'javascript:void(0)';
+            anchor.dataset.id = n.id;
+            anchor.dataset.link = `${ingressPath}${n.link}`;
+
+            const headerRow = document.createElement('div');
+            headerRow.className = 'd-flex w-100 justify-content-between align-items-center mb-1';
+            const titleSmall = document.createElement('small');
+            titleSmall.className = `fw-bold ${n.is_read ? 'text-muted' : 'text-primary'}`;
+            titleSmall.innerHTML = '<i class="bi bi-info-circle-fill me-1"></i>';
+            titleSmall.appendChild(document.createTextNode('System'));
+            const timeSmall = document.createElement('small');
+            timeSmall.className = 'text-muted';
+            timeSmall.style.fontSize = '0.65rem';
+            timeSmall.textContent = timeStr;
+            headerRow.appendChild(titleSmall);
+            headerRow.appendChild(timeSmall);
+
+            const msgP = document.createElement('p');
+            msgP.className = 'mb-0 small';
+            msgP.style.lineHeight = '1.3';
+            msgP.textContent = n.message; // textContent prevents XSS
+
+            anchor.appendChild(headerRow);
+            anchor.appendChild(msgP);
+            li.appendChild(anchor);
             notificationList.appendChild(li);
         });
 
@@ -113,10 +133,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Use CSRF Token from standard ticket system forms (e.g. logout form)
+    // SEC-07 fix: Read CSRF token from meta-tag (always present), not form input (may be absent)
     function getCsrfToken() {
-        const tokenInput = document.querySelector('input[name="csrf_token"]');
-        return tokenInput ? tokenInput.value : '';
+        return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     }
 
     async function markAsRead(id) {

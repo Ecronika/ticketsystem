@@ -451,7 +451,8 @@ def inject_globals():
                 user_id=session['worker_id'], 
                 is_read=False
             ).count()
-        except Exception:
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            app.logger.warning("inject_globals: notification query failed: %s", e)
             unread_notifications_count = 0
 
     return {
