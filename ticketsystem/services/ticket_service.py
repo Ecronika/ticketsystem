@@ -54,7 +54,7 @@ class TicketService:
             return 300 + min(100, days_left) + prio * 20
 
     @staticmethod
-    def create_ticket(title, description=None, priority=TicketPriority.MITTEL, author_name="System", author_id=None, assigned_to_id=None, assigned_team_id=None, due_date=None, tags=None, attachments=None, order_reference=None, reminder_date=None, is_confidential=False, recurrence_rule=None, commit=True):
+    def create_ticket(title, description=None, priority=TicketPriority.MITTEL, author_name="System", author_id=None, assigned_to_id=None, assigned_team_id=None, due_date=None, tags=None, attachments=None, order_reference=None, reminder_date=None, is_confidential=False, recurrence_rule=None, checklist_template_id=None, commit=True):
         """Create a new ticket and an initial comment.
 
         Args:
@@ -92,6 +92,15 @@ class TicketService:
 
             db.session.add(ticket)
             db.session.flush()  # Get ticket ID
+
+            # Handle pre-created Attachment objects
+            if attachments:
+                for attr in attachments:
+                    db.session.add(attr)
+                    ticket.attachments.append(attr)
+
+            if checklist_template_id:
+                TicketService.apply_checklist_template(ticket.id, checklist_template_id, commit=False)
 
             # Add initial comment if description exists
             comment_text = f"Ticket erstellt von {author_name}. Beschreibung: {description}" if description else f"Ticket erstellt von {author_name}."
@@ -879,4 +888,42 @@ class TicketService:
             return True
         except Exception as e:
             db.session.rollback()
+            raise
+
+    @staticmethod
+    def apply_checklist_template(ticket_id, template_id, commit=True):
+        """Applies a checklist template to a ticket."""
+        from models import Ticket, ChecklistTemplate, ChecklistItem
+        try:
+            ticket = db.session.get(Ticket, ticket_id)
+            template = db.session.get(ChecklistTemplate, template_id)
+            
+            if not ticket or not template:
+                raise ValueError("Ticket oder Vorlage nicht gefunden.")
+                
+            for t_item in template.items:
+                new_item = ChecklistItem(
+                    ticket_id=ticket.id,
+                    title=t_item.title,
+                    is_completed=False
+                )
+                db.session.add(new_item)
+            
+            # System-Kommentar hinzufügen
+            comment = Comment(
+                ticket_id=ticket.id,
+                author="System",
+                text=f"Checklisten-Vorlage '{template.title}' angewendet.",
+                is_system_event=True,
+                event_type='CHECKLIST_TEMPLATE_APPLIED'
+            )
+            db.session.add(comment)
+
+            if commit:
+                db.session.commit()
+            return True
+        except Exception as e:
+            if commit:
+                db.session.rollback()
+            current_app.logger.error("Error applying template: %s", e)
             raise

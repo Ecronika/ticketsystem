@@ -172,6 +172,17 @@
                                         {% endif %}
                                     </select>
                                 </div>
+
+                                <div class="mb-3">
+                                    <label for="template_id" class="form-label fw-bold">Checklisten-Vorlage</label>
+                                    <select class="form-select form-select-lg" id="template_id" name="template_id">
+                                        <option value="">-- Keine Vorlage --</option>
+                                        {% for tpl in templates %}
+                                        <option value="{{ tpl.id }}">{{ tpl.title }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <p class="x-small text-muted mt-1 mb-0">Wendet vordefinierte Aufgaben automatisch an.</p>
+                                </div>
                                 {% endif %}
                             </div>
                         </div>

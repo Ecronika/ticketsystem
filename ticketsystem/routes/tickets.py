@@ -139,6 +139,13 @@ def _new_ticket_view():
             # Fallback: Ersteller ist Worker -> Auto-Zuweisung
             assigned_to_id = session.get('worker_id')
 
+        template_id = request.form.get('template_id')
+        if template_id:
+            try:
+                template_id = int(template_id)
+            except ValueError:
+                template_id = None
+
         if assigned_team_id_raw and not assigned_team_id:
             try:
                 if assigned_team_id_raw.startswith('team_'):
@@ -174,7 +181,8 @@ def _new_ticket_view():
                 is_confidential=is_confidential,
                 recurrence_rule=recurrence_rule,
                 order_reference=order_reference,
-                tags=tags
+                tags=tags,
+                checklist_template_id=template_id
             )
             session['last_created_ticket_id'] = ticket.id
             ticket_url = f"{request.headers.get('X-Ingress-Path', '')}{url_for('main.ticket_detail', ticket_id=ticket.id)}"
@@ -189,10 +197,11 @@ def _new_ticket_view():
             current_app.logger.exception("Fehler beim Erstellen des Tickets (worker=%s)", session.get('worker_id'))
             flash('Fehler beim Erstellen des Tickets.', 'error')
 
-    from models import Worker, Team
+    from models import Worker, Team, ChecklistTemplate
     workers = Worker.query.filter_by(is_active=True).all()
     teams = Team.query.all()
-    return render_template('ticket_new.html', workers=workers, teams=teams)
+    templates = ChecklistTemplate.query.all()
+    return render_template('ticket_new.html', workers=workers, teams=teams, templates=templates)
 
 @worker_required
 def _ticket_detail_view(ticket_id):
@@ -220,9 +229,10 @@ def _ticket_detail_view(ticket_id):
             return redirect_to('main.index')
             
     workers = Worker.query.filter_by(is_active=True).all()
-    from models import Team
+    from models import Team, ChecklistTemplate
     teams = Team.query.all()
-    return render_template('ticket_detail.html', ticket=ticket, workers=workers, teams=teams, has_full_access=has_full_access)
+    templates = ChecklistTemplate.query.all()
+    return render_template('ticket_detail.html', ticket=ticket, workers=workers, teams=teams, templates=templates, has_full_access=has_full_access)
 
 @limiter.limit("30 per minute")
 def _public_ticket_view(ticket_id):
@@ -679,3 +689,20 @@ def register_routes(bp):
                   view_func=worker_required(_api_read_notification), methods=['POST'])
     bp.add_url_rule('/api/notifications/read_all', 'read_all_notifications', 
                   view_func=worker_required(_api_read_all_notifications), methods=['POST'])
+@tickets_bp.route('/api/ticket/<int:ticket_id>/apply_template', methods=['POST'])
+@worker_required
+def apply_template(ticket_id):
+    """Apply a checklist template to an existing ticket."""
+    lock_error = check_approval_lock(ticket_id=ticket_id)
+    if lock_error: return lock_error
+
+    data = request.json
+    template_id = data.get('template_id')
+    if not template_id:
+        return jsonify({'success': False, 'error': 'Keine Vorlage ausgewählt.'}), 400
+    
+    try:
+        TicketService.apply_checklist_template(ticket_id, template_id)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500

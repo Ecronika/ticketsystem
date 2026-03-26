@@ -120,6 +120,28 @@
                     <small class="text-muted" style="font-size: 0.65rem;"><i class="bi bi-keyboard ms-1"></i> Tipp: <b>Cmd+K</b> öffnet diese Ansicht automatisch, wenn das Titelfeld fokussiert ist.</small>
                 </div>
             </div>
+
+            <!-- Apply Template Section -->
+            {% if templates %}
+            <div class="mt-4 pt-3 border-top">
+                <div class="row g-2 align-items-center">
+                    <div class="col-auto">
+                        <label class="small fw-bold text-muted mb-0">Vorlage anwenden:</label>
+                    </div>
+                    <div class="col">
+                        <select class="form-select form-select-sm border-0 shadow-sm" id="apply-template-select">
+                            <option value="">-- Vorlage auswählen --</option>
+                            {% for tpl in templates %}
+                            <option value="{{ tpl.id }}">{{ tpl.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <button type="button" class="btn btn-sm btn-outline-primary fw-bold" id="apply-template-btn">Anwenden</button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
         </div>
         {% endif %}
     </div>

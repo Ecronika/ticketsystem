@@ -1,5 +1,12 @@
 # Changelog
  
+## [1.27.0] - 2026-03-27
+### Added
+- **Checklists**: Added the ability to apply "Checklist Templates" to tickets.
+  - Templates can now be selected during ticket creation (Advanced Options).
+  - Templates can be applied to existing tickets via the checklist component.
+  - Automatic system comment when a template is applied.
+
 ## [1.26.8] - 2026-03-27
 ### Fixed
 - **UI**: Fixed theme toggle text in the user menu; it now correctly alternates between "Hellmodus" and "Dunkelmodus" based on the active theme.

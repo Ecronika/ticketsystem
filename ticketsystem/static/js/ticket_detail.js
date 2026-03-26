@@ -532,6 +532,38 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Apply Template
+    const applyTplBtn = document.getElementById('apply-template-btn');
+    const applyTplSelect = document.getElementById('apply-template-select');
+    if (applyTplBtn && applyTplSelect) {
+        applyTplBtn.addEventListener('click', async () => {
+            const templateId = applyTplSelect.value;
+            if (!templateId) return;
+            
+            applyTplBtn.disabled = true;
+            applyTplBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>...';
+            
+            try {
+                const response = await fetch(`${ingress}/api/ticket/${tId}/apply_template`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify({ template_id: parseInt(templateId) })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    location.reload();
+                } else {
+                    window.showUiAlert('Fehler: ' + data.error);
+                    applyTplBtn.disabled = false;
+                    applyTplBtn.textContent = 'Anwenden';
+                }
+            } catch (e) {
+                applyTplBtn.disabled = false;
+                applyTplBtn.textContent = 'Anwenden';
+            }
+        });
+    }
 });
 
 // CSP-Safe Event Listeners (v1.26.4 Hardening)
