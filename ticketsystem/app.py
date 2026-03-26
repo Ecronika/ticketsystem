@@ -17,7 +17,7 @@ from datetime import datetime, timedelta, timezone
 from logging.handlers import QueueHandler, QueueListener, RotatingFileHandler
 from zoneinfo import ZoneInfo
 
-from flask import Flask, flash, g, jsonify, redirect, render_template, request, url_for
+from flask import Flask, flash, g, jsonify, redirect, render_template, request, session, url_for
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFError
 from sqlalchemy import event
@@ -461,7 +461,7 @@ def inject_globals():
     """Inject global variables into templates. Skips DB queries for static/unauthenticated requests."""
     from models import SystemSettings, Ticket
     from enums import TicketStatus
-    from flask import session
+    from flask import request
 
     # FIX-06: Skip all DB queries for static assets and unrouted requests
     _endpoint = request.endpoint or ''

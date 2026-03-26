@@ -1,4 +1,8 @@
 # Changelog
+ 
+## [1.26.1] - 2026-03-26
+### Fixed
+- **FIX-SESSION:** Resolve `NameError: session is not defined` in `app.py` which prevented application startup in v1.26.0.
 
 ## [1.26.0] - 2026-03-26
 ### Added
