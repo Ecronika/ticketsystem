@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.23.1] - 2026-03-26 (Patch)
+### Fixed
+- **FIX-01:** Module docstrings added/corrected in `routes/dashboard.py` and `routes/tickets.py` (import was before docstring, making it invisible to pydoc/IDEs).
+- **FIX-12:** `secret.key` now created with `chmod 600` (owner read/write only) after writing — prevents world-readable key files on shared systems.
+### Improved
+- **NEU-02:** `inject_globals` final `return` now uses `{**_base, ...}` spread — eliminates duplicated key references (DRY).
+- **NEU-03:** Login timing-normalization dummy hash replaced with `_TIMING_DUMMY_HASH = generate_password_hash('__timing_guard__')` module-level constant — computed at import time with a real Werkzeug-generated hash, so format validation and comparison cost are guaranteed correct.
+
 ## [1.23.0] - 2026-03-26
 ### Security
 - **SEC-01 (FIX-02):** Soft-deleted tickets were accessible via the public `/ticket/X/public` URL. Added `is_deleted` check — deleted tickets now return 404.

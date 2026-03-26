@@ -1,10 +1,10 @@
-from utils import get_utc_now
 """
 Dashboard routes.
 
 Handles the main dashboard, logo serving, health check,
 and ingress path injection.
 """
+from utils import get_utc_now
 import os
 import time
 from datetime import datetime, timezone

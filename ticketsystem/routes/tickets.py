@@ -1,3 +1,8 @@
+"""
+Ticket routes.
+
+Handles ticket CRUD, public ticket view, queue, approvals, and project views.
+"""
 from utils import get_utc_now
 import os
 from datetime import datetime, timezone, timedelta

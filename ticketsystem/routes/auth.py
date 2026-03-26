@@ -14,6 +14,11 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from extensions import db, limiter
 from models import SystemSettings, Worker
 
+# NEU-03: Pre-generate at import time so Werkzeug validates the format and
+# the comparison cost is identical to a real hash check (timing normalization)
+_TIMING_DUMMY_HASH = generate_password_hash('__timing_guard__')
+
+
 
 def is_safe_url(target):
     """Robustly check if a redirect target is safe (on the same host/ingress)."""
@@ -198,10 +203,7 @@ def _login_view():
         else:
             # FIX-05: SEC-02 — Perform dummy hash check to normalize timing
             # and prevent user-enumeration via response-time side-channel
-            check_password_hash(
-                'pbkdf2:sha256:600000$dummy$0000000000000000000000000000000000000000000000000000000000000000',
-                pin
-            )
+            check_password_hash(_TIMING_DUMMY_HASH, pin)
             flash('Ungültige Zugangsdaten oder Konto inaktiv.', 'danger')
             return render_template('login.html', workers=workers)
 

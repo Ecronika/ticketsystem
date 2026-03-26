@@ -198,6 +198,9 @@ else:
     try:
         with open(secret_file, 'w', encoding='utf-8') as f:
             f.write(app.secret_key)
+        # FIX-12: Restrict secret.key to owner-read/write only (chmod 600)
+        import stat
+        os.chmod(secret_file, stat.S_IRUSR | stat.S_IWUSR)
     except OSError as e:
         # CRITICAL: If this fails, sessions are invalid after every restart
         app.logger.critical(
@@ -461,9 +464,9 @@ def inject_globals():
     except Exception as e:  # pylint: disable=broad-exception-caught
         app.logger.warning("inject_globals: notification query failed: %s", e)
 
+    # NEU-02: DRY final return — merge into _base instead of repeating keys
     return {
-        'ingress_path': _base['ingress_path'],
-        'system_settings': SystemSettings,
+        **_base,
         'urgent_count': urgent_count,
         'pending_approval_count': pending_approval_count,
         'unread_notifications_count': unread_notifications_count
