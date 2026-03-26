@@ -51,10 +51,10 @@
                 
                 {% if session.get('role') in [WorkerRole.ADMIN.value, WorkerRole.HR.value, WorkerRole.MANAGEMENT.value] %}
                 <div class="d-flex gap-2 mt-2">
-                    <button type="button" class="btn btn-sm btn-success flex-grow-1" onclick="approveTicket({{ ticket.id }})">
+                    <button type="button" class="btn btn-sm btn-success flex-grow-1 approve-ticket-btn" data-ticket-id="{{ ticket.id }}">
                         <i class="bi bi-check-lg me-1"></i>Freigeben
                     </button>
-                    <button type="button" class="btn btn-sm btn-danger flex-grow-1" onclick="showRejectModal({{ ticket.id }})">
+                    <button type="button" class="btn btn-sm btn-danger flex-grow-1 reject-ticket-btn" data-ticket-id="{{ ticket.id }}">
                         <i class="bi bi-x-lg me-1"></i>Ablehnen
                     </button>
                 </div>
@@ -75,7 +75,7 @@
                     <div class="text-meta mt-1">{{ ticket.reject_reason }}</div>
                 </div>
                 {% if session.get('role') != WorkerRole.VIEWER.value %}
-                <button class="btn btn-sm btn-outline-secondary w-100 mt-2" onclick="requestApproval({{ ticket.id }})">Erneut Freigabe anfordern</button>
+                <button class="btn btn-sm btn-outline-secondary w-100 mt-2 request-approval-btn" data-ticket-id="{{ ticket.id }}">Erneut Freigabe anfordern</button>
                 {% endif %}
                 
             {% else %}
@@ -83,7 +83,7 @@
                     <i class="bi bi-dash-circle fs-5 me-2"></i> Keine Freigabe erforderlich
                 </div>
                 {% if session.get('role') != WorkerRole.VIEWER.value %}
-                <button class="btn btn-sm btn-outline-primary w-100" onclick="requestApproval({{ ticket.id }})">Freigabe anfordern</button>
+                <button class="btn btn-sm btn-outline-primary w-100 request-approval-btn" data-ticket-id="{{ ticket.id }}">Freigabe anfordern</button>
                 {% endif %}
             {% endif %}
         </div>

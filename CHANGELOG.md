@@ -1,5 +1,10 @@
 # Changelog
  
+## [1.26.5] - 2026-03-26
+### Fixed
+- **UI/CSP**: Refactored all inline `onclick` and `onchange` handlers to external event listeners. This resolves the unresponsiveness of "Schnellauswahl", "Freigabe anfordern", and "Freigeben" buttons in Home Assistant Ingress mode (strict CSP).
+- **Security**: Standardized event delegation in `base_ui.js` and `ticket_detail.js` for better CSP compliance.
+
 ## [1.26.4] - 2026-03-26
 ### Fixed
 - **FIX-MARKUP:** Resolve `NameError: Markup is not defined` in `routes/tickets.py` when flashing ticket creation success messages.

@@ -25,6 +25,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     setInterval(updateDashboard, POLL_INTERVAL);
+
+    // CSP-Safe Global Dashboard Listeners
+    document.querySelectorAll('.auto-submit').forEach(el => {
+        el.addEventListener('change', () => el.form.submit());
+    });
+    document.querySelectorAll('.reload-page-link').forEach(el => {
+        el.addEventListener('click', (e) => { e.preventDefault(); location.reload(); });
+    });
 });
 </script>
 {% endblock %}
@@ -115,7 +123,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             <div class="col-md-12 d-flex flex-wrap align-items-center gap-3">
                 <div class="form-check form-switch mb-0 bg-surface px-3 py-2 rounded-pill border shadow-sm">
-                    <input class="form-check-input ms-0 me-2" type="checkbox" name="unassigned" id="filterUnassigned" value="1" {{ 'checked' if unassigned_only }} onchange="this.form.submit()">
+                    <input class="form-check-input ms-0 me-2 auto-submit" type="checkbox" name="unassigned" id="filterUnassigned" value="1" {{ 'checked' if unassigned_only }}>
                     <label class="form-check-label small fw-bold text-muted" for="filterUnassigned">Nur Unzugewiesen</label>
                 </div>
                 <button type="submit" class="btn btn-dark rounded-pill px-4 ms-auto">
@@ -129,7 +137,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="row g-4">
     <div id="reloadHint" class="d-none alert alert-info alert-dismissible py-2 mb-3 shadow-sm border-0 rounded-3 small animate__animated animate__fadeIn" role="alert">
         <i class="bi bi-arrow-clockwise me-1"></i>
-        Neue Tickets verfügbar — <a href="#" onclick="location.reload()" class="alert-link">Jetzt aktualisieren</a>
+        Neue Tickets verfügbar — <a href="#" class="alert-link reload-page-link">Jetzt aktualisieren</a>
         <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert" aria-label="Schließen"></button>
     </div>
 

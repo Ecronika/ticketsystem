@@ -173,7 +173,7 @@
                         <div class="input-group">
                             <input type="password" name="pin" id="new_worker_pin" class="form-control border-1" placeholder="****" 
                                     pattern="\d{4,16}" inputmode="numeric">
-                            <button type="button" class="btn btn-outline-secondary border-1 px-3" onclick="const p = document.getElementById('new_worker_pin'); p.type = p.type === 'password' ? 'text' : 'password'; this.querySelector('i').classList.toggle('bi-eye'); this.querySelector('i').classList.toggle('bi-eye-slash');" aria-label="PIN anzeigen/verbergen">
+                            <button type="button" class="btn btn-outline-secondary border-1 px-3 pin-toggle" data-target="new_worker_pin" aria-label="PIN anzeigen/verbergen">
                                 <i class="bi bi-eye"></i>
                             </button>
                         </div>

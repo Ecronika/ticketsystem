@@ -533,3 +533,46 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// CSP-Safe Event Listeners (v1.26.4 Hardening)
+document.addEventListener('DOMContentLoaded', function() {
+    const commentForm = document.getElementById('commentForm');
+    const commentText = commentForm ? commentForm.querySelector('textarea[name="text"]') : null;
+
+    // 1. Shortcut Buttons
+    document.querySelectorAll('.shortcut-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const shortcut = this.getAttribute('data-shortcut');
+            if (commentText) {
+                // Clear active state from others
+                document.querySelectorAll('.shortcut-btn').forEach(b => b.classList.remove('btn-secondary', 'active'));
+                this.classList.add('btn-secondary', 'active');
+                
+                commentText.value = shortcut;
+                commentText.focus();
+            }
+        });
+    });
+
+    // 2. Approval Actions (Generalized to Classes)
+    document.querySelectorAll('.approve-ticket-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tid = this.getAttribute('data-ticket-id');
+            if (window.approveTicket) window.approveTicket(tid);
+        });
+    });
+
+    document.querySelectorAll('.reject-ticket-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tid = this.getAttribute('data-ticket-id');
+            if (window.showRejectModal) window.showRejectModal(tid);
+        });
+    });
+
+    document.querySelectorAll('.request-approval-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tid = this.getAttribute('data-ticket-id');
+            if (window.requestApproval) window.requestApproval(tid);
+        });
+    });
+});

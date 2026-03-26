@@ -20,14 +20,12 @@
                         {% set basic_shortcuts = system_settings.get_setting('ticket_shortcuts', 'Prüfen,Bestellt,Erledigt,Rückruf').split(',') %}
                         {% set wait_shortcuts = ['Wartet auf: Lieferung', 'Wartet auf: Rückruf', 'Wartet auf: Rückmeldung'] %}
                         {% for shortcut in basic_shortcuts %}
-                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill py-1 px-3 shortcut-btn" 
-                                onclick="document.querySelectorAll('.shortcut-btn').forEach(b => b.classList.remove('btn-secondary', 'active')); this.classList.add('btn-secondary', 'active'); document.getElementById('commentForm').text.value = '{{ shortcut }}'; document.getElementById('commentForm').text.focus();">
+                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill py-1 px-3 shortcut-btn" data-shortcut="{{ shortcut }}">
                             <i class="bi bi-lightning-charge-fill x-small text-warning"></i> {{ shortcut }}
                         </button>
                         {% endfor %}
                         {% for shortcut in wait_shortcuts %}
-                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill py-1 px-3 shortcut-btn" 
-                                onclick="document.querySelectorAll('.shortcut-btn').forEach(b => b.classList.remove('btn-secondary', 'active')); this.classList.add('btn-secondary', 'active'); document.getElementById('commentForm').text.value = '{{ shortcut }}'; document.getElementById('commentForm').text.focus();">
+                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill py-1 px-3 shortcut-btn" data-shortcut="{{ shortcut }}">
                             <i class="bi bi-hourglass-split x-small text-secondary"></i> {{ shortcut|replace('Wartet auf: ', '⏳ ') }}
                         </button>
                         {% endfor %}
