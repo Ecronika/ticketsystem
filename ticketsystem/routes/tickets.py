@@ -7,6 +7,7 @@ from utils import get_utc_now
 import os
 from datetime import datetime, timezone, timedelta
 from flask import flash, redirect, render_template, request, session, url_for, jsonify, send_from_directory, current_app
+from markupsafe import Markup
 from flask_limiter import Limiter
 from extensions import db, limiter
 from services.ticket_service import TicketService

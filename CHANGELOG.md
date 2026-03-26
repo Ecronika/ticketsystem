@@ -1,5 +1,9 @@
 # Changelog
  
+## [1.26.4] - 2026-03-26
+### Fixed
+- **FIX-MARKUP:** Resolve `NameError: Markup is not defined` in `routes/tickets.py` when flashing ticket creation success messages.
+
 ## [1.26.3] - 2026-03-26
 ### Fixed
 - **FIX-ROUTES:** Added missing `ApprovalStatus` import in `routes/tickets.py`. This resolves the `NameError` when performing ticket updates or checklist operations.
