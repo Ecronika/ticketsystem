@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from flask import current_app
 from extensions import db
 from models import Ticket, Comment, Attachment, Tag, Worker
-from enums import TicketStatus, TicketPriority, WorkerRole, EventType
+from enums import TicketStatus, TicketPriority, WorkerRole, EventType, ApprovalStatus
 import logging
 from .email_service import EmailService
 
@@ -728,7 +728,6 @@ class TicketService:
     @staticmethod
     def request_approval(ticket_id, worker_id, worker_name):
         try:
-            from enums import ApprovalStatus
             ticket = db.session.get(Ticket, ticket_id)
             if not ticket or ticket.is_deleted:
                 raise ValueError("Ticket nicht gefunden.")
@@ -758,7 +757,6 @@ class TicketService:
     @staticmethod
     def approve_ticket(ticket_id, worker_id, worker_name):
         try:
-            from enums import ApprovalStatus
             ticket = db.session.get(Ticket, ticket_id)
             if not ticket or ticket.is_deleted:
                 raise ValueError("Ticket nicht gefunden.")

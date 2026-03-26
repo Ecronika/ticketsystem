@@ -594,16 +594,6 @@ def priority_label_filter(priority):
     return f'P{priority}'
 
 
-@app.context_processor
-def inject_enums():
-    """Make Enums available in all templates."""
-    return {
-        'TicketStatus': TicketStatus,
-        'TicketPriority': TicketPriority,
-        'WorkerRole': WorkerRole
-    }
-
-
 # --- Global Error Handlers ---
 @app.errorhandler(413)  # Payload Too Large
 def request_entity_too_large(e):

@@ -1,5 +1,10 @@
 # Changelog
  
+## [1.26.7] - 2026-03-27
+### Fixed
+- **Core**: Resolved `NameError: ApprovalStatus` in `TicketService.reject_ticket` by centralizing enum imports.
+- **Cleanup**: Consolidated template context processors in `app.py` for better performance and reliability.
+
 ## [1.26.6] - 2026-03-26
 ### Fixed
 - **UI**: Increased `sticky-top` offset for the ticket management sidebar to prevent overlapping with the main navigation bar.
