@@ -677,6 +677,9 @@ def register_routes(bp):
                   view_func=worker_required(_assign_ticket_api), methods=['POST'])
     bp.add_url_rule('/api/ticket/<int:ticket_id>/update', 'update_ticket', 
                   view_func=worker_required(_update_ticket_api), methods=['POST'])
+    
+    bp.add_url_rule('/api/ticket/<int:ticket_id>/apply_template', 'apply_template', 
+                  view_func=worker_required(_apply_template_api), methods=['POST'])
 
     # Serving
     bp.add_url_rule('/attachment/<int:attachment_id>', 'serve_attachment', 
@@ -689,9 +692,9 @@ def register_routes(bp):
                   view_func=worker_required(_api_read_notification), methods=['POST'])
     bp.add_url_rule('/api/notifications/read_all', 'read_all_notifications', 
                   view_func=worker_required(_api_read_all_notifications), methods=['POST'])
-@tickets_bp.route('/api/ticket/<int:ticket_id>/apply_template', methods=['POST'])
-@worker_required
-def apply_template(ticket_id):
+
+
+def _apply_template_api(ticket_id):
     """Apply a checklist template to an existing ticket."""
     lock_error = check_approval_lock(ticket_id=ticket_id)
     if lock_error: return lock_error

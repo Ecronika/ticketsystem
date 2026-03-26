@@ -1,5 +1,9 @@
 # Changelog
  
+## [1.27.1] - 2026-03-27
+### Fixed
+- **Core**: Fixed `NameError: tickets_bp` that caused the application to crash on startup after the v1.27.0 update.
+
 ## [1.27.0] - 2026-03-27
 ### Added
 - **Checklists**: Added the ability to apply "Checklist Templates" to tickets.
