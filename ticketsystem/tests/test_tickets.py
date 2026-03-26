@@ -101,7 +101,9 @@ def test_mandatory_pin_change(client, db):
 
 def test_worker_required_guard(client):
     """Test that unauthorized access to dashboard is redirected to login."""
-    client.get('/logout', follow_redirects=True) # Ensure logged out
+    # FIX-14: /logout is POST-only; directly clear session instead
+    with client.session_transaction() as sess:
+        sess.clear()
     response = client.get('/', follow_redirects=True)
     assert b'Mitarbeiter Login' in response.data
 

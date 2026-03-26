@@ -248,16 +248,21 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
 
-                    // 2. Due Date
+                    // 2. Due Date (FIX-16: DOM API eliminates innerHTML with date strings)
                     const dueWrapper = document.getElementById('staticDueWrapper');
                     if (dueWrapper) {
+                        dueWrapper.textContent = '';
                         if (newDue) {
                             // Date formatting helper for JS (YYYY-MM-DD -> DD.MM.YYYY)
                             const parts = newDue.split('-');
                             const formatted = `${parts[2]}.${parts[1]}.${parts[0]}`;
-                            dueWrapper.innerHTML = `Fällig am <span class="fw-bold">${formatted}</span>`;
+                            dueWrapper.appendChild(document.createTextNode('Fällig am '));
+                            const dateSpan = document.createElement('span');
+                            dateSpan.className = 'fw-bold';
+                            dateSpan.textContent = formatted;
+                            dueWrapper.appendChild(dateSpan);
                         } else {
-                            dueWrapper.innerHTML = 'Keine Deadline';
+                            dueWrapper.textContent = 'Keine Deadline';
                         }
                     }
 

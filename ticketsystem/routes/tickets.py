@@ -179,6 +179,7 @@ def _new_ticket_view():
             flash(Markup(f'Ticket {link_html} erfolgreich erstellt!'), 'success')
             return redirect_to('main.index')
         except Exception:
+            current_app.logger.exception("Fehler beim Erstellen des Tickets (worker=%s)", session.get('worker_id'))
             flash('Fehler beim Erstellen des Tickets.', 'error')
 
     from models import Worker, Team
@@ -221,7 +222,7 @@ def _public_ticket_view(ticket_id):
     """Public read-only status page (P0-1)."""
     from models import Ticket
     ticket = db.session.get(Ticket, ticket_id)
-    if not ticket:
+    if not ticket or ticket.is_deleted:
         return render_template('404.html'), 404
         
     return render_template('ticket_public.html', ticket=ticket)

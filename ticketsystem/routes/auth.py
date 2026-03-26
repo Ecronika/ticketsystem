@@ -1,9 +1,10 @@
-from utils import get_utc_now
 """
 Authentication routes.
 
 Handles admin authentication and session management.
 """
+from utils import get_utc_now
+
 from functools import wraps
 from datetime import datetime, timezone, timedelta
 from urllib.parse import urljoin, urlparse
@@ -195,6 +196,12 @@ def _login_view():
                 db.session.commit()
                 return render_template('login.html', workers=workers)
         else:
+            # FIX-05: SEC-02 — Perform dummy hash check to normalize timing
+            # and prevent user-enumeration via response-time side-channel
+            check_password_hash(
+                'pbkdf2:sha256:600000$dummy$0000000000000000000000000000000000000000000000000000000000000000',
+                pin
+            )
             flash('Ungültige Zugangsdaten oder Konto inaktiv.', 'danger')
             return render_template('login.html', workers=workers)
 

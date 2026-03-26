@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.23.0] - 2026-03-26
+### Security
+- **SEC-01 (FIX-02):** Soft-deleted tickets were accessible via the public `/ticket/X/public` URL. Added `is_deleted` check — deleted tickets now return 404.
+- **SEC-02 (FIX-05):** Login timing side-channel eliminated: the `worker not found` branch now performs a dummy `check_password_hash()` to normalize response time.
+- **SEC-05 (FIX-13):** Zip Slip protection in `backup_service.py` strengthened — `os.path.join(root, '')` replaced with `abs_root + os.sep` for platform-safe path prefix check.
+- **SEC-06 (FIX-16):** `ticket_detail.js` — remaining `dueWrapper.innerHTML` replaced with DOM API (`createTextNode`/`createElement`).
+### Fixed
+- **FIX-01:** Docstring-before-import ordering corrected in `app.py`, `auth.py`, `backup_service.py` so module docstrings are recognized by `pydoc`/IDE tools.
+- **FIX-03:** `inject_globals` — `Ticket.due_date != None` replaced with `Ticket.due_date.isnot(None)` for correct SQL `IS NOT NULL` semantics (resolves SQLAlchemy deprecation warning).
+- **FIX-04:** `_new_ticket_view` — silent `except Exception` now calls `current_app.logger.exception(...)` so ticket creation errors appear in logs.
+- **FIX-07:** `sw.js` cache name updated to `ticketsystem-v1.23.0` (was stuck at `v1.22.0`, causing PWA users to receive stale assets).
+- **FIX-09:** Removed duplicate `import logging` statement introduced in `backup_service.py` in v1.22.0.
+- **FIX-10:** `models.py` — f-string loggers replaced with `%s` format to satisfy project Pylint convention.
+- **FIX-14:** `test_worker_required_guard` — replaced invalid GET on POST-only `/logout` with direct `session.clear()`.
+- **FIX-15:** Deleted dead debug scripts: `add_attachment.py`, `debug_attachments.py`, `refactor_datetime.py`.
+### Improved
+- **FIX-06:** `inject_globals` context processor now returns early for unauthenticated requests and `static`/`metrics` endpoints — eliminates 3 unnecessary DB queries per static asset request.
+- **FIX-08:** `scheduler_service.py` — `get_increment()` inner closure replaced with module-level `_RECURRENCE_INCREMENTS` dict. Added `replace_existing=True` to `add_job()` to prevent `ConflictingIdError` on app restart. Unknown `recurrence_rule` values now log a warning instead of silently defaulting.
+- **FIX-11:** f-string loggers in `scheduler_service.py` replaced with `%s` format.
+
 ## [1.22.1] - 2026-03-26 (Hotfix)
 ### Fixed
 - **CRITICAL:** `_new_ticket_view` — `NameError` on every ticket POST: `assigned_to_id_raw` and `assigned_team_id_raw` were accidentally omitted in the C-2 fix. Restored both `request.form.get()` reads before the assignment logic block.

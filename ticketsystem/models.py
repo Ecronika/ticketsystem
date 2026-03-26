@@ -270,6 +270,7 @@ def receive_after_delete(mapper, connection, target):
                 filepath = os.path.join(data_dir, 'attachments', safe_filename)
                 if os.path.exists(filepath):
                     os.remove(filepath)
-                    logging.getLogger(__name__).info(f"Deleted orphaned attachment file: {filepath}")
+                    logging.getLogger(__name__).info("Deleted orphaned attachment file: %s", filepath)
     except Exception as e:
-        logging.getLogger(__name__).error(f"Failed to delete attachment {target.path}: {e}")
+        logging.getLogger(__name__).error("Failed to delete attachment %s: %s", target.path, e)
+

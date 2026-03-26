@@ -1,9 +1,9 @@
-from utils import get_utc_now
 """
 Backup Service module.
 
 Handles system backups, pruning, and restoration logic.
 """
+from utils import get_utc_now
 import logging
 import os
 import shutil
@@ -11,11 +11,11 @@ import time
 import zipfile
 from datetime import datetime, timezone
 
-import logging
 _logger = logging.getLogger(__name__)
 
 from flask import current_app
 from flask_migrate import upgrade
+
 
 class BackupError(Exception):
     """Raised when a backup or restore operation fails."""
@@ -94,7 +94,8 @@ class BackupService:
                 target_path = os.path.join(temp_dir, member)
                 abs_target = os.path.abspath(target_path)
                 abs_root = os.path.abspath(temp_dir)
-                if not abs_target.startswith(os.path.join(abs_root, '')):
+                # FIX-13: Use os.sep for platform-safe Zip Slip protection
+                if not abs_target.startswith(abs_root + os.sep):
                     raise ValidationError(
                         f"Sicherheitswarnung: Zip Slip Versuch erkannt bei {member}")
                 zip_ref.extract(member, temp_dir)

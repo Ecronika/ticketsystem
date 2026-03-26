@@ -1,10 +1,10 @@
-from utils import get_utc_now
-
 """
 Main Application Entry Point.
 
 Configures and initializes the Flask application.
 """
+from utils import get_utc_now
+
 import atexit
 import logging
 import os
@@ -412,26 +412,34 @@ def remove_session(_exception=None):
 
 @app.context_processor
 def inject_globals():
-    """Inject global variables into templates (v1.11.3)."""
+    """Inject global variables into templates. Skips DB queries for static/unauthenticated requests."""
     from models import SystemSettings, Ticket
     from enums import TicketStatus
     from flask import session
-    
+
+    # FIX-06: Skip all DB queries for static assets and unrouted requests
+    _endpoint = request.endpoint or ''
+    _base = {'ingress_path': request.headers.get('X-Ingress-Path', ''),
+             'system_settings': SystemSettings,
+             'urgent_count': 0, 'pending_approval_count': 0,
+             'unread_notifications_count': 0}
+    if not session.get('worker_id') or _endpoint in ('static', 'metrics') or _endpoint.startswith('metrics'):
+        return _base
+
     urgent_count = 0
-    if session.get('worker_id'):
-        # Dringend: Überfällig oder heute fällig (bis Ende des Tages)
-        now_dt = get_utc_now()
-        limit_dt = now_dt.replace(hour=23, minute=59, second=59)
-        try:
-            urgent_count = Ticket.query.filter(
-                Ticket.assigned_to_id == session['worker_id'],
-                Ticket.is_deleted == False,
-                Ticket.status != TicketStatus.ERLEDIGT.value,
-                Ticket.due_date != None,
-                Ticket.due_date <= limit_dt
-            ).count()
-        except Exception:
-            urgent_count = 0
+    # FIX-03: Use .isnot(None) for correct SQL IS NOT NULL semantics
+    now_dt = get_utc_now()
+    limit_dt = now_dt.replace(hour=23, minute=59, second=59)
+    try:
+        urgent_count = Ticket.query.filter(
+            Ticket.assigned_to_id == session['worker_id'],
+            Ticket.is_deleted == False,
+            Ticket.status != TicketStatus.ERLEDIGT.value,
+            Ticket.due_date.isnot(None),
+            Ticket.due_date <= limit_dt
+        ).count()
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        app.logger.warning("inject_globals: urgent_count query failed: %s", e)
 
     pending_approval_count = 0
     if session.get('is_admin'):
@@ -440,23 +448,21 @@ def inject_globals():
                 is_deleted=False, 
                 approval_status='pending'
             ).count()
-        except Exception:
-            pending_approval_count = 0
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            app.logger.warning("inject_globals: pending_approval query failed: %s", e)
 
     unread_notifications_count = 0
-    if session.get('worker_id'):
-        from models import Notification
-        try:
-            unread_notifications_count = Notification.query.filter_by(
-                user_id=session['worker_id'], 
-                is_read=False
-            ).count()
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            app.logger.warning("inject_globals: notification query failed: %s", e)
-            unread_notifications_count = 0
+    from models import Notification
+    try:
+        unread_notifications_count = Notification.query.filter_by(
+            user_id=session['worker_id'], 
+            is_read=False
+        ).count()
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        app.logger.warning("inject_globals: notification query failed: %s", e)
 
     return {
-        'ingress_path': request.headers.get('X-Ingress-Path', ''),
+        'ingress_path': _base['ingress_path'],
         'system_settings': SystemSettings,
         'urgent_count': urgent_count,
         'pending_approval_count': pending_approval_count,
