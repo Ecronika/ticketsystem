@@ -250,28 +250,39 @@ def check_approval_lock(ticket_id=None, item_id=None):
 @worker_required
 def _add_comment_view(ticket_id):
     """Handle adding a comment."""
+    from models import Ticket
+    ticket = db.session.get(Ticket, ticket_id)
+    if not ticket or ticket.is_deleted:
+        flash('Ticket nicht gefunden.', 'error')
+        return redirect_to('main.index')
+    # IDOR fix: confidential tickets must be accessible by the caller
+    if not ticket.is_accessible_by(session.get('worker_id'), session.get('role')):
+        flash('Keine Berechtigung für dieses Ticket.', 'danger')
+        return redirect_to('main.index')
+
     text = request.form.get('text')
     author_name = session.get('worker_name', 'System')
-    
     if text:
         TicketService.add_comment(ticket_id, author_name, session.get('worker_id'), text)
         flash('Kommentar hinzugefügt.', 'success')
-    
     return redirect_to('main.ticket_detail', ticket_id=ticket_id, _anchor='comment-form')
 
 @worker_required
 def _update_status_api(ticket_id):
     """Handle AJAX status update."""
+    from models import Ticket
+    ticket = db.session.get(Ticket, ticket_id)
+    if not ticket or not ticket.is_accessible_by(session.get('worker_id'), session.get('role')):
+        return jsonify({'error': 'Keine Berechtigung'}), 403
+
     lock_err = check_approval_lock(ticket_id=ticket_id)
     if lock_err: return lock_err
-    
+
     data = request.get_json()
     new_status_val = data.get('status')
     author_name = session.get('worker_name', 'System')
-    
     if not new_status_val:
         return jsonify({'success': False, 'error': 'Kein Status angegeben'}), 400
-    
     try:
         TicketService.update_status(ticket_id, new_status_val, author_name, session.get('worker_id'))
         return jsonify({'success': True})
@@ -281,15 +292,18 @@ def _update_status_api(ticket_id):
 @worker_required
 def _assign_ticket_api(ticket_id):
     """Handle AJAX ticket assignment."""
+    from models import Ticket
+    ticket = db.session.get(Ticket, ticket_id)
+    if not ticket or not ticket.is_accessible_by(session.get('worker_id'), session.get('role')):
+        return jsonify({'error': 'Keine Berechtigung'}), 403
+
     lock_err = check_approval_lock(ticket_id=ticket_id)
     if lock_err: return lock_err
-    
+
     data = request.get_json()
     worker_id = data.get('worker_id')
     author_name = session.get('worker_name', 'System')
-    
     try:
-        # Note: worker_id can be None/null for "Unassigned"
         TicketService.assign_ticket(ticket_id, worker_id, author_name, session.get('worker_id'))
         return jsonify({'success': True})
     except Exception as e:
@@ -324,15 +338,10 @@ def _serve_attachment(attachment_id):
     user_role = session.get('role')
     user_id = session.get('worker_id')
     if ticket and ticket.is_confidential:
-        is_assigned = (ticket.assigned_to_id == user_id)
-        is_in_checklist = any(c.assigned_to_id == user_id for c in ticket.checklists)
-        is_author = any(c.author_id == user_id for c in ticket.comments if c.event_type == 'TICKET_CREATED')
-        
-        has_full_access = (user_role == 'hr') or is_assigned or is_in_checklist or is_author
-        
-        if not has_full_access:
+        # DRY: use Ticket.is_accessible_by() — same logic as _ticket_detail_view
+        if not ticket.is_accessible_by(user_id, user_role):
             return "Forbidden", 403
-            
+
     from extensions import Config
     data_dir = current_app.config.get('DATA_DIR', Config.get_data_dir())
     attachments_dir = os.path.join(data_dir, 'attachments')
@@ -347,9 +356,14 @@ def _serve_attachment(attachment_id):
 @worker_required
 def _update_ticket_api(ticket_id):
     """Handle ticket meta updates (title/priority/due_date)."""
+    from models import Ticket
+    ticket = db.session.get(Ticket, ticket_id)
+    if not ticket or not ticket.is_accessible_by(session.get('worker_id'), session.get('role')):
+        return jsonify({'error': 'Keine Berechtigung'}), 403
+
     lock_err = check_approval_lock(ticket_id=ticket_id)
     if lock_err: return lock_err
-    
+
     data = request.get_json()
     new_title = data.get('title')
     new_prio = data.get('priority')

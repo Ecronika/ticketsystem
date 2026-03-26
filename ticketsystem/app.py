@@ -410,6 +410,46 @@ def remove_session(_exception=None):
     db.session.remove()
 
 
+# --- Session Validation (Zombie Session Kill) ---
+
+_SESSION_EXEMPT_ENDPOINTS = frozenset({
+    'main.login', 'main.logout', 'main.change_pin', 'static', 'metrics'
+})
+
+@app.before_request
+def validate_session():
+    """SESSION-1: Re-validate authenticated sessions on every request.
+
+    Ensures deactivated or role-changed workers cannot continue using
+    the app via stale cookies (up to 8-hour lifetime).
+    Loads the Worker via SQLAlchemy's identity map — effectively free
+    after the first access per request context.
+    """
+    worker_id = session.get('worker_id')
+    if not worker_id:
+        return  # Unauthenticated — nothing to validate
+
+    endpoint = request.endpoint or ''
+    if endpoint in _SESSION_EXEMPT_ENDPOINTS or endpoint.startswith('metrics'):
+        return  # Never redirect login/logout into a loop
+
+    from models import Worker
+    try:
+        worker = db.session.get(Worker, worker_id)
+    except Exception:  # pylint: disable=broad-exception-caught
+        worker = None
+
+    if not worker or not worker.is_active:
+        session.clear()
+        flash('Ihre Sitzung ist nicht mehr gültig. Bitte melden Sie sich erneut an.', 'danger')
+        return redirect(url_for('main.login'))
+
+    # Keep role in sync: if admin was demoted, clear elevated session flags
+    if worker.role != session.get('role'):
+        session['role'] = worker.role
+        session['is_admin'] = (worker.role == 'admin')
+
+
 # --- Jinja Filters ---
 
 

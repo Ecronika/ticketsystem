@@ -102,6 +102,8 @@ class TicketService:
             db.session.add(comment)
 
             # Handle Multi-File Attachments
+            # FILE-1: Track saved paths so we can delete them if commit fails
+            saved_files = []
             if attachments:
                 from extensions import Config
                 data_dir = current_app.config.get('DATA_DIR', Config.get_data_dir())
@@ -115,8 +117,8 @@ class TicketService:
                         ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else 'bin'
                         new_filename = f"ticket_{ticket.id}_{uuid.uuid4().hex[:8]}.{ext}"
                         filepath = os.path.join(attachments_dir, new_filename)
-                        
                         file.save(filepath)
+                        saved_files.append(filepath)
                         attachment = Attachment(
                             ticket_id=ticket.id,
                             path=new_filename,
@@ -132,6 +134,13 @@ class TicketService:
             return ticket
         except SQLAlchemyError as e:
             db.session.rollback()
+            # FILE-1: Clean up any files written before the failed commit
+            for fp in saved_files:
+                try:
+                    if os.path.exists(fp):
+                        os.remove(fp)
+                except OSError:
+                    pass
             current_app.logger.error("Database error creating ticket: %s", e)
             raise
         except Exception as e:

@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.24.0] - 2026-03-26
+### Security
+- **IDOR (CRITICAL):** All writing API endpoints (`_add_comment_view`, `_update_status_api`, `_assign_ticket_api`, `_update_ticket_api`) now reject requests from workers without access to confidential tickets (HTTP 403). Previously any authenticated user could write to any ticket via direct POST regardless of the `is_confidential` flag.
+- **DRY-1/2:** Confidential ticket access logic extracted into `Ticket.is_accessible_by(worker_id, role)` — single authoritative method used by all endpoints and `_serve_attachment`. Inline duplicated logic removed from `_ticket_detail_view` area and `_serve_attachment`.
+- **SESSION-1 (HIGH):** Added `validate_session` `@app.before_request` hook — re-validates worker `is_active` on every authenticated request. Deactivated or role-changed workers are immediately logged out instead of retaining a zombie session for up to 8 hours. Role drift (e.g., admin → worker demotion) is syncronized live without logout.
+### Fixed
+- **FILE-1 (MEDIUM):** `TicketService.create_ticket` now tracks saved attachment file paths before commit. If the DB commit fails, all written files are cleaned up, preventing orphaned files on disk.
+### Improved
+- **ENUM-1:** Added `WorkerRole` and `EventType` string enums to `enums.py` — replacing magic role strings (`'admin'`, `'hr'`, etc.) and event type strings throughout the codebase.
+
 ## [1.23.1] - 2026-03-26 (Patch)
 ### Fixed
 - **FIX-01:** Module docstrings added/corrected in `routes/dashboard.py` and `routes/tickets.py` (import was before docstring, making it invisible to pydoc/IDEs).

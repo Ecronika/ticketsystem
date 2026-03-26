@@ -202,6 +202,32 @@ class Ticket(db.Model):
     def __repr__(self):
         return f'<Ticket {self.title} ({self.status})>'
 
+    def is_accessible_by(self, worker_id, role):
+        """Return True if the given worker may access this ticket.
+
+        Non-confidential tickets are always accessible.
+        Confidential tickets are only accessible to:
+          - Admins, HR, and Management roles
+          - The assigned worker
+          - Any worker assigned to a checklist item
+          - The original author (identified via TICKET_CREATED event comment)
+        """
+        if not self.is_confidential:
+            return True
+        if role in ('admin', 'hr', 'management'):
+            return True
+        if self.assigned_to_id == worker_id:
+            return True
+        if any(c.assigned_to_id == worker_id for c in self.checklists):
+            return True
+        # Author check via initial system comment
+        if any(
+            c.author_id == worker_id and c.event_type == 'TICKET_CREATED'
+            for c in self.comments
+        ):
+            return True
+        return False
+
 
 class Notification(db.Model):
     """

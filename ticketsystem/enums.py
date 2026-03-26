@@ -18,3 +18,26 @@ class TicketPriority(Enum):
 
     def __str__(self):
         return str(self.value)
+
+class WorkerRole(str, Enum):
+    """Role values for Worker.role — use instead of magic strings."""
+    ADMIN = 'admin'
+    WORKER = 'worker'
+    VIEWER = 'viewer'
+    HR = 'hr'
+
+    def __str__(self):
+        return self.value
+
+class EventType(str, Enum):
+    """Audit event types stored in Comment.event_type."""
+    TICKET_CREATED = 'TICKET_CREATED'
+    STATUS_CHANGED = 'STATUS_CHANGED'
+    ASSIGNED = 'ASSIGNED'
+    COMMENT_ADDED = 'COMMENT_ADDED'
+    APPROVED = 'APPROVED'
+    REJECTED = 'REJECTED'
+    APPROVAL_REQUESTED = 'APPROVAL_REQUESTED'
+
+    def __str__(self):
+        return self.value
