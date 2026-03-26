@@ -1,5 +1,10 @@
 # Changelog
  
+## [1.26.6] - 2026-03-26
+### Fixed
+- **UI**: Increased `sticky-top` offset for the ticket management sidebar to prevent overlapping with the main navigation bar.
+- **Layout**: Increased navbar `z-index` to ensure user menu and notifications always appear above other content.
+
 ## [1.26.5] - 2026-03-26
 ### Fixed
 - **UI/CSP**: Refactored all inline `onclick` and `onchange` handlers to external event listeners. This resolves the unresponsiveness of "Schnellauswahl", "Freigabe anfordern", and "Freigeben" buttons in Home Assistant Ingress mode (strict CSP).

@@ -21,7 +21,7 @@
   <a href="#main-content" class="visually-hidden-focusable">Zum Hauptinhalt springen</a>
   <script src="{{ ingress_path }}{{ url_for('static', filename='js/theme_init.js') }}?v={{ config.VERSION }}"></script>
 
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm" data-ingress="{{ ingress_path }}">
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm" style="z-index: 1035;" data-ingress="{{ ingress_path }}">
     <div class="container">
       <a class="navbar-brand fw-bold" href="{{ ingress_path }}{{ url_for('main.index') }}">
         <i class="bi bi-ticket-perforated" aria-hidden="true"></i> TicketSystem
