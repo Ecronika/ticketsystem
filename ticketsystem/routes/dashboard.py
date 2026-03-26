@@ -10,13 +10,13 @@ import time
 from datetime import datetime, timezone
 
 
-from flask import Response, current_app, jsonify, render_template, request
-
-from extensions import Config, db
-
+from flask import Blueprint, render_template, jsonify, current_app, session
+from extensions import db
+from models import Ticket
+from enums import TicketStatus
+from utils import get_utc_now
+import time
 _dash_start_time = time.time()
-
-
 
 def register_routes(bp):
     """Register dashboard routes on the given blueprint."""
@@ -55,7 +55,7 @@ def register_routes(bp):
                 }
             )
         except Exception as e:  # pylint: disable=broad-exception-caught
-            current_app.logger.error("Error reading logo: %s", e)
+            current_app.logger.exception("Error reading logo")
             return "Error reading logo", 500
 
     @bp.route('/health')
@@ -65,7 +65,7 @@ def register_routes(bp):
             db.session.execute(db.text('SELECT 1')).fetchone()
             db_ok = True
         except Exception as e:  # pylint: disable=broad-exception-caught
-            current_app.logger.error("Healthcheck DB failed: %s", e)
+            current_app.logger.exception("Healthcheck DB failed")
             db_ok = False
 
         payload = {
@@ -91,10 +91,10 @@ def register_routes(bp):
             count_map = {status: count for status, count in results}
             
             counts = {
-                'offen': count_map.get('offen', 0),
-                'in_bearbeitung': count_map.get('in_bearbeitung', 0),
-                'wartet': count_map.get('wartet', 0),
-                'summary': sum(count for status, count in count_map.items() if status != 'erledigt')
+                TicketStatus.OFFEN.value: count_map.get(TicketStatus.OFFEN.value, 0),
+                TicketStatus.IN_BEARBEITUNG.value: count_map.get(TicketStatus.IN_BEARBEITUNG.value, 0),
+                TicketStatus.WARTET.value: count_map.get(TicketStatus.WARTET.value, 0),
+                'summary': sum(count for status, count in count_map.items() if status != TicketStatus.ERLEDIGT.value)
             }
             return jsonify({
                 'success': True,
@@ -102,6 +102,6 @@ def register_routes(bp):
                 'timestamp': get_utc_now().isoformat()
             })
         except Exception as e:
-            current_app.logger.error("Error in dashboard_summary: %s", e)
+            current_app.logger.exception("Error in dashboard_summary")
             return jsonify({'success': False, 'error': 'Ein interner Fehler ist aufgetreten.'}), 500
 

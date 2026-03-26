@@ -9,10 +9,11 @@ from functools import wraps
 from datetime import datetime, timezone, timedelta
 from urllib.parse import urljoin, urlparse
 
-from flask import flash, redirect, render_template, request, session, url_for, make_response, current_app
+from flask import flash, redirect, render_template, request, session, url_for, Blueprint, current_app, make_response
 from werkzeug.security import check_password_hash, generate_password_hash
 from extensions import db, limiter
-from models import SystemSettings, Worker
+from enums import WorkerRole
+from models import Worker, SystemSettings, Worker
 
 # NEU-03: Pre-generate at import time so Werkzeug validates the format and
 # the comparison cost is identical to a real hash check (timing normalization)
@@ -179,7 +180,7 @@ def _login_view():
                 session.permanent = True
                 session['worker_id'] = worker.id
                 session['worker_name'] = worker.name
-                session['is_admin'] = (worker.role == 'admin')
+                session['is_admin'] = (worker.role == WorkerRole.ADMIN.value)
                 session['role'] = worker.role or 'worker'
 
                 if worker.needs_pin_change:

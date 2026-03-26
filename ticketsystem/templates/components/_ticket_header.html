@@ -63,7 +63,7 @@
                         <input type="text" id="editTagsInput" class="form-control" value="{{ ticket.tags|map(attribute='name')|join(', ') }}" placeholder="z.B. Service, Elektro">
                     </div>
                 </div>
-                <div class="mb-3 {{ 'd-none' if ticket.status != 'wartet' }}" id="reminderDateWrapper">
+                <div class="mb-3 {{ 'd-none' if ticket.status != TicketStatus.WARTET.value }}" id="reminderDateWrapper">
                     <label class="form-label small fw-bold text-primary"><i class="bi bi-alarm me-1"></i>Wiedervorlage am</label>
                     <input type="date" id="editReminderDateInput" class="form-control border-primary" value="{{ ticket.reminder_date.strftime('%Y-%m-%d') if ticket.reminder_date else '' }}">
                     <p class="x-small text-muted mt-1">Automatische Erinnerung im Dashboard für diesen Tag.</p>
@@ -84,7 +84,7 @@
                     <span class="badge bg-success text-white rounded-pill px-3 py-1 mb-1 d-block" title="Freigegeben am {{ ticket.approved_at.strftime('%d.%m.%Y %H:%M') if ticket.approved_at else '' }}">
                         <i class="bi bi-check-circle-fill me-1"></i>Freigegeben
                     </span>
-                    {% elif ticket.priority == 1 and session.get('role') in ['admin', 'management'] %}
+                    {% elif ticket.priority == TicketPriority.HOCH.value and session.get('role') in [WorkerRole.ADMIN.value, WorkerRole.HR.value, WorkerRole.MANAGEMENT.value] %}
                     <button class="btn btn-sm btn-outline-success rounded-pill px-3 mb-1 d-block w-100 fw-bold shadow-sm" onclick="approveTicket({{ ticket.id }})">
                         <i class="bi bi-check2-all me-1"></i>Freigeben
                     </button>
@@ -99,7 +99,7 @@
                     </select>
                 </div>
                 {% endif %}
-                <span id="ticketStatusBadge" class="badge-subtle-{{ 'danger' if ticket.status == 'offen' else 'warning' if ticket.status == 'in_bearbeitung' else 'secondary' if ticket.status == 'wartet' else 'success' }} rounded-pill px-3 py-1 small fw-bold">
+                <span id="ticketStatusBadge" class="badge-subtle-{{ 'danger' if ticket.status == TicketStatus.OFFEN.value else 'warning' if ticket.status == TicketStatus.IN_BEARBEITUNG.value else 'secondary' if ticket.status == TicketStatus.WARTET.value else 'success' }} rounded-pill px-3 py-1 small fw-bold">
                     {{ ticket.status|status_label|upper }}
                 </span>
             </div>

@@ -41,11 +41,11 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if worker.role == 'admin' %}
+                                    {% if worker.role == WorkerRole.ADMIN.value %}
                                     <span class="badge badge-subtle-danger rounded-pill px-2">Admin</span>
-                                    {% elif worker.role == 'hr' %}
+                                    {% elif worker.role == WorkerRole.HR.value %}
                                     <span class="badge badge-subtle-warning rounded-pill px-2">HR / Management</span>
-                                    {% elif worker.role == 'viewer' %}
+                                    {% elif worker.role == WorkerRole.VIEWER.value %}
                                     <span class="badge badge-subtle-secondary rounded-pill px-2">Viewer</span>
                                     {% else %}
                                     <span class="badge badge-subtle-primary rounded-pill px-2">Mitarbeiter</span>
@@ -127,10 +127,10 @@
                         <div class="mb-3">
                             <label class="form-label small fw-bold">System-Rolle</label>
                             <select name="role" id="edit_role" class="form-select border-1 rounded-pill">
-                                <option value="worker">Mitarbeiter</option>
-                                <option value="hr">HR / Management</option>
-                                <option value="viewer">Viewer</option>
-                                <option value="admin">Administrator</option>
+                                <option value="{{ WorkerRole.WORKER.value }}">Mitarbeiter</option>
+                                <option value="{{ WorkerRole.HR.value }}">HR / Management</option>
+                                <option value="{{ WorkerRole.VIEWER.value }}">Viewer</option>
+                                <option value="{{ WorkerRole.ADMIN.value }}">Administrator</option>
                             </select>
                         </div>
                         <p class="text-muted x-small mb-1">Hinweis: PIN-Änderungen erfolgen über den Reset-Button unten.</p>
@@ -183,10 +183,10 @@
                     <div class="mb-4">
                         <label class="form-label small fw-bold">System-Rolle</label>
                         <select name="role" class="form-select border-1 rounded-pill">
-                            <option value="worker">Mitarbeiter (Standard)</option>
-                            <option value="hr">HR / Management (Erweitert)</option>
-                            <option value="viewer">Viewer (Nur Lesen)</option>
-                            <option value="admin">Administrator (Vollzugriff)</option>
+                            <option value="{{ WorkerRole.WORKER.value }}">Mitarbeiter (Standard)</option>
+                            <option value="{{ WorkerRole.HR.value }}">HR / Management (Erweitert)</option>
+                            <option value="{{ WorkerRole.VIEWER.value }}">Viewer (Nur Lesen)</option>
+                            <option value="{{ WorkerRole.ADMIN.value }}">Administrator (Vollzugriff)</option>
                         </select>
                     </div>
                     

@@ -63,6 +63,18 @@ class BackupService:
                 shutil.rmtree(temp_dir)
 
             BackupService._post_restore_actions()
+            
+            # FIX-15: Trigger a background restart after a short delay to allow response
+            # (In HA/Docker, the supervisor will restart the container)
+            import threading
+            import sys
+            import time
+            def delayed_restart():
+                time.sleep(1)
+                _logger.info("Restarting application after restore...")
+                os._exit(0)
+            threading.Thread(target=delayed_restart, daemon=True).start()
+
             return True
 
         except (ValidationError, BackupError):
@@ -90,15 +102,14 @@ class BackupService:
                 shutil.rmtree(temp_dir)
             os.makedirs(temp_dir, exist_ok=True)
 
+            abs_root = os.path.abspath(temp_dir)
             for member in zip_ref.namelist():
-                target_path = os.path.join(temp_dir, member)
-                abs_target = os.path.abspath(target_path)
-                abs_root = os.path.abspath(temp_dir)
-                # FIX-13: Use os.sep for platform-safe Zip Slip protection
-                if not abs_target.startswith(abs_root + os.sep):
+                # FIX-ZIP: Use os.path.commonpath for foolproof Zip Slip protection
+                target_path = os.path.abspath(os.path.join(abs_root, member))
+                if os.path.commonpath([abs_root, target_path]) != abs_root:
                     raise ValidationError(
                         f"Sicherheitswarnung: Zip Slip Versuch erkannt bei {member}")
-                zip_ref.extract(member, temp_dir)
+                zip_ref.extract(member, abs_root)
 
     @staticmethod
     def _shutdown_sessions():
@@ -128,44 +139,48 @@ class BackupService:
 
     @staticmethod
     def _perform_restore_overwrite(data_dir, temp_dir):
-        """Overwrite current data with restored data."""
+        """Overwrite current data with restored data using safe renaming."""
         # DB
         db_dst = os.path.join(data_dir, 'werkzeug.db')
-        _remove_with_retry(db_dst)
+        db_bak = db_dst + '.bak'
+        
+        # Safe Rename for the main DB file
+        try:
+            if os.path.exists(db_dst):
+                if os.path.exists(db_bak):
+                    os.remove(db_bak)
+                os.rename(db_dst, db_bak)
+        except Exception as e:
+            _logger.warning("Could not rename live DB to .bak (likely locked): %s. Attempting direct overwrite.", e)
+
         shutil.copy2(os.path.join(temp_dir, 'werkzeug.db'), db_dst)
 
-        # Also restore WAL and SHM if they exist in the backup
+        # Handle WAL and SHM files
         for ext in ['-wal', '-shm']:
             src = os.path.join(temp_dir, f'werkzeug.db{ext}')
             dst = os.path.join(data_dir, f'werkzeug.db{ext}')
             if os.path.exists(src):
-                _remove_with_retry(dst)
+                if os.path.exists(dst):
+                    _remove_with_retry(dst)
                 shutil.copy2(src, dst)
             elif os.path.exists(dst):
                 _remove_with_retry(dst)
 
-        # Handle Config (Optional in backup)
+        # Handle Config
         if os.path.exists(os.path.join(temp_dir, 'config.yaml')):
             shutil.copy2(
                 os.path.join(temp_dir, 'config.yaml'),
                 os.path.join(data_dir, 'config.yaml')
             )
 
-        # Signatures
-        src_sig = os.path.join(temp_dir, 'signatures')
-        dst_sig = os.path.join(data_dir, 'signatures')
-        if os.path.exists(src_sig):
-            if os.path.exists(dst_sig):
-                shutil.rmtree(dst_sig)
-            shutil.copytree(src_sig, dst_sig)
-
-        # Reports
-        src_rep = os.path.join(temp_dir, 'reports')
-        dst_rep = os.path.join(data_dir, 'reports')
-        if os.path.exists(src_rep):
-            if os.path.exists(dst_rep):
-                shutil.rmtree(dst_rep)
-            shutil.copytree(src_rep, dst_rep)
+        # Signatures & Reports
+        for folder in ['signatures', 'reports']:
+            src_f = os.path.join(temp_dir, folder)
+            dst_f = os.path.join(data_dir, folder)
+            if os.path.exists(src_f):
+                if os.path.exists(dst_f):
+                    shutil.rmtree(dst_f)
+                shutil.copytree(src_f, dst_f)
 
     @staticmethod
     def prune_backups():

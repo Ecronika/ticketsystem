@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.26.0] - 2026-03-26
+### Added
+- **CODE-ENUMS:** Full migration to type-safe `Enum` objects for `TicketStatus`, `WorkerRole`, and `ApprovalStatus`. Replaced all magic strings in services and templates.
+- **PERF-POLL:** Background polling for dashboard and notifications now pauses when the browser tab is hidden (`document.hidden`).
+- **SEC-READY:** Server-side file upload extension validation enabled in `TicketService`.
+- **SEC-LIMIT:** API rate limiting (20 Req/Min) applied to all write endpoints via `Flask-Limiter`.
+- **OBS-LOG:** Switched from `logger.error` to `logger.exception` in routes for complete stack trace preservation.
+
+### Fixed
+- **FIX-PIN:** Worker PIN resets now correctly clear `failed_login_count` and `locked_until`.
+- **FIX-BACKUP:** Hardened backup restoration: uses safe replacement strategy and initiates a service restart (`os._exit`) to ensure DB consistency.
+- **FIX-FILES-TX:** Transactional file management. Physical file deletion is deferred to `after_commit`, and creation orphans are cleaned up on `after_rollback`.
+- **SEC-ZIP:** Upgraded Zip Slip protection in `BackupService` to use `os.path.commonpath`.
+
 ## [1.25.0] - 2026-03-26
 ### Added
 - **TX-1 & TX-2:** Atomic transaction batching for recurring tickets. `TicketService` now supports `commit=False` for batch operations, and the scheduler commits once per batch to prevent fragmented database states.

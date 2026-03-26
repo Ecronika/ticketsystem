@@ -7,6 +7,7 @@ from werkzeug.security import generate_password_hash
 from sqlalchemy.exc import SQLAlchemyError
 from extensions import db
 from models import Worker
+from enums import WorkerRole
 
 class WorkerService:
     """Service layer for Worker-related operations."""
@@ -30,7 +31,7 @@ class WorkerService:
 
         # Sync role with is_admin if not provided
         if not role:
-            role = 'admin' if is_admin else 'worker'
+            role = WorkerRole.ADMIN.value if is_admin else WorkerRole.WORKER.value
 
         try:
             new_worker = Worker(
@@ -56,8 +57,8 @@ class WorkerService:
             raise ValueError("Mitarbeiter nicht gefunden.")
         
         # Prevent deactivating the last admin (safety)
-        if (worker.is_admin or worker.role == 'admin') and worker.is_active:
-            admin_count = Worker.query.filter_by(role='admin', is_active=True).count()
+        if (worker.is_admin or worker.role == WorkerRole.ADMIN.value) and worker.is_active:
+            admin_count = Worker.query.filter_by(role=WorkerRole.ADMIN.value, is_active=True).count()
             if admin_count <= 1:
                 raise ValueError("Der letzte aktive Administrator kann nicht deaktiviert werden.")
 
@@ -87,11 +88,11 @@ class WorkerService:
         
         # Sync role with is_admin if only is_admin changed
         if not role:
-            role = 'admin' if is_admin else 'worker'
+            role = WorkerRole.ADMIN.value if is_admin else WorkerRole.WORKER.value
 
         # Prevent removing admin from the last admin
-        if (worker.is_admin or worker.role == 'admin') and role != 'admin':
-            active_admins = Worker.query.filter_by(role='admin', is_active=True).count()
+        if (worker.is_admin or worker.role == WorkerRole.ADMIN.value) and role != WorkerRole.ADMIN.value:
+            active_admins = Worker.query.filter_by(role=WorkerRole.ADMIN.value, is_active=True).count()
             if active_admins <= 1:
                 raise ValueError("Der letzte aktive Administrator kann nicht zum normalen Mitarbeiter degradiert werden. Aktivieren Sie erst einen anderen Administrator.")
 
@@ -133,6 +134,9 @@ class WorkerService:
         try:
             worker.pin_hash = generate_password_hash("0000")
             worker.needs_pin_change = True
+            # Reset lockout parameters so the user can log in immediately
+            worker.failed_login_count = 0
+            worker.locked_until = None
             db.session.commit()
             return worker
         except SQLAlchemyError as e:

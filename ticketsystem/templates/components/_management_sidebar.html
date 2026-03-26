@@ -7,10 +7,10 @@
             <select id="statusSelect" class="form-select border-0 bg-surface-subtle fw-bold" 
                     data-original="{{ ticket.status }}"
                     {{ 'disabled' if session.get('role') == 'viewer' }}>
-                <option value="offen" {{ 'selected' if ticket.status == 'offen' }}>{{ 'offen'|status_label|upper }}</option>
-                <option value="in_bearbeitung" {{ 'selected' if ticket.status == 'in_bearbeitung' }}>{{ 'in_bearbeitung'|status_label|upper }}</option>
-                <option value="wartet" {{ 'selected' if ticket.status == 'wartet' }} title="Warten auf externe Aktion (Lieferung, Rückruf, ...)">{{ 'wartet'|status_label|upper }}</option>
-                <option value="erledigt" {{ 'selected' if ticket.status == 'erledigt' }}>{{ 'erledigt'|status_label|upper }}</option>
+                <option value="{{ TicketStatus.OFFEN.value }}" {{ 'selected' if ticket.status == TicketStatus.OFFEN.value }}>{{ TicketStatus.OFFEN.value|status_label|upper }}</option>
+                <option value="{{ TicketStatus.IN_BEARBEITUNG.value }}" {{ 'selected' if ticket.status == TicketStatus.IN_BEARBEITUNG.value }}>{{ TicketStatus.IN_BEARBEITUNG.value|status_label|upper }}</option>
+                <option value="{{ TicketStatus.WARTET.value }}" {{ 'selected' if ticket.status == TicketStatus.WARTET.value }} title="Warten auf externe Aktion (Lieferung, Rückruf, ...)">{{ TicketStatus.WARTET.value|status_label|upper }}</option>
+                <option value="{{ TicketStatus.ERLEDIGT.value }}" {{ 'selected' if ticket.status == TicketStatus.ERLEDIGT.value }}>{{ TicketStatus.ERLEDIGT.value|status_label|upper }}</option>
             </select>
         </div>
 
@@ -40,7 +40,7 @@
         <div class="mb-4" id="approvalSection">
             <label class="form-label small text-muted fw-bold">Freigabe-Status</label>
             
-            {% if ticket.approval_status == 'pending' %}
+            {% if ticket.approval_status == ApprovalStatus.PENDING.value %}
                 <div class="alert alert-warning py-2 px-3 small mb-2 d-flex align-items-center">
                     <i class="bi bi-hourglass-split fs-5 me-2"></i>
                     <div>
@@ -49,7 +49,7 @@
                     </div>
                 </div>
                 
-                {% if session.get('role') in ['admin', 'hr', 'management'] %}
+                {% if session.get('role') in [WorkerRole.ADMIN.value, WorkerRole.HR.value, WorkerRole.MANAGEMENT.value] %}
                 <div class="d-flex gap-2 mt-2">
                     <button type="button" class="btn btn-sm btn-success flex-grow-1" onclick="approveTicket({{ ticket.id }})">
                         <i class="bi bi-check-lg me-1"></i>Freigeben
@@ -60,7 +60,7 @@
                 </div>
                 {% endif %}
                 
-            {% elif ticket.approval_status == 'approved' %}
+            {% elif ticket.approval_status == ApprovalStatus.APPROVED.value %}
                 <div class="badge bg-success-subtle text-success w-100 p-2 text-start d-flex align-items-center mb-0 border border-success-subtle">
                     <i class="bi bi-check-circle-fill fs-5 me-2"></i>
                     <div>
@@ -69,12 +69,12 @@
                     </div>
                 </div>
                 
-            {% elif ticket.approval_status == 'rejected' %}
+            {% elif ticket.approval_status == ApprovalStatus.REJECTED.value %}
                 <div class="alert alert-danger py-2 px-3 small mb-2">
                     <div class="fw-bold"><i class="bi bi-x-circle-fill me-1"></i>Freigabe abgelehnt</div>
                     <div class="text-meta mt-1">{{ ticket.reject_reason }}</div>
                 </div>
-                {% if session.get('role') not in ['viewer'] %}
+                {% if session.get('role') != WorkerRole.VIEWER.value %}
                 <button class="btn btn-sm btn-outline-secondary w-100 mt-2" onclick="requestApproval({{ ticket.id }})">Erneut Freigabe anfordern</button>
                 {% endif %}
                 
@@ -82,7 +82,7 @@
                 <div class="badge bg-secondary-subtle text-secondary w-100 p-2 text-start d-flex align-items-center mb-2">
                     <i class="bi bi-dash-circle fs-5 me-2"></i> Keine Freigabe erforderlich
                 </div>
-                {% if session.get('role') not in ['viewer'] %}
+                {% if session.get('role') != WorkerRole.VIEWER.value %}
                 <button class="btn btn-sm btn-outline-primary w-100" onclick="requestApproval({{ ticket.id }})">Freigabe anfordern</button>
                 {% endif %}
             {% endif %}
@@ -121,7 +121,7 @@
 
         <hr class="text-muted opacity-25">
         
-        {% if session.get('role') != 'viewer' %}
+        {% if session.get('role') != WorkerRole.VIEWER.value %}
         <div class="d-grid">
             {% if not ticket.assigned_to_id == session.get('worker_id') %}
             <form action="{{ ingress_path }}{{ url_for('main.assign_to_me', ticket_id=ticket.id) }}" method="POST">

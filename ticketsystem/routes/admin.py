@@ -7,6 +7,7 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for
 from .auth import admin_required
 from services.worker_service import WorkerService
 from models import SystemSettings
+from enums import WorkerRole
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -22,7 +23,7 @@ def workers():
                 name = request.form.get('name')
                 pin = request.form.get('pin')
                 role = request.form.get('role')
-                is_admin = (role == 'admin')
+                is_admin = (role == WorkerRole.ADMIN.value)
                 WorkerService.create_worker(name, pin, is_admin, role)
                 
                 if pin:
@@ -40,7 +41,7 @@ def workers():
                 worker_id = request.form.get('worker_id')
                 name = request.form.get('name')
                 role = request.form.get('role')
-                is_admin = (role == 'admin')
+                is_admin = (role == WorkerRole.ADMIN.value)
                 WorkerService.update_worker(worker_id, name, is_admin, role)
                 flash(f"Mitarbeiter '{name}' wurde aktualisiert.", "success")
             

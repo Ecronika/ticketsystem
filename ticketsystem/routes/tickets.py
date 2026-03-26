@@ -7,10 +7,11 @@ from utils import get_utc_now
 import os
 from datetime import datetime, timezone, timedelta
 from flask import flash, redirect, render_template, request, session, url_for, jsonify, send_from_directory, current_app
-from markupsafe import Markup
-from extensions import limiter, db
+from flask_limiter import Limiter
+from extensions import db, limiter
 from services.ticket_service import TicketService
-from enums import TicketStatus, TicketPriority
+from enums import TicketStatus, TicketPriority, WorkerRole
+import os
 from .auth import worker_required, redirect_to, admin_required
 from models import Worker, Attachment, Ticket
 
@@ -211,7 +212,7 @@ def _ticket_detail_view(ticket_id):
         is_in_checklist = any(c.assigned_to_id == user_id for c in ticket.checklists)
         is_author = any(c.author_id == user_id for c in ticket.comments if c.event_type == 'TICKET_CREATED')
         
-        if user_role in ['admin', 'hr'] or is_assigned or is_in_checklist or is_author:
+        if user_role in [WorkerRole.ADMIN.value, WorkerRole.HR.value] or is_assigned or is_in_checklist or is_author:
             has_full_access = True
         else:
             flash('Keine Berechtigung für dieses Ticket.', 'danger')
@@ -243,11 +244,12 @@ def check_approval_lock(ticket_id=None, item_id=None):
     else:
         return None
         
-    if ticket and ticket.approval_status == 'pending':
+    if ticket and ticket.approval_status == ApprovalStatus.PENDING.value:
         return jsonify({'success': False, 'error': 'Ticket ist für die Freigabe gesperrt.'}), 403
     return None
 
 @worker_required
+@limiter.limit("20 per minute")
 def _add_comment_view(ticket_id):
     """Handle adding a comment."""
     from models import Ticket
@@ -268,6 +270,7 @@ def _add_comment_view(ticket_id):
     return redirect_to('main.ticket_detail', ticket_id=ticket_id, _anchor='comment-form')
 
 @worker_required
+@limiter.limit("20 per minute")
 def _update_status_api(ticket_id):
     """Handle AJAX status update."""
     from models import Ticket
@@ -287,10 +290,11 @@ def _update_status_api(ticket_id):
         TicketService.update_status(ticket_id, new_status_val, author_name, session.get('worker_id'))
         return jsonify({'success': True})
     except Exception as e:
-        current_app.logger.error("API Error in _update_status_api: %s", e)
+        current_app.logger.exception("API Error in _update_status_api")
         return jsonify({'success': False, 'error': 'Ein interner Fehler ist aufgetreten.'}), 500
 
 @worker_required
+@limiter.limit("20 per minute")
 def _assign_ticket_api(ticket_id):
     """Handle AJAX ticket assignment."""
     from models import Ticket
@@ -308,7 +312,7 @@ def _assign_ticket_api(ticket_id):
         TicketService.assign_ticket(ticket_id, worker_id, author_name, session.get('worker_id'))
         return jsonify({'success': True})
     except Exception as e:
-        current_app.logger.error("API Error in _update_status_api: %s", e)
+        current_app.logger.exception("API Error in _update_status_api")
         return jsonify({'success': False, 'error': 'Ein interner Fehler ist aufgetreten.'}), 500
 
 @worker_required
@@ -316,7 +320,7 @@ def _assign_to_me_view(ticket_id):
     """Assign the ticket to the current logged-in worker."""
     from models import Ticket
     ticket = db.session.get(Ticket, ticket_id)
-    if ticket and ticket.approval_status == 'pending':
+    if ticket and ticket.approval_status == ApprovalStatus.PENDING.value:
         flash('Ticket ist für die Freigabe gesperrt.', 'error')
         return redirect_to('main.ticket_detail', ticket_id=ticket_id)
 
@@ -356,6 +360,7 @@ def _serve_attachment(attachment_id):
     return send_from_directory(attachments_dir, safe_filename)
 
 @worker_required
+@limiter.limit("20 per minute")
 def _update_ticket_api(ticket_id):
     """Handle ticket meta updates (title/priority/due_date)."""
     from models import Ticket
@@ -403,30 +408,33 @@ def _update_ticket_api(ticket_id):
         )
         return jsonify({'success': True})
     except Exception as e:
-        current_app.logger.error("API Error in _update_ticket_api: %s", e)
+        current_app.logger.exception("API Error in _update_ticket_api")
         return jsonify({'success': False, 'error': 'Ein interner Fehler ist aufgetreten.'}), 500
 
 @worker_required
+@limiter.limit("20 per minute")
 def _request_approval_api(ticket_id):
     author_name = session.get('worker_name', 'System')
     try:
         TicketService.request_approval(ticket_id, session.get('worker_id'), author_name)
         return jsonify({'success': True})
     except Exception as e:
-        current_app.logger.error("API Error in _request_approval_api: %s", e)
+        current_app.logger.exception("API Error in _request_approval_api")
         return jsonify({'success': False, 'error': 'Ein interner Fehler ist aufgetreten.'}), 500
 
 @admin_required
+@limiter.limit("20 per minute")
 def _approve_ticket_api(ticket_id):
     author_name = session.get('worker_name', 'System')
     try:
         TicketService.approve_ticket(ticket_id, session.get('worker_id'), author_name)
         return jsonify({'success': True})
     except Exception as e:
-        current_app.logger.error("API Error in _approve_ticket_api: %s", e)
+        current_app.logger.exception("API Error in _approve_ticket_api")
         return jsonify({'success': False, 'error': 'Ein interner Fehler ist aufgetreten.'}), 500
 
 @admin_required
+@limiter.limit("20 per minute")
 def _reject_ticket_api(ticket_id):
     data = request.get_json()
     reason = data.get('reason')
@@ -438,10 +446,11 @@ def _reject_ticket_api(ticket_id):
         TicketService.reject_ticket(ticket_id, session.get('worker_id'), author_name, reason)
         return jsonify({'success': True})
     except Exception as e:
-        current_app.logger.error("API Error in _reject_ticket_api: %s", e)
+        current_app.logger.exception("API Error in _reject_ticket_api")
         return jsonify({'success': False, 'error': 'Ein interner Fehler ist aufgetreten.'}), 500
 
 @worker_required
+@limiter.limit("20 per minute")
 def _add_checklist_api(ticket_id):
     lock_err = check_approval_lock(ticket_id=ticket_id)
     if lock_err: return lock_err
@@ -478,10 +487,11 @@ def _add_checklist_api(ticket_id):
         )
         return jsonify({'success': True, 'item_id': item.id})
     except Exception as e:
-        current_app.logger.error("API Error in _add_checklist_api: %s", e)
+        current_app.logger.exception("API Error in _add_checklist_api")
         return jsonify({'success': False, 'error': 'Ein interner Fehler ist aufgetreten.'}), 500
 
 @worker_required
+@limiter.limit("40 per minute")
 def _toggle_checklist_api(item_id):
     lock_err = check_approval_lock(item_id=item_id)
     if lock_err: return lock_err
@@ -492,10 +502,11 @@ def _toggle_checklist_api(item_id):
         item = TicketService.toggle_checklist_item(item_id, worker_name=worker_name, worker_id=worker_id)
         return jsonify({'success': True, 'is_completed': item.is_completed if item else False})
     except Exception as e:
-        current_app.logger.error("API Error in _toggle_checklist_api: %s", e)
+        current_app.logger.exception("API Error in _toggle_checklist_api")
         return jsonify({'success': False, 'error': 'Ein interner Fehler ist aufgetreten.'}), 500
 
 @worker_required
+@limiter.limit("20 per minute")
 def _delete_checklist_api(item_id):
     lock_err = check_approval_lock(item_id=item_id)
     if lock_err: return lock_err
@@ -504,7 +515,7 @@ def _delete_checklist_api(item_id):
         TicketService.delete_checklist_item(item_id)
         return jsonify({'success': True})
     except Exception as e:
-        current_app.logger.error("API Error in _delete_checklist_api: %s", e)
+        current_app.logger.exception("API Error in _delete_checklist_api")
         return jsonify({'success': False, 'error': 'Ein interner Fehler ist aufgetreten.'}), 500
 
 def _my_queue_view():

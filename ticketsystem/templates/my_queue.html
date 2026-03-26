@@ -70,15 +70,15 @@
             <div class="d-flex align-items-center gap-1 position-relative z-1">
                 {# Status: Offen = neutral (nicht rot!), andere wie bisher #}
                 <span class="badge x-small fw-semibold border-0
-                    {{ 'bg-secondary-subtle text-secondary-emphasis' if ticket.status == 'offen'
-                    else 'badge-subtle-primary' if ticket.status == 'in_bearbeitung'
-                    else 'badge-subtle-warning' if ticket.status == 'wartet'
+                    {{ 'bg-secondary-subtle text-secondary-emphasis' if ticket.status == TicketStatus.OFFEN.value
+                    else 'badge-subtle-primary' if ticket.status == TicketStatus.IN_BEARBEITUNG.value
+                    else 'badge-subtle-warning' if ticket.status == TicketStatus.WARTET.value
                     else 'badge-subtle-success' }}">
                     {{ ticket.status|status_label }}
                 </span>
-                {% if ticket.approval_status == 'pending' %}
-                <span class="badge badge-subtle-warning border-0" title="Wartet auf Freigabe"><i class="bi bi-hourglass-split"></i></span>
-                {% elif ticket.approval_status == 'rejected' %}
+                {% if ticket.approval_status == ApprovalStatus.PENDING.value %}
+                <span class="badge bg-warning text-dark x-small rounded-pill"><i class="bi bi-hourglass-split"></i></span>
+                {% elif ticket.approval_status == ApprovalStatus.REJECTED.value %}
                 <span class="badge badge-subtle-danger border-0" title="Freigabe abgelehnt"><i class="bi bi-x-circle-fill"></i></span>
                 {% endif %}
                 {% if ticket.assigned_to_id and ticket.assigned_to.is_out_of_office %}

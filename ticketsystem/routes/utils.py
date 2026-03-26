@@ -26,8 +26,8 @@ def handle_db_error(
     """
     db.session.rollback()
 
-    current_app.logger.error(
-        "Database error during %s: %s", operation_name, str(error))
+    current_app.logger.exception(
+        "Database error during %s", operation_name)
 
     if custom_message:
         flash(custom_message, 'danger')

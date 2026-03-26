@@ -6,9 +6,9 @@ import uuid
 from datetime import datetime, timezone
 from flask import current_app
 from extensions import db
-from models import Ticket, Comment, Worker, Tag, Attachment
-from sqlalchemy.exc import SQLAlchemyError
-from enums import TicketStatus, TicketPriority
+from models import Ticket, Comment, Attachment, Tag, Worker
+from enums import TicketStatus, TicketPriority, WorkerRole, EventType
+import logging
 from .email_service import EmailService
 
 class TicketService:
@@ -44,13 +44,14 @@ class TicketService:
         days_left = (_due.date() - now.date()).days
         
         if days_left < 0:      # Überfällig
-            return 0 + prio * 5 + max(-50, days_left)  # Negativere days_left = dringender
+            return 100 + max(-50, days_left)
         elif days_left == 0:   # Heute
-            return 100 + prio * 10
+            return 150 + prio * 5
         elif days_left <= 7:   # Diese Woche
-            return 200 + days_left * 10 + prio * 2
+            return 200 + days_left * 10 + prio * 5
         else:                  # Später
-            return 300 + min(150, days_left) + prio * 10
+            # Use higher multiplier for priority to keep it significant
+            return 300 + min(100, days_left) + prio * 20
 
     @staticmethod
     def create_ticket(title, description=None, priority=TicketPriority.MITTEL, author_name="System", author_id=None, assigned_to_id=None, assigned_team_id=None, due_date=None, tags=None, attachments=None, order_reference=None, reminder_date=None, is_confidential=False, recurrence_rule=None, commit=True):
@@ -108,23 +109,31 @@ class TicketService:
             db.session.add(comment)
 
             # Handle Multi-File Attachments
-            # FILE-1: Track saved paths so we can delete them if commit fails
-            saved_files = []
+            # FILE-1: Track saved paths in session.info for the global rollback listener (extensions.py)
+            if 'pending_files' not in db.session.info:
+                db.session.info['pending_files'] = []
+
             if attachments:
                 from extensions import Config
                 data_dir = current_app.config.get('DATA_DIR', Config.get_data_dir())
                 attachments_dir = os.path.join(data_dir, 'attachments')
                 os.makedirs(attachments_dir, exist_ok=True)
+                ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt'}
                 for file in attachments:
                     if file.filename == '':
                         continue
+                    
+                    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+                    if ext not in ALLOWED_EXTENSIONS:
+                        current_app.logger.warning("Upload blocked: Illegal extension '%s' for file %s", ext, file.filename)
+                        continue
+
                     try:
                         mime_type = file.mimetype or 'application/octet-stream'
-                        ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else 'bin'
                         new_filename = f"ticket_{ticket.id}_{uuid.uuid4().hex[:8]}.{ext}"
                         filepath = os.path.join(attachments_dir, new_filename)
                         file.save(filepath)
-                        saved_files.append(filepath)
+                        db.session.info['pending_files'].append(filepath)
                         attachment = Attachment(
                             ticket_id=ticket.id,
                             path=new_filename,
@@ -145,13 +154,6 @@ class TicketService:
             return ticket
         except SQLAlchemyError as e:
             db.session.rollback()
-            # FILE-1: Clean up any files written before the failed commit
-            for fp in saved_files:
-                try:
-                    if os.path.exists(fp):
-                        os.remove(fp)
-                except OSError:
-                    pass
             current_app.logger.error("Database error creating ticket: %s", e)
             raise
         except Exception as e:
@@ -342,7 +344,7 @@ class TicketService:
             selectinload(Ticket.checklists)
         )
         
-        if worker_role not in ['admin', 'hr', 'management'] and worker_id is not None:
+        if worker_role not in [WorkerRole.ADMIN.value, WorkerRole.HR.value, WorkerRole.MANAGEMENT.value] and worker_id is not None:
             author_subquery = db.session.query(Comment.ticket_id).filter(
                 Comment.event_type == 'TICKET_CREATED',
                 Comment.author_id == worker_id
@@ -427,7 +429,7 @@ class TicketService:
                     )
                 )
             )
-            if worker_role not in ['admin', 'hr', 'management']:
+            if worker_role not in [WorkerRole.ADMIN.value, WorkerRole.HR.value, WorkerRole.MANAGEMENT.value]:
                 author_subs = db.session.query(Comment.ticket_id).filter(
                     Comment.event_type == 'TICKET_CREATED',
                     Comment.author_id == worker_id
@@ -450,7 +452,7 @@ class TicketService:
             Ticket.status.in_([TicketStatus.OFFEN.value, TicketStatus.IN_BEARBEITUNG.value, TicketStatus.WARTET.value])
         ).group_by(Ticket.status).all()
         
-        summary_counts = {s: 0 for s in ['offen', 'in_bearbeitung', 'wartet']}
+        summary_counts = {s.value: 0 for s in [TicketStatus.OFFEN, TicketStatus.IN_BEARBEITUNG, TicketStatus.WARTET]}
         for status, count in counts:
             summary_counts[status] = count
 
@@ -503,7 +505,7 @@ class TicketService:
                     'completed_tickets': 0,
                     'last_updated': t.updated_at or t.created_at,
                     'ticket_progress_sum': 0.0,
-                    'status_counts': {'offen': 0, 'in_bearbeitung': 0, 'wartet': 0, 'erledigt': 0}
+                    'status_counts': {s.value: 0 for s in TicketStatus}
                 }
             
             p = projects[ref]
@@ -726,14 +728,15 @@ class TicketService:
     @staticmethod
     def request_approval(ticket_id, worker_id, worker_name):
         try:
+            from enums import ApprovalStatus
             ticket = db.session.get(Ticket, ticket_id)
             if not ticket or ticket.is_deleted:
                 raise ValueError("Ticket nicht gefunden.")
                 
-            if ticket.approval_status == 'pending':
-                return ticket
+            if ticket.approval_status == ApprovalStatus.PENDING.value:
+                return False, "Freigabe bereits angefragt."
                 
-            ticket.approval_status = 'pending'
+            ticket.approval_status = ApprovalStatus.PENDING.value
             ticket.updated_at = get_utc_now()
             
             comment = Comment(
@@ -746,7 +749,7 @@ class TicketService:
             )
             db.session.add(comment)
             db.session.commit()
-            return ticket
+            return True, "Freigabe angefragt."
         except Exception as e:
             db.session.rollback()
             current_app.logger.error("Error requesting approval: %s", e)
@@ -755,14 +758,15 @@ class TicketService:
     @staticmethod
     def approve_ticket(ticket_id, worker_id, worker_name):
         try:
+            from enums import ApprovalStatus
             ticket = db.session.get(Ticket, ticket_id)
             if not ticket or ticket.is_deleted:
                 raise ValueError("Ticket nicht gefunden.")
             
-            if ticket.approval_status == 'approved':
-                return ticket  # already approved
+            if ticket.approval_status == ApprovalStatus.APPROVED.value:
+                return False, "Ticket bereits freigegeben."
                 
-            ticket.approval_status = 'approved'
+            ticket.approval_status = ApprovalStatus.APPROVED.value
             ticket.approved_by_id = worker_id
             ticket.approved_at = get_utc_now()
             ticket.updated_at = get_utc_now()
@@ -790,7 +794,7 @@ class TicketService:
             if not ticket or ticket.is_deleted:
                 raise ValueError("Ticket nicht gefunden.")
                 
-            ticket.approval_status = 'rejected'
+            ticket.approval_status = ApprovalStatus.REJECTED.value
             ticket.rejected_by_id = worker_id
             ticket.reject_reason = reason
             ticket.status = TicketStatus.OFFEN.value

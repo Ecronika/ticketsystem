@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function fetchNotifications() {
+        if (document.hidden) return; // FIX-POLL: Skip fetch if tab is in background
         try {
             const res = await fetch(`${ingressPath}/api/notifications`);
             if (!res.ok) return;

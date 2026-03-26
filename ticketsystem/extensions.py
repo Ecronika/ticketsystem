@@ -10,8 +10,28 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
+from sqlalchemy import event
 
 db = SQLAlchemy()
+
+# FIX-FILES: Global Transaction Lifecycle Hooks for Orphaned File Cleanup
+@event.listens_for(db.session, 'after_rollback')
+def _handle_rollback_cleanup(session):
+    """Delete files that were saved during a transaction that was rolled back."""
+    pending_files = session.info.get('pending_files', [])
+    for filepath in pending_files:
+        try:
+            if os.path.exists(filepath):
+                os.remove(filepath)
+        except OSError:
+            pass
+    session.info['pending_files'] = []
+
+@event.listens_for(db.session, 'after_commit')
+def _handle_commit_cleanup(session):
+    """Clear the pending files list after a successful commit."""
+    session.info['pending_files'] = []
+
 csrf = CSRFProtect()
 scheduler = APScheduler()
 limiter = Limiter(

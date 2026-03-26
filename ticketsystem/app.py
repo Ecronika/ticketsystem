@@ -31,6 +31,7 @@ from metrics import ACTIVE_SESSIONS, HTTP_REQUEST_DURATION_SECONDS, HTTP_REQUEST
 from routes import main_bp
 from routes.metrics import metrics_bp
 from services import BackupService
+from enums import TicketStatus, TicketPriority, WorkerRole, ApprovalStatus
 
 # Read version dynamically from config.yaml
 _config_file = os.path.join(os.path.dirname(
@@ -449,7 +450,7 @@ def validate_session():
     # Keep role in sync: if admin was demoted, clear elevated session flags
     if worker.role != session.get('role'):
         session['role'] = worker.role
-        session['is_admin'] = (worker.role == 'admin')
+        session['is_admin'] = (worker.role == WorkerRole.ADMIN.value)
 
 
 # --- Jinja Filters ---
@@ -491,7 +492,7 @@ def inject_globals():
         try:
             pending_approval_count = Ticket.query.filter_by(
                 is_deleted=False, 
-                approval_status='pending'
+                approval_status=ApprovalStatus.PENDING.value
             ).count()
         except Exception as e:  # pylint: disable=broad-exception-caught
             app.logger.warning("inject_globals: pending_approval query failed: %s", e)
@@ -567,10 +568,10 @@ def time_ago_filter(dt):
 def status_label_filter(status):
     """Translate internal status enums to human label."""
     labels = {
-        'offen': 'Offen',
-        'in_bearbeitung': 'In Bearbeitung',
-        'wartet': 'Wartet',
-        'erledigt': 'Erledigt'
+        TicketStatus.OFFEN.value: 'Offen',
+        TicketStatus.IN_BEARBEITUNG.value: 'In Bearbeitung',
+        TicketStatus.WARTET.value: 'Wartet',
+        TicketStatus.ERLEDIGT.value: 'Erledigt'
     }
     return labels.get(status, status)
 
@@ -578,13 +579,23 @@ def status_label_filter(status):
 @app.template_filter('priority_label')
 def priority_label_filter(priority):
     """Translate priority integer to human label."""
-    if priority == 1:
+    if priority == TicketPriority.HOCH.value:
         return 'Hoch'
-    if priority == 2:
+    if priority == TicketPriority.MITTEL.value:
         return 'Mittel'
-    if priority == 3:
+    if priority == TicketPriority.NIEDRIG.value:
         return 'Niedrig'
     return f'P{priority}'
+
+
+@app.context_processor
+def inject_enums():
+    """Make Enums available in all templates."""
+    return {
+        'TicketStatus': TicketStatus,
+        'TicketPriority': TicketPriority,
+        'WorkerRole': WorkerRole
+    }
 
 
 # --- Global Error Handlers ---

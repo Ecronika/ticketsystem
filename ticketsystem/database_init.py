@@ -10,6 +10,7 @@ from werkzeug.security import generate_password_hash
 from flask_migrate import upgrade as flask_upgrade
 from models import SystemSettings, Worker
 from extensions import db
+from enums import WorkerRole
 
 def _seed_default_settings(app, logger):
     """Seed initial system settings and bootstrap worker."""
@@ -31,7 +32,7 @@ def _seed_default_settings(app, logger):
             name="Admin (Bootstrap)",
             pin_hash=generate_password_hash("0000"),
             is_admin=True,
-            role='admin',
+            role=WorkerRole.ADMIN.value,
             is_active=True
         )
         db.session.add(bootstrap_admin)

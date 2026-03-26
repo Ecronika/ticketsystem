@@ -25,6 +25,17 @@ class WorkerRole(str, Enum):
     WORKER = 'worker'
     VIEWER = 'viewer'
     HR = 'hr'
+    MANAGEMENT = 'management'
+
+    def __str__(self):
+        return self.value
+
+class ApprovalStatus(str, Enum):
+    """Approval states for a ticket."""
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    NONE = "none"
 
     def __str__(self):
         return self.value

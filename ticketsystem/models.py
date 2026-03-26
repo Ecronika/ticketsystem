@@ -1,5 +1,6 @@
 from utils import get_utc_now
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from enums import TicketStatus, TicketPriority, WorkerRole
 
 import os
 import logging
@@ -162,7 +163,7 @@ class Ticket(db.Model):
     
     # Use String for Enum persistence for simplicity in SQLite 
     # but handle via enums.py in the service layer.
-    status = db.Column(db.String(20), default='offen', nullable=False)
+    status = db.Column(db.String(20), default=TicketStatus.OFFEN.value, nullable=False)
     priority = db.Column(db.Integer, default=2, nullable=False) # 1=High, 2=Medium, 3=Low
     
     assigned_to_id = db.Column(db.Integer, db.ForeignKey('worker.id'), nullable=True)
@@ -214,7 +215,7 @@ class Ticket(db.Model):
         """
         if not self.is_confidential:
             return True
-        if role in ('admin', 'hr', 'management'):
+        if role in (WorkerRole.ADMIN.value, WorkerRole.HR.value, WorkerRole.MANAGEMENT.value):
             return True
         if self.assigned_to_id == worker_id:
             return True
@@ -293,17 +294,37 @@ class Comment(db.Model):
 
 
 @event.listens_for(Attachment, 'after_delete')
-def receive_after_delete(mapper, connection, target):
-    """Delete the physical file when Attachment is deleted from DB."""
-    try:
-        if target.path:
+def queue_file_deletion(mapper, connection, target):
+    """Queue the physical file for deletion after a successful commit."""
+    if target.path:
+        # PYLINT: Using the session as a place to store pending deletions
+        from sqlalchemy.orm import object_session
+        session = object_session(target)
+        if session:
+            if 'pending_deletions' not in session.info:
+                session.info['pending_deletions'] = set()
+            
             safe_filename = os.path.basename(target.path)
             if safe_filename and safe_filename not in ['.', '..']:
                 data_dir = Config.get_data_dir()
                 filepath = os.path.join(data_dir, 'attachments', safe_filename)
-                if os.path.exists(filepath):
-                    os.remove(filepath)
-                    logging.getLogger(__name__).info("Deleted orphaned attachment file: %s", filepath)
-    except Exception as e:
-        logging.getLogger(__name__).error("Failed to delete attachment %s: %s", target.path, e)
+                session.info['pending_deletions'].add(filepath)
+
+@event.listens_for(db.session, 'after_commit')
+def process_file_deletions(session):
+    """Physically delete files queued during the session."""
+    pending = session.info.get('pending_deletions', [])
+    for filepath in pending:
+        try:
+            if os.path.exists(filepath):
+                os.remove(filepath)
+                logging.getLogger(__name__).info("Deleted attachment file after commit: %s", filepath)
+        except Exception as e:
+            logging.getLogger(__name__).error("Failed to delete attachment %s: %s", filepath, e)
+    session.info.pop('pending_deletions', None)
+
+@event.listens_for(db.session, 'after_rollback')
+def clear_pending_deletions(session):
+    """Clear the deletion queue if the transaction is rolled back."""
+    session.info.pop('pending_deletions', None)
 
