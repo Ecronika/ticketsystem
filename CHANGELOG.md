@@ -1,5 +1,9 @@
 # Changelog
  
+## [1.26.2] - 2026-03-26
+### Fixed
+- **FIX-ENUM:** Enums (`ApprovalStatus`, `WorkerRole`, `TicketPriority`) were missing from the global Jinja2 context in v1.26.1, causing `UndefinedError` on several pages. Now explicitly included in the context processor.
+
 ## [1.26.1] - 2026-03-26
 ### Fixed
 - **FIX-SESSION:** Resolve `NameError: session is not defined` in `app.py` which prevented application startup in v1.26.0.

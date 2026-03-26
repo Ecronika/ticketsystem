@@ -460,15 +460,21 @@ def validate_session():
 def inject_globals():
     """Inject global variables into templates. Skips DB queries for static/unauthenticated requests."""
     from models import SystemSettings, Ticket
-    from enums import TicketStatus
+    from enums import TicketStatus, ApprovalStatus, WorkerRole, TicketPriority
     from flask import request
 
     # FIX-06: Skip all DB queries for static assets and unrouted requests
     _endpoint = request.endpoint or ''
-    _base = {'ingress_path': request.headers.get('X-Ingress-Path', ''),
-             'system_settings': SystemSettings,
-             'urgent_count': 0, 'pending_approval_count': 0,
-             'unread_notifications_count': 0}
+    _base = {
+        'ingress_path': request.headers.get('X-Ingress-Path', ''),
+        'system_settings': SystemSettings,
+        'TicketStatus': TicketStatus,
+        'ApprovalStatus': ApprovalStatus,
+        'WorkerRole': WorkerRole,
+        'TicketPriority': TicketPriority,
+        'urgent_count': 0, 'pending_approval_count': 0,
+        'unread_notifications_count': 0
+    }
     if not session.get('worker_id') or _endpoint in ('static', 'metrics') or _endpoint.startswith('metrics'):
         return _base
 
