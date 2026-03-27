@@ -1,46 +1,63 @@
 {% if has_full_access %}
 {% macro render_item(item, is_child=False) %}
-<div class="d-flex align-items-center justify-content-between border-bottom py-2 checklist-item {{ 'ms-4 border-start border-3 ps-3' if is_child else '' }}" data-id="{{ item.id }}">
-    <div class="d-flex align-items-center gap-2 flex-grow-1">
-        <div class="form-check m-0">
-            {% set locked = False %}
-            {% if item.depends_on_item_id %}
-                {% set parent = ticket.checklists|selectattr('id', 'equalto', item.depends_on_item_id)|first %}
-                {% if parent and not parent.is_completed %}
-                    {% set locked = True %}
+<div class="border-bottom checklist-item position-relative transition-all bg-white-hover {{ 'ms-4 border-start border-3 ps-3' if is_child else '' }}" data-id="{{ item.id }}">
+    <div class="d-flex align-items-center justify-content-between min-h-44">
+        {% set locked = False %}
+        {% if item.depends_on_item_id %}
+            {% set parent = ticket.checklists|selectattr('id', 'equalto', item.depends_on_item_id)|first %}
+            {% if parent and not parent.is_completed %}
+                {% set locked = True %}
+            {% endif %}
+        {% endif %}
+        
+        <label class="form-check-label d-flex align-items-center gap-3 flex-grow-1 py-3 px-2 cursor-pointer m-0 {{ 'text-muted opacity-75' if locked else '' }}" for="check_{{ item.id }}">
+            <div class="position-relative d-flex align-items-center justify-content-center" style="width: 24px; height: 24px;">
+                <input class="form-check-input checklist-toggle m-0 border-secondary" style="width: 1.5rem; height: 1.5rem;" type="checkbox" value="" id="check_{{ item.id }}" 
+                    {% if item.is_completed %}checked{% endif %} 
+                    {% if session.get('role') == 'viewer' or locked %}disabled{% endif %}>
+                <div class="spinner-border spinner-border-sm text-primary position-absolute d-none loading-indicator" role="status"></div>
+            </div>
+            
+            <div class="d-flex flex-column justify-content-center">
+                <span class="fs-6 {{ 'text-decoration-line-through text-muted' if item.is_completed else 'fw-semibold text-body' }} item-title-text">
+                    {{ item.title }}
+                </span>
+                
+                {% if item.assigned_to_id or item.assigned_team_id or item.due_date or locked %}
+                <div class="d-flex flex-wrap gap-2 mt-1">
+                    {% if item.assigned_to_id %}
+                    <span class="badge bg-secondary-subtle text-secondary rounded-pill fw-normal" style="font-size: 0.7rem;">
+                        <i class="bi bi-person me-1"></i>{{ item.assigned_to.name }}
+                    </span>
+                    {% endif %}
+                    {% if item.assigned_team_id %}
+                    <span class="badge bg-primary-subtle text-primary rounded-pill fw-normal" style="font-size: 0.7rem;">
+                        <i class="bi bi-people me-1"></i>{{ item.assigned_team.name }}
+                    </span>
+                    {% endif %}
+                    {% if item.due_date %}
+                    <span class="badge bg-light text-dark border rounded-pill fw-normal" style="font-size: 0.7rem;">
+                        <i class="bi bi-calendar me-1"></i>{{ item.due_date|local_time|datetime('%d.%m.%Y') }}
+                    </span>
+                    {% endif %}
+                    {% if locked %}
+                    <span class="badge bg-warning-subtle text-warning rounded-pill fw-normal" style="font-size: 0.7rem;">
+                        <i class="bi bi-lock-fill me-1"></i>Abhängig von: {{ parent.title }}
+                    </span>
+                    {% endif %}
+                </div>
                 {% endif %}
-            {% endif %}
-            <input class="form-check-input checklist-toggle" type="checkbox" value="" id="check_{{ item.id }}" 
-                {% if item.is_completed %}checked{% endif %} 
-                {% if session.get('role') == 'viewer' or locked %}disabled{% endif %}>
-            <label class="form-check-label {{ 'text-decoration-line-through text-muted' if item.is_completed else 'fw-semibold' }} {{ 'text-muted opacity-75' if locked else '' }}" for="check_{{ item.id }}">
-                {{ item.title }}
-                {% if locked %}<i class="bi bi-lock-fill text-warning ms-1" title="Gesperrt: Abhängigkeit '{{ parent.title }}' nicht erfüllt"></i>{% endif %}
-            </label>
+            </div>
+        </label>
+
+        {% if session.get('role') != 'viewer' %}
+        <div class="px-2">
+            <button type="button" class="btn btn-outline-danger border-0 rounded-circle checklist-delete d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;" aria-label="Löschen">
+                <i class="bi bi-trash fs-5"></i>
+            </button>
         </div>
-        <div class="d-flex flex-wrap gap-1 ms-2">
-            {% if item.assigned_to_id %}
-            <span class="badge bg-secondary-subtle text-secondary rounded-pill fw-normal" style="font-size: 0.65rem;">
-                <i class="bi bi-person me-1"></i>{{ item.assigned_to.name }}
-            </span>
-            {% endif %}
-            {% if item.assigned_team_id %}
-            <span class="badge bg-primary-subtle text-primary rounded-pill fw-normal" style="font-size: 0.65rem;">
-                <i class="bi bi-people me-1"></i>{{ item.assigned_team.name }}
-            </span>
-            {% endif %}
-            {% if item.due_date %}
-            <span class="badge bg-light text-dark border rounded-pill fw-normal" style="font-size: 0.65rem;">
-                <i class="bi bi-calendar me-1"></i>{{ item.due_date|local_time|datetime('%d.%m.%Y') }}
-            </span>
-            {% endif %}
-        </div>
+        {% endif %}
     </div>
-    {% if session.get('role') != 'viewer' %}
-    <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-2 checklist-delete" aria-label="Löschen">
-        <i class="bi bi-trash"></i>
-    </button>
-    {% endif %}
 </div>
 {% endmacro %}
 

@@ -2,39 +2,49 @@
     <div class="card-body p-4">
         <h4 class="h6 fw-bold mb-3">Ticket Management</h4>
         
-        <div class="mb-4">
+        <div class="mb-4 position-relative select-feedback-wrapper">
             <label for="statusSelect" class="form-label small text-muted fw-bold">Status ändern</label>
-            <select id="statusSelect" class="form-select border-0 bg-surface-subtle fw-bold" 
-                    data-original="{{ ticket.status }}"
-                    {{ 'disabled' if session.get('role') == 'viewer' }}>
-                <option value="{{ TicketStatus.OFFEN.value }}" {{ 'selected' if ticket.status == TicketStatus.OFFEN.value }}>{{ TicketStatus.OFFEN.value|status_label|upper }}</option>
-                <option value="{{ TicketStatus.IN_BEARBEITUNG.value }}" {{ 'selected' if ticket.status == TicketStatus.IN_BEARBEITUNG.value }}>{{ TicketStatus.IN_BEARBEITUNG.value|status_label|upper }}</option>
-                <option value="{{ TicketStatus.WARTET.value }}" {{ 'selected' if ticket.status == TicketStatus.WARTET.value }} title="Warten auf externe Aktion (Lieferung, Rückruf, ...)">{{ TicketStatus.WARTET.value|status_label|upper }}</option>
-                <option value="{{ TicketStatus.ERLEDIGT.value }}" {{ 'selected' if ticket.status == TicketStatus.ERLEDIGT.value }}>{{ TicketStatus.ERLEDIGT.value|status_label|upper }}</option>
-            </select>
+            <div class="position-relative">
+                <select id="statusSelect" class="form-select border-0 bg-surface-subtle fw-bold pe-5" 
+                        data-original="{{ ticket.status }}"
+                        {{ 'disabled' if session.get('role') == 'viewer' }}>
+                    <option value="{{ TicketStatus.OFFEN.value }}" {{ 'selected' if ticket.status == TicketStatus.OFFEN.value }}>{{ TicketStatus.OFFEN.value|status_label|upper }}</option>
+                    <option value="{{ TicketStatus.IN_BEARBEITUNG.value }}" {{ 'selected' if ticket.status == TicketStatus.IN_BEARBEITUNG.value }}>{{ TicketStatus.IN_BEARBEITUNG.value|status_label|upper }}</option>
+                    <option value="{{ TicketStatus.WARTET.value }}" {{ 'selected' if ticket.status == TicketStatus.WARTET.value }} title="Warten auf externe Aktion (Lieferung, Rückruf, ...)">{{ TicketStatus.WARTET.value|status_label|upper }}</option>
+                    <option value="{{ TicketStatus.ERLEDIGT.value }}" {{ 'selected' if ticket.status == TicketStatus.ERLEDIGT.value }}>{{ TicketStatus.ERLEDIGT.value|status_label|upper }}</option>
+                </select>
+                <div class="position-absolute top-50 end-0 translate-middle-y pe-4 d-none select-spinner" style="pointer-events: none;">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                </div>
+            </div>
         </div>
 
-        <div class="mb-4">
+        <div class="mb-4 position-relative select-feedback-wrapper">
             <label for="assignSelect" class="form-label small text-muted fw-bold">Zuweisung ändern</label>
-            <select id="assignSelect" class="form-select border-0 bg-surface-subtle fw-bold" 
-                    data-original="{{ ticket.assigned_to_id or ('team_' ~ ticket.assigned_team_id if ticket.assigned_team_id else '') }}"
-                    {{ 'disabled' if session.get('role') == 'viewer' }}>
-                <option value="" {% if not ticket.assigned_to_id and not ticket.assigned_team_id %}selected{% endif %}>NICHT ZUGEWIESEN</option>
-                {% for worker in workers %}
-                <option value="{{ worker.id }}" {% if ticket.assigned_to_id == worker.id %}selected{% endif %}>
-                    {{ worker.name|upper }}
-                </option>
-                {% endfor %}
-                {% if teams %}
-                <optgroup label="Teams">
-                    {% for team in teams %}
-                    <option value="team_{{ team.id }}" {% if ticket.assigned_team_id == team.id %}selected{% endif %}>
-                        TEAM: {{ team.name|upper }}
+            <div class="position-relative">
+                <select id="assignSelect" class="form-select border-0 bg-surface-subtle fw-bold pe-5" 
+                        data-original="{{ ticket.assigned_to_id or ('team_' ~ ticket.assigned_team_id if ticket.assigned_team_id else '') }}"
+                        {{ 'disabled' if session.get('role') == 'viewer' }}>
+                    <option value="" {% if not ticket.assigned_to_id and not ticket.assigned_team_id %}selected{% endif %}>NICHT ZUGEWIESEN</option>
+                    {% for worker in workers %}
+                    <option value="{{ worker.id }}" {% if ticket.assigned_to_id == worker.id %}selected{% endif %}>
+                        {{ worker.name|upper }}
                     </option>
                     {% endfor %}
-                </optgroup>
-                {% endif %}
-            </select>
+                    {% if teams %}
+                    <optgroup label="Teams">
+                        {% for team in teams %}
+                        <option value="team_{{ team.id }}" {% if ticket.assigned_team_id == team.id %}selected{% endif %}>
+                            TEAM: {{ team.name|upper }}
+                        </option>
+                        {% endfor %}
+                    </optgroup>
+                    {% endif %}
+                </select>
+                <div class="position-absolute top-50 end-0 translate-middle-y pe-4 d-none select-spinner" style="pointer-events: none;">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                </div>
+            </div>
         </div>
 
         <div class="mb-4" id="approvalSection">

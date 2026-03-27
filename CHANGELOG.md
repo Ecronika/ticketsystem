@@ -1,4 +1,12 @@
 # Changelog
+
+## [1.28.0] - 2026-03-27
+### Added
+- **UI/UX**: Comprehensive "Shopfloor-Ergonomics" overhaul (WCAG 2.2 focus).
+  - **Checklists**: "Fat-Finger"-proof hitboxes (44px min-height) and inline loading spinners for status toggles.
+  - **Dashboard**: Streamlined ticket cards with improved visual hierarchy to reduce cognitive load.
+  - **Feedback**: Real-time AJAX loaders for status and assignment changes in the management sidebar.
+  - **Layout**: Optimized Bento-Grid spacing and priority-based visual cues.
  
 ## [1.27.1] - 2026-03-27
 ### Fixed

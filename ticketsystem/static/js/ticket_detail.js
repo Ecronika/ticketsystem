@@ -41,6 +41,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const newStatus = this.value;
             const originalValue = this.dataset.original;
 
+            // Find spinner in wrapper
+            const wrapper = this.closest('.position-relative');
+            const spinner = wrapper ? wrapper.querySelector('.select-spinner') : null;
+
             if (newStatus === 'erledigt') {
                 const confirmed = await window.showConfirm('Ticket abschließen', 'Möchten Sie dieses Ticket wirklich als erledigt markieren?');
                 if (!confirmed) {
@@ -51,6 +55,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             this.disabled = true;
             this.classList.add('opacity-50');
+            if (spinner) spinner.classList.remove('d-none');
             
             try {
                 const response = await fetch(`${getIngress()}/api/ticket/${ticketId}/status`, {
@@ -62,6 +67,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     body: JSON.stringify({ status: newStatus })
                 });
                 const data = await response.json();
+                
+                if (spinner) spinner.classList.add('d-none');
+                
                 if (data.success) {
                     this.dataset.original = newStatus;
                     this.disabled = false;
@@ -94,6 +102,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     applySelectColor(this);
                 }
             } catch (error) {
+                if (spinner) spinner.classList.add('d-none');
                 window.showUiAlert('Netzwerkfehler beim Aktualisieren.');
                 this.disabled = false;
                 this.classList.remove('opacity-50');
@@ -109,8 +118,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const workerName = this.options[this.selectedIndex].text;
             const originalValue = this.dataset.original;
             
+            // Find spinner in wrapper
+            const wrapper = this.closest('.position-relative');
+            const spinner = wrapper ? wrapper.querySelector('.select-spinner') : null;
+
             this.disabled = true;
             this.classList.add('opacity-50');
+            if (spinner) spinner.classList.remove('d-none');
 
             try {
                 const response = await fetch(`${getIngress()}/api/ticket/${ticketId}/assign`, {
@@ -122,6 +136,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     body: JSON.stringify({ worker_id: workerId ? parseInt(workerId) : null })
                 });
                 const data = await response.json();
+                
+                if (spinner) spinner.classList.add('d-none');
+                
                 if (data.success) {
                     this.dataset.original = workerId || '';
                     this.disabled = false;
@@ -141,6 +158,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.value = originalValue;
                 }
             } catch (error) {
+                if (spinner) spinner.classList.add('d-none');
                 window.showUiAlert('Netzwerkfehler bei der Zuweisung.');
                 this.disabled = false;
                 this.classList.remove('opacity-50');
@@ -461,7 +479,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const cb = e.target;
             const itemDiv = cb.closest('.checklist-item');
             const itemId = itemDiv.dataset.id;
+            const spinner = itemDiv.querySelector('.loading-indicator');
+            const labelText = itemDiv.querySelector('.item-title-text');
+            
             cb.disabled = true;
+            cb.classList.add('opacity-0');
+            if (spinner) spinner.classList.remove('d-none');
             
             try {
                 const response = await fetch(`${ingress}/api/checklist/${itemId}/toggle`, {
@@ -469,21 +492,27 @@ document.addEventListener('DOMContentLoaded', function() {
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
                 });
                 const data = await response.json();
+                
+                cb.classList.remove('opacity-0');
+                if (spinner) spinner.classList.add('d-none');
+                
                 if (data.success) {
                     cb.disabled = false;
-                    const label = itemDiv.querySelector('label');
                     if (data.is_completed) {
-                        label.classList.add('text-decoration-line-through', 'text-muted');
-                        label.classList.remove('fw-semibold');
+                        labelText.classList.add('text-decoration-line-through', 'text-muted');
+                        labelText.classList.remove('fw-semibold', 'text-body');
                     } else {
-                        label.classList.remove('text-decoration-line-through', 'text-muted');
-                        label.classList.add('fw-semibold');
+                        labelText.classList.remove('text-decoration-line-through', 'text-muted');
+                        labelText.classList.add('fw-semibold', 'text-body');
                     }
                 } else {
-                    cb.checked = !cb.checked; // revert
+                    window.showUiAlert('Fehler: ' + data.error);
+                    cb.checked = !cb.checked;
                     cb.disabled = false;
                 }
             } catch (err) {
+                cb.classList.remove('opacity-0');
+                if (spinner) spinner.classList.add('d-none');
                 cb.checked = !cb.checked;
                 cb.disabled = false;
             }
