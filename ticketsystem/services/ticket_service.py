@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime, timezone
 from flask import current_app
 from extensions import db
+from sqlalchemy.exc import SQLAlchemyError
 from models import Ticket, Comment, Attachment, Tag, Worker
 from enums import TicketStatus, TicketPriority, WorkerRole, EventType, ApprovalStatus
 import logging
@@ -92,12 +93,6 @@ class TicketService:
 
             db.session.add(ticket)
             db.session.flush()  # Get ticket ID
-
-            # Handle pre-created Attachment objects
-            if attachments:
-                for attr in attachments:
-                    db.session.add(attr)
-                    ticket.attachments.append(attr)
 
             if checklist_template_id:
                 TicketService.apply_checklist_template(ticket.id, checklist_template_id, commit=False)
