@@ -535,8 +535,6 @@ def _my_queue_view():
     days_horizon = request.args.get('days', 7, type=int)
     
     now = get_utc_now()
-    # PWA-Filter: Horizon immer bis zum Ende des Ziel-Tages (23:59:59)
-    horizon = (now + timedelta(days=days_horizon)).replace(hour=23, minute=59, second=59) if days_horizon > 0 else None
     
     from models import ChecklistItem
     query = Ticket.query.filter(
@@ -553,16 +551,7 @@ def _my_queue_view():
             )
         )
     )
-    
-    if horizon:
-        # Überfällige IMMER + fällige inerhalb des Horizonts + ohne Datum
-        query = query.filter(
-            db.or_(
-                Ticket.due_date <= horizon,
-                Ticket.due_date == None
-            )
-        )
-    
+      
     # Sortieren nach Urgency Score (Service Layer handling)
     tickets_list = query.all()
     tickets_list.sort(key=lambda t: TicketService._urgency_score(t, now))
