@@ -8,6 +8,7 @@
   - Fixed broken migration `079270ff0a87` (duplicate column/foreign key errors).
   - Implemented automated repair migration for orphaned comments, attachments, and notifications.
   - Enabled strict Foreign Key enforcement (`PRAGMA foreign_keys = ON`).
+  - Fixed "Multiple head revisions" error in Alembic by linearizing branching history.
 - **Stability**:
   - Implemented `RUN_SCHEDULER=0` environment flag to prevent database locks during startup/migration.
   - Fixed runtime crashes in Dashboard due to missing imports.
