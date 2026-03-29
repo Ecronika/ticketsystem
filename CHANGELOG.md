@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.28.1] - 2026-03-29
+
+### Fixed
+- **Security (IDOR)**: Fixed vulnerability where confidential tickets were accessible via public view or direct URL manipulation for assignment.
+- **Database Integrity**:
+  - Fixed broken migration `079270ff0a87` (duplicate column/foreign key errors).
+  - Implemented automated repair migration for orphaned comments, attachments, and notifications.
+  - Enabled strict Foreign Key enforcement (`PRAGMA foreign_keys = ON`).
+- **Stability**:
+  - Implemented `RUN_SCHEDULER=0` environment flag to prevent database locks during startup/migration.
+  - Fixed runtime crashes in Dashboard due to missing imports.
+  - Corrected UTF-8 encoding garbling in system flash messages.
+- **Reliability**:
+  - Hardened API endpoints with robust JSON parsing (`silent=True`) and strict Enum validation.
+  - Fixed double-commit race condition in Checklist transitions.
+
+### Improved
+- **Code Quality**: Major Pylint optimization across all core modules (`enums.py`: 10/10, `models.py`: 9.18/10, `app.py`: 8.45/10).
+- **Architecture**: Refactored Ticket detail view to use centralized, model-level access logic.
+
 ## [1.28.0] - 2026-03-27
 ### Added
 - **UI/UX**: Comprehensive "Shopfloor-Ergonomics" overhaul (WCAG 2.2 focus).
