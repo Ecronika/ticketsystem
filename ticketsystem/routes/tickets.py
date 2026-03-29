@@ -3,18 +3,22 @@ Ticket routes.
 
 Handles ticket CRUD, public ticket view, queue, approvals, and project views.
 """
-from utils import get_utc_now
 import os
 from datetime import datetime, timezone, timedelta
-from flask import flash, redirect, render_template, request, session, url_for, jsonify, send_from_directory, current_app
+
+from flask import (
+    flash, redirect, render_template, request, session, url_for, 
+    jsonify, send_from_directory, current_app
+)
 from markupsafe import Markup
-from flask_limiter import Limiter
+# from flask_limiter import Limiter (unused import)
+
 from extensions import db, limiter
-from services.ticket_service import TicketService
+from utils import get_utc_now
+from services import TicketService
 from enums import TicketStatus, TicketPriority, WorkerRole, ApprovalStatus
-import os
-from .auth import worker_required, redirect_to, admin_required
 from models import Worker, Attachment, Ticket
+from .auth import worker_required, redirect_to, admin_required
 
 def _dashboard_view():
     """Handle the main dashboard view."""
@@ -206,6 +210,9 @@ def _new_ticket_view():
 @worker_required
 def _ticket_detail_view(ticket_id):
     """Handle ticket detail view."""
+    # FIX: Expire all to ensure we don't have stale data from a different session (e.g. in tests)
+    db.session.expire_all()
+    
     from models import Ticket
     ticket = db.session.get(Ticket, ticket_id)
     if not ticket:
@@ -216,17 +223,11 @@ def _ticket_detail_view(ticket_id):
     user_role = session.get('role')
     user_id = session.get('worker_id')
     
-    has_full_access = True
-    if ticket.is_confidential:
-        is_assigned = (ticket.assigned_to_id == user_id)
-        is_in_checklist = any(c.assigned_to_id == user_id for c in ticket.checklists)
-        is_author = any(c.author_id == user_id for c in ticket.comments if c.event_type == 'TICKET_CREATED')
+    if not ticket.is_accessible_by(user_id, user_role):
+        flash('Keine Berechtigung für dieses Ticket.', 'danger')
+        return redirect_to('main.index')
         
-        if user_role in [WorkerRole.ADMIN.value, WorkerRole.HR.value] or is_assigned or is_in_checklist or is_author:
-            has_full_access = True
-        else:
-            flash('Keine Berechtigung für dieses Ticket.', 'danger')
-            return redirect_to('main.index')
+    has_full_access = True # Default for authorized users
             
     workers = Worker.query.filter_by(is_active=True).all()
     from models import Team, ChecklistTemplate
@@ -239,7 +240,7 @@ def _public_ticket_view(ticket_id):
     """Public read-only status page (P0-1)."""
     from models import Ticket
     ticket = db.session.get(Ticket, ticket_id)
-    if not ticket or ticket.is_deleted:
+    if not ticket or ticket.is_deleted or ticket.is_confidential:
         return render_template('404.html'), 404
         
     return render_template('ticket_public.html', ticket=ticket)
@@ -268,15 +269,18 @@ def _add_comment_view(ticket_id):
     if not ticket or ticket.is_deleted:
         flash('Ticket nicht gefunden.', 'error')
         return redirect_to('main.index')
+    
     # IDOR fix: confidential tickets must be accessible by the caller
-    if not ticket.is_accessible_by(session.get('worker_id'), session.get('role')):
+    worker_id = session.get('worker_id')
+    worker_role = session.get('role')
+    if not ticket.is_accessible_by(worker_id, worker_role):
         flash('Keine Berechtigung für dieses Ticket.', 'danger')
         return redirect_to('main.index')
 
     text = request.form.get('text')
     author_name = session.get('worker_name', 'System')
     if text:
-        TicketService.add_comment(ticket_id, author_name, session.get('worker_id'), text)
+        TicketService.add_comment(ticket_id, author_name, worker_id, text)
         flash('Kommentar hinzugefügt.', 'success')
     return redirect_to('main.ticket_detail', ticket_id=ticket_id, _anchor='comment-form')
 
@@ -292,11 +296,17 @@ def _update_status_api(ticket_id):
     lock_err = check_approval_lock(ticket_id=ticket_id)
     if lock_err: return lock_err
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     new_status_val = data.get('status')
-    author_name = session.get('worker_name', 'System')
+    
     if not new_status_val:
         return jsonify({'success': False, 'error': 'Kein Status angegeben'}), 400
+        
+    # FIG-05: Strict Enum Validation in Route Layer
+    if new_status_val not in [s.value for s in TicketStatus]:
+         return jsonify({'success': False, 'error': f'Ungültiger Status: {new_status_val}'}), 400
+
+    author_name = session.get('worker_name', 'System')
     try:
         TicketService.update_status(ticket_id, new_status_val, author_name, session.get('worker_id'))
         return jsonify({'success': True})
@@ -316,8 +326,15 @@ def _assign_ticket_api(ticket_id):
     lock_err = check_approval_lock(ticket_id=ticket_id)
     if lock_err: return lock_err
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     worker_id = data.get('worker_id')
+    
+    if worker_id is not None:
+        try:
+            worker_id = int(worker_id)
+        except (ValueError, TypeError):
+             return jsonify({'success': False, 'error': 'Ungültige Worker ID'}), 400
+
     author_name = session.get('worker_name', 'System')
     try:
         TicketService.assign_ticket(ticket_id, worker_id, author_name, session.get('worker_id'))
@@ -330,12 +347,23 @@ def _assign_ticket_api(ticket_id):
 def _assign_to_me_view(ticket_id):
     """Assign the ticket to the current logged-in worker."""
     from models import Ticket
+    from enums import WorkerRole
     ticket = db.session.get(Ticket, ticket_id)
-    if ticket and ticket.approval_status == ApprovalStatus.PENDING.value:
+    
+    if not ticket:
+         return render_template('404.html'), 404
+
+    # SEC-01: Check if user has access to this ticket (e.g. if it's confidential)
+    worker_id = session.get('worker_id')
+    worker_role = session.get('role')
+    if not ticket.is_accessible_by(worker_id, worker_role):
+        flash('Zugriff verweigert.', 'error')
+        return redirect(url_for('main.index'))
+
+    if ticket.approval_status == ApprovalStatus.PENDING.value:
         flash('Ticket ist für die Freigabe gesperrt.', 'error')
         return redirect_to('main.ticket_detail', ticket_id=ticket_id)
 
-    worker_id = session.get('worker_id')
     worker_name = session.get('worker_name', 'System')
     
     if worker_id:
@@ -382,7 +410,7 @@ def _update_ticket_api(ticket_id):
     lock_err = check_approval_lock(ticket_id=ticket_id)
     if lock_err: return lock_err
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     new_title = data.get('title')
     new_prio = data.get('priority')
     new_due_str = data.get('due_date')
@@ -393,6 +421,15 @@ def _update_ticket_api(ticket_id):
     
     if not new_title:
         return jsonify({'success': False, 'error': 'Titel fehlt'}), 400
+
+    if new_prio is None:
+        return jsonify({'success': False, 'error': 'Priorität fehlt'}), 400
+
+    # Strict Priority Validation
+    try:
+        priority_enum = TicketPriority(int(new_prio))
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'error': f'Ungültige Priorität: {new_prio}'}), 400
         
     due_date = None
     if new_due_str:
@@ -407,9 +444,6 @@ def _update_ticket_api(ticket_id):
             reminder_date = datetime.fromisoformat(reminder_date_str.split('T')[0])
         except (ValueError, TypeError):
             reminder_date = None
-
-    if new_prio is None:
-        return jsonify({'success': False, 'error': 'Priorität fehlt'}), 400
 
     try:
         TicketService.update_ticket_meta(
@@ -447,7 +481,7 @@ def _approve_ticket_api(ticket_id):
 @admin_required
 @limiter.limit("20 per minute")
 def _reject_ticket_api(ticket_id):
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     reason = data.get('reason')
     if not reason:
         return jsonify({'success': False, 'error': 'Ablehnungsgrund fehlt.'}), 400
@@ -466,7 +500,7 @@ def _add_checklist_api(ticket_id):
     lock_err = check_approval_lock(ticket_id=ticket_id)
     if lock_err: return lock_err
     
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     title = data.get('title')
     assigned_to_id_raw = data.get('assigned_to_id')
     assigned_to_id = int(assigned_to_id_raw) if assigned_to_id_raw else None
@@ -582,7 +616,6 @@ def _my_queue_view():
 def _api_get_notifications():
     """Fetch recent notifications for the dropdown."""
     from models import Notification
-    from flask import jsonify, session
     
     worker_id = session.get('worker_id')
     notifs = Notification.query.filter_by(user_id=worker_id).order_by(Notification.created_at.desc()).limit(15).all()

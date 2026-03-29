@@ -135,9 +135,9 @@ def test_assign_ticket(test_app, db):
 def test_confidential_ticket_access(client, db, test_app):
     """Test that confidential tickets are protected against unauthorized access."""
     # Create users
-    admin = Worker(name="Admin", pin_hash="hash", is_admin=True)
-    worker1 = Worker(name="Worker 1", pin_hash="hash")
-    worker2 = Worker(name="Worker 2", pin_hash="hash")
+    admin = Worker(name="Admin", pin_hash="hash", is_admin=True, role='admin')
+    worker1 = Worker(name="Worker 1", pin_hash="hash", role='worker')
+    worker2 = Worker(name="Worker 2", pin_hash="hash", role='worker')
     db.session.add_all([admin, worker1, worker2])
     db.session.commit()
     
@@ -156,6 +156,7 @@ def test_confidential_ticket_access(client, db, test_app):
         sess['worker_id'] = worker2.id
         sess['worker_name'] = worker2.name
         sess['role'] = 'worker'
+        sess['is_admin'] = False
     response = client.get(f'/ticket/{ticket_id}', follow_redirects=True)
     assert b'Keine Berechtigung' in response.data
     
@@ -164,6 +165,7 @@ def test_confidential_ticket_access(client, db, test_app):
         sess['worker_id'] = admin.id
         sess['worker_name'] = admin.name
         sess['role'] = 'admin'
+        sess['is_admin'] = True
     response = client.get(f'/ticket/{ticket_id}')
     assert response.status_code == 200
     assert b'Geheim' in response.data
@@ -173,6 +175,7 @@ def test_confidential_ticket_access(client, db, test_app):
         sess['worker_id'] = worker1.id
         sess['worker_name'] = worker1.name
         sess['role'] = 'worker'
+        sess['is_admin'] = False
     response = client.get(f'/ticket/{ticket_id}')
     assert response.status_code == 200
     assert b'Geheim' in response.data
@@ -184,6 +187,7 @@ def test_confidential_ticket_access(client, db, test_app):
         sess['worker_id'] = worker2.id
         sess['worker_name'] = worker2.name
         sess['role'] = 'worker'
+        sess['is_admin'] = False
     response = client.get(f'/ticket/{ticket_id}')
     assert response.status_code == 200
     assert b'Geheim' in response.data

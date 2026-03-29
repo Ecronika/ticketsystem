@@ -9,6 +9,9 @@ import logging
 # Ensure project root is in path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+# FIX: Suppress scheduler during DB initialization to prevent locks
+os.environ["RUN_SCHEDULER"] = "0"
+
 from app import app
 from database_init import init_database
 from models import Worker

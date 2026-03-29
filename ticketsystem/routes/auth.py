@@ -3,17 +3,20 @@ Authentication routes.
 
 Handles admin authentication and session management.
 """
-from utils import get_utc_now
-
 from functools import wraps
 from datetime import datetime, timezone, timedelta
 from urllib.parse import urljoin, urlparse
 
-from flask import flash, redirect, render_template, request, session, url_for, Blueprint, current_app, make_response
+from flask import (
+    flash, redirect, render_template, request, session, url_for, 
+    Blueprint, current_app, make_response
+)
 from werkzeug.security import check_password_hash, generate_password_hash
+
 from extensions import db, limiter
+from utils import get_utc_now
 from enums import WorkerRole
-from models import Worker, SystemSettings, Worker
+from models import Worker, SystemSettings
 
 # NEU-03: Pre-generate at import time so Werkzeug validates the format and
 # the comparison cost is identical to a real hash check (timing normalization)

@@ -1,12 +1,17 @@
-from utils import get_utc_now
-from datetime import datetime, timezone, timedelta
-from enums import TicketStatus, TicketPriority, WorkerRole
-
+"""
+Database Models for Ticket System.
+"""
 import os
 import logging
+from datetime import datetime, timezone, timedelta
 from sqlalchemy import event
 from sqlalchemy.exc import SQLAlchemyError
+
 from extensions import db, Config
+from utils import get_utc_now
+from enums import TicketStatus, TicketPriority, WorkerRole
+
+
 
 
 
@@ -196,9 +201,9 @@ class Ticket(db.Model):
     
     tags = db.relationship('Tag', secondary=ticket_tags, backref=db.backref('tickets', lazy='dynamic'))
     
-    created_at = db.Column(db.DateTime, default=lambda: get_utc_now())
-    updated_at = db.Column(db.DateTime, default=lambda: get_utc_now(), 
-                           onupdate=lambda: get_utc_now())
+    created_at = db.Column(db.DateTime, default=get_utc_now)
+    updated_at = db.Column(db.DateTime, default=get_utc_now, 
+                           onupdate=get_utc_now)
 
     def __repr__(self):
         return f'<Ticket {self.title} ({self.status})>'
@@ -215,6 +220,7 @@ class Ticket(db.Model):
         """
         if not self.is_confidential:
             return True
+
         if role in (WorkerRole.ADMIN.value, WorkerRole.HR.value, WorkerRole.MANAGEMENT.value):
             return True
         if self.assigned_to_id == worker_id:
@@ -226,7 +232,7 @@ class Ticket(db.Model):
         from sqlalchemy.orm import object_session
         sess = object_session(self)
         if sess is not None:
-            from models import Comment  # local import to avoid circular ref
+            from models import Comment # local import to avoid circular ref / early access
             exists = sess.query(Comment).filter(
                 Comment.ticket_id == self.id,
                 Comment.author_id == worker_id,

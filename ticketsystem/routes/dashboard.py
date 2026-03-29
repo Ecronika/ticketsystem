@@ -4,18 +4,17 @@ Dashboard routes.
 Handles the main dashboard, logo serving, health check,
 and ingress path injection.
 """
-from utils import get_utc_now
 import os
 import time
 from datetime import datetime, timezone
 
+from flask import Blueprint, render_template, jsonify, current_app, session, request, Response
 
-from flask import Blueprint, render_template, jsonify, current_app, session
-from extensions import db
-from models import Ticket
-from enums import TicketStatus
+from extensions import db, Config
 from utils import get_utc_now
-import time
+from models import Ticket
+from enums import TicketStatus, WorkerRole
+from routes.auth import worker_required
 _dash_start_time = time.time()
 
 def register_routes(bp):
@@ -78,15 +77,21 @@ def register_routes(bp):
         return jsonify(payload), status_code
 
     @bp.route('/api/dashboard/summary')
+    @worker_required
     def dashboard_summary():
         """API endpoint for dashboard polling (summary only)."""
-        from models import Ticket
+        from sqlalchemy import func
         
         try:
-            from sqlalchemy import func
-            results = db.session.query(Ticket.status, func.count(Ticket.id))\
-                .filter(Ticket.is_deleted == False)\
-                .group_by(Ticket.status).all()
+            query = db.session.query(Ticket.status, func.count(Ticket.id))\
+                .filter(Ticket.is_deleted == False)
+            
+            # FIG-04: Filter confidential tickets for non-elevated roles
+            user_role = session.get('role')
+            if user_role not in [WorkerRole.ADMIN.value, WorkerRole.HR.value, WorkerRole.MANAGEMENT.value]:
+                query = query.filter(Ticket.is_confidential == False)
+                
+            results = query.group_by(Ticket.status).all()
             
             count_map = {status: count for status, count in results}
             

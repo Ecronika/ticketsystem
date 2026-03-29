@@ -31,7 +31,8 @@ from metrics import ACTIVE_SESSIONS, HTTP_REQUEST_DURATION_SECONDS, HTTP_REQUEST
 from routes import main_bp
 from routes.metrics import metrics_bp
 from services import BackupService
-from enums import TicketStatus, TicketPriority, WorkerRole, ApprovalStatus
+from enums import TicketStatus, TicketPriority, WorkerRole
+# ApprovalStatus removed as it was unused locally
 
 # Read version dynamically from config.yaml
 _config_file = os.path.join(os.path.dirname(
@@ -225,22 +226,24 @@ migrations_dir = os.path.join(os.path.dirname(
 migrate = Migrate(app, db, directory=migrations_dir, render_as_batch=True)
 
 
-if not scheduler.running:
-    try:
-        scheduler.init_app(app)
-        scheduler.start()
+# Non-breaking Scheduler Fix: Allow opt-out via RUN_SCHEDULER=0, default is ON
+if os.environ.get("RUN_SCHEDULER", "1") == "1":
+    if not scheduler.running:
+        try:
+            scheduler.init_app(app)
+            scheduler.start()
 
-        # Restore Backup Schedule from DB
-        with app.app_context():
-            BackupService.schedule_backup_job(app)
-            from services.scheduler_service import schedule_recurring_job
-            schedule_recurring_job(app)
-        
-        # P3-3: Ensure clean scheduler shutdown
-        atexit.register(lambda: scheduler.shutdown())
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        # In multi-worker environments, the scheduler might already be running
-        app.logger.warning("Scheduler initialization skipped or failed: %s", e)
+            # Restore Backup Schedule from DB
+            with app.app_context():
+                BackupService.schedule_backup_job(app)
+                from services.scheduler_service import schedule_recurring_job
+                schedule_recurring_job(app)
+            
+            # P3-3: Ensure clean scheduler shutdown
+            atexit.register(lambda: scheduler.shutdown())
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            # In multi-worker environments, the scheduler might already be running
+            app.logger.warning("Scheduler initialization skipped or failed: %s", e)
 
 # SQLite Connection Optimization (Fix for Worker Timeouts)
 
@@ -256,15 +259,12 @@ def set_sqlite_pragma(dbapi_conn, _connection_record):
         cursor = dbapi_conn.cursor()
         cursor.execute("PRAGMA busy_timeout = 30000")
         cursor.execute("PRAGMA journal_mode = WAL")
+        cursor.execute("PRAGMA foreign_keys = ON") # FIX: Enable FK enforcement
         cursor.execute("PRAGMA cache_size = -10000")  # 10MB cache
         cursor.execute("PRAGMA synchronous = NORMAL")
         cursor.execute("PRAGMA temp_store = MEMORY")  # Temp data in RAM
         # 256MB memory-mapped I/O
         cursor.execute("PRAGMA mmap_size = 268435456")
-        
-        # Use standard logging for pragma logging to avoid context errors (OFFEN-03)
-        logging.getLogger(__name__).debug("SQLite pragmas set: WAL=on, busy_timeout=30s")
-        # Less frequent WAL checkpoints
         cursor.execute("PRAGMA wal_autocheckpoint = 1000")
         cursor.close()
 
@@ -447,10 +447,10 @@ def validate_session():
         flash('Ihre Sitzung ist nicht mehr gültig. Bitte melden Sie sich erneut an.', 'danger')
         return redirect(url_for('main.login'))
 
-    # Keep role in sync: if admin was demoted, clear elevated session flags
-    if worker.role != session.get('role'):
-        session['role'] = worker.role
-        session['is_admin'] = (worker.role == WorkerRole.ADMIN.value)
+    # Always ensure critical session data is in sync with DB state
+    session['role'] = worker.role
+    session['is_admin'] = (worker.role == WorkerRole.ADMIN.value)
+    session['worker_name'] = worker.name
 
 
 # --- Jinja Filters ---
@@ -600,7 +600,8 @@ def request_entity_too_large(e):
     """Handle 413 Payload Too Large error."""
     # pylint: disable=unused-argument
     app.logger.warning("File upload too large: %s", request.content_length)
-    flash('Datei zu groÃƒÆ’Ã…Â¸ (max. 2MB).', 'error')
+    # FIX: Correct 16MB limit and fix UTF-8 encoding for 'ß'
+    flash('Datei zu groß (maximal 16MB erlaubt).', 'error')
     # fallback to index if manage is not available or context is unclear
     return redirect(url_for('main.index'))
 

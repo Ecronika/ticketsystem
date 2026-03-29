@@ -1,16 +1,23 @@
-from utils import get_utc_now
-import binascii
+"""
+Service Layer for Ticket Management.
+"""
 import base64
+import binascii
+import logging
 import os
 import uuid
 from datetime import datetime, timezone
+
 from flask import current_app
-from extensions import db
 from sqlalchemy.exc import SQLAlchemyError
+
+from extensions import db
+from utils import get_utc_now
 from models import Ticket, Comment, Attachment, Tag, Worker
 from enums import TicketStatus, TicketPriority, WorkerRole, EventType, ApprovalStatus
-import logging
 from .email_service import EmailService
+
+
 
 class TicketService:
     """
@@ -852,9 +859,11 @@ class TicketService:
                         
                 item.is_completed = not item.is_completed
                 ticket = item.ticket
-                db.session.commit()
+                
+                # FIX: Removed intermediate commit here to keep everything atomic
                 
                 if item.is_completed and ticket.status != TicketStatus.ERLEDIGT.value:
+                    # Check if all items are now finished
                     if len(ticket.checklists) > 0 and all(c.is_completed for c in ticket.checklists):
                         ticket.status = TicketStatus.ERLEDIGT.value
                         comment = Comment(
@@ -866,7 +875,9 @@ class TicketService:
                             event_type='STATUS_CHANGE'
                         )
                         db.session.add(comment)
-                        db.session.commit()
+                
+                # Single final commit for everything
+                db.session.commit()
             return item
         except Exception as e:
             db.session.rollback()
