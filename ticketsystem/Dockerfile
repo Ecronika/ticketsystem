@@ -33,6 +33,7 @@ COPY init_db.py .
 COPY templates templates/
 COPY static static/
 COPY metrics.py .
+COPY help_content.py .
 COPY config.yaml .
 
 # Service-Skripte kopieren
