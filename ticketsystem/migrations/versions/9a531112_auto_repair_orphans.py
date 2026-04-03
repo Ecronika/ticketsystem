@@ -1,6 +1,6 @@
 """Auto Repair Orphans
 
-Revision ID: 9a531112_auto
+Revision ID: 9a531112
 Revises: 079270ff0a87
 Create Date: 2026-03-29 08:20:00.000000
 
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '9a531112_auto'
+revision = '9a531112'
 down_revision = '1feee5a80ffa'
 branch_labels = None
 depends_on = None
