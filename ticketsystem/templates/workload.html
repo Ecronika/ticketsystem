@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+{% block title %}Arbeitsauslastung{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 gap-3 flex-wrap">
+  <div>
+    <h1 class="h3 fw-bold mb-0"><i class="bi bi-bar-chart-steps me-2 text-primary" aria-hidden="true"></i>Arbeitsauslastung</h1>
+    <p class="text-muted small mb-0 mt-1">Offene Tickets pro Mitarbeiter — nur für Admin und Management sichtbar.</p>
+  </div>
+</div>
+
+{# ============================================================
+   SEKTION 1: ABWESENDE MITARBEITER MIT KRITISCHEN TICKETS
+   Erscheint nur wenn Handlungsbedarf vorliegt
+   ============================================================ #}
+{% if absent_entries %}
+<div class="mb-4">
+  <div class="d-flex align-items-center gap-2 mb-3">
+    <span class="badge bg-danger px-3 py-2 rounded-pill fw-bold fs-6">
+      <i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>Handlungsbedarf — Abwesende Mitarbeiter
+    </span>
+    <span class="text-muted small">{{ absent_entries|length }} Mitarbeiter abwesend mit offenen Tickets</span>
+  </div>
+
+  {% for entry in absent_entries %}
+  <div class="card border-danger border-2 shadow-sm rounded-4 mb-3" id="worker-{{ entry.worker.id }}">
+    <div class="card-header bg-danger-subtle border-0 py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div class="d-flex align-items-center gap-3">
+        <span class="d-flex align-items-center justify-content-center rounded-circle bg-danger text-white fw-bold flex-shrink-0"
+              style="width: 40px; height: 40px; font-size: 0.8rem;" aria-hidden="true">
+          {{ entry.worker.name[:2]|upper }}
+        </span>
+        <div>
+          <h2 class="h6 fw-bold mb-0">
+            {{ entry.worker.name }}
+            <span class="badge bg-warning-subtle text-warning border border-warning-subtle ms-2 fw-semibold" style="font-size:0.7rem;">
+              <i class="bi bi-airplane-fill me-1" aria-hidden="true"></i>Abwesend
+            </span>
+          </h2>
+          <div class="d-flex gap-2 mt-1 flex-wrap">
+            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle" style="font-size:0.7rem;">
+              {{ entry.open_count }} offen gesamt
+            </span>
+            {% if entry.critical_count > 0 %}
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold animate-pulse" style="font-size:0.7rem;">
+              <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>{{ entry.critical_count }} kritisch
+            </span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-body p-0">
+      {# Kritische Tickets — immer sichtbar #}
+      {% if entry.critical_tickets %}
+      <ul class="list-group list-group-flush" aria-label="Kritische Tickets von {{ entry.worker.name }}">
+        {% for ticket in entry.critical_tickets %}
+        {% set is_overdue = ticket.due_date and ticket.due_date.date() < today.date() %}
+        <li class="list-group-item border-0 border-bottom py-3 px-4 {{ 'bg-danger-subtle' if is_overdue else '' }}">
+          {% include 'components/_workload_ticket_row.html' %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      {# Nicht-kritische Tickets — zusammengeklappt #}
+      {% if entry.other_tickets %}
+      <div class="px-4 py-2 border-top bg-surface-subtle">
+        <button class="btn btn-link btn-sm text-muted p-0 text-decoration-none collapsed"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#other-tickets-absent-{{ entry.worker.id }}"
+                aria-expanded="false"
+                aria-controls="other-tickets-absent-{{ entry.worker.id }}">
+          <i class="bi bi-chevron-down me-1" aria-hidden="true"></i>
+          {{ entry.other_tickets|length }} weitere Ticket{{ 's' if entry.other_tickets|length != 1 }} — warten auf Rückkehr
+        </button>
+      </div>
+      <div class="collapse" id="other-tickets-absent-{{ entry.worker.id }}">
+        <ul class="list-group list-group-flush">
+          {% for ticket in entry.other_tickets %}
+          <li class="list-group-item border-0 border-bottom py-3 px-4 opacity-75">
+            {% include 'components/_workload_ticket_row.html' %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      {% if not entry.critical_tickets and not entry.other_tickets %}
+      <div class="px-4 py-3 text-muted small">Keine offenen Tickets.</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{# ============================================================
+   SEKTION 2: ANWESENDE MITARBEITER
+   ============================================================ #}
+{% if present_entries %}
+<div class="mb-2">
+  <h2 class="h6 fw-bold text-muted text-uppercase mb-3" style="letter-spacing: 0.05em;">
+    <i class="bi bi-people me-1" aria-hidden="true"></i>Auslastung — Anwesende Mitarbeiter
+  </h2>
+
+  {% for entry in present_entries %}
+  <div class="card border-0 shadow-sm rounded-4 mb-3" id="worker-{{ entry.worker.id }}">
+    <div class="card-header border-0 bg-surface py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div class="d-flex align-items-center gap-3">
+        <span class="d-flex align-items-center justify-content-center rounded-circle bg-primary text-white fw-bold flex-shrink-0"
+              style="width: 40px; height: 40px; font-size: 0.8rem;" aria-hidden="true">
+          {{ entry.worker.name[:2]|upper }}
+        </span>
+        <div>
+          <h2 class="h6 fw-bold mb-0">{{ entry.worker.name }}</h2>
+          <div class="d-flex gap-2 mt-1 flex-wrap">
+            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle" style="font-size:0.7rem;">
+              {{ entry.open_count }} offen
+            </span>
+            {% if entry.critical_count > 0 %}
+            <span class="badge bg-warning-subtle text-warning border border-warning-subtle" style="font-size:0.7rem;">
+              <i class="bi bi-clock me-1" aria-hidden="true"></i>{{ entry.critical_count }} diese Woche fällig
+            </span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-body p-0">
+      <ul class="list-group list-group-flush" aria-label="Tickets von {{ entry.worker.name }}">
+        {% for ticket in entry.tickets %}
+        {% set is_overdue = ticket.due_date and ticket.due_date.date() < today.date() %}
+        <li class="list-group-item border-0 border-bottom py-3 px-4 {{ 'bg-danger-subtle' if is_overdue else '' }}">
+          {% include 'components/_workload_ticket_row.html' %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endfor %}
+{% endif %}
+
+{% if not absent_entries and not present_entries %}
+<div class="text-center py-5">
+  <i class="bi bi-check2-circle text-success" style="font-size: 3rem;" aria-hidden="true"></i>
+  <h5 class="mt-3 text-muted">Keine offenen Tickets zugewiesen</h5>
+  <p class="small text-muted">Alle Mitarbeiter sind frei oder es gibt keine aktiven Tickets.</p>
+</div>
+{% endif %}
+
+{# ============================================================
+   MODAL: Einzelnes Ticket zuweisen
+   ============================================================ #}
+<div class="modal fade" id="reassignModal" tabindex="-1" aria-labelledby="reassignModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 rounded-4 shadow">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold" id="reassignModalLabel">
+          <i class="bi bi-arrow-right-circle me-2 text-primary" aria-hidden="true"></i>Ticket zuweisen
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Abbrechen"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-1">Ticket:</p>
+        <p class="fw-semibold mb-3" id="reassignTicketTitle"></p>
+        <label class="form-label fw-semibold small" for="reassignTargetSelect">Zuweisen an:</label>
+        <select class="form-select" id="reassignTargetSelect">
+          {% for w in active_workers %}
+          <option value="{{ w.id }}">{{ w.name }}{% if w.is_out_of_office %} (abwesend){% endif %}</option>
+          {% endfor %}
+        </select>
+        <div id="reassignError" class="alert alert-danger mt-3 d-none small" role="alert"></div>
+      </div>
+      <div class="modal-footer border-0 pt-0 gap-2">
+        <button type="button" class="btn btn-light btn-sm flex-fill rounded-pill" data-bs-dismiss="modal">Abbrechen</button>
+        <button type="button" class="btn btn-primary btn-sm flex-fill rounded-pill fw-bold" id="reassignConfirmBtn">
+          <i class="bi bi-check-lg me-1" aria-hidden="true"></i>Jetzt zuweisen
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ g.csp_nonce }}">
+(function () {
+  'use strict';
+
+  let _ticketId = null;
+  const modal = new bootstrap.Modal(document.getElementById('reassignModal'));
+  const confirmBtn = document.getElementById('reassignConfirmBtn');
+  const errorEl = document.getElementById('reassignError');
+  const targetSelect = document.getElementById('reassignTargetSelect');
+  const titleEl = document.getElementById('reassignTicketTitle');
+
+  // Delegierter Event-Listener für alle Zuweisen-Buttons
+  document.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-reassign-ticket-id]');
+    if (!btn) return;
+
+    _ticketId = parseInt(btn.dataset.reassignTicketId, 10);
+    const currentWorkerId = parseInt(btn.dataset.currentWorkerId, 10);
+
+    titleEl.textContent = btn.dataset.ticketTitle;
+    errorEl.classList.add('d-none');
+
+    // Aktuellen Mitarbeiter in der Auswahl deaktivieren
+    for (const opt of targetSelect.options) {
+      opt.disabled = (parseInt(opt.value, 10) === currentWorkerId);
+    }
+    // Ersten verfügbaren Eintrag vorauswählen
+    for (const opt of targetSelect.options) {
+      if (!opt.disabled) { targetSelect.value = opt.value; break; }
+    }
+
+    confirmBtn.disabled = false;
+    confirmBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Jetzt zuweisen';
+    modal.show();
+  });
+
+  confirmBtn.addEventListener('click', function () {
+    const toWorkerId = parseInt(targetSelect.value, 10);
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Wird zugewiesen…';
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+    const ingressPath = document.querySelector('[data-ingress]')?.dataset.ingress || '';
+
+    fetch(ingressPath + '/api/ticket/' + _ticketId + '/reassign', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      },
+      body: JSON.stringify({ to_worker_id: toWorkerId })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.success) {
+        modal.hide();
+        location.reload();
+      } else {
+        errorEl.textContent = data.error || 'Unbekannter Fehler.';
+        errorEl.classList.remove('d-none');
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Jetzt zuweisen';
+      }
+    })
+    .catch(function () {
+      errorEl.textContent = 'Netzwerkfehler. Bitte erneut versuchen.';
+      errorEl.classList.remove('d-none');
+      confirmBtn.disabled = false;
+      confirmBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Jetzt zuweisen';
+    });
+  });
+}());
+</script>
+{% endblock %}

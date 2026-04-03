@@ -18,7 +18,7 @@ from utils import get_utc_now
 from services import TicketService
 from enums import TicketStatus, TicketPriority, WorkerRole, ApprovalStatus
 from models import Worker, Attachment, Ticket
-from .auth import worker_required, redirect_to, admin_required
+from .auth import worker_required, redirect_to, admin_required, admin_or_management_required
 
 def _dashboard_view():
     """Handle the main dashboard view."""
@@ -656,6 +656,48 @@ def _api_read_all_notifications():
     return jsonify({'success': True})
 
 
+@admin_or_management_required
+def _workload_view():
+    """Admin/Management: Auslastungsübersicht pro Mitarbeiter."""
+    absent_entries, present_entries = TicketService.get_workload_overview()
+    active_workers = Worker.query.filter_by(is_active=True).order_by(Worker.name).all()
+    return render_template(
+        'workload.html',
+        absent_entries=absent_entries,
+        present_entries=present_entries,
+        active_workers=active_workers,
+        today=get_utc_now(),
+    )
+
+
+@admin_or_management_required
+@limiter.limit("30 per minute")
+def _reassign_ticket_api(ticket_id):
+    """API: Einzelnes Ticket einem anderen Mitarbeiter zuweisen."""
+    data = request.get_json(silent=True) or {}
+    to_worker_id = data.get('to_worker_id')
+
+    if not to_worker_id:
+        return jsonify({'success': False, 'error': 'Ziel-Mitarbeiter fehlt.'}), 400
+
+    try:
+        to_worker_id = int(to_worker_id)
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'error': 'Ungültige Worker-ID.'}), 400
+
+    author_name = session.get('worker_name', 'System')
+    author_id = session.get('worker_id')
+
+    try:
+        TicketService.reassign_ticket(ticket_id, to_worker_id, author_name, author_id)
+        return jsonify({'success': True})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception:
+        current_app.logger.exception("API Error in _reassign_ticket_api")
+        return jsonify({'success': False, 'error': 'Interner Fehler.'}), 500
+
+
 def register_routes(bp):
     """Register ticket routes with explicit endpoints."""
     # Dashboards
@@ -664,6 +706,7 @@ def register_routes(bp):
     bp.add_url_rule('/my-queue', 'my_queue', view_func=worker_required(_my_queue_view))
     bp.add_url_rule('/approvals', 'approvals', view_func=_approvals_view)
     bp.add_url_rule('/projects', 'projects', view_func=worker_required(_projects_view))
+    bp.add_url_rule('/workload', 'workload', view_func=_workload_view)
 
     # Ticket creation & view
     bp.add_url_rule('/ticket/new', 'ticket_new', 
@@ -700,8 +743,10 @@ def register_routes(bp):
     bp.add_url_rule('/api/ticket/<int:ticket_id>/update', 'update_ticket', 
                   view_func=worker_required(_update_ticket_api), methods=['POST'])
     
-    bp.add_url_rule('/api/ticket/<int:ticket_id>/apply_template', 'apply_template', 
+    bp.add_url_rule('/api/ticket/<int:ticket_id>/apply_template', 'apply_template',
                   view_func=worker_required(_apply_template_api), methods=['POST'])
+    bp.add_url_rule('/api/ticket/<int:ticket_id>/reassign', 'reassign_ticket_api',
+                  view_func=_reassign_ticket_api, methods=['POST'])
 
     # Serving
     bp.add_url_rule('/attachment/<int:attachment_id>', 'serve_attachment', 

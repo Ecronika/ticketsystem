@@ -73,6 +73,21 @@ def admin_required(f):
     return decorated_function
 
 
+def admin_or_management_required(f):
+    """Decorate to require admin or management role."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        role = session.get('role')
+        if role not in (WorkerRole.ADMIN.value, WorkerRole.MANAGEMENT.value):
+            if request.path.startswith('/api/'):
+                from flask import jsonify
+                return jsonify({'success': False, 'error': 'Keine Berechtigung.'}), 403
+            flash('Diese Seite erfordert Administrator- oder Management-Rechte.', 'warning')
+            return redirect_to('main.login')
+        return f(*args, **kwargs)
+    return decorated_function
+
+
 def worker_required(f):
     """Decorate to require a worker login session."""
     @wraps(f)

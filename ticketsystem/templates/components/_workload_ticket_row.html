@@ -1,0 +1,56 @@
+{# Wiederverwendbare Ticket-Zeile für die Auslastungsansicht.
+   Erwartet: ticket, is_overdue (Boolean), entry.worker #}
+<div class="d-flex align-items-center gap-3">
+  {# Prioritäts-Balken #}
+  <span class="flex-shrink-0 rounded" aria-hidden="true"
+        style="width: 4px; height: 38px; background: {{ '#dc3545' if ticket.priority == 1 else '#ffc107' if ticket.priority == 2 else '#198754' }};"></span>
+
+  {# Ticket-Info #}
+  <div class="flex-grow-1 min-width-0">
+    <a href="{{ ingress_path }}{{ url_for('main.ticket_detail', ticket_id=ticket.id) }}"
+       class="text-body text-decoration-none fw-semibold small text-truncate d-block"
+       title="#{{ ticket.id }} {{ ticket.title }}">
+      <span class="text-muted me-1">#{{ ticket.id }}</span>{{ ticket.title }}
+    </a>
+    <div class="d-flex flex-wrap gap-1 mt-1">
+      {# Status #}
+      {% if ticket.status == 'offen' %}
+      <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size:0.65rem;">Offen</span>
+      {% elif ticket.status == 'in_bearbeitung' %}
+      <span class="badge bg-warning-subtle text-warning border border-warning-subtle" style="font-size:0.65rem;">In Bearbeitung</span>
+      {% elif ticket.status == 'wartet' %}
+      <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle" style="font-size:0.65rem;">Wartet</span>
+      {% endif %}
+      {# Priorität #}
+      {% if ticket.priority == 1 %}
+      <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size:0.65rem;">Hoch</span>
+      {% elif ticket.priority == 2 %}
+      <span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size:0.65rem;">Mittel</span>
+      {% endif %}
+      {# Fälligkeitsdatum #}
+      {% if ticket.due_date %}
+        {% set due = ticket.due_date.date() %}
+        <span class="badge {{ 'bg-danger text-white fw-bold' if is_overdue else 'bg-secondary-subtle text-secondary border border-secondary-subtle' }}" style="font-size:0.65rem;">
+          <i class="bi bi-calendar-event me-1" aria-hidden="true"></i>{{ due.strftime('%d.%m.%Y') }}
+          {% if is_overdue %}<span class="ms-1">(überfällig)</span>{% endif %}
+        </span>
+      {% endif %}
+      {# Auftragsnummer #}
+      {% if ticket.order_reference %}
+      <span class="badge bg-light text-dark border" style="font-size:0.65rem;">
+        <i class="bi bi-hash" aria-hidden="true"></i>{{ ticket.order_reference }}
+      </span>
+      {% endif %}
+    </div>
+  </div>
+
+  {# Zuweisen-Button #}
+  <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 flex-shrink-0"
+          type="button"
+          data-reassign-ticket-id="{{ ticket.id }}"
+          data-current-worker-id="{{ entry.worker.id }}"
+          data-ticket-title="#{{ ticket.id }} {{ ticket.title }}"
+          aria-label="Ticket #{{ ticket.id }} zuweisen">
+    <i class="bi bi-arrow-right-circle me-1" aria-hidden="true"></i><span class="d-none d-md-inline">Zuweisen</span>
+  </button>
+</div>
