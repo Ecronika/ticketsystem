@@ -109,11 +109,34 @@ def templates():
 @admin_required
 def show_tokens():
     """Display the generated recovery tokens."""
-    tokens_json = SystemSettings.get_setting('recovery_tokens_raw', '[]')
-    
-    # SOFORT nach Lesen leeren (SEC-02)
-    SystemSettings.set_setting('recovery_tokens_raw', '[]')
-    
     import json
-    tokens = json.loads(tokens_json)
-    return render_template('show_recovery_tokens.html', tokens=tokens)
+    from datetime import datetime, timezone
+
+    tokens_json = SystemSettings.get_setting('recovery_tokens_raw', '[]')
+    tokens_ts = SystemSettings.get_setting('recovery_tokens_generated_at', '')
+
+    # SEC-02: Time-based expiry (5 minutes) instead of immediate deletion on read.
+    # This prevents accidental loss if the admin refreshes the page.
+    tokens = []
+    expired = False
+    if tokens_json and tokens_json != '[]':
+        try:
+            if tokens_ts:
+                generated_at = datetime.fromisoformat(tokens_ts)
+                from utils import get_utc_now
+                now = get_utc_now()
+                if now.tzinfo is None:
+                    now = now.replace(tzinfo=timezone.utc)
+                if generated_at.tzinfo is None:
+                    generated_at = generated_at.replace(tzinfo=timezone.utc)
+                elapsed = (now - generated_at).total_seconds()
+                if elapsed > 300:  # 5 minutes
+                    expired = True
+                    SystemSettings.set_setting('recovery_tokens_raw', '[]')
+                    SystemSettings.set_setting('recovery_tokens_generated_at', '')
+            if not expired:
+                tokens = json.loads(tokens_json)
+        except (ValueError, json.JSONDecodeError):
+            tokens = []
+
+    return render_template('show_recovery_tokens.html', tokens=tokens, expired=expired)
