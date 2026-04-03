@@ -28,7 +28,8 @@ def _dashboard_view():
     page = request.args.get('page', 1, type=int)
     assigned_to_me = request.args.get('assigned_to_me') == '1'
     unassigned_only = request.args.get('unassigned') == '1'
-    
+    callback_pending = request.args.get('callback_pending') == '1'
+
     # Feature: Direct jump via #ID
     if search.startswith('#') and search[1:].isdigit():
         return redirect_to('main.ticket_detail', ticket_id=int(search[1:]))
@@ -41,6 +42,7 @@ def _dashboard_view():
         per_page=10,
         assigned_to_me=assigned_to_me,
         unassigned_only=unassigned_only,
+        callback_pending=callback_pending,
         worker_role=session.get('role')
     )
     
@@ -54,6 +56,7 @@ def _dashboard_view():
                           current_status=status_filter,
                           assigned_to_me=assigned_to_me,
                           unassigned_only=unassigned_only,
+                          callback_pending=callback_pending,
                           today=get_utc_now())
 
 
@@ -123,7 +126,21 @@ def _new_ticket_view():
         tags = [t.strip() for t in tags_raw.split(',') if t.strip()]
         is_confidential = request.form.get('is_confidential') == 'True' or request.form.get('is_confidential') == 'on'
         recurrence_rule = request.form.get('recurrence_rule')
-        
+        contact_name = request.form.get('contact_name') or None
+        contact_phone = request.form.get('contact_phone') or None
+        contact_channel = request.form.get('contact_channel') or None
+        callback_requested = request.form.get('callback_requested') == 'on'
+        callback_due_str = request.form.get('callback_due')
+        callback_due = None
+        if callback_due_str:
+            try:
+                callback_due = datetime.strptime(callback_due_str, '%Y-%m-%dT%H:%M')
+            except ValueError:
+                try:
+                    callback_due = datetime.strptime(callback_due_str, '%Y-%m-%d')
+                except ValueError:
+                    pass
+
         # C-2 Fix: assigned_to_id selects can contain 'team_X' prefixed values
         # assigned_team_id is handled via the same select with 'team_' prefix
         assigned_to_id_raw = request.form.get('assigned_to_id')
@@ -186,7 +203,12 @@ def _new_ticket_view():
                 recurrence_rule=recurrence_rule,
                 order_reference=order_reference,
                 tags=tags,
-                checklist_template_id=template_id
+                checklist_template_id=template_id,
+                contact_name=contact_name,
+                contact_phone=contact_phone,
+                contact_channel=contact_channel,
+                callback_requested=callback_requested,
+                callback_due=callback_due,
             )
             session['last_created_ticket_id'] = ticket.id
             ticket_url = f"{request.headers.get('X-Ingress-Path', '')}{url_for('main.ticket_detail', ticket_id=ticket.id)}"
@@ -233,7 +255,7 @@ def _ticket_detail_view(ticket_id):
     from models import Team, ChecklistTemplate
     teams = Team.query.all()
     templates = ChecklistTemplate.query.all()
-    return render_template('ticket_detail.html', ticket=ticket, workers=workers, teams=teams, templates=templates, has_full_access=has_full_access)
+    return render_template('ticket_detail.html', ticket=ticket, workers=workers, teams=teams, templates=templates, has_full_access=has_full_access, now=get_utc_now())
 
 @limiter.limit("30 per minute")
 def _public_ticket_view(ticket_id):

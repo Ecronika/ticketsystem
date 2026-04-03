@@ -62,7 +62,7 @@ class TicketService:
             return 300 + min(100, days_left) + prio * 20
 
     @staticmethod
-    def create_ticket(title, description=None, priority=TicketPriority.MITTEL, author_name="System", author_id=None, assigned_to_id=None, assigned_team_id=None, due_date=None, tags=None, attachments=None, order_reference=None, reminder_date=None, is_confidential=False, recurrence_rule=None, checklist_template_id=None, commit=True):
+    def create_ticket(title, description=None, priority=TicketPriority.MITTEL, author_name="System", author_id=None, assigned_to_id=None, assigned_team_id=None, due_date=None, tags=None, attachments=None, order_reference=None, reminder_date=None, is_confidential=False, recurrence_rule=None, checklist_template_id=None, contact_name=None, contact_phone=None, contact_channel=None, callback_requested=False, callback_due=None, commit=True):
         """Create a new ticket and an initial comment.
 
         Args:
@@ -86,7 +86,12 @@ class TicketService:
                 recurrence_rule=recurrence_rule,
                 due_date=due_date,
                 order_reference=order_reference,
-                reminder_date=reminder_date
+                reminder_date=reminder_date,
+                contact_name=contact_name,
+                contact_phone=contact_phone,
+                contact_channel=contact_channel,
+                callback_requested=bool(callback_requested),
+                callback_due=callback_due,
             )
             
             if tags:
@@ -342,8 +347,8 @@ class TicketService:
             raise
 
     @staticmethod
-    def get_dashboard_tickets(worker_id=None, search=None, status_filter=None, page=1, per_page=10, 
-                             assigned_to_me=False, unassigned_only=False, 
+    def get_dashboard_tickets(worker_id=None, search=None, status_filter=None, page=1, per_page=10,
+                             assigned_to_me=False, unassigned_only=False, callback_pending=False,
                              start_date=None, end_date=None, author_name=None, worker_role=None):
         """Fetch tickets for the dashboard with search, filtering, and pagination."""
         from sqlalchemy.orm import joinedload, selectinload
@@ -383,6 +388,12 @@ class TicketService:
             )
         elif unassigned_only:
             query = query.filter(Ticket.assigned_to_id == None)
+
+        if callback_pending:
+            query = query.filter(
+                Ticket.callback_requested == True,
+                Ticket.status != TicketStatus.ERLEDIGT.value
+            )
 
         if start_date:
             query = query.filter(Ticket.created_at >= start_date)
