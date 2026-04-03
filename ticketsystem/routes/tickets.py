@@ -18,7 +18,7 @@ from utils import get_utc_now
 from services import TicketService
 from enums import TicketStatus, TicketPriority, WorkerRole, ApprovalStatus
 from models import Worker, Attachment, Ticket
-from .auth import worker_required, redirect_to, admin_required
+from .auth import worker_required, redirect_to, admin_required, admin_or_management_required
 
 def _dashboard_view():
     """Handle the main dashboard view."""
@@ -28,7 +28,8 @@ def _dashboard_view():
     page = request.args.get('page', 1, type=int)
     assigned_to_me = request.args.get('assigned_to_me') == '1'
     unassigned_only = request.args.get('unassigned') == '1'
-    
+    callback_pending = request.args.get('callback_pending') == '1'
+
     # Feature: Direct jump via #ID
     if search.startswith('#') and search[1:].isdigit():
         return redirect_to('main.ticket_detail', ticket_id=int(search[1:]))
@@ -41,6 +42,7 @@ def _dashboard_view():
         per_page=10,
         assigned_to_me=assigned_to_me,
         unassigned_only=unassigned_only,
+        callback_pending=callback_pending,
         worker_role=session.get('role')
     )
     
@@ -54,6 +56,7 @@ def _dashboard_view():
                           current_status=status_filter,
                           assigned_to_me=assigned_to_me,
                           unassigned_only=unassigned_only,
+                          callback_pending=callback_pending,
                           today=get_utc_now())
 
 
@@ -123,7 +126,21 @@ def _new_ticket_view():
         tags = [t.strip() for t in tags_raw.split(',') if t.strip()]
         is_confidential = request.form.get('is_confidential') == 'True' or request.form.get('is_confidential') == 'on'
         recurrence_rule = request.form.get('recurrence_rule')
-        
+        contact_name = request.form.get('contact_name') or None
+        contact_phone = request.form.get('contact_phone') or None
+        contact_channel = request.form.get('contact_channel') or None
+        callback_requested = request.form.get('callback_requested') == 'on'
+        callback_due_str = request.form.get('callback_due')
+        callback_due = None
+        if callback_due_str:
+            try:
+                callback_due = datetime.strptime(callback_due_str, '%Y-%m-%dT%H:%M')
+            except ValueError:
+                try:
+                    callback_due = datetime.strptime(callback_due_str, '%Y-%m-%d')
+                except ValueError:
+                    pass
+
         # C-2 Fix: assigned_to_id selects can contain 'team_X' prefixed values
         # assigned_team_id is handled via the same select with 'team_' prefix
         assigned_to_id_raw = request.form.get('assigned_to_id')
@@ -186,7 +203,12 @@ def _new_ticket_view():
                 recurrence_rule=recurrence_rule,
                 order_reference=order_reference,
                 tags=tags,
-                checklist_template_id=template_id
+                checklist_template_id=template_id,
+                contact_name=contact_name,
+                contact_phone=contact_phone,
+                contact_channel=contact_channel,
+                callback_requested=callback_requested,
+                callback_due=callback_due,
             )
             session['last_created_ticket_id'] = ticket.id
             ticket_url = f"{request.headers.get('X-Ingress-Path', '')}{url_for('main.ticket_detail', ticket_id=ticket.id)}"
@@ -233,7 +255,7 @@ def _ticket_detail_view(ticket_id):
     from models import Team, ChecklistTemplate
     teams = Team.query.all()
     templates = ChecklistTemplate.query.all()
-    return render_template('ticket_detail.html', ticket=ticket, workers=workers, teams=teams, templates=templates, has_full_access=has_full_access)
+    return render_template('ticket_detail.html', ticket=ticket, workers=workers, teams=teams, templates=templates, has_full_access=has_full_access, now=get_utc_now())
 
 @limiter.limit("30 per minute")
 def _public_ticket_view(ticket_id):
@@ -656,6 +678,48 @@ def _api_read_all_notifications():
     return jsonify({'success': True})
 
 
+@admin_or_management_required
+def _workload_view():
+    """Admin/Management: Auslastungsübersicht pro Mitarbeiter."""
+    absent_entries, present_entries = TicketService.get_workload_overview()
+    active_workers = Worker.query.filter_by(is_active=True).order_by(Worker.name).all()
+    return render_template(
+        'workload.html',
+        absent_entries=absent_entries,
+        present_entries=present_entries,
+        active_workers=active_workers,
+        today=get_utc_now(),
+    )
+
+
+@admin_or_management_required
+@limiter.limit("30 per minute")
+def _reassign_ticket_api(ticket_id):
+    """API: Einzelnes Ticket einem anderen Mitarbeiter zuweisen."""
+    data = request.get_json(silent=True) or {}
+    to_worker_id = data.get('to_worker_id')
+
+    if not to_worker_id:
+        return jsonify({'success': False, 'error': 'Ziel-Mitarbeiter fehlt.'}), 400
+
+    try:
+        to_worker_id = int(to_worker_id)
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'error': 'Ungültige Worker-ID.'}), 400
+
+    author_name = session.get('worker_name', 'System')
+    author_id = session.get('worker_id')
+
+    try:
+        TicketService.reassign_ticket(ticket_id, to_worker_id, author_name, author_id)
+        return jsonify({'success': True})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception:
+        current_app.logger.exception("API Error in _reassign_ticket_api")
+        return jsonify({'success': False, 'error': 'Interner Fehler.'}), 500
+
+
 def register_routes(bp):
     """Register ticket routes with explicit endpoints."""
     # Dashboards
@@ -664,6 +728,7 @@ def register_routes(bp):
     bp.add_url_rule('/my-queue', 'my_queue', view_func=worker_required(_my_queue_view))
     bp.add_url_rule('/approvals', 'approvals', view_func=_approvals_view)
     bp.add_url_rule('/projects', 'projects', view_func=worker_required(_projects_view))
+    bp.add_url_rule('/workload', 'workload', view_func=_workload_view)
 
     # Ticket creation & view
     bp.add_url_rule('/ticket/new', 'ticket_new', 
@@ -700,8 +765,10 @@ def register_routes(bp):
     bp.add_url_rule('/api/ticket/<int:ticket_id>/update', 'update_ticket', 
                   view_func=worker_required(_update_ticket_api), methods=['POST'])
     
-    bp.add_url_rule('/api/ticket/<int:ticket_id>/apply_template', 'apply_template', 
+    bp.add_url_rule('/api/ticket/<int:ticket_id>/apply_template', 'apply_template',
                   view_func=worker_required(_apply_template_api), methods=['POST'])
+    bp.add_url_rule('/api/ticket/<int:ticket_id>/reassign', 'reassign_ticket_api',
+                  view_func=_reassign_ticket_api, methods=['POST'])
 
     # Serving
     bp.add_url_rule('/attachment/<int:attachment_id>', 'serve_attachment', 

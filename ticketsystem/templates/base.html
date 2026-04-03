@@ -45,11 +45,24 @@
             </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link {{ 'active fw-bold' if request.endpoint == 'main.index' else '' }}" 
+            <a class="nav-link {{ 'active fw-bold' if request.endpoint == 'main.index' else '' }}"
                href="{{ ingress_path }}{{ url_for('main.index') }}">
-              <i class="bi bi-people me-1" aria-hidden="true"></i>Team-Übersicht
+              <i class="bi bi-clipboard2-list me-1" aria-hidden="true"></i>Alle Tickets
             </a>
           </li>
+          {% if session.get('role') in ('admin', 'management') %}
+          <li class="nav-item">
+            <a class="nav-link {{ 'active fw-bold' if request.endpoint == 'main.workload' else '' }}"
+               href="{{ ingress_path }}{{ url_for('main.workload') }}">
+              <i class="bi bi-bar-chart-steps me-1" aria-hidden="true"></i>Auslastung
+              {% if absent_entries_with_critical > 0 %}
+              <span class="badge bg-danger rounded-pill ms-1 animate-pulse" style="font-size:0.65rem;" aria-label="{{ absent_entries_with_critical }} abwesende Mitarbeiter mit kritischen Tickets">
+                {{ absent_entries_with_critical }}
+              </span>
+              {% endif %}
+            </a>
+          </li>
+          {% endif %}
           <li class="nav-item">
             <a class="nav-link {{ 'active fw-bold' if request.endpoint == 'main.projects' else '' }}" 
                href="{{ ingress_path }}{{ url_for('main.projects') }}">
@@ -104,9 +117,21 @@
           </li>
           {% endif %}
 
+          {% if page_help %}
+          <li class="nav-item ms-lg-1">
+            <button type="button"
+                    class="btn btn-link nav-link text-muted px-2"
+                    data-open-page-help
+                    title="Hilfe für diese Seite"
+                    aria-label="Hilfe öffnen">
+              <i class="bi bi-question-circle" aria-hidden="true"></i>
+            </button>
+          </li>
+          {% endif %}
+
           {% if session.get('role') != 'viewer' %}
           <li class="nav-item ms-lg-3">
-            <a class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm d-flex align-items-center" 
+            <a class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm d-flex align-items-center"
                href="{{ ingress_path }}{{ url_for('main.ticket_new') }}"
                title="Neues Ticket erstellen">
                 <i class="bi bi-plus-lg me-lg-2"></i>
@@ -209,6 +234,7 @@
   <script src="{{ ingress_path }}{{ url_for('static', filename='js/base_ui.js') }}?v={{ config.VERSION }}"></script>
   {% if session.get('worker_id') %}
   <script src="{{ ingress_path }}{{ url_for('static', filename='js/notifications.js') }}?v={{ config.VERSION }}"></script>
+  <script src="{{ ingress_path }}{{ url_for('static', filename='js/help.js') }}?v={{ config.VERSION }}"></script>
   {% endif %}
   {% block scripts %}{% endblock %}
 
@@ -231,6 +257,14 @@
   </div>
 
   <div id="ajaxStatusAnnouncer" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
+
+  {% if page_help %}
+  {% set _endpoint = request.endpoint or '' %}
+  {% set _page_key = _endpoint | replace('main.', '') | replace('admin.', 'admin_') %}
+  {% with help_page_key = _page_key %}
+    {% include 'components/_page_help_offcanvas.html' %}
+  {% endwith %}
+  {% endif %}
 
   <script nonce="{{ g.csp_nonce }}">
   if ('serviceWorker' in navigator) {

@@ -129,8 +129,45 @@
         </div>
         {% endif %}
 
+        {% if ticket.contact_name or ticket.contact_channel %}
         <hr class="text-muted opacity-25">
-        
+        <div class="mb-2 px-1">
+            <small class="text-muted d-block mb-2 x-small text-uppercase ls-wide"><i class="bi bi-headset me-1"></i>Kundenkontakt</small>
+            {% if ticket.contact_channel %}
+            <div class="d-flex align-items-center gap-2 mb-1">
+                {% if ticket.contact_channel == 'telefon' %}
+                <i class="bi bi-telephone text-info small"></i><span class="small">Telefon</span>
+                {% elif ticket.contact_channel == 'email' %}
+                <i class="bi bi-envelope text-info small"></i><span class="small">E-Mail</span>
+                {% elif ticket.contact_channel == 'persoenlich' %}
+                <i class="bi bi-person-walking text-info small"></i><span class="small">Persönlich</span>
+                {% elif ticket.contact_channel == 'petra' %}
+                <i class="bi bi-robot text-info small"></i><span class="small">Hallo Petra</span>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% if ticket.contact_name %}
+            <div class="small fw-semibold text-truncate">{{ ticket.contact_name }}</div>
+            {% endif %}
+            {% if ticket.contact_phone %}
+            <a href="tel:{{ ticket.contact_phone }}" class="small text-decoration-none text-primary">
+                <i class="bi bi-telephone-fill me-1"></i>{{ ticket.contact_phone }}
+            </a>
+            {% endif %}
+            {% if ticket.callback_requested %}
+            <div class="mt-2 d-flex align-items-center gap-1 {% if ticket.callback_due and ticket.callback_due < now %}text-danger fw-bold{% else %}text-warning-emphasis{% endif %}">
+                <i class="bi bi-telephone-forward small"></i>
+                <span class="x-small fw-bold">Rückruf erforderlich</span>
+                {% if ticket.callback_due %}
+                <span class="x-small ms-1">bis {{ ticket.callback_due|local_time|datetime('%d.%m. %H:%M') }}</span>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <hr class="text-muted opacity-25">
+
         {% if session.get('role') != WorkerRole.VIEWER.value %}
         <div class="d-grid">
             {% if not ticket.assigned_to_id == session.get('worker_id') %}

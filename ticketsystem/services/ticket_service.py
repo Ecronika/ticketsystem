@@ -6,7 +6,7 @@ import binascii
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from flask import current_app
 from sqlalchemy.exc import SQLAlchemyError
@@ -62,7 +62,7 @@ class TicketService:
             return 300 + min(100, days_left) + prio * 20
 
     @staticmethod
-    def create_ticket(title, description=None, priority=TicketPriority.MITTEL, author_name="System", author_id=None, assigned_to_id=None, assigned_team_id=None, due_date=None, tags=None, attachments=None, order_reference=None, reminder_date=None, is_confidential=False, recurrence_rule=None, checklist_template_id=None, commit=True):
+    def create_ticket(title, description=None, priority=TicketPriority.MITTEL, author_name="System", author_id=None, assigned_to_id=None, assigned_team_id=None, due_date=None, tags=None, attachments=None, order_reference=None, reminder_date=None, is_confidential=False, recurrence_rule=None, checklist_template_id=None, contact_name=None, contact_phone=None, contact_channel=None, callback_requested=False, callback_due=None, commit=True):
         """Create a new ticket and an initial comment.
 
         Args:
@@ -86,7 +86,12 @@ class TicketService:
                 recurrence_rule=recurrence_rule,
                 due_date=due_date,
                 order_reference=order_reference,
-                reminder_date=reminder_date
+                reminder_date=reminder_date,
+                contact_name=contact_name,
+                contact_phone=contact_phone,
+                contact_channel=contact_channel,
+                callback_requested=bool(callback_requested),
+                callback_due=callback_due,
             )
             
             if tags:
@@ -342,8 +347,8 @@ class TicketService:
             raise
 
     @staticmethod
-    def get_dashboard_tickets(worker_id=None, search=None, status_filter=None, page=1, per_page=10, 
-                             assigned_to_me=False, unassigned_only=False, 
+    def get_dashboard_tickets(worker_id=None, search=None, status_filter=None, page=1, per_page=10,
+                             assigned_to_me=False, unassigned_only=False, callback_pending=False,
                              start_date=None, end_date=None, author_name=None, worker_role=None):
         """Fetch tickets for the dashboard with search, filtering, and pagination."""
         from sqlalchemy.orm import joinedload, selectinload
@@ -383,6 +388,12 @@ class TicketService:
             )
         elif unassigned_only:
             query = query.filter(Ticket.assigned_to_id == None)
+
+        if callback_pending:
+            query = query.filter(
+                Ticket.callback_requested == True,
+                Ticket.status != TicketStatus.ERLEDIGT.value
+            )
 
         if start_date:
             query = query.filter(Ticket.created_at >= start_date)
@@ -932,4 +943,158 @@ class TicketService:
             if commit:
                 db.session.rollback()
             current_app.logger.error("Error applying template: %s", e)
+            raise
+
+    @staticmethod
+    def get_workload_overview():
+        """
+        Auslastungsübersicht für Admin/Management.
+
+        Gibt eine Liste von Dicts zurück, gruppiert nach:
+        1. Abwesende Mitarbeiter mit kritischen Tickets (Handlungsbedarf)
+        2. Anwesende Mitarbeiter mit offenen Tickets
+
+        Kritisch = überfällig ODER fällig in laufender Kalenderwoche ODER Priorität Hoch.
+        'wartet'-Tickets werden nie als kritisch eingestuft (bewusst geparkt).
+
+        Rückgabeformat pro Eintrag:
+        {
+            'worker': Worker,
+            'open_count': int,
+            'critical_count': int,   # nur bei abwesenden Mitarbeitern relevant
+            'tickets': [Ticket, ...],          # alle offenen Tickets, sortiert
+            'critical_tickets': [Ticket, ...], # nur die kritischen (Subset)
+            'other_tickets': [Ticket, ...],    # nicht kritische
+        }
+        """
+        from datetime import date
+        now = get_utc_now()
+        today = now.date()
+
+        # Montag und Freitag der laufenden Kalenderwoche
+        week_start = today - timedelta(days=today.weekday())  # Montag
+        week_end = week_start + timedelta(days=4)             # Freitag
+
+        open_statuses = [
+            TicketStatus.OFFEN.value,
+            TicketStatus.IN_BEARBEITUNG.value,
+            TicketStatus.WARTET.value,
+        ]
+
+        tickets = (
+            Ticket.query
+            .filter(
+                Ticket.is_deleted == False,
+                Ticket.status.in_(open_statuses),
+                Ticket.assigned_to_id.isnot(None),
+            )
+            .all()
+        )
+
+        # Gruppierung nach Mitarbeiter-ID
+        tickets_by_worker = {}
+        for t in tickets:
+            tickets_by_worker.setdefault(t.assigned_to_id, []).append(t)
+
+        workers = Worker.query.filter_by(is_active=True).all()
+
+        absent_entries = []
+        present_entries = []
+
+        for worker in workers:
+            worker_tickets = tickets_by_worker.get(worker.id, [])
+            if not worker_tickets:
+                continue
+
+            def _is_critical(t):
+                """Kritisch wenn: hohe Prio ODER überfällig ODER Fälligkeit in dieser Woche."""
+                if t.status == TicketStatus.WARTET.value:
+                    return False
+                if t.priority == TicketPriority.HOCH.value:
+                    return True
+                if t.due_date:
+                    due = t.due_date.date() if hasattr(t.due_date, 'date') else t.due_date
+                    if due <= week_end:   # überfällig oder in laufender KW
+                        return True
+                return False
+
+            critical = [t for t in worker_tickets if _is_critical(t)]
+            other = [t for t in worker_tickets if not _is_critical(t)]
+
+            # Sortierung: überfällig zuerst, dann nach Priorität, dann KW
+            def _sort_key(t):
+                if t.due_date:
+                    due = t.due_date.date() if hasattr(t.due_date, 'date') else t.due_date
+                    days_left = (due - today).days
+                else:
+                    days_left = 999
+                return (days_left, t.priority)
+
+            critical.sort(key=_sort_key)
+            other.sort(key=_sort_key)
+            all_sorted = critical + other
+
+            entry = {
+                'worker': worker,
+                'open_count': len(worker_tickets),
+                'critical_count': len(critical),
+                'tickets': all_sorted,
+                'critical_tickets': critical,
+                'other_tickets': other,
+            }
+
+            if worker.is_out_of_office:
+                absent_entries.append(entry)
+            else:
+                present_entries.append(entry)
+
+        # Abwesende: zuerst die mit meisten kritischen Tickets
+        absent_entries.sort(key=lambda x: (-x['critical_count'], -x['open_count']))
+        # Anwesende: nach Anzahl offener Tickets
+        present_entries.sort(key=lambda x: -x['open_count'])
+
+        return absent_entries, present_entries
+
+    @staticmethod
+    def reassign_ticket(ticket_id, to_worker_id, author_name, author_id):
+        """
+        Weist ein einzelnes Ticket einem anderen Mitarbeiter zu.
+        Direkter Admin-Eingriff — kein OOO-Delegations-Mechanismus.
+        Gibt das aktualisierte Ticket zurück.
+        """
+        try:
+            ticket = db.session.get(Ticket, ticket_id)
+            if not ticket or ticket.is_deleted:
+                raise ValueError("Ticket nicht gefunden.")
+
+            to_worker = db.session.get(Worker, to_worker_id)
+            if not to_worker or not to_worker.is_active:
+                raise ValueError("Ziel-Mitarbeiter nicht gefunden oder inaktiv.")
+
+            from_name = ticket.assigned_to.name if ticket.assigned_to else "Nicht zugewiesen"
+            ticket.assigned_to_id = to_worker_id
+            ticket.updated_at = get_utc_now()
+
+            comment = Comment(
+                ticket_id=ticket.id,
+                author=author_name,
+                author_id=author_id,
+                text=f"Umgezuweisen durch {author_name}: {from_name} → {to_worker.name}",
+                is_system_event=True,
+                event_type='ASSIGNMENT'
+            )
+            db.session.add(comment)
+
+            # Ziel-Mitarbeiter benachrichtigen
+            TicketService.create_notification(
+                user_id=to_worker_id,
+                message=f"Ticket #{ticket.id} wurde Ihnen zugewiesen (von {from_name}).",
+                link=f"/ticket/{ticket.id}"
+            )
+
+            db.session.commit()
+            return ticket
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error("Error reassigning ticket %s: %s", ticket_id, e)
             raise

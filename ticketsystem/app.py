@@ -473,7 +473,8 @@ def inject_globals():
         'WorkerRole': WorkerRole,
         'TicketPriority': TicketPriority,
         'urgent_count': 0, 'pending_approval_count': 0,
-        'unread_notifications_count': 0
+        'unread_notifications_count': 0,
+        'absent_entries_with_critical': 0
     }
     if not session.get('worker_id') or _endpoint in ('static', 'metrics') or _endpoint.startswith('metrics'):
         return _base
@@ -513,13 +514,63 @@ def inject_globals():
     except Exception as e:  # pylint: disable=broad-exception-caught
         app.logger.warning("inject_globals: notification query failed: %s", e)
 
+    # Abwesende Mitarbeiter mit kritischen Tickets (für Nav-Badge, nur admin/management)
+    absent_entries_with_critical = 0
+    _role = session.get('role')
+    if _role in (WorkerRole.ADMIN.value, WorkerRole.MANAGEMENT.value):
+        try:
+            from models import Worker as _Worker
+            now_date = now_dt.date()
+            week_end = now_date + timedelta(days=(4 - now_date.weekday()))
+            absent_worker_ids = [
+                w.id for w in _Worker.query.filter_by(is_active=True, is_out_of_office=True).all()
+            ]
+            if absent_worker_ids:
+                critical_count = Ticket.query.filter(
+                    Ticket.is_deleted == False,
+                    Ticket.status.in_([
+                        TicketStatus.OFFEN.value,
+                        TicketStatus.IN_BEARBEITUNG.value,
+                    ]),
+                    Ticket.assigned_to_id.in_(absent_worker_ids),
+                    db.or_(
+                        Ticket.priority == TicketPriority.HOCH.value,
+                        Ticket.due_date <= week_end
+                    )
+                ).count()
+                absent_entries_with_critical = critical_count
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            app.logger.warning("inject_globals: absent_critical query failed: %s", e)
+
     # NEU-02: DRY final return — merge into _base instead of repeating keys
     return {
         **_base,
         'urgent_count': urgent_count,
         'pending_approval_count': pending_approval_count,
-        'unread_notifications_count': unread_notifications_count
+        'unread_notifications_count': unread_notifications_count,
+        'absent_entries_with_critical': absent_entries_with_critical
     }
+
+
+@app.context_processor
+def inject_help():
+    """Inject context-sensitive help content for the current page."""
+    from help_content import HELP
+    endpoint = request.endpoint or ''
+    # Endpoint 'main.index' → page key 'index'
+    page_key = endpoint.replace('main.', '').replace('admin.', 'admin_')
+    role = session.get('role', 'worker')
+    help_data = HELP.get(page_key)
+    if help_data:
+        # Filter sections by role
+        filtered_sections = [
+            s for s in help_data.get('sections', [])
+            if s.get('roles') is None or role in s.get('roles', [])
+        ]
+        page_help = {**help_data, 'sections': filtered_sections}
+    else:
+        page_help = None
+    return {'page_help': page_help, 'HELP': HELP}
 
 
 @app.template_filter('local_time')

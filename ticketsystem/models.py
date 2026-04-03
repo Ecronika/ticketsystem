@@ -188,6 +188,13 @@ class Ticket(db.Model):
     checklist_template_id = db.Column(db.Integer, db.ForeignKey('checklist_template.id'), nullable=True)
     checklist_template = db.relationship('ChecklistTemplate', backref='legacy_tickets')
     
+    # Kundendienst / Customer Contact (v1.15.0)
+    contact_name = db.Column(db.String(100), nullable=True)
+    contact_phone = db.Column(db.String(50), nullable=True)
+    contact_channel = db.Column(db.String(20), nullable=True)  # telefon, email, persoenlich, petra
+    callback_requested = db.Column(db.Boolean, default=False, nullable=False)
+    callback_due = db.Column(db.DateTime, nullable=True)
+
     # Approval Workflow
     approval_status = db.Column(db.String(20), default='none', nullable=False) # none, pending, approved, rejected
     approved_by_id = db.Column(db.Integer, db.ForeignKey('worker.id'), nullable=True)
