@@ -15,7 +15,7 @@
     </div>
     <form method="GET" class="d-flex align-items-center gap-2 bg-surface border p-2 rounded-pill shadow-sm flex-shrink-0">
         <label class="small text-muted ms-2 d-none d-md-inline">Fällig in:</label>
-        <select name="days" class="form-select form-select-sm border-0 bg-transparent fw-bold" onchange="this.form.submit()" style="width: auto;">
+        <select name="days" class="form-select form-select-sm border-0 bg-transparent fw-bold auto-submit" style="width: auto;">
             <option value="7"  {{ 'selected' if days_horizon == 7  }}>nächsten 7 Tage</option>
             <option value="14" {{ 'selected' if days_horizon == 14 }}>nächsten 14 Tage</option>
             <option value="30" {{ 'selected' if days_horizon == 30 }}>nächsten 30 Tage</option>
@@ -180,4 +180,12 @@
 
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ g.csp_nonce }}">
+document.querySelectorAll('.auto-submit').forEach(el => {
+    el.addEventListener('change', () => el.form.submit());
+});
+</script>
 {% endblock %}
