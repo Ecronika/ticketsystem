@@ -1,7 +1,7 @@
 """v1.15.0 - Customer contact fields for Kundendienst quick-capture
 
 Revision ID: b3c4d5e6f7a8
-Revises: 079270ff0a87
+Revises: 9a531112
 Create Date: 2026-04-03 10:00:00.000000
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'b3c4d5e6f7a8'
-down_revision = '079270ff0a87'
+down_revision = '9a531112'
 branch_labels = None
 depends_on = None
 
