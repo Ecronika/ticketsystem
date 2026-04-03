@@ -479,6 +479,7 @@ def inject_globals():
     if not session.get('worker_id') or _endpoint in ('static', 'metrics') or _endpoint.startswith('metrics'):
         return _base
 
+    _role = session.get('role')
     urgent_count = 0
     # FIX-03: Use .isnot(None) for correct SQL IS NOT NULL semantics
     now_dt = get_utc_now()
@@ -495,10 +496,10 @@ def inject_globals():
         app.logger.warning("inject_globals: urgent_count query failed: %s", e)
 
     pending_approval_count = 0
-    if session.get('is_admin'):
+    if session.get('is_admin') or _role in (WorkerRole.MANAGEMENT.value,):
         try:
             pending_approval_count = Ticket.query.filter_by(
-                is_deleted=False, 
+                is_deleted=False,
                 approval_status=ApprovalStatus.PENDING.value
             ).count()
         except Exception as e:  # pylint: disable=broad-exception-caught
@@ -516,12 +517,15 @@ def inject_globals():
 
     # Abwesende Mitarbeiter mit kritischen Tickets (für Nav-Badge, nur admin/management)
     absent_entries_with_critical = 0
-    _role = session.get('role')
     if _role in (WorkerRole.ADMIN.value, WorkerRole.MANAGEMENT.value):
         try:
             from models import Worker as _Worker
             now_date = now_dt.date()
-            week_end = now_date + timedelta(days=(4 - now_date.weekday()))
+            # On weekends (weekday 5/6), look ahead to next Friday
+            days_to_friday = (4 - now_date.weekday()) % 7
+            if days_to_friday == 0 and now_date.weekday() != 4:
+                days_to_friday = 7
+            week_end = now_date + timedelta(days=days_to_friday)
             absent_worker_ids = [
                 w.id for w in _Worker.query.filter_by(is_active=True, is_out_of_office=True).all()
             ]
@@ -607,8 +611,10 @@ def time_ago_filter(dt):
     # Standardize to naive UTC for calculation (SQLite compatibility)
     if dt.tzinfo is not None:
         dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
-    
-    now = datetime.utcnow()
+
+    now = get_utc_now()
+    if now.tzinfo is not None:
+        now = now.astimezone(timezone.utc).replace(tzinfo=None)
     diff = now - dt
     
     seconds = diff.total_seconds()

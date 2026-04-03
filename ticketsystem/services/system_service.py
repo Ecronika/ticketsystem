@@ -30,8 +30,10 @@ class SystemService:
             tokens.append(token)
             hashes.append(generate_password_hash(token))
             
-        # Store for display (cleared after view)
+        # Store for display (expires after 5 minutes)
         SystemSettings.set_setting('recovery_tokens_raw', json.dumps(tokens))
+        from datetime import datetime, timezone
+        SystemSettings.set_setting('recovery_tokens_generated_at', datetime.now(timezone.utc).isoformat())
         # Store for verification
         SystemSettings.set_setting('recovery_tokens_hash', ','.join(hashes))
         

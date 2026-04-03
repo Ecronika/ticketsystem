@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const workerId = this.value;
             const workerName = this.options[this.selectedIndex].text;
             const originalValue = this.dataset.original;
-            
+
             // Find spinner in wrapper
             const wrapper = this.closest('.position-relative');
             const spinner = wrapper ? wrapper.querySelector('.select-spinner') : null;
@@ -126,6 +126,15 @@ document.addEventListener('DOMContentLoaded', function() {
             this.classList.add('opacity-50');
             if (spinner) spinner.classList.remove('d-none');
 
+            // Build payload: handle team_ prefix for team assignment
+            const payload = {};
+            if (workerId && workerId.startsWith('team_')) {
+                payload.worker_id = null;
+                payload.team_id = parseInt(workerId.substring(5));
+            } else {
+                payload.worker_id = workerId ? parseInt(workerId) : null;
+            }
+
             try {
                 const response = await fetch(`${getIngress()}/api/ticket/${ticketId}/assign`, {
                     method: 'POST',
@@ -133,7 +142,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': csrfToken
                     },
-                    body: JSON.stringify({ worker_id: workerId ? parseInt(workerId) : null })
+                    body: JSON.stringify(payload)
                 });
                 const data = await response.json();
                 

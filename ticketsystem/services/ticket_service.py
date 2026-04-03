@@ -52,7 +52,7 @@ class TicketService:
         days_left = (_due.date() - now.date()).days
         
         if days_left < 0:      # Überfällig
-            return 100 + max(-50, days_left)
+            return max(0, 50 + days_left) + prio * 5
         elif days_left == 0:   # Heute
             return 150 + prio * 5
         elif days_left <= 7:   # Diese Woche
@@ -468,11 +468,27 @@ class TicketService:
             self_tickets = self_query.order_by(Ticket.updated_at.desc()).limit(5).all()
 
         from sqlalchemy import func
-        counts = db.session.query(
+        from models import ChecklistItem as _CI
+        counts_query = db.session.query(
             Ticket.status, func.count(Ticket.id)
         ).filter_by(is_deleted=False).filter(
             Ticket.status.in_([TicketStatus.OFFEN.value, TicketStatus.IN_BEARBEITUNG.value, TicketStatus.WARTET.value])
-        ).group_by(Ticket.status).all()
+        )
+        # Apply the same confidential filter so counts match visible tickets
+        if worker_role not in [WorkerRole.ADMIN.value, WorkerRole.HR.value, WorkerRole.MANAGEMENT.value] and worker_id is not None:
+            _author_sub = db.session.query(Comment.ticket_id).filter(
+                Comment.event_type == 'TICKET_CREATED',
+                Comment.author_id == worker_id
+            ).subquery()
+            counts_query = counts_query.filter(
+                db.or_(
+                    Ticket.is_confidential == False,
+                    Ticket.id.in_(_author_sub),
+                    Ticket.assigned_to_id == worker_id,
+                    Ticket.checklists.any(_CI.assigned_to_id == worker_id)
+                )
+            )
+        counts = counts_query.group_by(Ticket.status).all()
         
         summary_counts = {s.value: 0 for s in [TicketStatus.OFFEN, TicketStatus.IN_BEARBEITUNG, TicketStatus.WARTET]}
         for status, count in counts:
@@ -606,7 +622,7 @@ class TicketService:
         return None, path_logs
 
     @staticmethod
-    def assign_ticket(ticket_id, worker_id, author_name, author_id=None):
+    def assign_ticket(ticket_id, worker_id, author_name, author_id=None, team_id=None):
         """Assign a ticket to a worker and log the change."""
         try:
             ticket = db.session.get(Ticket, ticket_id)
@@ -627,10 +643,11 @@ class TicketService:
             else:
                 new_worker_name = "Niemand"
 
-            if ticket.assigned_to_id == worker_id and not path_logs:
+            if ticket.assigned_to_id == worker_id and ticket.assigned_team_id == team_id and not path_logs:
                 return ticket
-                
+
             ticket.assigned_to_id = worker_id
+            ticket.assigned_team_id = team_id
             ticket.updated_at = get_utc_now()
             
             # Trigger Assignment Notification

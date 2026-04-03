@@ -100,7 +100,7 @@ def _archive_view():
                           end_date=end_date_str,
                           current_status=TicketStatus.ERLEDIGT.value)
 
-@admin_required
+@admin_or_management_required
 def _approvals_view():
     """GF/Prokurist Dashboard for specific ticket approvals."""
     page = request.args.get('page', 1, type=int)
@@ -124,7 +124,7 @@ def _new_ticket_view():
         order_reference = request.form.get('order_reference')
         tags_raw = request.form.get('tags', '')
         tags = [t.strip() for t in tags_raw.split(',') if t.strip()]
-        is_confidential = request.form.get('is_confidential') == 'True' or request.form.get('is_confidential') == 'on'
+        is_confidential = (request.form.get('is_confidential') == 'True' or request.form.get('is_confidential') == 'on') and session.get('worker_id')
         recurrence_rule = request.form.get('recurrence_rule')
         contact_name = request.form.get('contact_name') or None
         contact_phone = request.form.get('contact_phone') or None
@@ -350,19 +350,26 @@ def _assign_ticket_api(ticket_id):
 
     data = request.get_json(silent=True) or {}
     worker_id = data.get('worker_id')
-    
+    team_id = data.get('team_id')
+
     if worker_id is not None:
         try:
             worker_id = int(worker_id)
         except (ValueError, TypeError):
              return jsonify({'success': False, 'error': 'Ungültige Worker ID'}), 400
 
+    if team_id is not None:
+        try:
+            team_id = int(team_id)
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'error': 'Ungültige Team ID'}), 400
+
     author_name = session.get('worker_name', 'System')
     try:
-        TicketService.assign_ticket(ticket_id, worker_id, author_name, session.get('worker_id'))
+        TicketService.assign_ticket(ticket_id, worker_id, author_name, session.get('worker_id'), team_id=team_id)
         return jsonify({'success': True})
     except Exception as e:
-        current_app.logger.exception("API Error in _update_status_api")
+        current_app.logger.exception("API Error in _assign_ticket_api")
         return jsonify({'success': False, 'error': 'Ein interner Fehler ist aufgetreten.'}), 500
 
 @worker_required
@@ -592,7 +599,8 @@ def _my_queue_view():
     
     now = get_utc_now()
     
-    from models import ChecklistItem
+    from models import ChecklistItem, Comment
+    worker_role = session.get('role')
     query = Ticket.query.filter(
         Ticket.is_deleted == False,
         Ticket.status != TicketStatus.ERLEDIGT.value
@@ -607,6 +615,20 @@ def _my_queue_view():
             )
         )
     )
+    # Confidential filter: non-elevated roles only see accessible tickets
+    if worker_role not in (WorkerRole.ADMIN.value, WorkerRole.HR.value, WorkerRole.MANAGEMENT.value):
+        author_sub = db.session.query(Comment.ticket_id).filter(
+            Comment.event_type == 'TICKET_CREATED',
+            Comment.author_id == worker_id
+        ).subquery()
+        query = query.filter(
+            db.or_(
+                Ticket.is_confidential == False,
+                Ticket.id.in_(author_sub),
+                Ticket.assigned_to_id == worker_id,
+                Ticket.checklists.any(ChecklistItem.assigned_to_id == worker_id)
+            )
+        )
       
     # Sortieren nach Urgency Score (Service Layer handling)
     tickets_list = query.all()
