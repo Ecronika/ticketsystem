@@ -614,13 +614,14 @@ def _my_queue_view():
     
     # Gruppierung (v1.11.3: Verbesserte Logik für 'upcoming' bei horizon=0)
     effective_horizon = days_horizon if days_horizon > 0 else 999
-    
+
     groups = {
-        'overdue':    [t for t in tickets_list if t.due_date and t.due_date.date() < now.date()],
-        'today':      [t for t in tickets_list if t.due_date and t.due_date.date() == now.date()],
-        'this_week':  [t for t in tickets_list if t.due_date and 0 < (t.due_date.date() - now.date()).days <= 7],
-        'upcoming':   [t for t in tickets_list if t.due_date and 7 < (t.due_date.date() - now.date()).days <= effective_horizon],
-        'later':      [t for t in tickets_list if not t.due_date or (t.due_date and (t.due_date.date() - now.date()).days > effective_horizon)],
+        'overdue':      [t for t in tickets_list if t.due_date and t.due_date.date() < now.date()],
+        'today':        [t for t in tickets_list if t.due_date and t.due_date.date() == now.date()],
+        'this_week':    [t for t in tickets_list if t.due_date and 0 < (t.due_date.date() - now.date()).days <= 7],
+        'upcoming':     [t for t in tickets_list if t.due_date and 7 < (t.due_date.date() - now.date()).days <= effective_horizon],
+        'no_due_date':  [t for t in tickets_list if not t.due_date],
+        'later':        [t for t in tickets_list if t.due_date and (t.due_date.date() - now.date()).days > effective_horizon],
     }
     
     urgent_count = len(groups['overdue']) + len(groups['today'])

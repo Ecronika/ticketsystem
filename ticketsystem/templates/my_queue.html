@@ -107,10 +107,10 @@
 {% set col2_tickets = groups.today | rejectattr('priority', 'equalto', 1) | list %}
 {% if days_horizon > 0 %}
   {# Bei konkretem Zeithorizont: nur Tickets bis zum Horizont + Tickets ohne Datum #}
-  {% set col3_tickets = groups.this_week + groups.upcoming + (groups.later | selectattr('due_date', 'none') | list) %}
+  {% set col3_tickets = groups.this_week + groups.upcoming + groups.no_due_date %}
 {% else %}
   {# Bei "Alle Tickets": alle anzeigen #}
-  {% set col3_tickets = groups.this_week + groups.upcoming + groups.later %}
+  {% set col3_tickets = groups.this_week + groups.upcoming + groups.no_due_date + groups.later %}
 {% endif %}
 
 <div class="row g-4 flex-nowrap flex-lg-wrap overflow-auto pb-4 custom-scrollbar">
