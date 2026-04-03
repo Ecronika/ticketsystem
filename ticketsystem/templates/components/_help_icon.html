@@ -1,0 +1,20 @@
+{# Hilfe-Icon Makro — rendert ein klickbares ?-Symbol mit Bootstrap Popover.
+   Verwendung:
+     {% from 'components/_help_icon.html' import help_icon %}
+     {{ help_icon(HELP['ticket_new']['fields']['priority']) }}
+#}
+{% macro help_icon(field_help, size='sm') %}
+{% if field_help %}
+<button type="button"
+        class="btn btn-link p-0 ms-1 text-muted help-icon-btn align-baseline"
+        data-bs-toggle="popover"
+        data-bs-trigger="click"
+        data-bs-placement="top"
+        data-bs-html="true"
+        data-bs-title="{{ field_help.title | e }}"
+        data-bs-content="{{ field_help.text | e }}"
+        aria-label="Hilfe: {{ field_help.title }}">
+  <i class="bi bi-question-circle{{ '-fill' if size == 'lg' else '' }}" aria-hidden="true" style="font-size: 0.85rem;"></i>
+</button>
+{% endif %}
+{% endmacro %}

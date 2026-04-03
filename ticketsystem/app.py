@@ -552,6 +552,27 @@ def inject_globals():
     }
 
 
+@app.context_processor
+def inject_help():
+    """Inject context-sensitive help content for the current page."""
+    from help_content import HELP
+    endpoint = request.endpoint or ''
+    # Endpoint 'main.index' → page key 'index'
+    page_key = endpoint.replace('main.', '').replace('admin.', 'admin_')
+    role = session.get('role', 'worker')
+    help_data = HELP.get(page_key)
+    if help_data:
+        # Filter sections by role
+        filtered_sections = [
+            s for s in help_data.get('sections', [])
+            if s.get('roles') is None or role in s.get('roles', [])
+        ]
+        page_help = {**help_data, 'sections': filtered_sections}
+    else:
+        page_help = None
+    return {'page_help': page_help, 'HELP': HELP}
+
+
 @app.template_filter('local_time')
 def local_time_filter(dt):
     """Localize UTC datetime to Europe/Berlin."""

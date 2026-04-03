@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from 'components/_help_icon.html' import help_icon %}
 {% block title %}Neues Ticket{% endblock %}
 
 {% block content %}
@@ -71,7 +72,7 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label fw-bold">Dringlichkeit</label>
+                        <label class="form-label fw-bold">Dringlichkeit {{ help_icon(HELP['ticket_new']['fields']['priority']) }}</label>
                         <div class="d-flex gap-2">
                             <input type="radio" class="btn-check" name="priority" id="prio1" value="1">
                             <label class="btn btn-soft-danger flex-fill" for="prio1">Hoch</label>
@@ -109,7 +110,7 @@
                             <div class="col-md-6">
                                 <h6 class="fw-bold text-muted mb-3 border-bottom pb-2">Referenzen</h6>
                                 <div class="mb-3">
-                                    <label for="order_reference" class="form-label fw-bold">Kunden- / Auftragsnummer</label>
+                                    <label for="order_reference" class="form-label fw-bold">Kunden- / Auftragsnummer {{ help_icon(HELP['ticket_new']['fields']['order_reference']) }}</label>
                                     <input type="text" class="form-control form-control-lg" id="order_reference" name="order_reference" 
                                            placeholder="z.B. A-2024-123">
                                 </div>
@@ -125,7 +126,7 @@
                                     <div class="form-check form-switch mt-2">
                                         <input class="form-check-input" type="checkbox" id="is_confidential" name="is_confidential">
                                         <label class="form-check-label fw-bold" for="is_confidential">
-                                            <i class="bi bi-lock-fill text-warning"></i> Als vertraulich markieren
+                                            <i class="bi bi-lock-fill text-warning"></i> Als vertraulich markieren {{ help_icon(HELP['ticket_new']['fields']['is_confidential']) }}
                                         </label>
                                     </div>
                                     <p class="x-small text-muted mt-1 mb-0">Nur zugewiesene Personen und Admins können dies sehen.</p>
@@ -137,13 +138,13 @@
                             <div class="col-md-6 border-md-start">
                                 <h6 class="fw-bold text-muted mb-3 border-bottom pb-2 mt-4 mt-md-0">Planung</h6>
                                 <div class="mb-3">
-                                    <label for="due_date" class="form-label fw-bold">Bis wann benötigt?</label>
+                                    <label for="due_date" class="form-label fw-bold">Bis wann benötigt? {{ help_icon(HELP['ticket_new']['fields']['due_date']) }}</label>
                                     <input type="date" class="form-control form-control-lg" id="due_date" name="due_date">
                                 </div>
 
                                 {% if session.get('worker_id') %}
                                 <div class="mb-3">
-                                    <label for="recurrence_rule" class="form-label fw-bold">Serienticket</label>
+                                    <label for="recurrence_rule" class="form-label fw-bold">Serienticket {{ help_icon(HELP['ticket_new']['fields']['recurrence_rule']) }}</label>
                                     <select class="form-select form-select-lg" id="recurrence_rule" name="recurrence_rule">
                                         <option value="">Einmalig</option>
                                         <option value="monthly">Monatlich</option>
@@ -153,7 +154,7 @@
                                 </div>
 
                                 <div class="mb-3">
-                                    <label for="assigned_to_id" class="form-label fw-bold">Zuweisung</label>
+                                    <label for="assigned_to_id" class="form-label fw-bold">Zuweisung {{ help_icon(HELP['ticket_new']['fields']['assigned_to_id']) }}</label>
                                     <select class="form-select form-select-lg" id="assigned_to_id" name="assigned_to_id">
                                         <option value="">-- Nicht zugewiesen --</option>
                                         <option value="{{ session.get('worker_id') }}" selected>Mir selbst ({{ session.get('worker_name') }})</option>
@@ -174,7 +175,7 @@
                                 </div>
 
                                 <div class="mb-3">
-                                    <label for="template_id" class="form-label fw-bold">Checklisten-Vorlage</label>
+                                    <label for="template_id" class="form-label fw-bold">Checklisten-Vorlage {{ help_icon(HELP['ticket_new']['fields']['template_id']) }}</label>
                                     <select class="form-select form-select-lg" id="template_id" name="template_id">
                                         <option value="">-- Keine Vorlage --</option>
                                         {% for tpl in templates %}
