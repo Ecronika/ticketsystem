@@ -312,6 +312,10 @@ def _add_comment_view(ticket_id):
         flash('Keine Berechtigung für dieses Ticket.', 'danger')
         return redirect_to('main.index')
 
+    if ticket.approval_status == ApprovalStatus.PENDING.value:
+        flash('Ticket ist für die Freigabe gesperrt. Kommentare sind während der Prüfung nicht erlaubt.', 'warning')
+        return redirect_to('main.ticket_detail', ticket_id=ticket_id, _anchor='comment-form')
+
     text = request.form.get('text')
     author_name = session.get('worker_name', 'System')
     if text:
