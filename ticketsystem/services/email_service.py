@@ -21,18 +21,37 @@ from email.mime.text import MIMEText
 logger = logging.getLogger(__name__)
 
 
+def _db_get(key):
+    """Read a value from SystemSettings, suppressing all DB errors."""
+    try:
+        from models import SystemSettings
+        return SystemSettings.get_setting(key) or ''
+    except Exception:  # pylint: disable=broad-exception-caught
+        return ''
+
+
 def _smtp_config():
-    """Return SMTP config dict from env, or None if not configured."""
-    host = os.environ.get('SMTP_HOST', '').strip()
+    """Return SMTP config dict from DB (with env fallback), or None if not configured."""
+    # DB values take precedence; env vars are the fallback for deployments without a UI setup
+    host = _db_get('smtp_host') or os.environ.get('SMTP_HOST', '').strip()
     if not host:
         return None
+    port_raw = _db_get('smtp_port') or os.environ.get('SMTP_PORT', '587')
+    user = _db_get('smtp_user') or os.environ.get('SMTP_USER', '')
+    password = _db_get('smtp_password') or os.environ.get('SMTP_PASSWORD', '')
+    from_addr = (_db_get('smtp_from') or os.environ.get('SMTP_FROM') or user or 'noreply@ticketsystem')
+    tls = (_db_get('smtp_tls') or os.environ.get('SMTP_TLS', 'starttls')).strip().lower()
+    try:
+        port = int(port_raw)
+    except (ValueError, TypeError):
+        port = 587
     return {
         'host': host,
-        'port': int(os.environ.get('SMTP_PORT', 587)),
-        'user': os.environ.get('SMTP_USER', ''),
-        'password': os.environ.get('SMTP_PASSWORD', ''),
-        'from': os.environ.get('SMTP_FROM') or os.environ.get('SMTP_USER', 'noreply@ticketsystem'),
-        'tls': os.environ.get('SMTP_TLS', 'true').strip().lower(),
+        'port': port,
+        'user': user,
+        'password': password,
+        'from': from_addr,
+        'tls': tls,
     }
 
 
@@ -84,8 +103,8 @@ def _send(to_address, subject, html_body, text_body=None):
 
 
 def _base_url():
-    """Best-effort: read SMTP_BASE_URL env for clickable links in emails."""
-    return os.environ.get('SMTP_BASE_URL', '').rstrip('/')
+    """Best-effort: read base_url from DB or env for clickable links in emails."""
+    return (_db_get('smtp_base_url') or os.environ.get('SMTP_BASE_URL', '')).rstrip('/')
 
 
 def _ticket_url(ticket_id):
