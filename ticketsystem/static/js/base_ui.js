@@ -126,4 +126,76 @@
         });
 
     });
+
+    // M-03: Session-Timeout-Warnung
+    // Session lifetime = 8h (slides on each request). Warn 2 min before expiry after inactivity.
+    (function initSessionWarning() {
+        if (!document.getElementById('notificationDropdownContainer')) return;
+        const SESSION_MS = 8 * 60 * 60 * 1000;
+        const WARN_BEFORE_MS = 2 * 60 * 1000;
+        const WARN_AT_MS = SESSION_MS - WARN_BEFORE_MS;
+        let warnTimer = null;
+        let expireTimer = null;
+        let warningToastEl = null;
+
+        function getIngress() {
+            return document.querySelector('[data-ingress]')?.dataset.ingress || '';
+        }
+
+        function getContainer() {
+            return document.querySelector('.position-fixed.top-0.end-0.p-3.z-toast') || (function() {
+                const c = document.createElement('div');
+                c.className = 'position-fixed top-0 end-0 p-3 z-toast';
+                document.body.appendChild(c);
+                return c;
+            })();
+        }
+
+        function showWarning() {
+            if (warningToastEl && document.body.contains(warningToastEl)) return;
+            warningToastEl = document.createElement('div');
+            warningToastEl.className = 'alert alert-warning alert-dismissible shadow d-flex align-items-center gap-3';
+            warningToastEl.setAttribute('role', 'alert');
+            warningToastEl.innerHTML =
+                '<i class="bi bi-clock-history fs-5 flex-shrink-0" aria-hidden="true"></i>' +
+                '<div class="flex-grow-1">' +
+                  '<strong>Sitzung läuft bald ab</strong><br>' +
+                  '<small>Sie werden in 2 Minuten automatisch abgemeldet.</small>' +
+                '</div>' +
+                '<button type="button" id="sessionKeepAliveBtn" class="btn btn-sm btn-warning rounded-pill fw-bold flex-shrink-0">Angemeldet bleiben</button>' +
+                '<button type="button" class="btn-close ms-1" data-bs-dismiss="alert" aria-label="Schließen"></button>';
+            getContainer().appendChild(warningToastEl);
+
+            document.getElementById('sessionKeepAliveBtn')?.addEventListener('click', function() {
+                fetch(getIngress() + '/api/dashboard/summary', { credentials: 'same-origin' })
+                    .then(function() {
+                        warningToastEl?.remove();
+                        warningToastEl = null;
+                        resetTimers();
+                    }).catch(function() {});
+            });
+        }
+
+        function resetTimers() {
+            clearTimeout(warnTimer);
+            clearTimeout(expireTimer);
+            warnTimer = setTimeout(showWarning, WARN_AT_MS);
+            expireTimer = setTimeout(function() {
+                window.location.href = getIngress() + '/logout';
+            }, SESSION_MS);
+        }
+
+        ['click', 'keydown', 'scroll', 'mousemove', 'touchstart'].forEach(function(evt) {
+            document.addEventListener(evt, function() {
+                if (warningToastEl && document.body.contains(warningToastEl)) {
+                    warningToastEl.remove();
+                    warningToastEl = null;
+                }
+                resetTimers();
+            }, { passive: true });
+        });
+
+        resetTimers();
+    })();
+
 })();

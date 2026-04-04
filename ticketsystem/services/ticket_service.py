@@ -350,7 +350,7 @@ class TicketService:
     def get_dashboard_tickets(worker_id=None, search=None, status_filter=None, page=1, per_page=10,
                              assigned_to_me=False, unassigned_only=False, callback_pending=False,
                              start_date=None, end_date=None, author_name=None, worker_role=None,
-                             team_ids=None):
+                             team_ids=None, assigned_worker_id=None):
         """Fetch tickets for the dashboard with search, filtering, and pagination."""
         from sqlalchemy.orm import joinedload, selectinload
         from models import ChecklistItem
@@ -399,6 +399,10 @@ class TicketService:
             )
         elif unassigned_only:
             query = query.filter(Ticket.assigned_to_id == None, Ticket.assigned_team_id == None)
+
+        # M-09: Filter by specific worker (used from Workload drill-down)
+        if assigned_worker_id:
+            query = query.filter(Ticket.assigned_to_id == int(assigned_worker_id))
 
         if callback_pending:
             query = query.filter(
@@ -691,7 +695,24 @@ class TicketService:
                 
             if path_logs:
                 comment_text += "\nDelegation:\n- " + "\n- ".join(path_logs)
-            
+
+            # M-11: Notify all admins when OOO-chain exhausted and ticket becomes unassigned
+            ooo_exhausted = (worker_id is None and path_logs and
+                             any('kein Vertreter' in l or 'Zirkuläre' in l for l in path_logs))
+            if ooo_exhausted:
+                try:
+                    admin_workers = Worker.query.filter_by(is_active=True, role='admin').all()
+                    for admin in admin_workers:
+                        if admin.id != author_id:
+                            TicketService.create_notification(
+                                user_id=admin.id,
+                                message=(f"Ticket #{ticket_id} konnte nicht zugewiesen werden "
+                                         f"(OOO-Kette erschöpft). Manuelle Zuweisung erforderlich."),
+                                link=f"/ticket/{ticket_id}"
+                            )
+                except Exception as _e:
+                    current_app.logger.warning("M-11: Admin OOO notification failed: %s", _e)
+
             comment = Comment(
                 ticket_id=ticket.id,
                 author=author_name,

@@ -130,12 +130,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const markAllBtn = document.getElementById('markAllReadBtn');
         if (markAllBtn) {
             markAllBtn.addEventListener('click', async (e) => {
-                e.stopPropagation(); 
+                e.stopPropagation();
                 e.preventDefault();
                 await markAllAsRead();
                 fetchNotifications();
             });
         }
+
+        // M-10: Footer — overflow hint + profile link
+        const footer = document.createElement('li');
+        const hiddenCount = unreadCount > notifications.length ? unreadCount - notifications.length : 0;
+        footer.innerHTML =
+            '<div class="dropdown-item-text border-top py-2 px-3 d-flex justify-content-between align-items-center">' +
+              (hiddenCount > 0
+                ? `<small class="text-muted">+ ${hiddenCount} weitere ungelesene</small>`
+                : '<small class="text-muted">&nbsp;</small>') +
+              `<a href="${ingressPath}/profile#notifications" class="btn btn-link btn-sm text-decoration-none p-0 small fw-bold">Alle anzeigen <i class="bi bi-arrow-right ms-1"></i></a>` +
+            '</div>';
+        notificationList.appendChild(footer);
     }
 
     // SEC-07 fix: Read CSRF token from meta-tag (always present), not form input (may be absent)

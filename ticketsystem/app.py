@@ -570,13 +570,23 @@ def inject_globals():
         except Exception as e:  # pylint: disable=broad-exception-caught
             app.logger.warning("inject_globals: absent_critical query failed: %s", e)
 
+    # M-04: OOO status of current worker for header banner
+    worker_is_ooo = False
+    try:
+        from models import Worker as _Worker
+        _w = db.session.get(_Worker, session['worker_id'])
+        worker_is_ooo = bool(_w and _w.is_out_of_office)
+    except Exception:  # pylint: disable=broad-exception-caught
+        pass
+
     # NEU-02: DRY final return — merge into _base instead of repeating keys
     return {
         **_base,
         'urgent_count': urgent_count,
         'pending_approval_count': pending_approval_count,
         'unread_notifications_count': unread_notifications_count,
-        'absent_entries_with_critical': absent_entries_with_critical
+        'absent_entries_with_critical': absent_entries_with_critical,
+        'worker_is_ooo': worker_is_ooo,
     }
 
 
