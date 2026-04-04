@@ -195,6 +195,58 @@ def teams():
     return render_template('admin_teams.html', teams=teams_list, active_workers=active_workers)
 
 
+@admin_bp.route('/settings', methods=['GET', 'POST'])
+@admin_required
+def settings():
+    """SMTP and system settings page."""
+    from models import SystemSettings
+
+    SMTP_KEYS = ['smtp_host', 'smtp_port', 'smtp_user', 'smtp_password',
+                 'smtp_from', 'smtp_tls', 'smtp_base_url']
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'save_smtp':
+            for key in SMTP_KEYS:
+                if key == 'smtp_password':
+                    # Only overwrite if a new value was entered
+                    val = request.form.get(key, '').strip()
+                    if val:
+                        SystemSettings.set_setting(key, val)
+                else:
+                    val = request.form.get(key, '').strip()
+                    SystemSettings.set_setting(key, val)
+            flash("SMTP-Einstellungen gespeichert.", "success")
+
+        elif action == 'test_smtp':
+            from services.email_service import _send
+            test_addr = request.form.get('test_email', '').strip()
+            if not test_addr:
+                flash("Bitte eine Empfänger-Adresse für den Test angeben.", "warning")
+            else:
+                ok = _send(
+                    test_addr,
+                    "[TicketSystem] SMTP Test-E-Mail",
+                    "<p>Die SMTP-Konfiguration funktioniert korrekt.</p>"
+                    "<hr><p style='color:#888;font-size:0.85em;'>TicketSystem — Testmail</p>",
+                    "Die SMTP-Konfiguration funktioniert korrekt."
+                )
+                if ok:
+                    flash(f"Test-E-Mail erfolgreich an {test_addr} gesendet.", "success")
+                else:
+                    flash("Versand fehlgeschlagen. Bitte SMTP-Einstellungen prüfen (Details im Log).", "danger")
+
+        elif action == 'clear_smtp_password':
+            SystemSettings.set_setting('smtp_password', '')
+            flash("SMTP-Passwort wurde entfernt.", "success")
+
+        return redirect(url_for('admin.settings'))
+
+    current = {key: SystemSettings.get_setting(key, '') for key in SMTP_KEYS}
+    return render_template('settings.html', smtp=current)
+
+
 @admin_bp.route('/workers/tokens')
 @admin_required
 def show_tokens():

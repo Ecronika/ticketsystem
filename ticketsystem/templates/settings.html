@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Systemeinstellungen{% endblock %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+  <div class="col">
+    <h1 class="h3 fw-bold mb-1 display-font"><i class="bi bi-gear-fill text-primary me-2"></i>Systemeinstellungen</h1>
+    <p class="text-secondary small mb-0">Konfiguration des E-Mail-Versands und weiterer Systemparameter.</p>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- SMTP Configuration -->
+  <div class="col-lg-7">
+    <div class="card shadow-sm border-0 rounded-4">
+      <div class="card-header border-0 py-3 px-4">
+        <h2 class="h5 fw-bold mb-0"><i class="bi bi-envelope-at text-primary me-2"></i>E-Mail-Versand (SMTP)</h2>
+      </div>
+      <div class="card-body px-4 pb-4">
+        <p class="text-secondary small mb-3">
+          Werte aus der Datenbank überschreiben Umgebungsvariablen (<code>SMTP_*</code>).
+          Felder leer lassen, um den Umgebungsvariablenwert beizubehalten.
+        </p>
+        <form method="post" autocomplete="off" novalidate>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="save_smtp">
+
+          <div class="mb-3">
+            <label for="smtp_host" class="form-label fw-semibold small">SMTP Host</label>
+            <input type="text" class="form-control" id="smtp_host" name="smtp_host"
+                   value="{{ smtp.smtp_host }}" placeholder="z. B. smtp.gmail.com">
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-sm-4">
+              <label for="smtp_port" class="form-label fw-semibold small">Port</label>
+              <input type="number" class="form-control" id="smtp_port" name="smtp_port"
+                     value="{{ smtp.smtp_port }}" placeholder="587" min="1" max="65535">
+            </div>
+            <div class="col-sm-8">
+              <label for="smtp_tls" class="form-label fw-semibold small">TLS-Modus</label>
+              <select class="form-select" id="smtp_tls" name="smtp_tls">
+                <option value="starttls" {{ 'selected' if smtp.smtp_tls == 'starttls' or smtp.smtp_tls == '' else '' }}>STARTTLS (Port 587, empfohlen)</option>
+                <option value="ssl"      {{ 'selected' if smtp.smtp_tls == 'ssl' else '' }}>SSL/TLS (Port 465)</option>
+                <option value="false"    {{ 'selected' if smtp.smtp_tls == 'false' else '' }}>Kein TLS (unsicher)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="smtp_user" class="form-label fw-semibold small">Benutzername / Login</label>
+            <input type="text" class="form-control" id="smtp_user" name="smtp_user"
+                   value="{{ smtp.smtp_user }}" placeholder="mail@example.com" autocomplete="off">
+          </div>
+
+          <div class="mb-3">
+            <label for="smtp_password" class="form-label fw-semibold small">
+              Passwort / App-Token
+              {% if smtp.smtp_password %}
+              <span class="badge bg-success-subtle text-success ms-1"><i class="bi bi-lock-fill me-1"></i>gespeichert</span>
+              {% else %}
+              <span class="badge bg-secondary-subtle text-secondary ms-1">nicht gespeichert</span>
+              {% endif %}
+            </label>
+            <div class="input-group">
+              <input type="password" class="form-control" id="smtp_password" name="smtp_password"
+                     placeholder="{{ '••••••••  (leer lassen = unverändert)' if smtp.smtp_password else 'Passwort eingeben' }}"
+                     autocomplete="new-password">
+              <button type="button" class="btn btn-outline-secondary" id="togglePwBtn" title="Passwort anzeigen">
+                <i class="bi bi-eye" id="togglePwIcon"></i>
+              </button>
+              {% if smtp.smtp_password %}
+              <button type="submit" name="action" value="clear_smtp_password"
+                      class="btn btn-outline-danger" title="Passwort löschen"
+                      onclick="return confirm('SMTP-Passwort wirklich entfernen?')">
+                <i class="bi bi-trash"></i>
+              </button>
+              {% endif %}
+            </div>
+            <div class="form-text">Leer lassen, um das gespeicherte Passwort beizubehalten.</div>
+          </div>
+
+          <div class="mb-3">
+            <label for="smtp_from" class="form-label fw-semibold small">Absender-Adresse (<code>From</code>)</label>
+            <input type="email" class="form-control" id="smtp_from" name="smtp_from"
+                   value="{{ smtp.smtp_from }}" placeholder="noreply@example.com">
+            <div class="form-text">Leer = SMTP-Benutzername wird als Absender verwendet.</div>
+          </div>
+
+          <div class="mb-4">
+            <label for="smtp_base_url" class="form-label fw-semibold small">Basis-URL für E-Mail-Links</label>
+            <input type="url" class="form-control" id="smtp_base_url" name="smtp_base_url"
+                   value="{{ smtp.smtp_base_url }}" placeholder="https://tickets.example.com">
+            <div class="form-text">Wird für klickbare Ticket-Links in E-Mails verwendet. Ohne Trailing-Slash.</div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-floppy me-1"></i>Einstellungen speichern
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Test + Status Panel -->
+  <div class="col-lg-5 d-flex flex-column gap-4">
+    <!-- Send Test Mail -->
+    <div class="card shadow-sm border-0 rounded-4">
+      <div class="card-header border-0 py-3 px-4">
+        <h2 class="h5 fw-bold mb-0"><i class="bi bi-send-check text-success me-2"></i>Test-E-Mail</h2>
+      </div>
+      <div class="card-body px-4 pb-4">
+        <p class="text-secondary small mb-3">Sendet eine Testmail mit den aktuell <strong>gespeicherten</strong> Einstellungen.</p>
+        <form method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="test_smtp">
+          <div class="mb-3">
+            <label for="test_email" class="form-label fw-semibold small">Empfänger-Adresse</label>
+            <input type="email" class="form-control" id="test_email" name="test_email"
+                   placeholder="admin@example.com" required>
+          </div>
+          <button type="submit" class="btn btn-outline-success">
+            <i class="bi bi-envelope-check me-1"></i>Testmail senden
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Current Status -->
+    <div class="card shadow-sm border-0 rounded-4">
+      <div class="card-header border-0 py-3 px-4">
+        <h2 class="h5 fw-bold mb-0"><i class="bi bi-info-circle text-secondary me-2"></i>Aktueller Status</h2>
+      </div>
+      <div class="card-body px-4 pb-4">
+        <ul class="list-unstyled small mb-0">
+          <li class="d-flex align-items-center gap-2 py-1 border-bottom">
+            <span class="text-muted" style="min-width:130px">SMTP Host</span>
+            {% if smtp.smtp_host %}
+            <span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle me-1"></i>{{ smtp.smtp_host }}</span>
+            {% else %}
+            <span class="badge bg-warning-subtle text-warning"><i class="bi bi-exclamation-circle me-1"></i>nicht konfiguriert</span>
+            {% endif %}
+          </li>
+          <li class="d-flex align-items-center gap-2 py-1 border-bottom">
+            <span class="text-muted" style="min-width:130px">Port</span>
+            <span>{{ smtp.smtp_port or '587 (Standard)' }}</span>
+          </li>
+          <li class="d-flex align-items-center gap-2 py-1 border-bottom">
+            <span class="text-muted" style="min-width:130px">TLS-Modus</span>
+            <span>{{ smtp.smtp_tls or 'starttls (Standard)' }}</span>
+          </li>
+          <li class="d-flex align-items-center gap-2 py-1 border-bottom">
+            <span class="text-muted" style="min-width:130px">Benutzername</span>
+            <span>{{ smtp.smtp_user or '—' }}</span>
+          </li>
+          <li class="d-flex align-items-center gap-2 py-1 border-bottom">
+            <span class="text-muted" style="min-width:130px">Passwort</span>
+            {% if smtp.smtp_password %}
+            <span class="badge bg-success-subtle text-success"><i class="bi bi-lock-fill me-1"></i>gespeichert</span>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </li>
+          <li class="d-flex align-items-center gap-2 py-1 border-bottom">
+            <span class="text-muted" style="min-width:130px">Absender</span>
+            <span>{{ smtp.smtp_from or smtp.smtp_user or '—' }}</span>
+          </li>
+          <li class="d-flex align-items-center gap-2 py-1">
+            <span class="text-muted" style="min-width:130px">Basis-URL</span>
+            <span class="text-truncate">{{ smtp.smtp_base_url or '—' }}</span>
+          </li>
+        </ul>
+        <div class="alert alert-info small mt-3 mb-0 py-2">
+          <i class="bi bi-shield-lock me-1"></i>
+          Umgebungsvariablen (<code>SMTP_*</code>) greifen, wenn DB-Felder leer sind.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block scripts %}
+<script>
+  // Toggle password visibility
+  const pwInput = document.getElementById('smtp_password');
+  const toggleBtn = document.getElementById('togglePwBtn');
+  const toggleIcon = document.getElementById('togglePwIcon');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+      const show = pwInput.type === 'password';
+      pwInput.type = show ? 'text' : 'password';
+      toggleIcon.className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+    });
+  }
+</script>
+{% endblock %}
+{% endblock %}
