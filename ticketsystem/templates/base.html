@@ -50,7 +50,7 @@
               <i class="bi bi-clipboard2-list me-1" aria-hidden="true"></i>Alle Tickets
             </a>
           </li>
-          {% if session.get('role') in ('admin', 'management') %}
+          {% if session.get('role') in ('admin', 'hr', 'management') %}
           <li class="nav-item">
             <a class="nav-link {{ 'active fw-bold' if request.endpoint == 'main.workload' else '' }}"
                href="{{ ingress_path }}{{ url_for('main.workload') }}">
@@ -82,7 +82,7 @@
               href="{{ ingress_path }}{{ url_for('main.archive') }}">Archiv</a>
           </li>
 
-          {% if session.get('is_admin') or session.get('role') in ('management',) %}
+          {% if session.get('is_admin') or session.get('role') in ('hr', 'management') %}
           <li class="nav-item">
             <a class="nav-link {{ 'active fw-bold' if request.endpoint == 'main.approvals' else '' }}"
                href="{{ ingress_path }}{{ url_for('main.approvals') }}">
@@ -108,6 +108,9 @@
               </a></li>
               <li><a class="dropdown-item small {{ 'active' if request.endpoint == 'admin.templates' else '' }}" href="{{ ingress_path }}{{ url_for('admin.templates') }}">
                 <i class="bi bi-card-checklist me-2"></i> Checklisten-Vorlagen
+              </a></li>
+              <li><a class="dropdown-item small {{ 'active' if request.endpoint == 'admin.teams' else '' }}" href="{{ ingress_path }}{{ url_for('admin.teams') }}">
+                <i class="bi bi-people me-2"></i> Teams
               </a></li>
             </ul>
           </li>

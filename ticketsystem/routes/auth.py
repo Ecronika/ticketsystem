@@ -248,8 +248,10 @@ def _logout_view():
     # SEC-09: Explicitly expire session cookie
     response.set_cookie(current_app.config['SESSION_COOKIE_NAME'], '', expires=0)
     
-    # GDPR & Shopfloor Security: Clear all local data on logout
-    response.headers['Clear-Site-Data'] = '"cache", "cookies", "storage"'
+    # GDPR & Shopfloor Security: Clear cache and cookies on logout.
+    # Note: "storage" intentionally omitted to preserve localStorage preferences
+    # (e.g. help page dismissal state) across sessions.
+    response.headers['Clear-Site-Data'] = '"cache", "cookies"'
     return response
 
 

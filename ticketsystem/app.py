@@ -481,22 +481,33 @@ def inject_globals():
 
     _role = session.get('role')
     urgent_count = 0
-    # FIX-03: Use .isnot(None) for correct SQL IS NOT NULL semantics
+    # Count tickets that need attention: assigned to me OR have checklist items assigned to me,
+    # where due date is today or overdue. This matches what "Meine Aufgaben" shows.
     now_dt = get_utc_now()
     limit_dt = now_dt.replace(hour=23, minute=59, second=59)
     try:
+        from models import ChecklistItem as _CItem
+        _wid = session['worker_id']
         urgent_count = Ticket.query.filter(
-            Ticket.assigned_to_id == session['worker_id'],
             Ticket.is_deleted == False,
             Ticket.status != TicketStatus.ERLEDIGT.value,
             Ticket.due_date.isnot(None),
-            Ticket.due_date <= limit_dt
+            Ticket.due_date <= limit_dt,
+            db.or_(
+                Ticket.assigned_to_id == _wid,
+                Ticket.checklists.any(
+                    db.and_(
+                        _CItem.assigned_to_id == _wid,
+                        _CItem.is_completed == False
+                    )
+                )
+            )
         ).count()
     except Exception as e:  # pylint: disable=broad-exception-caught
         app.logger.warning("inject_globals: urgent_count query failed: %s", e)
 
     pending_approval_count = 0
-    if session.get('is_admin') or _role in (WorkerRole.MANAGEMENT.value,):
+    if session.get('is_admin') or _role in (WorkerRole.HR.value, WorkerRole.MANAGEMENT.value):
         try:
             pending_approval_count = Ticket.query.filter_by(
                 is_deleted=False,
@@ -517,7 +528,7 @@ def inject_globals():
 
     # Abwesende Mitarbeiter mit kritischen Tickets (für Nav-Badge, nur admin/management)
     absent_entries_with_critical = 0
-    if _role in (WorkerRole.ADMIN.value, WorkerRole.MANAGEMENT.value):
+    if _role in (WorkerRole.ADMIN.value, WorkerRole.HR.value, WorkerRole.MANAGEMENT.value):
         try:
             from models import Worker as _Worker
             now_date = now_dt.date()
