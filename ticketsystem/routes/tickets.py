@@ -133,11 +133,17 @@ def _new_ticket_view():
         callback_due_str = request.form.get('callback_due')
         callback_due = None
         if callback_due_str:
+            from zoneinfo import ZoneInfo
+            from datetime import timezone
             try:
-                callback_due = datetime.strptime(callback_due_str, '%Y-%m-%dT%H:%M')
+                local_tz = ZoneInfo('Europe/Berlin')
+                dt_local = datetime.strptime(callback_due_str, '%Y-%m-%dT%H:%M')
+                callback_due = dt_local.replace(tzinfo=local_tz).astimezone(timezone.utc).replace(tzinfo=None)
             except ValueError:
                 try:
-                    callback_due = datetime.strptime(callback_due_str, '%Y-%m-%d')
+                    local_tz = ZoneInfo('Europe/Berlin')
+                    dt_local = datetime.strptime(callback_due_str, '%Y-%m-%d')
+                    callback_due = dt_local.replace(tzinfo=local_tz).astimezone(timezone.utc).replace(tzinfo=None)
                 except ValueError:
                     pass
 
@@ -411,10 +417,13 @@ def _serve_attachment(attachment_id):
     ticket = attachment.ticket
     user_role = session.get('role')
     user_id = session.get('worker_id')
-    if ticket and ticket.is_confidential:
-        # DRY: use Ticket.is_accessible_by() — same logic as _ticket_detail_view
-        if not ticket.is_accessible_by(user_id, user_role):
+    if ticket:
+        if ticket.is_deleted:
             return "Forbidden", 403
+        if ticket.is_confidential:
+            # DRY: use Ticket.is_accessible_by() — same logic as _ticket_detail_view
+            if not ticket.is_accessible_by(user_id, user_role):
+                return "Forbidden", 403
 
     from extensions import Config
     data_dir = current_app.config.get('DATA_DIR', Config.get_data_dir())
@@ -856,16 +865,15 @@ def _bulk_action_api():
             if action == 'status_change':
                 new_status = data.get('new_status')
                 if new_status and new_status in [s.value for s in TicketStatus]:
-                    ticket.status = new_status
-                    ticket.updated_at = get_utc_now()
+                    TicketService.update_status(ticket.id, new_status, session.get('worker_name', 'System'), session.get('worker_id'))
                     updated += 1
                     
             elif action == 'reassign':
                 worker_id = data.get('worker_id')
                 team_id = data.get('team_id')
-                ticket.assigned_to_id = int(worker_id) if worker_id else None
-                ticket.assigned_team_id = int(team_id) if team_id else None
-                ticket.updated_at = get_utc_now()
+                worker_id_val = int(worker_id) if worker_id else None
+                team_id_val = int(team_id) if team_id else None
+                TicketService.assign_ticket(ticket.id, worker_id_val, session.get('worker_name', 'System'), session.get('worker_id'), team_id=team_id_val)
                 updated += 1
         
         db.session.commit()

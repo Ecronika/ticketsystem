@@ -96,7 +96,7 @@ class Team(db.Model):
     """
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False, unique=True)
-    members = db.relationship('Worker', secondary=worker_team, backref=db.backref('teams', lazy='dynamic'))
+    members = db.relationship('Worker', secondary=worker_team, backref=db.backref('teams', lazy='dynamic'), cascade="all, delete")
 
     def __repr__(self):
         return f'<Team {self.name}>'

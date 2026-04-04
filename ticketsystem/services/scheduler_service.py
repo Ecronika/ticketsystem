@@ -42,6 +42,14 @@ def process_recurring_tickets(app):
             count = 0
             for ticket in tickets:
                 # TX-2: commit=False keeps everything in one transaction
+                new_due_date = None
+                if ticket.due_date and ticket.created_at:
+                    offset = ticket.due_date - ticket.created_at
+                    new_due_date = now + offset
+                elif ticket.due_date:
+                    offset = ticket.due_date - now
+                    new_due_date = now + offset
+
                 new_ticket = TicketService.create_ticket(
                     title=ticket.title,
                     description=ticket.description,
@@ -50,6 +58,7 @@ def process_recurring_tickets(app):
                     assigned_to_id=ticket.assigned_to_id,
                     assigned_team_id=ticket.assigned_team_id,
                     is_confidential=ticket.is_confidential,
+                    due_date=new_due_date,
                     commit=False,
                 )
 

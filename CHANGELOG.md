@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.29.1] - 2026-04-04
+
+### Fixed
+- **Bugs**: Behobener Zeitzonen-Bug bei der Rückruf-Frist (Datums-Verschiebung um 1-2 Stunden korrigiert).
+- **Bugs**: Serientickets berechnen nun das Fälligkeitsdatum (`due_date`) korrekt relativ zum neuen Erstellungsdatum, statt sofort überfällig zu sein.
+- **Bugs**: Lückenhafter Audit-Trail bei Bulk-Aktionen behoben (erzeugt nun korrekte Historien-Einträge via Service-Layer).
+- **Security**: IDOR-Sicherheitslücke bei Dateianhängen (`_serve_attachment`) von weich-gelöschten Tickets geschlossen.
+- **UX**: Vermeidung von JS-Fehlern bei AJAX-Session-Timeouts durch Erzwingen eines Reloads zur Login-Seite.
+- **Bugs**: Datenmüll-Generierung in der Zuordnungstabelle `worker_team` bei der Löschung eines Teams durch fehlendes SQL Cascade verhindert.
+- **UX**: Robustere PIN-Eingabe auf Desktop-Geräten durch sofortige Blockierung nicht-numerischer Tastatureingaben.
+
 ## [1.29.0] - 2026-04-04
 
 ### Added
