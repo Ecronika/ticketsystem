@@ -74,15 +74,15 @@ def admin_required(f):
 
 
 def admin_or_management_required(f):
-    """Decorate to require admin or management role."""
+    """Decorate to require admin, management, or HR role."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         role = session.get('role')
-        if role not in (WorkerRole.ADMIN.value, WorkerRole.MANAGEMENT.value):
+        if role not in (WorkerRole.ADMIN.value, WorkerRole.HR.value, WorkerRole.MANAGEMENT.value):
             if request.path.startswith('/api/'):
                 from flask import jsonify
                 return jsonify({'success': False, 'error': 'Keine Berechtigung.'}), 403
-            flash('Diese Seite erfordert Administrator- oder Management-Rechte.', 'warning')
+            flash('Diese Seite erfordert Administrator-, HR- oder Management-Rechte.', 'warning')
             return redirect_to('main.login')
         return f(*args, **kwargs)
     return decorated_function
@@ -248,10 +248,12 @@ def _logout_view():
     # SEC-09: Explicitly expire session cookie
     response.set_cookie(current_app.config['SESSION_COOKIE_NAME'], '', expires=0)
     
-    # GDPR & Shopfloor Security: Clear cache and cookies on logout.
-    # Note: "storage" intentionally omitted to preserve localStorage preferences
-    # (e.g. help page dismissal state) across sessions.
-    response.headers['Clear-Site-Data'] = '"cache", "cookies"'
+    # GDPR & Shopfloor Security: Clear browser cache on logout.
+    # Note: "cookies" omitted — it wipes ALL origin cookies including HA Ingress
+    # auth tokens, causing 401 errors. The session cookie is already expired
+    # explicitly via set_cookie() above.
+    # "storage" omitted to preserve localStorage preferences (help dismissal).
+    response.headers['Clear-Site-Data'] = '"cache"'
     return response
 
 
