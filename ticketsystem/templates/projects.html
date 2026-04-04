@@ -4,6 +4,10 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="h4 fw-bold mb-0">Projekte & Baustellen</h2>
+    <!-- FEAT-13: CSV Export -->
+    <a href="{{ ingress_path }}{{ url_for('main.export_projects_csv') }}" class="btn btn-outline-secondary rounded-pill px-3">
+        <i class="bi bi-download me-1"></i> CSV Export
+    </a>
 </div>
 
 <!-- Progressive Disclosure / Bento Grid Layout -->

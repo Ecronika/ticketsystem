@@ -463,15 +463,18 @@ def _update_ticket_api(ticket_id):
     due_date = None
     if new_due_str:
         try:
-            due_date = datetime.fromisoformat(new_due_str.split('T')[0])
-        except (ValueError, TypeError):
+            # BUG-4: Robust timezone normalization — strip TZ info for naive SQLite timestamps
+            clean = new_due_str.split('T')[0]  # Take date part only
+            due_date = datetime.strptime(clean, '%Y-%m-%d')
+        except (ValueError, TypeError, IndexError):
             due_date = None
 
     reminder_date = None
     if reminder_date_str:
         try:
-            reminder_date = datetime.fromisoformat(reminder_date_str.split('T')[0])
-        except (ValueError, TypeError):
+            clean = reminder_date_str.split('T')[0]
+            reminder_date = datetime.strptime(clean, '%Y-%m-%d')
+        except (ValueError, TypeError, IndexError):
             reminder_date = None
 
     try:
@@ -793,6 +796,16 @@ def register_routes(bp):
     bp.add_url_rule('/api/ticket/<int:ticket_id>/reassign', 'reassign_ticket_api',
                   view_func=_reassign_ticket_api, methods=['POST'])
 
+    # FEAT-12: Bulk Actions API
+    bp.add_url_rule('/api/tickets/bulk', 'bulk_action_api',
+                  view_func=worker_required(_bulk_action_api), methods=['POST'])
+
+    # FEAT-13: CSV Export
+    bp.add_url_rule('/api/export/archive', 'export_archive_csv',
+                  view_func=worker_required(_export_archive_csv))
+    bp.add_url_rule('/api/export/projects', 'export_projects_csv',
+                  view_func=worker_required(_export_projects_csv))
+
     # Serving
     bp.add_url_rule('/attachment/<int:attachment_id>', 'serve_attachment', 
                   view_func=worker_required(_serve_attachment))
@@ -821,3 +834,120 @@ def _apply_template_api(ticket_id):
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ========== FEAT-12: Bulk Actions ==========
+def _bulk_action_api():
+    """Handle bulk operations on multiple tickets (status change, reassignment)."""
+    data = request.json
+    ticket_ids = data.get('ticket_ids', [])
+    action = data.get('action')
+    
+    if not ticket_ids or not action:
+        return jsonify({'success': False, 'error': 'Keine Tickets oder Aktion angegeben.'}), 400
+    
+    try:
+        updated = 0
+        for tid in ticket_ids:
+            ticket = db.session.get(Ticket, tid)
+            if not ticket or ticket.is_deleted:
+                continue
+            
+            if action == 'status_change':
+                new_status = data.get('new_status')
+                if new_status and new_status in [s.value for s in TicketStatus]:
+                    ticket.status = new_status
+                    ticket.updated_at = get_utc_now()
+                    updated += 1
+                    
+            elif action == 'reassign':
+                worker_id = data.get('worker_id')
+                team_id = data.get('team_id')
+                ticket.assigned_to_id = int(worker_id) if worker_id else None
+                ticket.assigned_team_id = int(team_id) if team_id else None
+                ticket.updated_at = get_utc_now()
+                updated += 1
+        
+        db.session.commit()
+        return jsonify({'success': True, 'updated': updated})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ========== FEAT-13: CSV Export ==========
+def _export_archive_csv():
+    """Export archive tickets as CSV download."""
+    import csv
+    import io
+    from flask import Response
+    
+    search = request.args.get('q', '').strip()
+    author = request.args.get('author', '').strip()
+    
+    tickets_data = TicketService.get_dashboard_tickets(
+        worker_id=session.get('worker_id'),
+        search=search,
+        status_filter=TicketStatus.ERLEDIGT.value,
+        page=1,
+        per_page=10000,  # Export all
+        author_name=author,
+        worker_role=session.get('role')
+    )
+    
+    output = io.StringIO()
+    # BOM for Excel UTF-8 compatibility
+    output.write('\ufeff')
+    writer = csv.writer(output, delimiter=';')
+    writer.writerow(['ID', 'Titel', 'Beschreibung', 'Status', 'Priorität', 'Erstellt am', 'Aktualisiert am', 'Auftragsnummer'])
+    
+    prio_map = {1: 'Hoch', 2: 'Mittel', 3: 'Niedrig'}
+    for ticket in tickets_data['focus_pagination'].items:
+        writer.writerow([
+            ticket.id,
+            ticket.title,
+            (ticket.description or '')[:200],
+            ticket.status,
+            prio_map.get(ticket.priority, str(ticket.priority)),
+            ticket.created_at.strftime('%d.%m.%Y %H:%M') if ticket.created_at else '',
+            ticket.updated_at.strftime('%d.%m.%Y %H:%M') if ticket.updated_at else '',
+            ticket.order_reference or ''
+        ])
+    
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=archiv_export.csv'}
+    )
+
+
+def _export_projects_csv():
+    """Export projects summary as CSV download."""
+    import csv
+    import io
+    from flask import Response
+    
+    projects = TicketService.get_projects_summary()
+    
+    output = io.StringIO()
+    output.write('\ufeff')
+    writer = csv.writer(output, delimiter=';')
+    writer.writerow(['Auftragsnummer', 'Gesamt Tickets', 'Offen', 'In Bearbeitung', 'Wartet', 'Erledigt', 'Fortschritt %', 'Status'])
+    
+    for p in projects:
+        writer.writerow([
+            p.order_reference,
+            p.total_tickets,
+            p.status_counts.get('offen', 0) if hasattr(p.status_counts, 'get') else getattr(p.status_counts, 'offen', 0),
+            p.status_counts.get('in_bearbeitung', 0) if hasattr(p.status_counts, 'get') else getattr(p.status_counts, 'in_bearbeitung', 0),
+            p.status_counts.get('wartet', 0) if hasattr(p.status_counts, 'get') else getattr(p.status_counts, 'wartet', 0),
+            p.completed_tickets,
+            p.progress,
+            'Abgeschlossen' if p.is_completed else 'Aktiv'
+        ])
+    
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=projekte_export.csv'}
+    )

@@ -409,10 +409,15 @@ class TicketService:
             query = query.filter(Ticket.id.in_(author_subquery))
 
         if search:
+            # FEAT-10: Extended search — also search in Comment.text (solutions, notes, URLs)
+            comment_ticket_ids = db.session.query(Comment.ticket_id).filter(
+                Comment.text.ilike(f"%{search}%")
+            ).subquery()
             query = query.filter(
                 (Ticket.title.ilike(f"%{search}%")) | 
                 (Ticket.description.ilike(f"%{search}%")) |
-                (Ticket.order_reference.ilike(f"%{search}%"))
+                (Ticket.order_reference.ilike(f"%{search}%")) |
+                (Ticket.id.in_(comment_ticket_ids))
             )
         
         if status_filter:
@@ -917,6 +922,8 @@ class TicketService:
             from models import ChecklistItem
             item = db.session.get(ChecklistItem, item_id)
             if item:
+                # BUG-3: Clear dependency references before deleting to prevent FK constraint error
+                ChecklistItem.query.filter_by(depends_on_item_id=item.id).update({'depends_on_item_id': None})
                 db.session.delete(item)
                 db.session.commit()
             return True

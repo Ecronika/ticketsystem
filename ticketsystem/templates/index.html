@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const POLL_INTERVAL = 10000; // 10 seconds
     
     let lastCount = parseInt("{{ pagination.total or 0 }}");
+    let lastUpdated = null; // BUG-2: Track last_updated timestamp for change detection
 
     function updateDashboard() {
         if (document.hidden) return; // FIX-POLL: Pause polling if tab is hidden
@@ -15,20 +16,76 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('{{ ingress_path }}/api/dashboard/summary')
             .then(response => response.json())
             .then(data => {
-                if (data.success && data.counts.summary !== lastCount) {
-                    console.log('New tickets available, showing hint');
-                    const hint = document.getElementById('reloadHint');
-                    if (hint) hint.classList.remove('d-none');
+                if (data.success) {
+                    // BUG-2: Compare both count AND last_updated timestamp
+                    const countChanged = data.counts.summary !== lastCount;
+                    const timestampChanged = data.last_updated && lastUpdated && data.last_updated !== lastUpdated;
+                    
+                    if (countChanged || timestampChanged) {
+                        console.log('Dashboard changes detected, showing hint');
+                        const hint = document.getElementById('reloadHint');
+                        if (hint) hint.classList.remove('d-none');
+                    }
+                    // Always update tracked values
+                    if (data.last_updated && !lastUpdated) {
+                        lastUpdated = data.last_updated; // Initialize on first poll
+                    } else if (data.last_updated) {
+                        // Only show hint on subsequent polls
+                    }
+                    if (!lastUpdated) lastUpdated = data.last_updated;
                 }
             })
             .catch(err => console.error('Polling error:', err));
     }
 
+    // Initialize lastUpdated on first poll silently
+    fetch('{{ ingress_path }}/api/dashboard/summary')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                lastCount = data.counts.summary;
+                lastUpdated = data.last_updated;
+            }
+        })
+        .catch(() => {});
+
     setInterval(updateDashboard, POLL_INTERVAL);
 
-    // CSP-Safe Global Dashboard Listeners
+    // UX-9: Async filter toggle — fetch new page content without full reload
     document.querySelectorAll('.auto-submit').forEach(el => {
-        el.addEventListener('change', () => el.form.submit());
+        el.addEventListener('change', async function() {
+            const form = this.form;
+            const formData = new FormData(form);
+            const params = new URLSearchParams();
+            for (const [key, val] of formData.entries()) {
+                if (val) params.set(key, val);
+            }
+            const newUrl = '{{ ingress_path }}{{ url_for("main.index") }}' + (params.toString() ? '?' + params.toString() : '');
+            
+            // Show loading state
+            const ticketList = document.querySelector('.col-lg-8 .card-body .list-group, .col-12 .card-body .list-group');
+            if (ticketList) ticketList.style.opacity = '0.5';
+            
+            try {
+                const resp = await fetch(newUrl, { headers: { 'Accept': 'text/html' } });
+                if (resp.ok) {
+                    const html = await resp.text();
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    // Replace the ticket list and sidebar content
+                    const newContent = doc.querySelector('#block-content') || doc.querySelector('.row.g-4');
+                    const currentContent = document.querySelector('.row.g-4');
+                    if (newContent && currentContent) {
+                        currentContent.innerHTML = newContent.innerHTML;
+                    }
+                    history.pushState(null, '', newUrl);
+                } else {
+                    form.submit(); // Fallback to normal submit
+                }
+            } catch (e) {
+                form.submit(); // Fallback on network error
+            }
+        });
     });
     document.querySelectorAll('.reload-page-link').forEach(el => {
         el.addEventListener('click', (e) => { e.preventDefault(); location.reload(); });
@@ -167,9 +224,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 <ul class="list-group list-group-flush" role="list">
                     {% for ticket in focus_tickets %}
                     <li role="listitem">
-                        <a href="{{ ingress_path }}{{ url_for('main.ticket_detail', ticket_id=ticket.id) }}" 
-                           class="list-group-item list-group-item-action py-3 px-4 border-0 border-bottom {{ 'border-start border-danger border-3' if ticket.priority == 1 else '' }}"
-                           {% if ticket.priority == 1 %}style="background-color: rgba(var(--bs-danger-rgb), 0.04)"{% endif %}>
+                        <div class="d-flex align-items-start">
+                            <!-- FEAT-12: Bulk action checkbox -->
+                            {% if session.get('role') != 'viewer' %}
+                            <div class="d-flex align-items-center ps-3 pt-3">
+                                <input type="checkbox" class="form-check-input bulk-select-checkbox" value="{{ ticket.id }}" 
+                                       style="min-width: 20px; min-height: 20px; cursor: pointer;" 
+                                       onclick="event.stopPropagation();">
+                            </div>
+                            {% endif %}
+                            <a href="{{ ingress_path }}{{ url_for('main.ticket_detail', ticket_id=ticket.id) }}" 
+                               class="list-group-item list-group-item-action py-3 px-4 border-0 border-bottom flex-grow-1 {{ 'border-start border-danger border-3' if ticket.priority == 1 else '' }}"
+                               {% if ticket.priority == 1 %}style="background-color: rgba(var(--bs-danger-rgb), 0.04)"{% endif %}>
                             
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <div class="d-flex align-items-center gap-2">
@@ -228,6 +294,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                             </div>
                         </a>
+                        </div>
                     </li>
                     {% else %}
                     <li class="list-group-item border-0 py-5 text-center text-muted">
@@ -342,4 +409,97 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
     {% endif %}
 </div>
+
+<!-- FEAT-12: Floating Bulk Action Bar -->
+{% if session.get('role') != 'viewer' %}
+<div id="bulkActionBar" class="d-none position-fixed bottom-0 start-50 translate-middle-x mb-4 bg-dark text-white rounded-pill shadow-lg px-4 py-3 align-items-center gap-3" style="z-index: 1050; max-width: 90vw;">
+    <span id="bulkCount" class="fw-bold small">0 ausgewählt</span>
+    <div class="vr bg-secondary opacity-50"></div>
+    <select id="bulkStatusSelect" class="form-select form-select-sm bg-dark text-white border-secondary rounded-pill" style="width: auto; min-height: 36px;">
+        <option value="" disabled selected>Status ändern...</option>
+        <option value="offen">→ Offen</option>
+        <option value="in_bearbeitung">→ In Bearbeitung</option>
+        <option value="wartet">→ Wartet</option>
+        <option value="erledigt">→ Erledigt</option>
+    </select>
+    <button type="button" id="bulkApplyBtn" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold">
+        <i class="bi bi-check-lg me-1"></i>Anwenden
+    </button>
+    <button type="button" id="bulkCancelBtn" class="btn btn-outline-light btn-sm rounded-pill px-3">
+        <i class="bi bi-x-lg"></i>
+    </button>
+</div>
+
+<script nonce="{{ g.csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+    const bar = document.getElementById('bulkActionBar');
+    const countEl = document.getElementById('bulkCount');
+    const applyBtn = document.getElementById('bulkApplyBtn');
+    const cancelBtn = document.getElementById('bulkCancelBtn');
+    const bulkStatusSelect = document.getElementById('bulkStatusSelect');
+    if (!bar) return;
+
+    function getChecked() {
+        return Array.from(document.querySelectorAll('.bulk-select-checkbox:checked')).map(cb => parseInt(cb.value));
+    }
+
+    function updateBar() {
+        const ids = getChecked();
+        if (ids.length > 0) {
+            bar.classList.remove('d-none');
+            bar.classList.add('d-flex');
+            countEl.textContent = ids.length + ' ausgewählt';
+        } else {
+            bar.classList.add('d-none');
+            bar.classList.remove('d-flex');
+        }
+    }
+
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('bulk-select-checkbox')) {
+            updateBar();
+        }
+    });
+
+    cancelBtn.addEventListener('click', function() {
+        document.querySelectorAll('.bulk-select-checkbox:checked').forEach(cb => cb.checked = false);
+        updateBar();
+    });
+
+    applyBtn.addEventListener('click', async function() {
+        const ids = getChecked();
+        const newStatus = bulkStatusSelect.value;
+        if (!ids.length || !newStatus) {
+            if (window.showUiAlert) window.showUiAlert('Bitte Status auswählen.', 'warning');
+            return;
+        }
+
+        applyBtn.disabled = true;
+        applyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>...';
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        const ingress = document.querySelector('.navbar')?.getAttribute('data-ingress') || '';
+        
+        try {
+            const resp = await fetch(ingress + '/api/tickets/bulk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ ticket_ids: ids, action: 'status_change', new_status: newStatus })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                if (window.showUiAlert) window.showUiAlert(data.updated + ' Tickets aktualisiert.', 'success');
+                setTimeout(function() { location.reload(); }, 1000);
+            } else {
+                if (window.showUiAlert) window.showUiAlert('Fehler: ' + data.error);
+            }
+        } catch (e) {
+            if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.');
+        }
+        applyBtn.disabled = false;
+        applyBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Anwenden';
+    });
+});
+</script>
+{% endif %}
 {% endblock %}

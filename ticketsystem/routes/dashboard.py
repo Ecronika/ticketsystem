@@ -69,7 +69,7 @@ def register_routes(bp):
 
         payload = {
             "status": "ok" if db_ok else "degraded",
-            "version": current_app.config.get("VERSION", "2.11.0"),
+            "version": current_app.config.get("VERSION", "1.29.0"),
             "uptime": round(time.time() - _dash_start_time, 2),
             "db_ok": db_ok,
         }
@@ -95,6 +95,15 @@ def register_routes(bp):
             
             count_map = {status: count for status, count in results}
             
+            # BUG-2: Also return last_updated timestamp so frontend can detect status changes
+            # that don't alter the total count (e.g. Offen -> In Bearbeitung)
+            last_updated_query = db.session.query(func.max(Ticket.updated_at))\
+                .filter(Ticket.is_deleted == False)
+            if user_role not in [WorkerRole.ADMIN.value, WorkerRole.HR.value, WorkerRole.MANAGEMENT.value]:
+                last_updated_query = last_updated_query.filter(Ticket.is_confidential == False)
+            last_updated_result = last_updated_query.scalar()
+            last_updated_iso = last_updated_result.isoformat() if last_updated_result else None
+
             counts = {
                 TicketStatus.OFFEN.value: count_map.get(TicketStatus.OFFEN.value, 0),
                 TicketStatus.IN_BEARBEITUNG.value: count_map.get(TicketStatus.IN_BEARBEITUNG.value, 0),
@@ -104,6 +113,7 @@ def register_routes(bp):
             return jsonify({
                 'success': True,
                 'counts': counts,
+                'last_updated': last_updated_iso,
                 'timestamp': get_utc_now().isoformat()
             })
         except Exception as e:

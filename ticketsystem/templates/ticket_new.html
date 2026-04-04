@@ -71,6 +71,19 @@
                                   placeholder="Was ist das Problem? (Diktierfunktion der Tastatur nutzbar)"></textarea>
                     </div>
 
+                    {% if session.get('worker_id') %}
+                    <!-- UX-5: Confidential flag moved to main area for visibility -->
+                    <div class="mb-4">
+                        <div class="form-check form-switch p-3 bg-warning-subtle bg-opacity-50 border border-warning-subtle rounded-3">
+                            <input class="form-check-input ms-0 me-2" type="checkbox" id="is_confidential" name="is_confidential">
+                            <label class="form-check-label fw-bold" for="is_confidential">
+                                <i class="bi bi-lock-fill text-warning"></i> Als vertraulich markieren {{ help_icon(HELP['ticket_new']['fields']['is_confidential']) }}
+                            </label>
+                            <p class="x-small text-muted mt-1 mb-0 ps-4">Nur zugewiesene Personen und Admins können dies sehen.</p>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <div class="mb-4">
                         <label class="form-label fw-bold">Dringlichkeit {{ help_icon(HELP['ticket_new']['fields']['priority']) }}</label>
                         <div class="d-flex gap-2">
@@ -177,17 +190,7 @@
                                            placeholder="z.B. Service, Elektro">
                                 </div>
                                 
-                                {% if session.get('worker_id') %}
-                                <div class="mb-3">
-                                    <div class="form-check form-switch mt-2">
-                                        <input class="form-check-input" type="checkbox" id="is_confidential" name="is_confidential">
-                                        <label class="form-check-label fw-bold" for="is_confidential">
-                                            <i class="bi bi-lock-fill text-warning"></i> Als vertraulich markieren {{ help_icon(HELP['ticket_new']['fields']['is_confidential']) }}
-                                        </label>
-                                    </div>
-                                    <p class="x-small text-muted mt-1 mb-0">Nur zugewiesene Personen und Admins können dies sehen.</p>
-                                </div>
-                                {% endif %}
+                                {# UX-5: Confidential checkbox moved to main form area above #}
                             </div>
 
                             <!-- Spalte 2: Planung & Delegation -->
@@ -276,13 +279,32 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let processedFiles = [];
 
+    // UX-8: Create upload progress overlay
+    const dropzone = input.closest('.position-relative');
+    const progressOverlay = document.createElement('div');
+    progressOverlay.id = 'upload-progress-overlay';
+    progressOverlay.className = 'position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center d-none';
+    progressOverlay.style.cssText = 'background: rgba(255,255,255,0.9); z-index: 10; border-radius: inherit;';
+    progressOverlay.innerHTML = '<div class="spinner-border text-primary mb-2" role="status"></div><span class="small fw-bold text-primary">Optimiere Bilder...</span><span class="x-small text-muted mt-1" id="upload-progress-count"></span>';
+    dropzone.appendChild(progressOverlay);
+
     input.addEventListener('change', async function(e) {
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
         submitBtn.disabled = true;
+        
+        // UX-8: Show progress overlay for image compression
+        const imageCount = files.filter(f => f.type.startsWith('image/')).length;
+        if (imageCount > 0) {
+            progressOverlay.classList.remove('d-none');
+        }
+        const progressCount = document.getElementById('upload-progress-count');
+        let processed = 0;
 
         for (const file of files) {
             if (file.type.startsWith('image/')) {
+                processed++;
+                if (progressCount) progressCount.textContent = `${processed} / ${imageCount} Bilder`;
                 const compressedBlob = await compressImage(file);
                 processedFiles.push(new File([compressedBlob], file.name, {
                     type: 'image/jpeg',
@@ -293,6 +315,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
+        progressOverlay.classList.add('d-none');
         renderGallery();
         updateHiddenInput();
         input.value = ''; // Reset raw input

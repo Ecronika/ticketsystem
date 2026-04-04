@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.29.0] - 2026-04-04
+
+### Added
+- **Features**: Added bulk actions for tickets (status change, reassignment).
+- **Features**: Implemented CSV/Excel export for archive and projects pages.
+- **Features**: Added checklist template editing functionality in the admin interface.
+- **Features**: Extended global search to include comment text.
+
+### Fixed
+- **Bugs**: Nullified Foreign Key references on team deletion to prevent 500 error (`IntegrityError`).
+- **Bugs**: Improved dashboard polling to use max update timestamps for catching all changes.
+- **Bugs**: Properly cleared checklist dependent items upon item deletion.
+- **Bugs**: Standardized naive UTC timestamp parsing across timezone offsets.
+
+### Improved
+- **UX**: Moved "Confidential" flag in ticket creation for better visibility.
+- **UX**: Converted workers and archive tables to responsive mobile cards.
+- **UX**: Addressed race condition with status dropdowns disabling them right after change.
+- **UX**: Added image upload progress overlay (spinner and counter).
+- **UX**: Upgraded dashboard filter toggles to be asynchronous.
+
 ## [1.28.1] - 2026-03-29
 
 ### Fixed

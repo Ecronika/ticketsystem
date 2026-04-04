@@ -19,7 +19,7 @@
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
+                    <table class="table table-hover table-responsive-cards align-middle mb-0">
                         <thead class="bg-surface-subtle">
                             <tr>
                                 <th class="px-4 border-0 small text-muted">NAME</th>
@@ -32,7 +32,7 @@
                         <tbody>
                             {% for worker in workers %}
                             <tr class="{{ 'text-muted' if not worker.is_active }}">
-                                <td class="px-4 fw-bold">
+                                <td class="px-4 fw-bold" data-label="Name">
                                     {{ worker.name }}
                                     {% if worker.failed_login_count > 0 %}
                                     <span class="badge bg-warning text-dark x-small ms-1" title="{{ worker.failed_login_count }} Fehlversuche">
@@ -40,7 +40,7 @@
                                     </span>
                                     {% endif %}
                                 </td>
-                                <td>
+                                <td data-label="Rolle">
                                     {% if worker.role == WorkerRole.ADMIN.value %}
                                     <span class="badge badge-subtle-danger rounded-pill px-2">Admin</span>
                                     {% elif worker.role == WorkerRole.HR.value %}
@@ -51,21 +51,21 @@
                                     <span class="badge badge-subtle-primary rounded-pill px-2">Mitarbeiter</span>
                                     {% endif %}
                                 </td>
-                                <td>
+                                <td data-label="Status">
                                     {% if worker.is_active %}
                                     <span class="badge badge-subtle-success rounded-pill px-2">Aktiv</span>
                                     {% else %}
                                     <span class="badge badge-subtle-secondary rounded-pill px-2">Inaktiv</span>
                                     {% endif %}
                                 </td>
-                                <td>
+                                <td data-label="Aktivität">
                                     {% if worker.last_active %}
                                     <span class="x-small text-muted" title="{{ worker.last_active|local_time|datetime }}">{{ worker.last_active|local_time|time_ago }}</span>
                                     {% else %}
                                     <span class="x-small text-muted">-</span>
                                     {% endif %}
                                 </td>
-                                <td class="text-end px-4">
+                                <td class="text-end px-4" data-label="Aktionen">
                                     <div class="dropdown">
                                         <button class="btn btn-light btn-sm rounded-circle p-0 d-flex align-items-center justify-content-center" 
                                                 type="button" data-bs-toggle="dropdown" aria-expanded="false" style="width: 32px; height: 32px;">

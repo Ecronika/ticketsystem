@@ -89,6 +89,26 @@ def templates():
                         db.session.add(ChecklistTemplateItem(template_id=t.id, title=item_title.strip()))
                 db.session.commit()
                 flash("Vorlage erfolgreich erstellt.", "success")
+
+            elif action == 'update':
+                # FEAT-11: Edit existing checklist templates
+                t_id = request.form.get('template_id')
+                t = db.session.get(ChecklistTemplate, t_id)
+                if t:
+                    new_title = request.form.get('title', '').strip()
+                    new_desc = request.form.get('description', '').strip()
+                    if new_title:
+                        t.title = new_title
+                    t.description = new_desc
+                    
+                    # Replace all items with new ones
+                    ChecklistTemplateItem.query.filter_by(template_id=t.id).delete()
+                    items = request.form.getlist('items[]')
+                    for item_title in items:
+                        if item_title.strip():
+                            db.session.add(ChecklistTemplateItem(template_id=t.id, title=item_title.strip()))
+                    db.session.commit()
+                    flash(f"Vorlage '{t.title}' aktualisiert.", "success")
                 
             elif action == 'delete':
                 t_id = request.form.get('template_id')
@@ -155,9 +175,14 @@ def teams():
                 team_id = request.form.get('team_id')
                 team = db.session.get(Team, team_id)
                 if team:
+                    from models import Ticket, ChecklistItem
+                    # BUG-1: Nullify FK references before deletion to prevent IntegrityError
+                    Ticket.query.filter_by(assigned_team_id=team.id).update({'assigned_team_id': None})
+                    ChecklistItem.query.filter_by(assigned_team_id=team.id).update({'assigned_team_id': None})
+                    team_name = team.name
                     db.session.delete(team)
                     db.session.commit()
-                    flash(f"Team '{team.name}' wurde gelöscht.", "success")
+                    flash(f"Team '{team_name}' wurde gelöscht. Betroffene Zuweisungen wurden aufgehoben.", "success")
 
         except Exception as e:
             db.session.rollback()

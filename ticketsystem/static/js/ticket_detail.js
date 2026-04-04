@@ -45,17 +45,21 @@ document.addEventListener('DOMContentLoaded', function() {
             const wrapper = this.closest('.position-relative');
             const spinner = wrapper ? wrapper.querySelector('.select-spinner') : null;
 
+            // UX-7: Immediately disable to prevent double-submit race conditions
+            this.disabled = true;
+            this.classList.add('opacity-50');
+            if (spinner) spinner.classList.remove('d-none');
+
             if (newStatus === 'erledigt') {
                 const confirmed = await window.showConfirm('Ticket abschließen', 'Möchten Sie dieses Ticket wirklich als erledigt markieren?');
                 if (!confirmed) {
                     this.value = originalValue;
+                    this.disabled = false;
+                    this.classList.remove('opacity-50');
+                    if (spinner) spinner.classList.add('d-none');
                     return;
                 }
             }
-
-            this.disabled = true;
-            this.classList.add('opacity-50');
-            if (spinner) spinner.classList.remove('d-none');
             
             try {
                 const response = await fetch(`${getIngress()}/api/ticket/${ticketId}/status`, {
