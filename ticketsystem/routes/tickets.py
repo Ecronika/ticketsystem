@@ -34,6 +34,8 @@ def _dashboard_view():
     if search.startswith('#') and search[1:].isdigit():
         return redirect_to('main.ticket_detail', ticket_id=int(search[1:]))
 
+    from models import Team
+    _team_ids = Team.team_ids_for_worker(worker_id) if worker_id else []
     tickets_data = TicketService.get_dashboard_tickets(
         worker_id=worker_id,
         search=search,
@@ -43,7 +45,8 @@ def _dashboard_view():
         assigned_to_me=assigned_to_me,
         unassigned_only=unassigned_only,
         callback_pending=callback_pending,
-        worker_role=session.get('role')
+        worker_role=session.get('role'),
+        team_ids=_team_ids
     )
     
     return render_template('index.html', 
@@ -79,8 +82,11 @@ def _archive_view():
     except ValueError:
         pass
 
+    from models import Team
+    _wid = session.get('worker_id')
+    _team_ids = Team.team_ids_for_worker(_wid) if _wid else []
     tickets_data = TicketService.get_dashboard_tickets(
-        worker_id=session.get('worker_id'),
+        worker_id=_wid,
         search=search,
         status_filter=TicketStatus.ERLEDIGT.value,
         page=page,
@@ -88,7 +94,8 @@ def _archive_view():
         start_date=start_date,
         end_date=end_date,
         author_name=author,
-        worker_role=session.get('role')
+        worker_role=session.get('role'),
+        team_ids=_team_ids
     )
     
     return render_template('archive.html', 
@@ -599,8 +606,20 @@ def _my_queue_view():
     
     now = get_utc_now()
     
-    from models import ChecklistItem, Comment
+    from models import ChecklistItem, Comment, Team
     worker_role = session.get('role')
+    team_ids = Team.team_ids_for_worker(worker_id)
+    _team_clauses = []
+    if team_ids:
+        _team_clauses = [
+            Ticket.assigned_team_id.in_(team_ids),
+            Ticket.checklists.any(
+                db.and_(
+                    ChecklistItem.assigned_team_id.in_(team_ids),
+                    ChecklistItem.is_completed == False
+                )
+            ),
+        ]
     query = Ticket.query.filter(
         Ticket.is_deleted == False,
         Ticket.status != TicketStatus.ERLEDIGT.value
@@ -612,11 +631,14 @@ def _my_queue_view():
                     ChecklistItem.assigned_to_id == worker_id,
                     ChecklistItem.is_completed == False
                 )
-            )
+            ),
+            *_team_clauses
         )
     )
     # Confidential filter: non-elevated roles only see accessible tickets
     if worker_role not in (WorkerRole.ADMIN.value, WorkerRole.HR.value, WorkerRole.MANAGEMENT.value):
+        _conf_team = [Ticket.assigned_team_id.in_(team_ids),
+                      Ticket.checklists.any(ChecklistItem.assigned_team_id.in_(team_ids))] if team_ids else []
         author_sub = db.session.query(Comment.ticket_id).filter(
             Comment.event_type == 'TICKET_CREATED',
             Comment.author_id == worker_id
@@ -626,7 +648,8 @@ def _my_queue_view():
                 Ticket.is_confidential == False,
                 Ticket.id.in_(author_sub),
                 Ticket.assigned_to_id == worker_id,
-                Ticket.checklists.any(ChecklistItem.assigned_to_id == worker_id)
+                Ticket.checklists.any(ChecklistItem.assigned_to_id == worker_id),
+                *_conf_team
             )
         )
       

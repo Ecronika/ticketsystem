@@ -98,6 +98,14 @@ class Team(db.Model):
     name = db.Column(db.String(50), nullable=False, unique=True)
     members = db.relationship('Worker', secondary=worker_team, backref=db.backref('teams', lazy='dynamic'))
 
+    @staticmethod
+    def team_ids_for_worker(worker_id):
+        """Return list of team IDs the given worker belongs to."""
+        rows = db.session.query(worker_team.c.team_id).filter(
+            worker_team.c.worker_id == worker_id
+        ).all()
+        return [r[0] for r in rows]
+
     def __repr__(self):
         return f'<Team {self.name}>'
 
@@ -234,6 +242,13 @@ class Ticket(db.Model):
             return True
         if any(c.assigned_to_id == worker_id for c in self.checklists):
             return True
+        # Team-based access: worker is member of assigned team
+        _tids = Team.team_ids_for_worker(worker_id) if worker_id else []
+        if _tids:
+            if self.assigned_team_id in _tids:
+                return True
+            if any(c.assigned_team_id in _tids for c in self.checklists):
+                return True
         # PERF-2: Avoid lazy-loading all comments — use a targeted COUNT query
         # instead of iterating self.comments (which can be hundreds of rows).
         from sqlalchemy.orm import object_session

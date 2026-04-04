@@ -486,8 +486,20 @@ def inject_globals():
     now_dt = get_utc_now()
     limit_dt = now_dt.replace(hour=23, minute=59, second=59)
     try:
-        from models import ChecklistItem as _CItem
+        from models import ChecklistItem as _CItem, Team as _Team
         _wid = session['worker_id']
+        _tids = _Team.team_ids_for_worker(_wid)
+        _team_clauses = []
+        if _tids:
+            _team_clauses = [
+                Ticket.assigned_team_id.in_(_tids),
+                Ticket.checklists.any(
+                    db.and_(
+                        _CItem.assigned_team_id.in_(_tids),
+                        _CItem.is_completed == False
+                    )
+                ),
+            ]
         urgent_count = Ticket.query.filter(
             Ticket.is_deleted == False,
             Ticket.status != TicketStatus.ERLEDIGT.value,
@@ -500,7 +512,8 @@ def inject_globals():
                         _CItem.assigned_to_id == _wid,
                         _CItem.is_completed == False
                     )
-                )
+                ),
+                *_team_clauses
             )
         ).count()
     except Exception as e:  # pylint: disable=broad-exception-caught

@@ -349,7 +349,8 @@ class TicketService:
     @staticmethod
     def get_dashboard_tickets(worker_id=None, search=None, status_filter=None, page=1, per_page=10,
                              assigned_to_me=False, unassigned_only=False, callback_pending=False,
-                             start_date=None, end_date=None, author_name=None, worker_role=None):
+                             start_date=None, end_date=None, author_name=None, worker_role=None,
+                             team_ids=None):
         """Fetch tickets for the dashboard with search, filtering, and pagination."""
         from sqlalchemy.orm import joinedload, selectinload
         from models import ChecklistItem
@@ -360,6 +361,9 @@ class TicketService:
             selectinload(Ticket.checklists)
         )
         
+        _tc = [Ticket.assigned_team_id.in_(team_ids),
+               Ticket.checklists.any(ChecklistItem.assigned_team_id.in_(team_ids))] if team_ids else []
+
         if worker_role not in [WorkerRole.ADMIN.value, WorkerRole.HR.value, WorkerRole.MANAGEMENT.value] and worker_id is not None:
             author_subquery = db.session.query(Comment.ticket_id).filter(
                 Comment.event_type == 'TICKET_CREATED',
@@ -370,11 +374,17 @@ class TicketService:
                     Ticket.is_confidential == False,
                     Ticket.id.in_(author_subquery),
                     Ticket.assigned_to_id == worker_id,
-                    Ticket.checklists.any(ChecklistItem.assigned_to_id == worker_id)
+                    Ticket.checklists.any(ChecklistItem.assigned_to_id == worker_id),
+                    *_tc
                 )
             )
 
         if assigned_to_me and worker_id:
+            _atm_team = [Ticket.assigned_team_id.in_(team_ids),
+                         Ticket.checklists.any(db.and_(
+                             ChecklistItem.assigned_team_id.in_(team_ids),
+                             ChecklistItem.is_completed == False
+                         ))] if team_ids else []
             query = query.filter(
                 db.or_(
                     Ticket.assigned_to_id == worker_id,
@@ -383,11 +393,12 @@ class TicketService:
                             ChecklistItem.assigned_to_id == worker_id,
                             ChecklistItem.is_completed == False
                         )
-                    )
+                    ),
+                    *_atm_team
                 )
             )
         elif unassigned_only:
-            query = query.filter(Ticket.assigned_to_id == None)
+            query = query.filter(Ticket.assigned_to_id == None, Ticket.assigned_team_id == None)
 
         if callback_pending:
             query = query.filter(
@@ -431,6 +442,11 @@ class TicketService:
         self_tickets = []
         self_total = 0
         if worker_id:
+            _self_team = [Ticket.assigned_team_id.in_(team_ids),
+                          Ticket.checklists.any(db.and_(
+                              ChecklistItem.assigned_team_id.in_(team_ids),
+                              ChecklistItem.is_completed == False
+                          ))] if team_ids else []
             self_query = Ticket.query.filter_by(
                 is_deleted=False
             ).options(
@@ -448,7 +464,8 @@ class TicketService:
                             ChecklistItem.assigned_to_id == worker_id,
                             ChecklistItem.is_completed == False
                         )
-                    )
+                    ),
+                    *_self_team
                 )
             )
             if worker_role not in [WorkerRole.ADMIN.value, WorkerRole.HR.value, WorkerRole.MANAGEMENT.value]:
@@ -461,7 +478,8 @@ class TicketService:
                         Ticket.is_confidential == False,
                         Ticket.id.in_(author_subs),
                         Ticket.assigned_to_id == worker_id,
-                        Ticket.checklists.any(ChecklistItem.assigned_to_id == worker_id)
+                        Ticket.checklists.any(ChecklistItem.assigned_to_id == worker_id),
+                        *_tc
                     )
                 )
             self_total = self_query.count()
@@ -480,12 +498,15 @@ class TicketService:
                 Comment.event_type == 'TICKET_CREATED',
                 Comment.author_id == worker_id
             ).subquery()
+            _tc2 = [Ticket.assigned_team_id.in_(team_ids),
+                    Ticket.checklists.any(_CI.assigned_team_id.in_(team_ids))] if team_ids else []
             counts_query = counts_query.filter(
                 db.or_(
                     Ticket.is_confidential == False,
                     Ticket.id.in_(_author_sub),
                     Ticket.assigned_to_id == worker_id,
-                    Ticket.checklists.any(_CI.assigned_to_id == worker_id)
+                    Ticket.checklists.any(_CI.assigned_to_id == worker_id),
+                    *_tc2
                 )
             )
         counts = counts_query.group_by(Ticket.status).all()
@@ -1003,15 +1024,22 @@ class TicketService:
             .filter(
                 Ticket.is_deleted == False,
                 Ticket.status.in_(open_statuses),
-                Ticket.assigned_to_id.isnot(None),
+                db.or_(
+                    Ticket.assigned_to_id.isnot(None),
+                    Ticket.assigned_team_id.isnot(None),
+                ),
             )
             .all()
         )
 
-        # Gruppierung nach Mitarbeiter-ID
+        # Gruppierung nach Mitarbeiter-ID (inkl. Team-Zuweisungen)
         tickets_by_worker = {}
         for t in tickets:
-            tickets_by_worker.setdefault(t.assigned_to_id, []).append(t)
+            if t.assigned_to_id:
+                tickets_by_worker.setdefault(t.assigned_to_id, set()).add(t)
+            if t.assigned_team_id and t.assigned_team:
+                for member in t.assigned_team.members:
+                    tickets_by_worker.setdefault(member.id, set()).add(t)
 
         workers = Worker.query.filter_by(is_active=True).all()
 
@@ -1019,7 +1047,7 @@ class TicketService:
         present_entries = []
 
         for worker in workers:
-            worker_tickets = tickets_by_worker.get(worker.id, [])
+            worker_tickets = list(tickets_by_worker.get(worker.id, []))
             if not worker_tickets:
                 continue
 
