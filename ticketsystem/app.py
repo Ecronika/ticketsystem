@@ -236,8 +236,9 @@ if os.environ.get("RUN_SCHEDULER", "1") == "1":
             # Restore Backup Schedule from DB
             with app.app_context():
                 BackupService.schedule_backup_job(app)
-                from services.scheduler_service import schedule_recurring_job
+                from services.scheduler_service import schedule_recurring_job, schedule_sla_job
                 schedule_recurring_job(app)
+                schedule_sla_job(app)
             
             # P3-3: Ensure clean scheduler shutdown
             atexit.register(lambda: scheduler.shutdown())

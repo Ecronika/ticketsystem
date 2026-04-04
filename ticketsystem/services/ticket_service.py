@@ -297,6 +297,11 @@ class TicketService:
                             message=f"{author_name} hat Sie in Ticket #{ticket_id} erwähnt.",
                             link=f"/ticket/{ticket_id}"
                         )
+                        if mentioned_worker.email:
+                            EmailService.send_mention(
+                                mentioned_worker.name, ticket_id,
+                                author_name, recipient_email=mentioned_worker.email
+                            )
             
             db.session.commit()
             return comment
@@ -723,9 +728,14 @@ class TicketService:
             )
             db.session.add(comment)
 
-            # Email notification for high-priority tickets
-            if ticket.priority == 1 and worker_id:
-                EmailService.send_notification(new_worker_name, ticket.id, ticket.priority)
+            # Email notification for high-priority assignments
+            if worker_id:
+                _assignee = db.session.get(Worker, worker_id)
+                if _assignee and _assignee.email:
+                    EmailService.send_notification(
+                        new_worker_name, ticket.id, ticket.priority,
+                        recipient_email=_assignee.email
+                    )
             
             db.session.commit()
             return ticket
@@ -834,6 +844,20 @@ class TicketService:
             )
             db.session.add(comment)
             db.session.commit()
+
+            # Email all admins/management about pending approval
+            try:
+                admin_workers = Worker.query.filter(
+                    Worker.is_active == True,
+                    Worker.role.in_(['admin', 'hr', 'management']),
+                    Worker.email.isnot(None)
+                ).all()
+                admin_emails = [w.email for w in admin_workers if w.email]
+                if admin_emails:
+                    EmailService.send_approval_request(admin_emails, ticket.id, worker_name)
+            except Exception as _e:
+                current_app.logger.warning("Approval request email failed: %s", _e)
+
             return True, "Freigabe angefragt."
         except Exception as e:
             db.session.rollback()
@@ -865,6 +889,17 @@ class TicketService:
             )
             db.session.add(comment)
             db.session.commit()
+
+            # Email assignee about approval
+            try:
+                if ticket.assigned_to and ticket.assigned_to.email:
+                    EmailService.send_approval_result(
+                        ticket.assigned_to.name, ticket.id, approved=True,
+                        recipient_email=ticket.assigned_to.email
+                    )
+            except Exception as _e:
+                current_app.logger.warning("Approval result email failed: %s", _e)
+
             return ticket
         except Exception as e:
             db.session.rollback()
@@ -894,6 +929,17 @@ class TicketService:
             )
             db.session.add(comment)
             db.session.commit()
+
+            # Email assignee about rejection
+            try:
+                if ticket.assigned_to and ticket.assigned_to.email:
+                    EmailService.send_approval_result(
+                        ticket.assigned_to.name, ticket.id, approved=False,
+                        reason=reason, recipient_email=ticket.assigned_to.email
+                    )
+            except Exception as _e:
+                current_app.logger.warning("Rejection email failed: %s", _e)
+
             return ticket
         except Exception as e:
             db.session.rollback()

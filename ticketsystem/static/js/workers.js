@@ -12,6 +12,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('edit_worker_id').value = id;
                 document.getElementById('edit_name').value = this.getAttribute('data-name');
                 document.getElementById('edit_role').value = role || 'worker';
+                const emailEl = document.getElementById('edit_email');
+                if (emailEl) emailEl.value = this.getAttribute('data-email') || '';
                 
                 // P0-1 (v1.5.1): Set worker ID for both possible reset form targets
                 ['reset_pin_worker_id', 'reset_pin_worker_id_hidden'].forEach(fieldId => {

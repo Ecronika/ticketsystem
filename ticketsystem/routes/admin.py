@@ -23,8 +23,9 @@ def workers():
                 name = request.form.get('name')
                 pin = request.form.get('pin')
                 role = request.form.get('role')
+                email = request.form.get('email', '').strip() or None
                 is_admin = (role == WorkerRole.ADMIN.value)
-                WorkerService.create_worker(name, pin, is_admin, role)
+                WorkerService.create_worker(name, pin, is_admin, role, email=email)
                 
                 if pin:
                     flash(f"Mitarbeiter '{name}' wurde angelegt. Erster Login mit PIN: {pin}.", "success")
@@ -41,8 +42,9 @@ def workers():
                 worker_id = request.form.get('worker_id')
                 name = request.form.get('name')
                 role = request.form.get('role')
+                email = request.form.get('email', '').strip() or None
                 is_admin = (role == WorkerRole.ADMIN.value)
-                WorkerService.update_worker(worker_id, name, is_admin, role)
+                WorkerService.update_worker(worker_id, name, is_admin, role, email=email)
                 flash(f"Mitarbeiter '{name}' wurde aktualisiert.", "success")
             
             elif action == 'reset_pin':
