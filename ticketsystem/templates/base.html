@@ -200,6 +200,15 @@
   </nav>
 
 
+  {% if worker_is_ooo %}
+  <div class="alert alert-warning alert-dismissible rounded-0 border-0 border-bottom border-warning mb-0 py-2 text-center small fw-bold" role="alert" id="ooo-banner">
+    <i class="bi bi-airplane-fill me-2" aria-hidden="true"></i>
+    Sie sind als <strong>Abwesend (Out of Office)</strong> markiert — neue Ticket-Zuweisungen werden automatisch umgeleitet.
+    <a href="{{ ingress_path }}{{ url_for('main.profile') }}" class="alert-link ms-2">Status ändern</a>
+    <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert" aria-label="Schließen"></button>
+  </div>
+  {% endif %}
+
   <main id="main-content" class="container-fluid px-4 py-4">
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}

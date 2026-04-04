@@ -29,6 +29,7 @@ def _dashboard_view():
     assigned_to_me = request.args.get('assigned_to_me') == '1'
     unassigned_only = request.args.get('unassigned') == '1'
     callback_pending = request.args.get('callback_pending') == '1'
+    assigned_worker_id = request.args.get('worker_id', type=int)  # M-09: Workload drill-down
 
     # Feature: Direct jump via #ID
     if search.startswith('#') and search[1:].isdigit():
@@ -46,7 +47,8 @@ def _dashboard_view():
         unassigned_only=unassigned_only,
         callback_pending=callback_pending,
         worker_role=session.get('role'),
-        team_ids=_team_ids
+        team_ids=_team_ids,
+        assigned_worker_id=assigned_worker_id,
     )
     
     return render_template('index.html', 
@@ -311,6 +313,10 @@ def _add_comment_view(ticket_id):
     if not ticket.is_accessible_by(worker_id, worker_role):
         flash('Keine Berechtigung für dieses Ticket.', 'danger')
         return redirect_to('main.index')
+
+    if ticket.approval_status == ApprovalStatus.PENDING.value:
+        flash('Ticket ist für die Freigabe gesperrt. Kommentare sind während der Prüfung nicht erlaubt.', 'warning')
+        return redirect_to('main.ticket_detail', ticket_id=ticket_id, _anchor='comment-form')
 
     text = request.form.get('text')
     author_name = session.get('worker_name', 'System')
@@ -898,7 +904,24 @@ def _bulk_action_api():
                 team_id_val = int(team_id) if team_id else None
                 TicketService.assign_ticket(ticket.id, worker_id_val, session.get('worker_name', 'System'), session.get('worker_id'), team_id=team_id_val)
                 updated += 1
-        
+
+            # M-12: Bulk soft-delete
+            elif action == 'soft_delete':
+                ticket.is_deleted = True
+                ticket.updated_at = get_utc_now()
+                updated += 1
+
+            # M-12: Bulk set due date
+            elif action == 'set_due_date':
+                due_str = data.get('due_date')
+                if due_str:
+                    try:
+                        ticket.due_date = datetime.strptime(due_str[:10], '%Y-%m-%d')
+                        ticket.updated_at = get_utc_now()
+                        updated += 1
+                    except (ValueError, TypeError):
+                        pass
+
         db.session.commit()
         return jsonify({'success': True, 'updated': updated})
     except Exception as e:

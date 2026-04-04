@@ -72,8 +72,8 @@
                                             <i class="bi bi-three-dots-vertical"></i>
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
-                                            <li><button type="button" class="dropdown-item small edit-worker-btn" 
-                                                        data-id="{{ worker.id }}" data-name="{{ worker.name }}" data-role="{{ worker.role }}">
+                                            <li><button type="button" class="dropdown-item small edit-worker-btn"
+                                                        data-id="{{ worker.id }}" data-name="{{ worker.name }}" data-role="{{ worker.role }}" data-email="{{ worker.email or '' }}">
                                                 <i class="bi bi-pencil me-2 text-primary"></i> Bearbeiten
                                             </button></li>
                                             <li><hr class="dropdown-divider opacity-50"></li>
@@ -133,6 +133,10 @@
                                 <option value="{{ WorkerRole.ADMIN.value }}">Administrator</option>
                             </select>
                         </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">E-Mail-Adresse <span class="text-muted fw-normal">(Benachrichtigungen)</span></label>
+                            <input type="email" name="email" id="edit_email" class="form-control" placeholder="max@firma.de">
+                        </div>
                         <p class="text-muted x-small mb-1">Hinweis: PIN-Änderungen erfolgen über den Reset-Button unten.</p>
                     </div>
                     <div class="modal-footer border-0 pt-0 d-flex justify-content-between">
@@ -180,7 +184,7 @@
                         <div class="form-text x-small text-muted">Wird das Feld leer gelassen, gilt die Standard-PIN '0000'.</div>
                     </div>
                     
-                    <div class="mb-4">
+                    <div class="mb-3">
                         <label class="form-label small fw-bold">System-Rolle</label>
                         <select name="role" class="form-select border-1 rounded-pill">
                             <option value="{{ WorkerRole.WORKER.value }}">Mitarbeiter (Standard)</option>
@@ -189,7 +193,12 @@
                             <option value="{{ WorkerRole.ADMIN.value }}">Administrator (Vollzugriff)</option>
                         </select>
                     </div>
-                    
+
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold">E-Mail-Adresse <span class="text-muted fw-normal">(für Benachrichtigungen)</span></label>
+                        <input type="email" name="email" class="form-control border-1" placeholder="max@firma.de">
+                    </div>
+
                     <div class="d-grid">
                         <button type="submit" class="btn btn-primary fw-bold rounded-pill shadow-sm">
                             <i class="bi bi-person-plus-fill me-2"></i> Mitarbeiter anlegen

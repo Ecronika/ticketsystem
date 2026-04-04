@@ -18,7 +18,7 @@ class WorkerService:
         return Worker.query.order_by(Worker.is_admin.desc(), Worker.name.asc()).all()
 
     @staticmethod
-    def create_worker(name, pin=None, is_admin=False, role=None):
+    def create_worker(name, pin=None, is_admin=False, role=None, email=None):
         """Create a new worker with hashed PIN and RBAC role."""
         if not name:
             raise ValueError("Name ist erforderlich.")
@@ -40,7 +40,8 @@ class WorkerService:
                 is_admin=is_admin,
                 role=role,
                 is_active=True,
-                needs_pin_change=True
+                needs_pin_change=True,
+                email=email.strip().lower() if email and email.strip() else None,
             )
             db.session.add(new_worker)
             db.session.commit()
@@ -72,7 +73,7 @@ class WorkerService:
             raise ValueError(f"Datenbankfehler beim Ändern des Status: {e}")
 
     @staticmethod
-    def update_worker(worker_id, name, is_admin, role=None):
+    def update_worker(worker_id, name, is_admin, role=None, email=None):
         """Update worker's name and admin status/role."""
         worker = db.session.get(Worker, worker_id)
         if not worker:
@@ -101,6 +102,8 @@ class WorkerService:
             worker.name = name
             worker.is_admin = is_admin
             worker.role = role
+            if email is not None:  # None = not submitted; empty string = clear
+                worker.email = email.strip().lower() if email.strip() else None
             db.session.commit()
             return worker
         except SQLAlchemyError as e:

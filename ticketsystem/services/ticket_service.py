@@ -297,6 +297,11 @@ class TicketService:
                             message=f"{author_name} hat Sie in Ticket #{ticket_id} erwähnt.",
                             link=f"/ticket/{ticket_id}"
                         )
+                        if mentioned_worker.email:
+                            EmailService.send_mention(
+                                mentioned_worker.name, ticket_id,
+                                author_name, recipient_email=mentioned_worker.email
+                            )
             
             db.session.commit()
             return comment
@@ -350,7 +355,7 @@ class TicketService:
     def get_dashboard_tickets(worker_id=None, search=None, status_filter=None, page=1, per_page=10,
                              assigned_to_me=False, unassigned_only=False, callback_pending=False,
                              start_date=None, end_date=None, author_name=None, worker_role=None,
-                             team_ids=None):
+                             team_ids=None, assigned_worker_id=None):
         """Fetch tickets for the dashboard with search, filtering, and pagination."""
         from sqlalchemy.orm import joinedload, selectinload
         from models import ChecklistItem
@@ -399,6 +404,10 @@ class TicketService:
             )
         elif unassigned_only:
             query = query.filter(Ticket.assigned_to_id == None, Ticket.assigned_team_id == None)
+
+        # M-09: Filter by specific worker (used from Workload drill-down)
+        if assigned_worker_id:
+            query = query.filter(Ticket.assigned_to_id == int(assigned_worker_id))
 
         if callback_pending:
             query = query.filter(
@@ -691,7 +700,24 @@ class TicketService:
                 
             if path_logs:
                 comment_text += "\nDelegation:\n- " + "\n- ".join(path_logs)
-            
+
+            # M-11: Notify all admins when OOO-chain exhausted and ticket becomes unassigned
+            ooo_exhausted = (worker_id is None and path_logs and
+                             any('kein Vertreter' in l or 'Zirkuläre' in l for l in path_logs))
+            if ooo_exhausted:
+                try:
+                    admin_workers = Worker.query.filter_by(is_active=True, role='admin').all()
+                    for admin in admin_workers:
+                        if admin.id != author_id:
+                            TicketService.create_notification(
+                                user_id=admin.id,
+                                message=(f"Ticket #{ticket_id} konnte nicht zugewiesen werden "
+                                         f"(OOO-Kette erschöpft). Manuelle Zuweisung erforderlich."),
+                                link=f"/ticket/{ticket_id}"
+                            )
+                except Exception as _e:
+                    current_app.logger.warning("M-11: Admin OOO notification failed: %s", _e)
+
             comment = Comment(
                 ticket_id=ticket.id,
                 author=author_name,
@@ -702,9 +728,14 @@ class TicketService:
             )
             db.session.add(comment)
 
-            # Email notification for high-priority tickets
-            if ticket.priority == 1 and worker_id:
-                EmailService.send_notification(new_worker_name, ticket.id, ticket.priority)
+            # Email notification for high-priority assignments
+            if worker_id:
+                _assignee = db.session.get(Worker, worker_id)
+                if _assignee and _assignee.email:
+                    EmailService.send_notification(
+                        new_worker_name, ticket.id, ticket.priority,
+                        recipient_email=_assignee.email
+                    )
             
             db.session.commit()
             return ticket
@@ -813,6 +844,20 @@ class TicketService:
             )
             db.session.add(comment)
             db.session.commit()
+
+            # Email all admins/management about pending approval
+            try:
+                admin_workers = Worker.query.filter(
+                    Worker.is_active == True,
+                    Worker.role.in_(['admin', 'hr', 'management']),
+                    Worker.email.isnot(None)
+                ).all()
+                admin_emails = [w.email for w in admin_workers if w.email]
+                if admin_emails:
+                    EmailService.send_approval_request(admin_emails, ticket.id, worker_name)
+            except Exception as _e:
+                current_app.logger.warning("Approval request email failed: %s", _e)
+
             return True, "Freigabe angefragt."
         except Exception as e:
             db.session.rollback()
@@ -844,6 +889,17 @@ class TicketService:
             )
             db.session.add(comment)
             db.session.commit()
+
+            # Email assignee about approval
+            try:
+                if ticket.assigned_to and ticket.assigned_to.email:
+                    EmailService.send_approval_result(
+                        ticket.assigned_to.name, ticket.id, approved=True,
+                        recipient_email=ticket.assigned_to.email
+                    )
+            except Exception as _e:
+                current_app.logger.warning("Approval result email failed: %s", _e)
+
             return ticket
         except Exception as e:
             db.session.rollback()
@@ -873,6 +929,17 @@ class TicketService:
             )
             db.session.add(comment)
             db.session.commit()
+
+            # Email assignee about rejection
+            try:
+                if ticket.assigned_to and ticket.assigned_to.email:
+                    EmailService.send_approval_result(
+                        ticket.assigned_to.name, ticket.id, approved=False,
+                        reason=reason, recipient_email=ticket.assigned_to.email
+                    )
+            except Exception as _e:
+                current_app.logger.warning("Rejection email failed: %s", _e)
+
             return ticket
         except Exception as e:
             db.session.rollback()

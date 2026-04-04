@@ -69,6 +69,7 @@ class Worker(db.Model):
     # Enterprise Security: Brute-force protection
     failed_login_count = db.Column(db.Integer, default=0)
     locked_until = db.Column(db.DateTime, nullable=True)
+    email = db.Column(db.String(120), nullable=True)  # Optional email for notifications
 
     # Absence Management
     is_out_of_office = db.Column(db.Boolean, default=False)
@@ -211,7 +212,8 @@ class Ticket(db.Model):
     rejected_by_id = db.Column(db.Integer, db.ForeignKey('worker.id'), nullable=True)
     rejected_by = db.relationship('Worker', foreign_keys=[rejected_by_id])
     reject_reason = db.Column(db.Text, nullable=True)
-    
+    last_escalated_at = db.Column(db.DateTime, nullable=True)  # SLA: tracks last escalation to prevent spam
+
     checklists = db.relationship('ChecklistItem', backref='ticket', cascade='all, delete-orphan')
     
     tags = db.relationship('Tag', secondary=ticket_tags, backref=db.backref('tickets', lazy='dynamic'))

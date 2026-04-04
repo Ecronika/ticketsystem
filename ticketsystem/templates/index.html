@@ -412,11 +412,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- FEAT-12: Floating Bulk Action Bar -->
 {% if session.get('role') != 'viewer' %}
-<div id="bulkActionBar" class="d-none position-fixed bottom-0 start-50 translate-middle-x mb-4 bg-dark text-white rounded-pill shadow-lg px-4 py-3 align-items-center gap-3" style="z-index: 1050; max-width: 90vw;">
-    <span id="bulkCount" class="fw-bold small">0 ausgewählt</span>
-    <div class="vr bg-secondary opacity-50"></div>
-    <select id="bulkStatusSelect" class="form-select form-select-sm bg-dark text-white border-secondary rounded-pill" style="width: auto; min-height: 36px;">
-        <option value="" disabled selected>Status ändern...</option>
+<div id="bulkActionBar" class="d-none position-fixed bottom-0 start-50 translate-middle-x mb-4 bg-dark text-white rounded-4 shadow-lg px-4 py-3 align-items-center gap-2 flex-wrap" style="z-index: 1050; max-width: 95vw;">
+    <span id="bulkCount" class="fw-bold small me-1">0 ausgewählt</span>
+    <div class="vr bg-secondary opacity-50 mx-1"></div>
+    <select id="bulkStatusSelect" class="form-select form-select-sm bg-dark text-white border-secondary rounded-pill" style="width: auto; min-height: 34px;">
+        <option value="" disabled selected>Status...</option>
         <option value="offen">→ Offen</option>
         <option value="in_bearbeitung">→ In Bearbeitung</option>
         <option value="wartet">→ Wartet</option>
@@ -425,7 +425,16 @@ document.addEventListener('DOMContentLoaded', function() {
     <button type="button" id="bulkApplyBtn" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold">
         <i class="bi bi-check-lg me-1"></i>Anwenden
     </button>
-    <button type="button" id="bulkCancelBtn" class="btn btn-outline-light btn-sm rounded-pill px-3">
+    <div class="vr bg-secondary opacity-50 mx-1"></div>
+    <input type="date" id="bulkDueDateInput" class="form-control form-control-sm bg-dark text-white border-secondary rounded-pill" style="width: auto; min-height: 34px; color-scheme: dark;" title="Fälligkeitsdatum setzen">
+    <button type="button" id="bulkSetDueDateBtn" class="btn btn-outline-info btn-sm rounded-pill px-3 fw-bold">
+        <i class="bi bi-calendar-check me-1"></i>Fälligkeit setzen
+    </button>
+    <div class="vr bg-secondary opacity-50 mx-1"></div>
+    <button type="button" id="bulkDeleteBtn" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold">
+        <i class="bi bi-trash me-1"></i>Löschen
+    </button>
+    <button type="button" id="bulkCancelBtn" class="btn btn-outline-light btn-sm rounded-pill px-3 ms-1">
         <i class="bi bi-x-lg"></i>
     </button>
 </div>
@@ -437,7 +446,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const applyBtn = document.getElementById('bulkApplyBtn');
     const cancelBtn = document.getElementById('bulkCancelBtn');
     const bulkStatusSelect = document.getElementById('bulkStatusSelect');
+    const bulkDueDateInput = document.getElementById('bulkDueDateInput');
+    const bulkSetDueDateBtn = document.getElementById('bulkSetDueDateBtn');
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
     if (!bar) return;
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const ingress = document.querySelector('.navbar')?.getAttribute('data-ingress') || '';
 
     function getChecked() {
         return Array.from(document.querySelectorAll('.bulk-select-checkbox:checked')).map(cb => parseInt(cb.value));
@@ -455,10 +470,31 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    document.addEventListener('change', function(e) {
-        if (e.target.classList.contains('bulk-select-checkbox')) {
-            updateBar();
+    async function bulkPost(payload, btn, originalHtml) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>...';
+        try {
+            const resp = await fetch(ingress + '/api/tickets/bulk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify(payload)
+            });
+            const data = await resp.json();
+            if (data.success) {
+                if (window.showUiAlert) window.showUiAlert(data.updated + ' Tickets aktualisiert.', 'success');
+                setTimeout(function() { location.reload(); }, 800);
+            } else {
+                if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Unbekannt'), 'danger');
+            }
+        } catch (e) {
+            if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.', 'danger');
         }
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    }
+
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('bulk-select-checkbox')) updateBar();
     });
 
     cancelBtn.addEventListener('click', function() {
@@ -466,38 +502,39 @@ document.addEventListener('DOMContentLoaded', function() {
         updateBar();
     });
 
-    applyBtn.addEventListener('click', async function() {
+    applyBtn.addEventListener('click', function() {
         const ids = getChecked();
         const newStatus = bulkStatusSelect.value;
         if (!ids.length || !newStatus) {
             if (window.showUiAlert) window.showUiAlert('Bitte Status auswählen.', 'warning');
             return;
         }
+        bulkPost({ ticket_ids: ids, action: 'status_change', new_status: newStatus },
+                  applyBtn, '<i class="bi bi-check-lg me-1"></i>Anwenden');
+    });
 
-        applyBtn.disabled = true;
-        applyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>...';
-
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        const ingress = document.querySelector('.navbar')?.getAttribute('data-ingress') || '';
-        
-        try {
-            const resp = await fetch(ingress + '/api/tickets/bulk', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                body: JSON.stringify({ ticket_ids: ids, action: 'status_change', new_status: newStatus })
-            });
-            const data = await resp.json();
-            if (data.success) {
-                if (window.showUiAlert) window.showUiAlert(data.updated + ' Tickets aktualisiert.', 'success');
-                setTimeout(function() { location.reload(); }, 1000);
-            } else {
-                if (window.showUiAlert) window.showUiAlert('Fehler: ' + data.error);
-            }
-        } catch (e) {
-            if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.');
+    // M-12: Bulk set due date
+    bulkSetDueDateBtn?.addEventListener('click', function() {
+        const ids = getChecked();
+        const due = bulkDueDateInput?.value;
+        if (!ids.length || !due) {
+            if (window.showUiAlert) window.showUiAlert('Bitte Datum und Tickets wählen.', 'warning');
+            return;
         }
-        applyBtn.disabled = false;
-        applyBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Anwenden';
+        bulkPost({ ticket_ids: ids, action: 'set_due_date', due_date: due },
+                  bulkSetDueDateBtn, '<i class="bi bi-calendar-check me-1"></i>Fälligkeit setzen');
+    });
+
+    // M-12: Bulk soft-delete
+    bulkDeleteBtn?.addEventListener('click', async function() {
+        const ids = getChecked();
+        if (!ids.length) return;
+        const confirmed = window.showConfirm
+            ? await window.showConfirm('Tickets löschen', ids.length + ' Ticket(s) wirklich löschen? (wiederherstellbar über Archiv)')
+            : confirm(ids.length + ' Ticket(s) löschen?');
+        if (!confirmed) return;
+        bulkPost({ ticket_ids: ids, action: 'soft_delete' },
+                  bulkDeleteBtn, '<i class="bi bi-trash me-1"></i>Löschen');
     });
 });
 </script>
