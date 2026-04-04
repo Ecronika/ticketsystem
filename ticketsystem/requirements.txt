@@ -8,6 +8,6 @@ qrcode[pil]==8.2
 Flask-Limiter==4.1.1
 flask-talisman==1.1.0
 Flask-APScheduler==1.13.1
-pyOpenSSL==24.0.0
+pyOpenSSL==26.0.0
 prometheus-client==0.20.0
 python-dateutil==2.9.0
