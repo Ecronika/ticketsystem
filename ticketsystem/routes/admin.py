@@ -4,9 +4,9 @@ Admin Routes module.
 Handles worker management and other administrative tasks.
 """
 from flask import Blueprint, render_template, request, flash, redirect, url_for
-from .auth import admin_required
+from .auth import admin_required, redirect_to
 from services.worker_service import WorkerService
-from models import SystemSettings
+from models import SystemSettings, Team
 from enums import WorkerRole
 
 admin_bp = Blueprint('admin', __name__)
@@ -54,7 +54,7 @@ def workers():
                 from services.system_service import SystemService
                 SystemService.generate_recovery_tokens()
                 flash("Neue Notfall-Codes wurden generiert. Bitte sofort sicher verwahren!", "warning")
-                return redirect(url_for('admin.show_tokens'))
+                return redirect_to('admin.show_tokens')
                 
         except ValueError as e:
             flash(str(e), "danger")
@@ -103,6 +103,69 @@ def templates():
 
     templates_list = ChecklistTemplate.query.all()
     return render_template('admin_templates.html', templates=templates_list)
+
+
+@admin_bp.route('/teams', methods=['GET', 'POST'])
+@admin_required
+def teams():
+    """List and manage teams."""
+    from extensions import db
+    from models import Team, Worker
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+        try:
+            if action == 'create':
+                name = request.form.get('name', '').strip()
+                if not name:
+                    flash("Teamname ist erforderlich.", "warning")
+                elif Team.query.filter_by(name=name).first():
+                    flash(f"Team '{name}' existiert bereits.", "danger")
+                else:
+                    team = Team(name=name)
+                    member_ids = request.form.getlist('member_ids')
+                    for mid in member_ids:
+                        worker = db.session.get(Worker, int(mid))
+                        if worker:
+                            team.members.append(worker)
+                    db.session.add(team)
+                    db.session.commit()
+                    flash(f"Team '{name}' wurde erstellt.", "success")
+
+            elif action == 'update':
+                team_id = request.form.get('team_id')
+                team = db.session.get(Team, team_id)
+                if team:
+                    new_name = request.form.get('name', '').strip()
+                    if new_name and new_name != team.name:
+                        if Team.query.filter_by(name=new_name).first():
+                            flash(f"Team '{new_name}' existiert bereits.", "danger")
+                            return redirect_to('admin.teams')
+                        team.name = new_name
+                    member_ids = request.form.getlist('member_ids')
+                    team.members = []
+                    for mid in member_ids:
+                        worker = db.session.get(Worker, int(mid))
+                        if worker:
+                            team.members.append(worker)
+                    db.session.commit()
+                    flash(f"Team '{team.name}' wurde aktualisiert.", "success")
+
+            elif action == 'delete':
+                team_id = request.form.get('team_id')
+                team = db.session.get(Team, team_id)
+                if team:
+                    db.session.delete(team)
+                    db.session.commit()
+                    flash(f"Team '{team.name}' wurde gelöscht.", "success")
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Fehler: {str(e)}", "danger")
+
+    teams_list = Team.query.order_by(Team.name).all()
+    active_workers = Worker.query.filter_by(is_active=True).order_by(Worker.name).all()
+    return render_template('admin_teams.html', teams=teams_list, active_workers=active_workers)
 
 
 @admin_bp.route('/workers/tokens')
