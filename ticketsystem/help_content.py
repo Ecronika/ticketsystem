@@ -1,17 +1,18 @@
-"""
-Kontextsensitive Hilfetexte für das TicketSystem.
+"""Kontextsensitive Hilfetexte für das TicketSystem.
 
 Struktur je Seite:
-  'title'  – Seitenüberschrift im Hilfe-Panel
-  'intro'  – Kurze Erklärung (1-2 Sätze) für alle Rollen
-  'sections' – Liste von {'heading': str, 'text': str, 'roles': list|None}
-               roles=None → für alle Rollen sichtbar
-  'fields' – Dict {field_key: {'title': str, 'text': str}} für Popover-Icons
+    ``title``    — Seitenüberschrift im Hilfe-Panel
+    ``intro``    — Kurze Erklärung (1–2 Sätze) für alle Rollen
+    ``sections`` — Liste von ``{heading, text, roles}``; ``roles=None`` →
+                   für alle Rollen sichtbar
+    ``fields``   — ``{field_key: {title, text}}`` für Popover-Icons
 
-Rollen: 'admin', 'management', 'worker', 'viewer', 'hr'
+Rollen: ``admin``, ``management``, ``worker``, ``viewer``, ``hr``
 """
 
-HELP = {
+from typing import Any, Dict
+
+HELP: Dict[str, Dict[str, Any]] = {
 
     # ------------------------------------------------------------------ #
     # Dashboard / Alle Tickets                                             #
