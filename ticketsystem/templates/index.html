@@ -151,6 +151,17 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // --- Debounced Live Search ---
+    const searchInput = document.getElementById('dashSearch');
+    const searchForm = document.getElementById('dashSearchForm');
+    let searchTimer = null;
+    if (searchInput && searchForm) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => { searchForm.submit(); }, 400);
+        });
+    }
+
     // --- Bulk Edit Mode Toggle ---
     const bulkToggleBtn = document.getElementById('bulkToggleBtn');
     const dashTable = document.getElementById('dashTable');
@@ -170,10 +181,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // --- Bulk Action Bar ---
+    // --- Bulk Action Bar (only if element exists, e.g. not for viewer role) ---
     const bar = document.getElementById('bulkActionBar');
     const countEl = document.getElementById('bulkCount');
-    if (!bar) return;
+    if (!bar) return; // Safe: search/inline handlers are already registered above
 
     function getChecked() {
         return Array.from(document.querySelectorAll('.bulk-select-checkbox:checked')).map(cb => parseInt(cb.value));
@@ -256,20 +267,6 @@ document.addEventListener('DOMContentLoaded', function() {
                   this, '<i class="bi bi-trash me-1"></i>Löschen');
     });
 
-    // --- Search on Enter ---
-    const searchInput = document.getElementById('dashSearch');
-    if (searchInput) {
-        searchInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                const params = new URLSearchParams(window.location.search);
-                const val = this.value.trim();
-                if (val) { params.set('q', val); } else { params.delete('q'); }
-                params.delete('page');
-                window.location.search = params.toString();
-            }
-        });
-    }
 });
 </script>
 {% endblock %}
@@ -301,10 +298,18 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
     <div class="d-flex align-items-center gap-2">
         <!-- Search -->
-        <div class="input-group" style="max-width: 280px;">
-            <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search text-muted"></i></span>
-            <input type="text" id="dashSearch" class="form-control border-start-0 shadow-none" placeholder="Suche (#ID, Titel, Kunde)..." value="{{ query }}">
-        </div>
+        <form method="GET" action="{{ ingress_path }}{{ url_for('main.index') }}" class="d-inline-flex" id="dashSearchForm">
+            <input type="hidden" name="tab" value="{{ active_tab }}">
+            {% if sort_by %}<input type="hidden" name="sort" value="{{ sort_by }}">{% endif %}
+            {% if sort_dir != 'asc' %}<input type="hidden" name="dir" value="{{ sort_dir }}">{% endif %}
+            <div class="input-group" style="max-width: 280px;">
+                <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" name="q" id="dashSearch" class="form-control border-start-0 shadow-none" placeholder="Suche (#ID, Titel, Kunde)..." value="{{ query }}" autocomplete="off">
+                {% if query %}
+                <a href="{{ ingress_path }}{{ url_for('main.index', tab=active_tab) }}" class="input-group-text bg-transparent border-start-0 text-muted" title="Suche zurücksetzen"><i class="bi bi-x-lg"></i></a>
+                {% endif %}
+            </div>
+        </form>
         {% if session.get('role') != 'viewer' %}
         <button id="bulkToggleBtn" class="btn btn-outline-secondary btn-sm rounded-pill px-3" type="button">
             <i class="bi bi-check2-square me-1"></i>Mehrere bearbeiten
@@ -350,7 +355,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <table id="dashTable" class="table table-hover dash-table mb-0 align-middle">
                 <thead>
                     <tr class="bg-surface-subtle">
-                        <th class="bulk-col bulk-col-header ps-3" style="display:none;">
+                        <th class="bulk-col bulk-col-header ps-3">
                             <input type="checkbox" class="form-check-input" id="bulkSelectAll" onclick="document.querySelectorAll('.bulk-select-checkbox').forEach(cb => { cb.checked = this.checked; }); document.dispatchEvent(new Event('change'));">
                         </th>
                         <th class="ps-3 {{ 'sorted' if sort_by == 'id' }}" style="width: 70px;">{{ sort_link('id', '#') }}</th>
@@ -366,7 +371,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     {% for ticket in focus_tickets %}
                     <tr class="{{ 'prio-high' if ticket.priority == 1 }}">
                         <!-- Bulk checkbox (hidden by default) -->
-                        <td class="bulk-col ps-3" style="display:none;">
+                        <td class="bulk-col ps-3">
                             {% if session.get('role') != 'viewer' %}
                             <input type="checkbox" class="form-check-input bulk-select-checkbox" value="{{ ticket.id }}" onclick="event.stopPropagation();">
                             {% endif %}
