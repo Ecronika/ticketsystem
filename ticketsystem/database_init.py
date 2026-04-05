@@ -1,137 +1,182 @@
-"""
-Database Initialization module.
+"""Database Initialization module.
 
 Handles creation of tables, migrations, and seeding of default data.
-Uses Dependency Injection to decouple from the global Flask app object.
+Uses dependency injection to decouple from the global Flask app object.
 """
+
+import logging
 import sys
 import traceback
-from werkzeug.security import generate_password_hash
+from typing import List, Optional
+
+from flask import Flask
 from flask_migrate import upgrade as flask_upgrade
-from models import SystemSettings, Worker
-from extensions import db
+from werkzeug.security import generate_password_hash
+
 from enums import WorkerRole
+from extensions import db
+from models import SystemSettings, Worker
 
-def _seed_default_settings(app, logger):
+
+def _seed_default_settings(logger: logging.Logger) -> None:
     """Seed initial system settings and bootstrap worker."""
-    # Default admin_pin_hash (superseded by Worker pins)
-    if not SystemSettings.query.filter_by(key="admin_pin_hash").first():
-        db.session.add(SystemSettings(key="admin_pin_hash", value=generate_password_hash("0000")))
-
-    # SME Shortcuts
-    if not SystemSettings.query.filter_by(key="ticket_shortcuts").first():
-        db.session.add(SystemSettings(key="ticket_shortcuts", value="Prüfen,Bestellt,Erledigt,Rückruf"))
-
-    # Initial Onboarding Flag
-    if not SystemSettings.query.filter_by(key="onboarding_complete").first():
-        db.session.add(SystemSettings(key="onboarding_complete", value="false"))
-
-    # Bootstrap Worker (if none exists)
-    if not Worker.query.first():
-        bootstrap_admin = Worker(
-            name="Admin (Bootstrap)",
-            pin_hash=generate_password_hash("0000"),
-            is_admin=True,
-            role=WorkerRole.ADMIN.value,
-            is_active=True
-        )
-        db.session.add(bootstrap_admin)
-        if logger:
-            logger.info("Database: Seeded bootstrap worker 'Admin (Bootstrap)' with PIN '0000'")
-
+    _seed_setting("admin_pin_hash", generate_password_hash("0000"))
+    _seed_setting("ticket_shortcuts", "Prüfen,Bestellt,Erledigt,Rückruf")
+    _seed_setting("onboarding_complete", "false")
+    _seed_bootstrap_admin(logger)
     db.session.commit()
 
-def _ensure_critical_columns(logger):
-    """
-    Manually ensure critical columns exist before migrations run.
-    This fixes inconsistent states from previous failed or non-Alembic upgrades.
+
+def _seed_setting(key: str, value: str) -> None:
+    """Insert a system setting only if it does not already exist."""
+    if not SystemSettings.query.filter_by(key=key).first():
+        db.session.add(SystemSettings(key=key, value=value))
+
+
+def _seed_bootstrap_admin(logger: logging.Logger) -> None:
+    """Create the initial admin worker when no workers exist."""
+    if Worker.query.first():
+        return
+    bootstrap_admin = Worker(
+        name="Admin (Bootstrap)",
+        pin_hash=generate_password_hash("0000"),
+        is_admin=True,
+        role=WorkerRole.ADMIN.value,
+        is_active=True,
+    )
+    db.session.add(bootstrap_admin)
+    logger.info(
+        "Database: Seeded bootstrap worker 'Admin (Bootstrap)' with PIN '0000'"
+    )
+
+
+def _ensure_critical_columns(logger: logging.Logger) -> None:
+    """Manually ensure critical columns exist before migrations run.
+
+    This fixes inconsistent states from previous failed or non-Alembic
+    upgrades.
     """
     try:
         engine = db.engine
         inspector = db.inspect(engine)
         tables = inspector.get_table_names()
-        
+
         with engine.begin() as conn:
-            if 'worker' in tables:
-                columns = [c['name'] for c in inspector.get_columns('worker')]
-                if 'failed_login_count' not in columns:
-                    logger.info("Repair: Adding worker.failed_login_count")
-                    conn.execute(db.text("ALTER TABLE worker ADD COLUMN failed_login_count INTEGER DEFAULT 0"))
-                if 'locked_until' not in columns:
-                    logger.info("Repair: Adding worker.locked_until")
-                    conn.execute(db.text("ALTER TABLE worker ADD COLUMN locked_until DATETIME"))
-                if 'needs_pin_change' not in columns:
-                    logger.info("Repair: Adding worker.needs_pin_change")
-                    conn.execute(db.text("ALTER TABLE worker ADD COLUMN needs_pin_change BOOLEAN DEFAULT 0"))
-                if 'role' not in columns:
-                    logger.info("Repair: Adding worker.role")
-                    conn.execute(db.text("ALTER TABLE worker ADD COLUMN role VARCHAR(20)"))
-                if 'is_active' not in columns:
-                    logger.info("Repair: Adding worker.is_active")
-                    conn.execute(db.text("ALTER TABLE worker ADD COLUMN is_active BOOLEAN DEFAULT 1"))
-                if 'is_admin' not in columns:
-                    logger.info("Repair: Adding worker.is_admin")
-                    conn.execute(db.text("ALTER TABLE worker ADD COLUMN is_admin BOOLEAN DEFAULT 0"))
-                if 'is_out_of_office' not in columns:
-                    logger.info("Repair: Adding worker.is_out_of_office")
-                    conn.execute(db.text("ALTER TABLE worker ADD COLUMN is_out_of_office BOOLEAN DEFAULT 0"))
-                if 'delegate_to_id' not in columns:
-                    logger.info("Repair: Adding worker.delegate_to_id")
-                    conn.execute(db.text("ALTER TABLE worker ADD COLUMN delegate_to_id INTEGER"))
+            _repair_worker_table(conn, inspector, tables, logger)
+            _repair_ticket_table(conn, inspector, tables, logger)
+            _repair_comment_table(conn, inspector, tables, logger)
+    except Exception as exc:
+        logger.warning(
+            "Repair: Auto-repair encountered an issue (non-fatal): %s", exc
+        )
 
-            if 'ticket' in tables:
-                columns = [c['name'] for c in inspector.get_columns('ticket')]
-                if 'is_deleted' not in columns:
-                    logger.info("Repair: Adding ticket.is_deleted")
-                    conn.execute(db.text("ALTER TABLE ticket ADD COLUMN is_deleted BOOLEAN DEFAULT 0"))
-                if 'due_date' not in columns:
-                    logger.info("Repair: Adding ticket.due_date")
-                    conn.execute(db.text("ALTER TABLE ticket ADD COLUMN due_date DATETIME"))
 
-            if 'comment' in tables:
-                columns = [c['name'] for c in inspector.get_columns('comment')]
-                if 'author_id' not in columns:
-                    logger.info("Repair: Adding comment.author_id")
-                    conn.execute(db.text("ALTER TABLE comment ADD COLUMN author_id INTEGER"))
-                if 'is_system_event' not in columns:
-                    logger.info("Repair: Adding comment.is_system_event")
-                    conn.execute(db.text("ALTER TABLE comment ADD COLUMN is_system_event BOOLEAN DEFAULT 0"))
-                if 'event_type' not in columns:
-                    logger.info("Repair: Adding comment.event_type")
-                    conn.execute(db.text("ALTER TABLE comment ADD COLUMN event_type VARCHAR(30)"))
-                
-    except Exception as e:
-        logger.warning("Repair: Auto-repair encountered an issue (non-fatal): %s", e)
+def _get_column_names(inspector: object, table: str) -> List[str]:
+    """Return column names for the given table."""
+    return [c["name"] for c in inspector.get_columns(table)]
 
-def init_database(app, *, logger=None):
-    """Run migrations and seed defaults. Must be called within app context."""
+
+def _add_column_if_missing(
+    conn: object,
+    columns: List[str],
+    column_name: str,
+    ddl: str,
+    logger: logging.Logger,
+) -> None:
+    """Execute an ALTER TABLE only when the column is absent."""
+    if column_name not in columns:
+        logger.info("Repair: Adding %s", column_name)
+        conn.execute(db.text(ddl))
+
+
+def _repair_worker_table(
+    conn: object,
+    inspector: object,
+    tables: List[str],
+    logger: logging.Logger,
+) -> None:
+    """Ensure all required worker columns exist."""
+    if "worker" not in tables:
+        return
+    columns = _get_column_names(inspector, "worker")
+    repairs = [
+        ("failed_login_count", "ALTER TABLE worker ADD COLUMN failed_login_count INTEGER DEFAULT 0"),
+        ("locked_until", "ALTER TABLE worker ADD COLUMN locked_until DATETIME"),
+        ("needs_pin_change", "ALTER TABLE worker ADD COLUMN needs_pin_change BOOLEAN DEFAULT 0"),
+        ("role", "ALTER TABLE worker ADD COLUMN role VARCHAR(20)"),
+        ("is_active", "ALTER TABLE worker ADD COLUMN is_active BOOLEAN DEFAULT 1"),
+        ("is_admin", "ALTER TABLE worker ADD COLUMN is_admin BOOLEAN DEFAULT 0"),
+        ("is_out_of_office", "ALTER TABLE worker ADD COLUMN is_out_of_office BOOLEAN DEFAULT 0"),
+        ("delegate_to_id", "ALTER TABLE worker ADD COLUMN delegate_to_id INTEGER"),
+    ]
+    for col_name, ddl in repairs:
+        _add_column_if_missing(conn, columns, col_name, ddl, logger)
+
+
+def _repair_ticket_table(
+    conn: object,
+    inspector: object,
+    tables: List[str],
+    logger: logging.Logger,
+) -> None:
+    """Ensure all required ticket columns exist."""
+    if "ticket" not in tables:
+        return
+    columns = _get_column_names(inspector, "ticket")
+    repairs = [
+        ("is_deleted", "ALTER TABLE ticket ADD COLUMN is_deleted BOOLEAN DEFAULT 0"),
+        ("due_date", "ALTER TABLE ticket ADD COLUMN due_date DATETIME"),
+    ]
+    for col_name, ddl in repairs:
+        _add_column_if_missing(conn, columns, col_name, ddl, logger)
+
+
+def _repair_comment_table(
+    conn: object,
+    inspector: object,
+    tables: List[str],
+    logger: logging.Logger,
+) -> None:
+    """Ensure all required comment columns exist."""
+    if "comment" not in tables:
+        return
+    columns = _get_column_names(inspector, "comment")
+    repairs = [
+        ("author_id", "ALTER TABLE comment ADD COLUMN author_id INTEGER"),
+        ("is_system_event", "ALTER TABLE comment ADD COLUMN is_system_event BOOLEAN DEFAULT 0"),
+        ("event_type", "ALTER TABLE comment ADD COLUMN event_type VARCHAR(30)"),
+    ]
+    for col_name, ddl in repairs:
+        _add_column_if_missing(conn, columns, col_name, ddl, logger)
+
+
+def init_database(app: Flask, *, logger: Optional[logging.Logger] = None) -> None:
+    """Run migrations and seed defaults.  Must be called within app context."""
     if logger is None:
         logger = app.logger
 
-    # Guard: skip during test collection unless explicitly allowed
-    if 'pytest' in sys.modules and not app.config.get('TESTING'):
+    if "pytest" in sys.modules and not app.config.get("TESTING"):
         return
 
-    # Preliminary schema repair for mission-critical columns
     _ensure_critical_columns(logger)
 
-    # Note: caller (app.py) ensures app_context()
     logger.info("Database: Running migrations...")
     try:
         flask_upgrade()
         logger.info("Database: Schema is up to date.")
-    except Exception as e:
-        logger.critical("Database: Migration FAILED. Manual intervention required: %s", e)
+    except Exception as exc:
+        logger.critical(
+            "Database: Migration FAILED. Manual intervention required: %s", exc
+        )
         logger.error(traceback.format_exc())
         db.session.rollback()
-        # CRITICAL: No more fallback to create_all() to avoid untracked states
         raise
 
     logger.info("Database: Seeding defaults...")
     try:
-        _seed_default_settings(app, logger)
+        _seed_default_settings(logger)
         logger.info("Database: Initialization finished successfully.")
-    except Exception as e:
+    except Exception as exc:
         db.session.rollback()
-        logger.error("Database: Seeding failed: %s", e)
+        logger.error("Database: Seeding failed: %s", exc)
         raise

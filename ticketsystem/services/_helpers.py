@@ -1,10 +1,25 @@
+"""Service-layer helper utilities."""
+
 import os
 import shutil
 import time
 
-def _remove_with_retry(path, retries=3, delay=0.5):
-    """Attempt to remove a file or directory with retries (for Windows/SQLite locks)."""
-    for i in range(retries):
+
+def _remove_with_retry(path: str, retries: int = 3, delay: float = 0.5) -> bool:
+    """Remove a file or directory with retries for locked resources.
+
+    Args:
+        path: Filesystem path to remove.
+        retries: Maximum number of attempts.
+        delay: Seconds to wait between retries.
+
+    Returns:
+        ``True`` on success.
+
+    Raises:
+        OSError: If removal fails after all retries.
+    """
+    for attempt in range(retries):
         try:
             if os.path.isfile(path):
                 os.remove(path)
@@ -12,7 +27,7 @@ def _remove_with_retry(path, retries=3, delay=0.5):
                 shutil.rmtree(path)
             return True
         except OSError:
-            if i < retries - 1:
+            if attempt < retries - 1:
                 time.sleep(delay)
             else:
                 raise

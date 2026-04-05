@@ -1,226 +1,343 @@
-"""
-Email Service — SMTP-based notification delivery.
+"""Email Service — SMTP-based notification delivery.
 
-Configuration via environment variables:
-  SMTP_HOST      — e.g. smtp.gmail.com          (required to enable)
-  SMTP_PORT      — default 587
-  SMTP_USER      — SMTP login username
-  SMTP_PASSWORD  — SMTP login password
-  SMTP_FROM      — Sender address (falls back to SMTP_USER)
-  SMTP_TLS       — 'true' (STARTTLS, default) | 'ssl' (implicit TLS) | 'false'
+Configuration via SystemSettings (DB) with environment-variable fallback::
 
-When SMTP_HOST is not set, every method silently no-ops and logs a debug message.
+    SMTP_HOST      — e.g. smtp.gmail.com          (required to enable)
+    SMTP_PORT      — default 587
+    SMTP_USER      — SMTP login username
+    SMTP_PASSWORD  — SMTP login password
+    SMTP_FROM      — Sender address (falls back to SMTP_USER)
+    SMTP_TLS       — 'true' (STARTTLS, default) | 'ssl' (implicit) | 'false'
+
+When ``SMTP_HOST`` is unset every method silently no-ops and logs a debug
+message.
 """
+
 import logging
 import os
 import smtplib
 import ssl
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from typing import Dict, List, Optional
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
+
+_PRIO_LABELS: Dict[int, str] = {1: "HOCH", 2: "MITTEL", 3: "NIEDRIG"}
 
 
-def _db_get(key):
+# ---------------------------------------------------------------------------
+# SMTP plumbing
+# ---------------------------------------------------------------------------
+
+def _db_get(key: str) -> str:
     """Read a value from SystemSettings, suppressing all DB errors."""
     try:
         from models import SystemSettings
-        return SystemSettings.get_setting(key) or ''
-    except Exception:  # pylint: disable=broad-exception-caught
-        return ''
+        return SystemSettings.get_setting(key) or ""
+    except Exception:  # inevitable: DB may not be ready at import time
+        return ""
 
 
-def _smtp_config():
-    """Return SMTP config dict from DB (with env fallback), or None if not configured."""
-    # DB values take precedence; env vars are the fallback for deployments without a UI setup
-    host = _db_get('smtp_host') or os.environ.get('SMTP_HOST', '').strip()
+def _smtp_config() -> Optional[Dict[str, object]]:
+    """Return SMTP config dict from DB (env fallback), or ``None``."""
+    host = _db_get("smtp_host") or os.environ.get("SMTP_HOST", "").strip()
     if not host:
         return None
-    port_raw = _db_get('smtp_port') or os.environ.get('SMTP_PORT', '587')
-    user = _db_get('smtp_user') or os.environ.get('SMTP_USER', '')
-    password = _db_get('smtp_password') or os.environ.get('SMTP_PASSWORD', '')
-    from_addr = (_db_get('smtp_from') or os.environ.get('SMTP_FROM') or user or 'noreply@ticketsystem')
-    tls = (_db_get('smtp_tls') or os.environ.get('SMTP_TLS', 'starttls')).strip().lower()
+
+    port_raw = _db_get("smtp_port") or os.environ.get("SMTP_PORT", "587")
+    user = _db_get("smtp_user") or os.environ.get("SMTP_USER", "")
+    password = _db_get("smtp_password") or os.environ.get("SMTP_PASSWORD", "")
+    from_addr = (
+        _db_get("smtp_from")
+        or os.environ.get("SMTP_FROM")
+        or user
+        or "noreply@ticketsystem"
+    )
+    tls = (
+        _db_get("smtp_tls") or os.environ.get("SMTP_TLS", "starttls")
+    ).strip().lower()
+
     try:
         port = int(port_raw)
     except (ValueError, TypeError):
         port = 587
+
     return {
-        'host': host,
-        'port': port,
-        'user': user,
-        'password': password,
-        'from': from_addr,
-        'tls': tls,
+        "host": host,
+        "port": port,
+        "user": user,
+        "password": password,
+        "from": from_addr,
+        "tls": tls,
     }
 
 
-def _send(to_address, subject, html_body, text_body=None):
-    """Low-level send. Returns True on success, False on failure."""
+def _send(
+    to_address: str, subject: str, html_body: str, text_body: Optional[str] = None
+) -> bool:
+    """Low-level send.  Returns ``True`` on success, ``False`` on failure."""
     cfg = _smtp_config()
     if not cfg:
-        logger.debug("SMTP not configured — skipping email to %s: %s", to_address, subject)
+        _logger.debug(
+            "SMTP not configured — skipping email to %s: %s",
+            to_address, subject,
+        )
         return False
     if not to_address:
-        logger.debug("No recipient address — skipping: %s", subject)
+        _logger.debug("No recipient address — skipping: %s", subject)
         return False
 
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = subject
-    msg['From'] = cfg['from']
-    msg['To'] = to_address
-    if text_body:
-        msg.attach(MIMEText(text_body, 'plain', 'utf-8'))
-    msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+    msg = _build_message(cfg, to_address, subject, html_body, text_body)
 
     try:
-        if cfg['tls'] == 'ssl':
-            ctx = ssl.create_default_context()
-            with smtplib.SMTP_SSL(cfg['host'], cfg['port'], context=ctx) as server:
-                if cfg['user']:
-                    server.login(cfg['user'], cfg['password'])
-                server.sendmail(cfg['from'], [to_address], msg.as_bytes())
-        elif cfg['tls'] == 'false':
-            with smtplib.SMTP(cfg['host'], cfg['port']) as server:
-                if cfg['user']:
-                    server.login(cfg['user'], cfg['password'])
-                server.sendmail(cfg['from'], [to_address], msg.as_bytes())
-        else:  # STARTTLS (default)
-            ctx = ssl.create_default_context()
-            with smtplib.SMTP(cfg['host'], cfg['port']) as server:
-                server.ehlo()
-                server.starttls(context=ctx)
-                server.ehlo()
-                if cfg['user']:
-                    server.login(cfg['user'], cfg['password'])
-                server.sendmail(cfg['from'], [to_address], msg.as_bytes())
-
-        logger.info("Email sent to %s: %s", to_address, subject)
+        _dispatch(cfg, to_address, msg)
+        _logger.info("Email sent to %s: %s", to_address, subject)
         return True
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        logger.error("Failed to send email to %s (%s): %s", to_address, subject, e)
+    except smtplib.SMTPException as exc:
+        _logger.error(
+            "Failed to send email to %s (%s): %s", to_address, subject, exc
+        )
+        return False
+    except OSError as exc:
+        _logger.error(
+            "Network error sending email to %s (%s): %s",
+            to_address, subject, exc,
+        )
         return False
 
 
-def _base_url():
-    """Best-effort: read base_url from DB or env for clickable links in emails."""
-    return (_db_get('smtp_base_url') or os.environ.get('SMTP_BASE_URL', '')).rstrip('/')
+def _build_message(
+    cfg: Dict[str, object],
+    to_address: str,
+    subject: str,
+    html_body: str,
+    text_body: Optional[str],
+) -> MIMEMultipart:
+    """Assemble a MIME multipart/alternative message."""
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = str(cfg["from"])
+    msg["To"] = to_address
+    if text_body:
+        msg.attach(MIMEText(text_body, "plain", "utf-8"))
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    return msg
 
 
-def _ticket_url(ticket_id):
+def _dispatch(
+    cfg: Dict[str, object], to_address: str, msg: MIMEMultipart
+) -> None:
+    """Send the assembled message via the configured transport."""
+    host = str(cfg["host"])
+    port = int(cfg["port"])  # type: ignore[arg-type]
+    user = str(cfg["user"])
+    password = str(cfg["password"])
+    from_addr = str(cfg["from"])
+    tls_mode = str(cfg["tls"])
+
+    if tls_mode == "ssl":
+        ctx = ssl.create_default_context()
+        with smtplib.SMTP_SSL(host, port, context=ctx) as server:
+            if user:
+                server.login(user, password)
+            server.sendmail(from_addr, [to_address], msg.as_bytes())
+    elif tls_mode == "false":
+        with smtplib.SMTP(host, port) as server:
+            if user:
+                server.login(user, password)
+            server.sendmail(from_addr, [to_address], msg.as_bytes())
+    else:  # STARTTLS (default)
+        ctx = ssl.create_default_context()
+        with smtplib.SMTP(host, port) as server:
+            server.ehlo()
+            server.starttls(context=ctx)
+            server.ehlo()
+            if user:
+                server.login(user, password)
+            server.sendmail(from_addr, [to_address], msg.as_bytes())
+
+
+def _base_url() -> str:
+    """Best-effort base URL for clickable links in emails."""
+    return (
+        _db_get("smtp_base_url")
+        or os.environ.get("SMTP_BASE_URL", "")
+    ).rstrip("/")
+
+
+def _ticket_url(ticket_id: int) -> str:
+    """Build a ticket deep-link for email bodies."""
     base = _base_url()
     return f"{base}/ticket/{ticket_id}" if base else f"#ticket-{ticket_id}"
 
 
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
 class EmailService:
     """Public API for all notification emails."""
 
-    # ------------------------------------------------------------------ #
-    #  High-priority assignment (previously stubbed)                       #
-    # ------------------------------------------------------------------ #
     @staticmethod
-    def send_notification(recipient_name, ticket_id, priority, recipient_email=None):
-        """Prio-1 ticket assigned to worker."""
+    def send_notification(
+        recipient_name: str,
+        ticket_id: int,
+        priority: int,
+        recipient_email: Optional[str] = None,
+    ) -> bool:
+        """Notify a worker about a high-priority ticket assignment."""
         if not recipient_email:
-            logger.debug("send_notification: no email for %s — skipping", recipient_name)
+            _logger.debug(
+                "send_notification: no email for %s — skipping",
+                recipient_name,
+            )
             return False
 
-        prio_label = {1: 'HOCH', 2: 'MITTEL', 3: 'NIEDRIG'}.get(priority, str(priority))
-        subject = f"[TicketSystem] DRINGEND: Ticket #{ticket_id} Ihnen zugewiesen (Prio {prio_label})"
+        prio_label = _PRIO_LABELS.get(priority, str(priority))
+        subject = (
+            f"[TicketSystem] DRINGEND: Ticket #{ticket_id} "
+            f"Ihnen zugewiesen (Prio {prio_label})"
+        )
         url = _ticket_url(ticket_id)
         html = (
             f"<p>Hallo <strong>{recipient_name}</strong>,</p>"
-            f"<p>Ihnen wurde Ticket <strong>#{ticket_id}</strong> mit Priorität <strong>{prio_label}</strong> zugewiesen.</p>"
+            f"<p>Ihnen wurde Ticket <strong>#{ticket_id}</strong> "
+            f"mit Priorität <strong>{prio_label}</strong> zugewiesen.</p>"
             f"<p><a href='{url}'>Ticket öffnen →</a></p>"
-            f"<hr><p style='color:#888;font-size:0.85em;'>TicketSystem — automatische Benachrichtigung</p>"
+            "<hr><p style='color:#888;font-size:0.85em;'>"
+            "TicketSystem — automatische Benachrichtigung</p>"
         )
-        return _send(recipient_email, subject, html,
-                     f"Hallo {recipient_name},\nTicket #{ticket_id} (Prio {prio_label}) wurde Ihnen zugewiesen.\n{url}")
+        text = (
+            f"Hallo {recipient_name},\n"
+            f"Ticket #{ticket_id} (Prio {prio_label}) "
+            f"wurde Ihnen zugewiesen.\n{url}"
+        )
+        return _send(recipient_email, subject, html, text)
 
-    # ------------------------------------------------------------------ #
-    #  @mention in comment                                                 #
-    # ------------------------------------------------------------------ #
     @staticmethod
-    def send_mention(recipient_name, ticket_id, mentioned_by, recipient_email=None):
-        """Worker was @mentioned in a comment."""
+    def send_mention(
+        recipient_name: str,
+        ticket_id: int,
+        mentioned_by: str,
+        recipient_email: Optional[str] = None,
+    ) -> bool:
+        """Notify a worker who was ``@mentioned`` in a comment."""
         if not recipient_email:
             return False
-        subject = f"[TicketSystem] {mentioned_by} hat Sie in Ticket #{ticket_id} erwähnt"
+        subject = (
+            f"[TicketSystem] {mentioned_by} hat Sie "
+            f"in Ticket #{ticket_id} erwähnt"
+        )
         url = _ticket_url(ticket_id)
         html = (
             f"<p>Hallo <strong>{recipient_name}</strong>,</p>"
-            f"<p><strong>{mentioned_by}</strong> hat Sie in einem Kommentar zu Ticket <strong>#{ticket_id}</strong> erwähnt.</p>"
+            f"<p><strong>{mentioned_by}</strong> hat Sie in einem "
+            f"Kommentar zu Ticket <strong>#{ticket_id}</strong> erwähnt.</p>"
             f"<p><a href='{url}'>Zum Kommentar →</a></p>"
-            f"<hr><p style='color:#888;font-size:0.85em;'>TicketSystem — automatische Benachrichtigung</p>"
+            "<hr><p style='color:#888;font-size:0.85em;'>"
+            "TicketSystem — automatische Benachrichtigung</p>"
         )
-        return _send(recipient_email, subject, html,
-                     f"Hallo {recipient_name},\n{mentioned_by} hat Sie in Ticket #{ticket_id} erwähnt.\n{url}")
+        text = (
+            f"Hallo {recipient_name},\n"
+            f"{mentioned_by} hat Sie in Ticket #{ticket_id} erwähnt.\n{url}"
+        )
+        return _send(recipient_email, subject, html, text)
 
-    # ------------------------------------------------------------------ #
-    #  Approval request → notify all admins/management                    #
-    # ------------------------------------------------------------------ #
     @staticmethod
-    def send_approval_request(admin_emails, ticket_id, requester_name):
+    def send_approval_request(
+        admin_emails: List[str],
+        ticket_id: int,
+        requester_name: str,
+    ) -> bool:
         """Notify admins/management that approval is requested."""
         if not admin_emails:
             return False
         subject = f"[TicketSystem] Freigabe angefragt: Ticket #{ticket_id}"
         url = _ticket_url(ticket_id)
         html = (
-            f"<p><strong>{requester_name}</strong> bittet um Freigabe für Ticket <strong>#{ticket_id}</strong>.</p>"
+            f"<p><strong>{requester_name}</strong> bittet um Freigabe "
+            f"für Ticket <strong>#{ticket_id}</strong>.</p>"
             f"<p><a href='{url}'>Freigabe erteilen oder ablehnen →</a></p>"
-            f"<hr><p style='color:#888;font-size:0.85em;'>TicketSystem — automatische Benachrichtigung</p>"
+            "<hr><p style='color:#888;font-size:0.85em;'>"
+            "TicketSystem — automatische Benachrichtigung</p>"
         )
-        text = f"{requester_name} bittet um Freigabe für Ticket #{ticket_id}.\n{url}"
-        sent = 0
-        for addr in admin_emails:
-            if _send(addr, subject, html, text):
-                sent += 1
+        text = (
+            f"{requester_name} bittet um Freigabe "
+            f"für Ticket #{ticket_id}.\n{url}"
+        )
+        sent = sum(1 for addr in admin_emails if _send(addr, subject, html, text))
         return sent > 0
 
-    # ------------------------------------------------------------------ #
-    #  Approval result → notify assignee / ticket creator                 #
-    # ------------------------------------------------------------------ #
     @staticmethod
-    def send_approval_result(recipient_name, ticket_id, approved, reason=None, recipient_email=None):
-        """Ticket was approved or rejected."""
+    def send_approval_result(
+        recipient_name: str,
+        ticket_id: int,
+        approved: bool,
+        reason: Optional[str] = None,
+        recipient_email: Optional[str] = None,
+    ) -> bool:
+        """Notify assignee that a ticket was approved or rejected."""
         if not recipient_email:
             return False
+
         if approved:
             subject = f"[TicketSystem] Ticket #{ticket_id} wurde freigegeben"
-            body = f"Ticket <strong>#{ticket_id}</strong> wurde <strong>freigegeben</strong>."
+            body = (
+                f"Ticket <strong>#{ticket_id}</strong> "
+                "wurde <strong>freigegeben</strong>."
+            )
         else:
             subject = f"[TicketSystem] Ticket #{ticket_id} wurde abgelehnt"
-            reason_text = f"<br><strong>Grund:</strong> {reason}" if reason else ""
-            body = f"Ticket <strong>#{ticket_id}</strong> wurde <strong>abgelehnt</strong>.{reason_text}"
+            reason_text = (
+                f"<br><strong>Grund:</strong> {reason}" if reason else ""
+            )
+            body = (
+                f"Ticket <strong>#{ticket_id}</strong> "
+                f"wurde <strong>abgelehnt</strong>.{reason_text}"
+            )
 
         url = _ticket_url(ticket_id)
         html = (
             f"<p>Hallo <strong>{recipient_name}</strong>,</p>"
             f"<p>{body}</p>"
             f"<p><a href='{url}'>Ticket öffnen →</a></p>"
-            f"<hr><p style='color:#888;font-size:0.85em;'>TicketSystem — automatische Benachrichtigung</p>"
+            "<hr><p style='color:#888;font-size:0.85em;'>"
+            "TicketSystem — automatische Benachrichtigung</p>"
         )
         return _send(recipient_email, subject, html)
 
-    # ------------------------------------------------------------------ #
-    #  SLA Escalation                                                      #
-    # ------------------------------------------------------------------ #
     @staticmethod
-    def send_sla_escalation(recipient_name, ticket_id, ticket_title, days_overdue,
-                            priority, recipient_email=None):
+    def send_sla_escalation(
+        recipient_name: str,
+        ticket_id: int,
+        ticket_title: str,
+        days_overdue: int,
+        priority: int,
+        recipient_email: Optional[str] = None,
+    ) -> bool:
         """Notify assignee that their ticket is overdue (SLA breach)."""
         if not recipient_email:
             return False
-        prio_label = {1: 'HOCH', 2: 'MITTEL', 3: 'NIEDRIG'}.get(priority, str(priority))
-        subject = f"[TicketSystem] SLA-Eskalation: Ticket #{ticket_id} seit {days_overdue} Tag(en) überfällig"
+        prio_label = _PRIO_LABELS.get(priority, str(priority))
+        subject = (
+            f"[TicketSystem] SLA-Eskalation: Ticket #{ticket_id} "
+            f"seit {days_overdue} Tag(en) überfällig"
+        )
         url = _ticket_url(ticket_id)
         html = (
             f"<p>Hallo <strong>{recipient_name}</strong>,</p>"
-            f"<p>Das Ticket <strong>#{ticket_id} – {ticket_title}</strong> (Prio <strong>{prio_label}</strong>) "
-            f"ist seit <strong>{days_overdue} Tag(en)</strong> überfällig und wurde bisher nicht abgeschlossen.</p>"
+            f"<p>Das Ticket <strong>#{ticket_id} – {ticket_title}</strong> "
+            f"(Prio <strong>{prio_label}</strong>) ist seit "
+            f"<strong>{days_overdue} Tag(en)</strong> überfällig und "
+            "wurde bisher nicht abgeschlossen.</p>"
             f"<p><a href='{url}'>Ticket jetzt bearbeiten →</a></p>"
-            f"<hr><p style='color:#888;font-size:0.85em;'>TicketSystem — automatische SLA-Benachrichtigung</p>"
+            "<hr><p style='color:#888;font-size:0.85em;'>"
+            "TicketSystem — automatische SLA-Benachrichtigung</p>"
         )
-        return _send(recipient_email, subject, html,
-                     f"Hallo {recipient_name},\nTicket #{ticket_id} ({prio_label}) ist seit {days_overdue} Tag(en) überfällig.\n{url}")
+        text = (
+            f"Hallo {recipient_name},\n"
+            f"Ticket #{ticket_id} ({prio_label}) ist seit "
+            f"{days_overdue} Tag(en) überfällig.\n{url}"
+        )
+        return _send(recipient_email, subject, html, text)
