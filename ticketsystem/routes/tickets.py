@@ -192,13 +192,30 @@ def _dashboard_view() -> str | Response:
     search = request.args.get("q", "").strip()
     status_filter = request.args.get("status", "")
     page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 25, type=int)
+    per_page = min(max(per_page, 10), 100)  # clamp 10..100
     assigned_to_me = request.args.get("assigned_to_me") == "1"
     unassigned_only = request.args.get("unassigned") == "1"
     callback_pending = request.args.get("callback_pending") == "1"
     assigned_worker_id = request.args.get("worker_id", type=int)
+    sort_by = request.args.get("sort", "")
+    sort_dir = request.args.get("dir", "asc")
+    if sort_dir not in ("asc", "desc"):
+        sort_dir = "asc"
+
+    # Active tab: "all" (default), "unassigned", "callback", "wartet"
+    tab = request.args.get("tab", "all")
 
     if search.startswith("#") and search[1:].isdigit():
         return redirect_to("main.ticket_detail", ticket_id=int(search[1:]))
+
+    # Derive filters from active tab
+    if tab == "unassigned":
+        unassigned_only = True
+    elif tab == "callback":
+        callback_pending = True
+    elif tab == "wartet":
+        status_filter = status_filter or "wartet"
 
     team_ids = Team.team_ids_for_worker(worker_id) if worker_id else []
     tickets_data = TicketService.get_dashboard_tickets(
@@ -206,21 +223,24 @@ def _dashboard_view() -> str | Response:
         search=search,
         status_filter=status_filter,
         page=page,
-        per_page=10,
+        per_page=per_page,
         assigned_to_me=assigned_to_me,
         unassigned_only=unassigned_only,
         callback_pending=callback_pending,
         worker_role=session.get("role"),
         team_ids=team_ids,
         assigned_worker_id=assigned_worker_id,
+        sort_by=sort_by or None,
+        sort_dir=sort_dir,
     )
+
+    all_workers = Worker.query.filter_by(is_active=True).order_by(Worker.name).all()
+    all_teams = Team.query.order_by(Team.name).all()
 
     return render_template(
         "index.html",
         pagination=tickets_data["focus_pagination"],
         focus_tickets=tickets_data["focus_pagination"].items,
-        self_tickets=tickets_data["self"],
-        self_total=tickets_data["self_total"],
         summary_counts=tickets_data["summary_counts"],
         query=search,
         current_status=status_filter,
@@ -228,6 +248,12 @@ def _dashboard_view() -> str | Response:
         unassigned_only=unassigned_only,
         callback_pending=callback_pending,
         today=get_utc_now(),
+        workers=all_workers,
+        teams=all_teams,
+        active_tab=tab,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        per_page=per_page,
     )
 
 
