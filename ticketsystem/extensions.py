@@ -1,9 +1,11 @@
-"""
-Extensions module.
+"""Extensions module.
 
-Initializes Flask extensions (SQLAlchemy, Limiter, CSRF, Scheduler).
+Initializes Flask extensions (SQLAlchemy, Limiter, CSRF, Scheduler)
+and provides centralised configuration helpers.
 """
+
 import os
+from typing import List
 
 from flask_apscheduler import APScheduler
 from flask_limiter import Limiter
@@ -14,66 +16,74 @@ from sqlalchemy import event
 
 db = SQLAlchemy()
 
-# FIX-FILES: Global Transaction Lifecycle Hooks for Orphaned File Cleanup
-@event.listens_for(db.session, 'after_rollback')
-def _handle_rollback_cleanup(session):
-    """Delete files that were saved during a transaction that was rolled back."""
-    pending_files = session.info.get('pending_files', [])
+
+# ---------------------------------------------------------------------------
+# Global Transaction Lifecycle Hooks for Orphaned File Cleanup
+# ---------------------------------------------------------------------------
+
+@event.listens_for(db.session, "after_rollback")
+def _handle_rollback_cleanup(session: db.session.__class__) -> None:
+    """Delete files that were saved during a rolled-back transaction."""
+    pending_files: List[str] = session.info.get("pending_files", [])
     for filepath in pending_files:
         try:
             if os.path.exists(filepath):
                 os.remove(filepath)
         except OSError:
             pass
-    session.info['pending_files'] = []
+    session.info["pending_files"] = []
 
-@event.listens_for(db.session, 'after_commit')
-def _handle_commit_cleanup(session):
-    """Clear the pending files list after a successful commit."""
-    session.info['pending_files'] = []
+
+@event.listens_for(db.session, "after_commit")
+def _handle_commit_cleanup(session: db.session.__class__) -> None:
+    """Clear the pending-files list after a successful commit."""
+    session.info["pending_files"] = []
+
 
 csrf = CSRFProtect()
 scheduler = APScheduler()
 limiter = Limiter(
     key_func=get_remote_address,
-    storage_uri="memory://"  # Explizit für Single-Worker-Setup
+    storage_uri="memory://",
 )
 
 
 class Config:
-    """Central Configuration Logic."""
+    """Central configuration logic for paths and directories."""
 
     @staticmethod
-    def get_base_dir():
+    def get_base_dir() -> str:
         """Return the application root directory."""
         return os.path.abspath(os.path.dirname(__file__))
 
     @staticmethod
-    def get_data_dir():
-        """
-        Determine the data directory.
+    def get_data_dir() -> str:
+        """Determine the data directory.
 
         Priority:
-        1. ENV 'DATA_DIR'
-        2. Parent of ENV 'DB_PATH'
-        3. Default: Application Root
+            1. ``DATA_DIR`` environment variable
+            2. Parent directory of ``DB_PATH`` environment variable
+            3. Application root (fallback)
         """
-        if os.environ.get('DATA_DIR'):
-            return os.path.abspath(os.environ.get('DATA_DIR'))
+        data_dir_env = os.environ.get("DATA_DIR")
+        if data_dir_env:
+            return os.path.abspath(data_dir_env)
 
-        if os.environ.get('DB_PATH'):
-            return os.path.dirname(os.path.abspath(os.environ.get('DB_PATH')))
+        db_path_env = os.environ.get("DB_PATH")
+        if db_path_env:
+            return os.path.dirname(os.path.abspath(db_path_env))
 
         return Config.get_base_dir()
 
     @staticmethod
-    def get_db_path():
+    def get_db_path() -> str:
         """Return the absolute path to the SQLite database."""
-        if os.environ.get('DB_PATH'):
-            return os.path.abspath(os.environ.get('DB_PATH'))
-        return os.path.join(Config.get_data_dir(), 'werkzeug.db')
+        db_path_env = os.environ.get("DB_PATH")
+        if db_path_env:
+            return os.path.abspath(db_path_env)
+        return os.path.join(Config.get_data_dir(), "werkzeug.db")
 
     @staticmethod
-    def get_ha_options_path():
+    def get_ha_options_path() -> str:
         """Return path to Home Assistant options (configurable)."""
-        return os.environ.get('HA_OPTIONS_PATH', '/data/options.json')
+        return os.environ.get("HA_OPTIONS_PATH", "/data/options.json")

@@ -1,229 +1,301 @@
-"""
-Scheduler Service.
+"""Scheduler Service.
 
-Background job definitions for recurring ticket processing and SLA escalation.
+Background job definitions for recurring ticket processing and SLA
+escalation.
 """
-from utils import get_utc_now
-from datetime import datetime, timezone, timedelta
+
+import logging
+from datetime import timedelta
+from typing import Dict, List
+
 from dateutil.relativedelta import relativedelta
+from flask import Flask
+
+from enums import TicketPriority, TicketStatus
 from extensions import db
 from models import Ticket
 from services.ticket_service import TicketService
-import logging
+from utils import get_utc_now
 
 _logger = logging.getLogger(__name__)
 
-# FIX-08: Module-level constant lookup replaces inline closure redefined per iteration
-_RECURRENCE_INCREMENTS = {
-    'monthly': relativedelta(months=1),
-    'quarterly': relativedelta(months=3),
-    'yearly': relativedelta(years=1),
+_RECURRENCE_INCREMENTS: Dict[str, relativedelta] = {
+    "monthly": relativedelta(months=1),
+    "quarterly": relativedelta(months=3),
+    "yearly": relativedelta(years=1),
 }
 
+_GRACE_DAYS: Dict[int, int] = {1: 0, 2: 1, 3: 3}
+_ANTI_SPAM_HOURS = 23
 
-def process_recurring_tickets(app):
-    """Job to process recurring tickets atomically.
 
-    TX-2: All service calls use commit=False so they only flush (getting IDs
-    without hard-committing).  A single db.session.commit() at the end of the
-    loop makes the entire batch atomic — if any ticket fails, db.session.rollback()
-    in the except clause reverts every change from that run.
+# ---------------------------------------------------------------------------
+# Recurring tickets
+# ---------------------------------------------------------------------------
+
+def process_recurring_tickets(app: Flask) -> None:
+    """Process recurring tickets atomically.
+
+    All service calls use ``commit=False`` so a single
+    ``db.session.commit()`` at the end makes the entire batch atomic.
     """
     with app.app_context():
         now = get_utc_now()
-
         try:
-            tickets = Ticket.query.filter(
-                Ticket.is_deleted == False,
-                Ticket.recurrence_rule != None,
-                Ticket.next_recurrence_date <= now
-            ).all()
-
-            count = 0
-            for ticket in tickets:
-                # TX-2: commit=False keeps everything in one transaction
-                new_due_date = None
-                if ticket.due_date and ticket.created_at:
-                    offset = ticket.due_date - ticket.created_at
-                    new_due_date = now + offset
-                elif ticket.due_date:
-                    offset = ticket.due_date - now
-                    new_due_date = now + offset
-
-                new_ticket = TicketService.create_ticket(
-                    title=ticket.title,
-                    description=ticket.description,
-                    priority=ticket.priority,
-                    author_name="System",
-                    assigned_to_id=ticket.assigned_to_id,
-                    assigned_team_id=ticket.assigned_team_id,
-                    is_confidential=ticket.is_confidential,
-                    due_date=new_due_date,
-                    commit=False,
-                )
-
-                # Clone checklists from template if one is tied, otherwise fallback
-                if ticket.checklist_template_id and ticket.checklist_template:
-                    for item in ticket.checklist_template.items:
-                        TicketService.add_checklist_item(new_ticket.id, item.title)
-                else:
-                    for item in ticket.checklists:
-                        TicketService.add_checklist_item(new_ticket.id, item.title, item.assigned_to_id)
-
-                # Calculate next recurrence date using module-level lookup
-                rule = ticket.recurrence_rule.lower()
-                increment = _RECURRENCE_INCREMENTS.get(rule)
-                if increment is None:
-                    _logger.warning(
-                        "Unknown recurrence_rule '%s' for ticket %d — defaulting to monthly",
-                        rule, ticket.id
-                    )
-                    increment = relativedelta(months=1)
-
-                next_date = ticket.next_recurrence_date
-                while next_date <= now:
-                    next_date += increment
-
-                ticket.next_recurrence_date = next_date
-                count += 1
-
+            tickets = _fetch_due_recurring_tickets(now)
+            count = _create_recurring_copies(tickets, now)
             if count > 0:
-                # TX-2: Single atomic commit for the entire batch
                 db.session.commit()
                 _logger.info("Processed %d recurring tickets.", count)
-
-        except Exception as e:
+        except Exception as exc:
             db.session.rollback()
-            _logger.error("Error processing recurring tickets: %s", e)
+            _logger.error("Error processing recurring tickets: %s", exc)
 
 
-def process_sla_escalations(app):
+def _fetch_due_recurring_tickets(now: object) -> List[Ticket]:
+    """Return all non-deleted recurring tickets whose next date is due."""
+    return Ticket.query.filter(
+        Ticket.is_deleted == False,  # noqa: E712 — SQLAlchemy filter
+        Ticket.recurrence_rule.isnot(None),
+        Ticket.next_recurrence_date <= now,
+    ).all()
+
+
+def _create_recurring_copies(tickets: List[Ticket], now: object) -> int:
+    """Clone each due recurring ticket and advance its next-recurrence date."""
+    count = 0
+    for ticket in tickets:
+        new_due_date = _compute_new_due_date(ticket, now)
+        new_ticket = TicketService.create_ticket(
+            title=ticket.title,
+            description=ticket.description,
+            priority=ticket.priority,
+            author_name="System",
+            assigned_to_id=ticket.assigned_to_id,
+            assigned_team_id=ticket.assigned_team_id,
+            is_confidential=ticket.is_confidential,
+            due_date=new_due_date,
+            commit=False,
+        )
+        _clone_checklists(ticket, new_ticket)
+        _advance_recurrence_date(ticket, now)
+        count += 1
+    return count
+
+
+def _compute_new_due_date(ticket: Ticket, now: object) -> object:
+    """Derive a new due date for the cloned ticket."""
+    if ticket.due_date and ticket.created_at:
+        return now + (ticket.due_date - ticket.created_at)
+    if ticket.due_date:
+        return now + (ticket.due_date - now)
+    return None
+
+
+def _clone_checklists(source: Ticket, target: Ticket) -> None:
+    """Copy checklist items from *source* (or its template) to *target*."""
+    if source.checklist_template_id and source.checklist_template:
+        for item in source.checklist_template.items:
+            TicketService.add_checklist_item(target.id, item.title)
+    else:
+        for item in source.checklists:
+            TicketService.add_checklist_item(
+                target.id, item.title, item.assigned_to_id
+            )
+
+
+def _advance_recurrence_date(ticket: Ticket, now: object) -> None:
+    """Move *ticket.next_recurrence_date* forward by its recurrence rule."""
+    rule = ticket.recurrence_rule.lower()
+    increment = _RECURRENCE_INCREMENTS.get(rule)
+    if increment is None:
+        _logger.warning(
+            "Unknown recurrence_rule '%s' for ticket %d — defaulting to monthly",
+            rule, ticket.id,
+        )
+        increment = relativedelta(months=1)
+
+    next_date = ticket.next_recurrence_date
+    while next_date <= now:
+        next_date += increment
+    ticket.next_recurrence_date = next_date
+
+
+# ---------------------------------------------------------------------------
+# SLA escalation
+# ---------------------------------------------------------------------------
+
+def process_sla_escalations(app: Flask) -> None:
     """Daily SLA check: notify assignees and admins about overdue tickets.
 
     Grace periods before first escalation:
-      Prio 1 (Hoch):   0 days  — escalate as soon as overdue
-      Prio 2 (Mittel): 1 day
-      Prio 3 (Niedrig):3 days
+        Prio 1 (Hoch):   0 days
+        Prio 2 (Mittel): 1 day
+        Prio 3 (Niedrig):3 days
 
-    Anti-spam: re-escalation only after 23 hours (via Ticket.last_escalated_at).
+    Anti-spam: re-escalation only after 23 hours.
     """
     with app.app_context():
         from models import Comment, Worker
-        from enums import TicketStatus, TicketPriority
         from services.email_service import EmailService
 
         now = get_utc_now()
-        GRACE_DAYS = {1: 0, 2: 1, 3: 3}
-        ANTI_SPAM_HOURS = 23
-
         try:
-            open_statuses = [
-                TicketStatus.OFFEN.value,
-                TicketStatus.IN_BEARBEITUNG.value,
-                TicketStatus.WARTET.value,
-            ]
-            overdue_tickets = Ticket.query.filter(
-                Ticket.is_deleted == False,
-                Ticket.status.in_(open_statuses),
-                Ticket.due_date.isnot(None),
-                Ticket.due_date < now,
-            ).all()
-
-            escalated = 0
-            for ticket in overdue_tickets:
-                prio = ticket.priority
-                grace = GRACE_DAYS.get(prio, 1)
-                days_overdue = (now.date() - ticket.due_date.date()).days
-                if days_overdue < grace:
-                    continue  # Within grace period
-
-                # Anti-spam: skip if escalated within last 23h
-                if ticket.last_escalated_at:
-                    hours_since = (now - ticket.last_escalated_at).total_seconds() / 3600
-                    if hours_since < ANTI_SPAM_HOURS:
-                        continue
-
-                # System comment
-                comment = Comment(
-                    ticket_id=ticket.id,
-                    author="System",
-                    text=(f"SLA-Eskalation: Ticket seit {days_overdue} Tag(en) überfällig "
-                          f"(Fälligkeit: {ticket.due_date.strftime('%d.%m.%Y')})."),
-                    is_system_event=True,
-                    event_type='SLA_ESCALATION',
-                )
-                db.session.add(comment)
-                ticket.last_escalated_at = now
-
-                # In-app notification for assignee
-                if ticket.assigned_to_id:
-                    TicketService.create_notification(
-                        user_id=ticket.assigned_to_id,
-                        message=(f"SLA-Eskalation: Ticket #{ticket.id} ist seit "
-                                 f"{days_overdue} Tag(en) überfällig."),
-                        link=f"/ticket/{ticket.id}"
-                    )
-                    # Email assignee
-                    if ticket.assigned_to and ticket.assigned_to.email:
-                        EmailService.send_sla_escalation(
-                            ticket.assigned_to.name, ticket.id, ticket.title,
-                            days_overdue, prio,
-                            recipient_email=ticket.assigned_to.email
-                        )
-
-                # Prio 1: also notify all active admins
-                if prio == TicketPriority.HOCH.value:
-                    admins = Worker.query.filter_by(role='admin', is_active=True).all()
-                    for admin in admins:
-                        if admin.id != ticket.assigned_to_id:
-                            TicketService.create_notification(
-                                user_id=admin.id,
-                                message=(f"SLA-Eskalation (Prio HOCH): Ticket #{ticket.id} "
-                                         f"seit {days_overdue} Tag(en) überfällig."),
-                                link=f"/ticket/{ticket.id}"
-                            )
-
-                escalated += 1
-
+            overdue_tickets = _fetch_overdue_tickets(now)
+            escalated = _escalate_tickets(overdue_tickets, now, EmailService)
             if escalated > 0:
                 db.session.commit()
-                _logger.info("SLA escalation: %d ticket(s) escalated.", escalated)
-
-        except Exception as e:
+                _logger.info(
+                    "SLA escalation: %d ticket(s) escalated.", escalated
+                )
+        except Exception as exc:
             db.session.rollback()
-            _logger.error("Error in SLA escalation job: %s", e)
+            _logger.error("Error in SLA escalation job: %s", exc)
 
 
-def schedule_sla_job(app):
-    """Register the SLA escalation job with APScheduler (runs daily at 07:00 UTC)."""
+def _fetch_overdue_tickets(now: object) -> List[Ticket]:
+    """Return all non-deleted open tickets that are past their due date."""
+    open_statuses = [
+        TicketStatus.OFFEN.value,
+        TicketStatus.IN_BEARBEITUNG.value,
+        TicketStatus.WARTET.value,
+    ]
+    return Ticket.query.filter(
+        Ticket.is_deleted == False,  # noqa: E712
+        Ticket.status.in_(open_statuses),
+        Ticket.due_date.isnot(None),
+        Ticket.due_date < now,
+    ).all()
+
+
+def _escalate_tickets(
+    tickets: List[Ticket], now: object, email_service: object
+) -> int:
+    """Evaluate and escalate each overdue ticket.  Returns count."""
+    from models import Comment, Worker
+
+    escalated = 0
+    for ticket in tickets:
+        if not _should_escalate(ticket, now):
+            continue
+        days_overdue = (now.date() - ticket.due_date.date()).days
+        _add_escalation_comment(ticket, days_overdue)
+        _notify_assignee(ticket, days_overdue, email_service)
+        _notify_admins_for_high_prio(ticket, days_overdue)
+        ticket.last_escalated_at = now
+        escalated += 1
+    return escalated
+
+
+def _should_escalate(ticket: Ticket, now: object) -> bool:
+    """Check grace period and anti-spam rules for a single ticket."""
+    days_overdue = (now.date() - ticket.due_date.date()).days
+    grace = _GRACE_DAYS.get(ticket.priority, 1)
+    if days_overdue < grace:
+        return False
+    if ticket.last_escalated_at:
+        hours_since = (now - ticket.last_escalated_at).total_seconds() / 3600
+        if hours_since < _ANTI_SPAM_HOURS:
+            return False
+    return True
+
+
+def _add_escalation_comment(ticket: Ticket, days_overdue: int) -> None:
+    """Add a system comment documenting the SLA escalation."""
+    from models import Comment
+
+    comment = Comment(
+        ticket_id=ticket.id,
+        author="System",
+        text=(
+            f"SLA-Eskalation: Ticket seit {days_overdue} Tag(en) überfällig "
+            f"(Fälligkeit: {ticket.due_date.strftime('%d.%m.%Y')})."
+        ),
+        is_system_event=True,
+        event_type="SLA_ESCALATION",
+    )
+    db.session.add(comment)
+
+
+def _notify_assignee(
+    ticket: Ticket, days_overdue: int, email_service: object
+) -> None:
+    """Send in-app and email notifications to the ticket assignee."""
+    if not ticket.assigned_to_id:
+        return
+    TicketService.create_notification(
+        user_id=ticket.assigned_to_id,
+        message=(
+            f"SLA-Eskalation: Ticket #{ticket.id} ist seit "
+            f"{days_overdue} Tag(en) überfällig."
+        ),
+        link=f"/ticket/{ticket.id}",
+    )
+    if ticket.assigned_to and ticket.assigned_to.email:
+        email_service.send_sla_escalation(
+            ticket.assigned_to.name,
+            ticket.id,
+            ticket.title,
+            days_overdue,
+            ticket.priority,
+            recipient_email=ticket.assigned_to.email,
+        )
+
+
+def _notify_admins_for_high_prio(ticket: Ticket, days_overdue: int) -> None:
+    """For high-priority tickets, also notify all active admins."""
+    from models import Worker
+
+    if ticket.priority != TicketPriority.HOCH.value:
+        return
+    admins = Worker.query.filter_by(role="admin", is_active=True).all()
+    for admin in admins:
+        if admin.id != ticket.assigned_to_id:
+            TicketService.create_notification(
+                user_id=admin.id,
+                message=(
+                    f"SLA-Eskalation (Prio HOCH): Ticket #{ticket.id} "
+                    f"seit {days_overdue} Tag(en) überfällig."
+                ),
+                link=f"/ticket/{ticket.id}",
+            )
+
+
+# ---------------------------------------------------------------------------
+# Scheduler registration
+# ---------------------------------------------------------------------------
+
+def schedule_sla_job(app: Flask) -> None:
+    """Register the SLA escalation job (daily at 07:00 UTC)."""
     try:
         from extensions import scheduler
+
         scheduler.add_job(
-            id='process_sla_escalations_job',
+            id="process_sla_escalations_job",
             func=lambda: process_sla_escalations(app),
-            trigger='cron',
+            trigger="cron",
             hour=7,
             minute=0,
             replace_existing=True,
         )
         _logger.info("Scheduled job: process_sla_escalations at 07:00")
-    except Exception as e:
-        _logger.error("Failed to schedule SLA escalation job: %s", e)
+    except Exception as exc:
+        _logger.error("Failed to schedule SLA escalation job: %s", exc)
 
 
-def schedule_recurring_job(app):
-    """Register the recurring ticket job with APScheduler."""
+def schedule_recurring_job(app: Flask) -> None:
+    """Register the recurring ticket job (daily at 02:00 UTC)."""
     try:
         from extensions import scheduler
-        # FIX-08: replace_existing=True prevents ConflictingIdError on app restart
+
         scheduler.add_job(
-            id='process_recurring_tickets_job',
+            id="process_recurring_tickets_job",
             func=lambda: process_recurring_tickets(app),
-            trigger='cron',
+            trigger="cron",
             hour=2,
             minute=0,
-            replace_existing=True
+            replace_existing=True,
         )
         _logger.info("Scheduled job: process_recurring_tickets at 02:00")
-    except Exception as e:
-        _logger.error("Failed to schedule recurring tickets job: %s", e)
+    except Exception as exc:
+        _logger.error("Failed to schedule recurring tickets job: %s", exc)
