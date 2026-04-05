@@ -530,7 +530,7 @@ class TicketService:
         search: Optional[str] = None,
         status_filter: Optional[str] = None,
         page: int = 1,
-        per_page: int = 10,
+        per_page: int = 25,
         assigned_to_me: bool = False,
         unassigned_only: bool = False,
         callback_pending: bool = False,
@@ -540,6 +540,8 @@ class TicketService:
         worker_role: Optional[str] = None,
         team_ids: Optional[List[int]] = None,
         assigned_worker_id: Optional[int] = None,
+        sort_by: Optional[str] = None,
+        sort_dir: str = "asc",
     ) -> Dict[str, Any]:
         """Fetch tickets for the dashboard with filtering and pagination."""
         query = _base_ticket_query()
@@ -595,13 +597,26 @@ class TicketService:
                 Ticket.status != TicketStatus.ERLEDIGT.value
             )
 
-        focus_pagination = query.order_by(
-            Ticket.priority.asc(), Ticket.created_at.desc()
-        ).paginate(page=page, per_page=per_page, error_out=False)
-
-        self_tickets, self_total = _fetch_self_tickets(
-            worker_id, worker_role, team_ids, tc,
-        )
+        # Dynamic sorting
+        _SORT_COLUMNS = {
+            "id": Ticket.id,
+            "title": Ticket.title,
+            "priority": Ticket.priority,
+            "status": Ticket.status,
+            "created_at": Ticket.created_at,
+            "due_date": Ticket.due_date,
+            "order_reference": Ticket.order_reference,
+        }
+        if sort_by and sort_by in _SORT_COLUMNS:
+            col = _SORT_COLUMNS[sort_by]
+            order = col.asc() if sort_dir == "asc" else col.desc()
+            focus_pagination = query.order_by(
+                order, Ticket.id.desc()
+            ).paginate(page=page, per_page=per_page, error_out=False)
+        else:
+            focus_pagination = query.order_by(
+                Ticket.priority.asc(), Ticket.created_at.desc()
+            ).paginate(page=page, per_page=per_page, error_out=False)
 
         summary_counts = _fetch_summary_counts(
             worker_id, worker_role, team_ids,
@@ -609,8 +624,6 @@ class TicketService:
 
         return {
             "focus_pagination": focus_pagination,
-            "self": self_tickets,
-            "self_total": self_total,
             "summary_counts": summary_counts,
         }
 
@@ -1450,6 +1463,7 @@ def _apply_search_filter(query: Any, search: str) -> Any:
         Ticket.title.ilike(f"%{search}%")
         | Ticket.description.ilike(f"%{search}%")
         | Ticket.order_reference.ilike(f"%{search}%")
+        | Ticket.contact_name.ilike(f"%{search}%")
         | Ticket.id.in_(comment_ids)
     )
 
@@ -1502,23 +1516,51 @@ def _fetch_summary_counts(
     worker_id: Optional[int],
     worker_role: Optional[str],
     team_ids: Optional[List[int]],
-) -> Dict[str, int]:
-    """Fetch status counts for the dashboard header cards."""
-    counts_query = (
-        db.session.query(Ticket.status, func.count(Ticket.id))
-        .filter_by(is_deleted=False)
-        .filter(Ticket.status.in_(_OPEN_STATUSES))
+) -> Dict[str, Any]:
+    """Fetch status counts and action-driven counts for the dashboard."""
+    base_filter = Ticket.is_deleted == False  # noqa: E712
+    confidential = (
+        db.or_(*_confidential_filter(worker_id, team_ids))
+        if worker_role not in _ELEVATED_ROLES and worker_id is not None
+        else None
     )
 
-    if worker_role not in _ELEVATED_ROLES and worker_id is not None:
-        counts_query = counts_query.filter(
-            db.or_(*_confidential_filter(worker_id, team_ids))
-        )
-
+    # Status counts
+    counts_query = (
+        db.session.query(Ticket.status, func.count(Ticket.id))
+        .filter(base_filter)
+        .filter(Ticket.status.in_(_OPEN_STATUSES))
+    )
+    if confidential is not None:
+        counts_query = counts_query.filter(confidential)
     counts = counts_query.group_by(Ticket.status).all()
-    summary: Dict[str, int] = {s: 0 for s in _OPEN_STATUSES}
+    summary: Dict[str, Any] = {s: 0 for s in _OPEN_STATUSES}
     for status, count in counts:
         summary[status] = count
+
+    # Unassigned count (no worker AND no team assigned, open statuses)
+    unassigned_q = (
+        db.session.query(func.count(Ticket.id))
+        .filter(base_filter)
+        .filter(Ticket.status.in_(_OPEN_STATUSES))
+        .filter(Ticket.assigned_to_id.is_(None))
+        .filter(Ticket.assigned_team_id.is_(None))
+    )
+    if confidential is not None:
+        unassigned_q = unassigned_q.filter(confidential)
+    summary["unassigned"] = unassigned_q.scalar() or 0
+
+    # Callback pending count
+    callback_q = (
+        db.session.query(func.count(Ticket.id))
+        .filter(base_filter)
+        .filter(Ticket.status.in_(_OPEN_STATUSES))
+        .filter(Ticket.callback_requested == True)  # noqa: E712
+    )
+    if confidential is not None:
+        callback_q = callback_q.filter(confidential)
+    summary["callback_pending"] = callback_q.scalar() or 0
+
     return summary
 
 
