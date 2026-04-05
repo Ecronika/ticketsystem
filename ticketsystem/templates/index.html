@@ -200,6 +200,24 @@ document.addEventListener('DOMContentLoaded', function() {
             bar.classList.add('d-none');
             bar.classList.remove('d-flex');
         }
+        // Sync select-all checkbox state
+        const allCbs = document.querySelectorAll('.bulk-select-checkbox');
+        const selectAllCb = document.getElementById('bulkSelectAll');
+        if (selectAllCb && allCbs.length > 0) {
+            selectAllCb.checked = ids.length === allCbs.length;
+            selectAllCb.indeterminate = ids.length > 0 && ids.length < allCbs.length;
+        }
+    }
+
+    // --- Select All Checkbox ---
+    const selectAllCb = document.getElementById('bulkSelectAll');
+    if (selectAllCb) {
+        selectAllCb.addEventListener('change', function() {
+            document.querySelectorAll('.bulk-select-checkbox').forEach(cb => {
+                cb.checked = selectAllCb.checked;
+            });
+            updateBulkBar();
+        });
     }
 
     async function bulkPost(payload, btn, originalHtml) {
@@ -242,7 +260,25 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         bulkPost({ ticket_ids: ids, action: 'status_change', new_status: newStatus },
-                  this, '<i class="bi bi-check-lg me-1"></i>Anwenden');
+                  this, '<i class="bi bi-check-lg me-1"></i>Status');
+    });
+
+    document.getElementById('bulkAssignBtn')?.addEventListener('click', function() {
+        const ids = getChecked();
+        const val = document.getElementById('bulkAssignSelect')?.value;
+        if (!ids.length || !val) {
+            if (window.showUiAlert) window.showUiAlert('Bitte Mitarbeiter/Team auswählen.', 'warning');
+            return;
+        }
+        let payload = { ticket_ids: ids, action: 'reassign', worker_id: null, team_id: null };
+        if (val === 'none') {
+            // unassign
+        } else if (val.startsWith('team_')) {
+            payload.team_id = parseInt(val.replace('team_', ''));
+        } else {
+            payload.worker_id = parseInt(val);
+        }
+        bulkPost(payload, this, '<i class="bi bi-person-check me-1"></i>Zuweisen');
     });
 
     document.getElementById('bulkSetDueDateBtn')?.addEventListener('click', function() {
@@ -356,7 +392,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <thead>
                     <tr class="bg-surface-subtle">
                         <th class="bulk-col bulk-col-header ps-3">
-                            <input type="checkbox" class="form-check-input" id="bulkSelectAll" onclick="document.querySelectorAll('.bulk-select-checkbox').forEach(cb => { cb.checked = this.checked; }); document.dispatchEvent(new Event('change'));">
+                            <input type="checkbox" class="form-check-input" id="bulkSelectAll" title="Alle sichtbaren Tickets auswählen">
                         </th>
                         <th class="ps-3 {{ 'sorted' if sort_by == 'id' }}" style="width: 70px;">{{ sort_link('id', '#') }}</th>
                         <th class="{{ 'sorted' if sort_by == 'title' }}">{{ sort_link('title', 'Betreff') }}</th>
@@ -520,12 +556,30 @@ document.addEventListener('DOMContentLoaded', function() {
         <option value="erledigt">Erledigt</option>
     </select>
     <button type="button" id="bulkApplyBtn" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold">
-        <i class="bi bi-check-lg me-1"></i>Anwenden
+        <i class="bi bi-check-lg me-1"></i>Status
+    </button>
+    <div class="vr bg-secondary opacity-50 mx-1"></div>
+    <select id="bulkAssignSelect" class="form-select form-select-sm bg-dark text-white border-secondary rounded-pill" style="width: auto; min-height: 34px;">
+        <option value="" disabled selected>Zuweisen...</option>
+        <option value="none">— Keine —</option>
+        {% for w in workers %}
+        <option value="{{ w.id }}">{{ w.name }}</option>
+        {% endfor %}
+        {% if teams %}
+        <optgroup label="Teams">
+            {% for t in teams %}
+            <option value="team_{{ t.id }}">{{ t.name }}</option>
+            {% endfor %}
+        </optgroup>
+        {% endif %}
+    </select>
+    <button type="button" id="bulkAssignBtn" class="btn btn-outline-light btn-sm rounded-pill px-3 fw-bold">
+        <i class="bi bi-person-check me-1"></i>Zuweisen
     </button>
     <div class="vr bg-secondary opacity-50 mx-1"></div>
     <input type="date" id="bulkDueDateInput" class="form-control form-control-sm bg-dark text-white border-secondary rounded-pill" style="width: auto; min-height: 34px; color-scheme: dark;" title="Fälligkeitsdatum setzen">
     <button type="button" id="bulkSetDueDateBtn" class="btn btn-outline-info btn-sm rounded-pill px-3 fw-bold">
-        <i class="bi bi-calendar-check me-1"></i>Fälligkeit setzen
+        <i class="bi bi-calendar-check me-1"></i>Fälligkeit
     </button>
     <div class="vr bg-secondary opacity-50 mx-1"></div>
     <button type="button" id="bulkDeleteBtn" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold">

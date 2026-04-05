@@ -22,32 +22,44 @@ HELP: Dict[str, Dict[str, Any]] = {
         'intro': 'Hier sehen Sie alle offenen Aufgaben Ihres Betriebs auf einen Blick.',
         'sections': [
             {
-                'heading': 'Statuskarten oben',
+                'heading': 'Reiter (Tabs)',
                 'text': (
-                    'Die drei Karten zeigen die Gesamtanzahl der Tickets je Status: '
-                    '<strong>Offen</strong> (rot) – noch nicht begonnen, '
-                    '<strong>In Bearbeitung</strong> (gelb) – wird gerade bearbeitet, '
-                    '<strong>Wartet</strong> (grau) – bewusst pausiert, z.&nbsp;B. auf Lieferung oder Rückruf.'
+                    'Die Reiter am oberen Rand filtern die Ticketliste nach Handlungsbedarf: '
+                    '<strong>Alle Offenen</strong> – Gesamtübersicht, '
+                    '<strong>Unzugewiesen</strong> (rot) – Tickets ohne Verantwortlichen, '
+                    '<strong>Rückruf</strong> (gelb) – Kunde wartet auf Rückruf, '
+                    '<strong>Wartet</strong> – pausierte Tickets. '
+                    'Die Zahl am Reiter zeigt die aktuelle Anzahl.'
                 ),
                 'roles': None,
             },
             {
-                'heading': 'Filter und Suche',
+                'heading': 'Suche und Filter',
                 'text': (
-                    'Mit dem Statusfilter schränken Sie die Ansicht auf einen Statustyp ein. '
-                    'Die Schaltfläche <em>Mir zugewiesen</em> zeigt nur Ihre eigenen Tickets. '
-                    '<em>Nicht zugewiesen</em> listet Tickets ohne Verantwortlichen auf – '
-                    'ideal um offene Aufgaben zu verteilen. '
-                    'Direktsprung: Geben Sie <code>#42</code> in die Suche ein, um Ticket Nr.&nbsp;42 direkt zu öffnen.'
+                    'Das Suchfeld oben rechts durchsucht ID, Titel, Kunde und '
+                    'Auftragsnummer in Echtzeit (mit kurzer Verzögerung). '
+                    'Direktsprung: Geben Sie <code>#42</code> ein, um Ticket Nr.&nbsp;42 direkt zu öffnen. '
+                    'Die Spaltenköpfe sind klickbar und sortieren die Tabelle.'
                 ),
                 'roles': None,
             },
             {
-                'heading': 'Meine Tickets (rechte Spalte)',
+                'heading': 'Inline-Aktionen',
                 'text': (
-                    'Die rechte Spalte zeigt immer Ihre persönlich zugewiesenen Tickets, '
-                    'unabhängig vom gewählten Filter. So behalten Sie den Überblick '
-                    'über Ihre eigenen Aufgaben.'
+                    'Status und Zuweisung können direkt in der Tabelle per Dropdown '
+                    'geändert werden, ohne das Ticket zu öffnen. '
+                    'Für persönliche Aufgaben nutzen Sie die Ansicht '
+                    '<em>Meine Aufgaben</em> im Hauptmenü.'
+                ),
+                'roles': None,
+            },
+            {
+                'heading': 'Mehrere bearbeiten (Bulk)',
+                'text': (
+                    'Klicken Sie auf <em>Mehrere bearbeiten</em> oben rechts, um '
+                    'Checkboxen einzublenden. Die Kopfzeilen-Checkbox wählt alle '
+                    'sichtbaren Tickets aus. In der erscheinenden Aktionsleiste '
+                    'können Sie Status, Zuweisung und Fälligkeit auf einmal ändern.'
                 ),
                 'roles': None,
             },
