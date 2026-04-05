@@ -1407,10 +1407,16 @@ def _sync_tags(ticket: Ticket, tags: List[str]) -> Optional[str]:
 # ---------------------------------------------------------------------------
 
 def _base_ticket_query() -> Any:
-    """Return the base query with eager-loading for dashboard use."""
+    """Return the base query with eager-loading for dashboard use.
+
+    Uses selectinload for one-to-many relations (comments, checklists, tags)
+    to avoid row multiplication that breaks LIMIT/OFFSET pagination.
+    joinedload is safe for many-to-one (assigned_to, assigned_team).
+    """
     return Ticket.query.filter_by(is_deleted=False).options(
-        joinedload(Ticket.comments),
+        selectinload(Ticket.comments),
         joinedload(Ticket.assigned_to),
+        joinedload(Ticket.assigned_team),
         selectinload(Ticket.tags),
         selectinload(Ticket.checklists),
     )
