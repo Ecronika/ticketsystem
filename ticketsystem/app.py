@@ -1,9 +1,8 @@
-"""
-Main Application Entry Point.
+"""Main application entry point.
 
-Configures and initializes the Flask application.
+Configures and initialises the Flask application, extensions, logging,
+security headers, scheduler jobs, template filters, and error handlers.
 """
-from utils import get_utc_now
 
 import atexit
 import logging
@@ -11,648 +10,689 @@ import os
 import queue
 import secrets
 import sqlite3
+import stat
 import sys
 import time
 from datetime import datetime, timedelta, timezone
 from logging.handlers import QueueHandler, QueueListener, RotatingFileHandler
+from typing import Any, Dict, Optional
 from zoneinfo import ZoneInfo
 
-from flask import Flask, flash, g, jsonify, redirect, render_template, request, session, url_for
+from flask import (
+    Flask,
+    Response,
+    flash,
+    g,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFError
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
+from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.wrappers import Response as WerkzeugResponse
 
 from database_init import init_database
+from enums import ApprovalStatus, TicketPriority, TicketStatus, WorkerRole
 from extensions import Config, csrf, db, limiter, scheduler
-from metrics import ACTIVE_SESSIONS, HTTP_REQUEST_DURATION_SECONDS, HTTP_REQUESTS_TOTAL
+from metrics import (
+    ACTIVE_SESSIONS,
+    HTTP_REQUEST_DURATION_SECONDS,
+    HTTP_REQUESTS_TOTAL,
+)
 from routes import main_bp
 from routes.metrics import metrics_bp
 from services import BackupService
-from enums import TicketStatus, TicketPriority, WorkerRole
-# ApprovalStatus removed as it was unused locally
+from utils import get_utc_now
 
-# Read version dynamically from config.yaml
-_config_file = os.path.join(os.path.dirname(
-    os.path.abspath(__file__)), 'config.yaml')
-APP_VERSION = '0.0.0-unknown'
-try:
-    with open(_config_file, 'r', encoding='utf-8') as _f:
-        for line in _f:
-            if line.strip().startswith('version:'):
-                APP_VERSION = line.split(
-                    ':', 1)[1].strip().strip('"').strip("'")
-                break
-except FileNotFoundError:
-    pass
-app = Flask(__name__)
-# Security: Application behind Reverse Proxy (Nginx/Ingress)
-# Fixes URL generation for redirects and absolute links
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+# ---------------------------------------------------------------------------
+# Application version (read from config.yaml)
+# ---------------------------------------------------------------------------
 
-IS_STANDALONE = os.environ.get('STANDALONE_MODE') == 'true'
-# Home Assistant Check (Ingress usually sets headers, but we also check env)
-IS_HOMEASSISTANT = (not IS_STANDALONE) and (
-    os.environ.get('SUPERVISOR_TOKEN') is not None or os.environ.get(
-        'HAS_INGRESS') == '1'
+_ELEVATED_ROLES = frozenset({
+    WorkerRole.ADMIN.value,
+    WorkerRole.HR.value,
+    WorkerRole.MANAGEMENT.value,
+})
+
+
+def _read_app_version() -> str:
+    """Read the application version from ``config.yaml``."""
+    config_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "config.yaml",
+    )
+    try:
+        with open(config_path, encoding="utf-8") as fh:
+            for line in fh:
+                if line.strip().startswith("version:"):
+                    return line.split(":", 1)[1].strip().strip("\"'")
+    except FileNotFoundError:
+        pass
+    return "0.0.0-unknown"
+
+
+APP_VERSION: str = _read_app_version()
+
+# ---------------------------------------------------------------------------
+# Flask app creation & WSGI wrapper
+# ---------------------------------------------------------------------------
+
+app: Flask = Flask(__name__)
+app.wsgi_app = ProxyFix(  # type: ignore[assignment]
+    app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1,
 )
 
-# Security: Session Configuration
-# SSL is active only if explicitly requested ÃƒÂ¢€Ã¢â‚¬Â this is the single source of truth
-# for cookie security. SameSite=None requires HTTPS+Secure; plain HTTP must use Lax.
-SSL_ACTIVE = os.environ.get('REQUIRE_HTTPS', '0') == '1'
+IS_STANDALONE: bool = os.environ.get("STANDALONE_MODE") == "true"
+IS_HOMEASSISTANT: bool = (not IS_STANDALONE) and (
+    os.environ.get("SUPERVISOR_TOKEN") is not None
+    or os.environ.get("HAS_INGRESS") == "1"
+)
+SSL_ACTIVE: bool = os.environ.get("REQUIRE_HTTPS", "0") == "1"
+
+# ---------------------------------------------------------------------------
+# Core configuration
+# ---------------------------------------------------------------------------
 
 app.config.update(
     VERSION=APP_VERSION,
-    SESSION_COOKIE_NAME='ticket_session_tls' if SSL_ACTIVE else 'ticket_session_plain',
+    SESSION_COOKIE_NAME=(
+        "ticket_session_tls" if SSL_ACTIVE else "ticket_session_plain"
+    ),
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_PATH='/',  # Force root path to avoid Ingress/ProxyFix prefix issues
-    # SameSite=None allows cookies inside iframes (HA Ingress), BUT browsers
-    # strictly require Secure=True when SameSite=None ÃƒÂ¢€Ã¢â‚¬Â so this only applies over HTTPS.
-    # Over plain HTTP we fall back to Lax (works everywhere except cross-site iframes).
-    SESSION_COOKIE_SAMESITE='None' if SSL_ACTIVE else 'Lax',
-    MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB Upload Limit
-    # 8 Hours Validity (Aligned with session lifetime)
+    SESSION_COOKIE_PATH="/",
+    SESSION_COOKIE_SAMESITE="None" if SSL_ACTIVE else "Lax",
+    MAX_CONTENT_LENGTH=16 * 1024 * 1024,
     WTF_CSRF_TIME_LIMIT=28800,
-    # Disable strict HTTPS referer check ÃƒÂ¢€Ã¢â‚¬Â required for both plain HTTP and proxied setups
     WTF_CSRF_SSL_STRICT=False,
-    # CSRF cookie SameSite must match session cookie policy
-    WTF_CSRF_SAMESITE='None' if SSL_ACTIVE else 'Lax',
-    # Auto-logout after 8 hours
+    WTF_CSRF_SAMESITE="None" if SSL_ACTIVE else "Lax",
     PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
-    # Secure flag ONLY when SSL is actually active ÃƒÂ¢€Ã¢â‚¬Â critical for plain HTTP operation
     SESSION_COOKIE_SECURE=SSL_ACTIVE,
-    # CSRF protection re-enabled now that session cookies bypass browser isolation
     WTF_CSRF_ENABLED=True,
     DATA_DIR=Config.get_data_dir(),
 )
 
-# --- Environment Validation ---
-# Ensure critical variables are set (or fallback is known)
-# Note: SECRET_KEY is handled securely in the 'Security: Dynamic Secret Key' section below.
-# We check DATA_DIR next to ensure the persistent storage location exists.
-
-if not os.environ.get('DATA_DIR'):
+if not os.environ.get("DATA_DIR"):
     logging.info("DATA_DIR not set. Using default: %s", Config.get_data_dir())
 
-# Logging Configuration - ASYNC (Non-blocking)
-# Issue: Synchronous file I/O was blocking request threads during heavy logging
-# Solution: QueueHandler writes to memory queue (instant), background
-# thread handles disk I/O
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
 
-# Determine log file location based on DATA_DIR
-data_dir = Config.get_data_dir()
-if not os.path.exists(data_dir):
-    os.makedirs(data_dir)
-db_path = Config.get_db_path()
-log_file = os.path.join(data_dir, 'app.log')
+data_dir: str = Config.get_data_dir()
+os.makedirs(data_dir, exist_ok=True)
+db_path: str = Config.get_db_path()
+log_file: str = os.path.join(data_dir, "app.log")
 
-# File handler
-file_handler = RotatingFileHandler(
-    log_file,
-    maxBytes=10_000_000,  # 10MB
-    backupCount=3
-)
+
+def _make_formatter() -> logging.Formatter:
+    """Create the standard log formatter."""
+    return logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
+
+
+file_handler = RotatingFileHandler(log_file, maxBytes=10_000_000, backupCount=3)
 file_handler.setLevel(logging.INFO)
-file_formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-file_handler.setFormatter(file_formatter)
+file_handler.setFormatter(_make_formatter())
 
-# Console handler
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setLevel(logging.INFO)
-console_formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-console_handler.setFormatter(console_formatter)
+console_handler.setFormatter(_make_formatter())
 
-# --- Logging Strategy ---
-# HA Add-on: Use Async (QueueListener)
-# Standalone: Use Sync (Direct) to avoid missed logs in docker logs
-if not IS_STANDALONE:
-    # LOG-1: Bounded queue (10 000 entries) prevents unbounded memory growth
-    # if disk I/O stalls (e.g., full SD-card on Raspberry Pi).
-    log_queue = queue.Queue(10_000)
-    queue_listener = QueueListener(
-        log_queue, file_handler, console_handler, respect_handler_level=True
+
+def _configure_logging_ha() -> None:
+    """Set up async queue-based logging for Home Assistant mode."""
+    log_queue: queue.Queue[Any] = queue.Queue(10_000)
+    listener = QueueListener(
+        log_queue, file_handler, console_handler, respect_handler_level=True,
     )
-    queue_listener.start()
+    listener.start()
     app.logger.addHandler(QueueHandler(log_queue))
-    atexit.register(queue_listener.stop)
+    atexit.register(listener.stop)
     app.logger.info("Logging: Async (QueueListener) enabled for HA.")
-else:
-    # Standalone: Check if running under Gunicorn
-    gunicorn_logger = logging.getLogger('gunicorn.error')
+
+
+def _configure_logging_standalone() -> None:
+    """Set up synchronous logging for standalone / Gunicorn mode."""
+    gunicorn_logger = logging.getLogger("gunicorn.error")
     if gunicorn_logger.handlers:
-        # Inherit Gunicorn's handlers and level for seamless integration
         app.logger.handlers = gunicorn_logger.handlers
         app.logger.setLevel(gunicorn_logger.level)
-        # Also add file handler for persistent logs
         app.logger.addHandler(file_handler)
         app.logger.info(
-            "Logging: Gunicorn integration enabled. [v%s]", APP_VERSION)
+            "Logging: Gunicorn integration enabled. [v%s]", APP_VERSION,
+        )
     else:
-        # Standard console logging (e.g. running app.py directly)
         app.logger.addHandler(console_handler)
         app.logger.addHandler(file_handler)
         app.logger.info(
-            "Logging: Direct console output enabled. [v%s]", APP_VERSION)
+            "Logging: Direct console output enabled. [v%s]", APP_VERSION,
+        )
 
-    # Ensure root logger also reaches the console for libraries like Alembic
-    # but clear existing ones first to avoid duplicates if Gunicorn already did it
     root = logging.getLogger()
     if not root.handlers:
         root.addHandler(console_handler)
         root.setLevel(logging.INFO)
 
-app.logger.setLevel(logging.INFO)
 
+if IS_STANDALONE:
+    _configure_logging_standalone()
+else:
+    _configure_logging_ha()
+
+app.logger.setLevel(logging.INFO)
 app.logger.info(
     "Config: SSL_ACTIVE=%s, CSRF_ENABLED=%s, SAMESITE=%s [v%s]",
     SSL_ACTIVE,
-    app.config.get('WTF_CSRF_ENABLED', True),
-    app.config.get('SESSION_COOKIE_SAMESITE'),
-    APP_VERSION
+    app.config.get("WTF_CSRF_ENABLED", True),
+    app.config.get("SESSION_COOKIE_SAMESITE"),
+    APP_VERSION,
 )
 
-# Database configuration (using data_dir from logging setup above)
-# data_dir, db_path already defined during logging init
+# ---------------------------------------------------------------------------
+# Database configuration
+# ---------------------------------------------------------------------------
+
+app.config["DATA_DIR"] = data_dir
+app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+# ---------------------------------------------------------------------------
+# Secret key (persistent)
+# ---------------------------------------------------------------------------
 
 
-# Export DATA_DIR for routes to use
-app.config['DATA_DIR'] = data_dir
+def _load_or_create_secret(secret_path: str) -> str:
+    """Load the secret key from disk, creating it if absent."""
+    if os.path.exists(secret_path):
+        try:
+            with open(secret_path, encoding="utf-8") as fh:
+                return fh.read().strip()
+        except OSError:
+            return secrets.token_hex(32)
 
-
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-# Security: Dynamic Secret Key (Persistent)
-secret_file = os.path.join(data_dir, 'secret.key')
-if os.path.exists(secret_file):
+    key = secrets.token_hex(32)
     try:
-        with open(secret_file, 'r', encoding='utf-8') as f:
-            app.secret_key = f.read().strip()
-    except Exception:  # pylint: disable=broad-exception-caught
-        app.secret_key = secrets.token_hex(32)
-else:
-    app.secret_key = secrets.token_hex(32)
-    try:
-        with open(secret_file, 'w', encoding='utf-8') as f:
-            f.write(app.secret_key)
-        # FIX-12: Restrict secret.key to owner-read/write only (chmod 600)
-        import stat
-        os.chmod(secret_file, stat.S_IRUSR | stat.S_IWUSR)
-    except OSError as e:
-        # CRITICAL: If this fails, sessions are invalid after every restart
+        with open(secret_path, "w", encoding="utf-8") as fh:
+            fh.write(key)
+        os.chmod(secret_path, stat.S_IRUSR | stat.S_IWUSR)
+    except OSError as exc:
         app.logger.critical(
-            "Could not persist secret key to %s: %s", secret_file, e)
+            "Could not persist secret key to %s: %s", secret_path, exc,
+        )
+    return key
 
-# --- Database Initialization (Legacy Block Moved) ---
-# Note: Connections are optimized via the event listener below.
 
+app.secret_key = _load_or_create_secret(os.path.join(data_dir, "secret.key"))
 
-# Init Extensions - Order: DB FIRST, then Migrate
+# ---------------------------------------------------------------------------
+# Extension initialisation
+# ---------------------------------------------------------------------------
+
 db.init_app(app)
 csrf.init_app(app)
 limiter.init_app(app)
 
-# Init Migrate after db.init_app to ensure engine is configured
-# Explicitly set the migrations directory to be relative to the app.py file
-migrations_dir = os.path.join(os.path.dirname(
-    os.path.abspath(__file__)), 'migrations')
+migrations_dir = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "migrations",
+)
 migrate = Migrate(app, db, directory=migrations_dir, render_as_batch=True)
 
+# ---------------------------------------------------------------------------
+# Scheduler
+# ---------------------------------------------------------------------------
 
-# Non-breaking Scheduler Fix: Allow opt-out via RUN_SCHEDULER=0, default is ON
-if os.environ.get("RUN_SCHEDULER", "1") == "1":
-    if not scheduler.running:
-        try:
-            scheduler.init_app(app)
-            scheduler.start()
+if os.environ.get("RUN_SCHEDULER", "1") == "1" and not scheduler.running:
+    try:
+        scheduler.init_app(app)
+        scheduler.start()
 
-            # Restore Backup Schedule from DB
-            with app.app_context():
-                BackupService.schedule_backup_job(app)
-                from services.scheduler_service import schedule_recurring_job, schedule_sla_job
-                schedule_recurring_job(app)
-                schedule_sla_job(app)
-            
-            # P3-3: Ensure clean scheduler shutdown
-            atexit.register(lambda: scheduler.shutdown())
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            # In multi-worker environments, the scheduler might already be running
-            app.logger.warning("Scheduler initialization skipped or failed: %s", e)
+        with app.app_context():
+            BackupService.schedule_backup_job(app)
+            from services.scheduler_service import (
+                schedule_recurring_job,
+                schedule_sla_job,
+            )
+            schedule_recurring_job(app)
+            schedule_sla_job(app)
 
-# SQLite Connection Optimization (Fix for Worker Timeouts)
+        atexit.register(scheduler.shutdown)
+    except RuntimeError as exc:
+        app.logger.warning(
+            "Scheduler initialization skipped or failed: %s", exc,
+        )
+
+# ---------------------------------------------------------------------------
+# SQLite connection optimisation
+# ---------------------------------------------------------------------------
 
 
 @event.listens_for(Engine, "connect")
-def set_sqlite_pragma(dbapi_conn, _connection_record):
-    """Set SQLite pragmas for better performance and concurrency.
-
-    This fixes worker timeout issues caused by database locks.
-    CRITICAL for multi-user concurrent access.
-    """
+def set_sqlite_pragma(
+    dbapi_conn: Any, _connection_record: Any,
+) -> None:
+    """Set SQLite pragmas for performance and concurrency."""
     if isinstance(dbapi_conn, sqlite3.Connection):
         cursor = dbapi_conn.cursor()
         cursor.execute("PRAGMA busy_timeout = 30000")
         cursor.execute("PRAGMA journal_mode = WAL")
-        cursor.execute("PRAGMA foreign_keys = ON") # FIX: Enable FK enforcement
-        cursor.execute("PRAGMA cache_size = -10000")  # 10MB cache
+        cursor.execute("PRAGMA foreign_keys = ON")
+        cursor.execute("PRAGMA cache_size = -10000")
         cursor.execute("PRAGMA synchronous = NORMAL")
-        cursor.execute("PRAGMA temp_store = MEMORY")  # Temp data in RAM
-        # 256MB memory-mapped I/O
+        cursor.execute("PRAGMA temp_store = MEMORY")
         cursor.execute("PRAGMA mmap_size = 268435456")
         cursor.execute("PRAGMA wal_autocheckpoint = 1000")
         cursor.close()
 
 
-# Security: Content-Security-Policy (Issue #3)
-# CONDITIONAL: Use Talisman for standalone, manual headers for Home Assistant
-# IS_HOMEASSISTANT is defined at the top of the file
+# ---------------------------------------------------------------------------
+# Content-Security-Policy
+# ---------------------------------------------------------------------------
 
 if not IS_HOMEASSISTANT:
-    # Standalone deployment: Use Flask-Talisman
     from flask_talisman import Talisman
-    Talisman(app,
-             force_https=SSL_ACTIVE,
-             session_cookie_secure=SSL_ACTIVE,
-             strict_transport_security=SSL_ACTIVE,
-             content_security_policy={
-                 'default-src': "'self'",
-                 'script-src': ["'self'", 'cdn.jsdelivr.net', 'unpkg.com'],
-                 'style-src': ["'self'", 'cdn.jsdelivr.net', "'unsafe-inline'"],
-                 'img-src': ["'self'", 'data:'],
-                 'font-src': ["'self'", 'cdn.jsdelivr.net'],
-                 'connect-src': ["'self'", 'cdn.jsdelivr.net', 'unpkg.com']
-             },
-             content_security_policy_nonce_in=['script-src']
-             )
+
+    Talisman(
+        app,
+        force_https=SSL_ACTIVE,
+        session_cookie_secure=SSL_ACTIVE,
+        strict_transport_security=SSL_ACTIVE,
+        content_security_policy={
+            "default-src": "'self'",
+            "script-src": ["'self'", "cdn.jsdelivr.net", "unpkg.com"],
+            "style-src": ["'self'", "cdn.jsdelivr.net", "'unsafe-inline'"],
+            "img-src": ["'self'", "data:"],
+            "font-src": ["'self'", "cdn.jsdelivr.net"],
+            "connect-src": ["'self'", "cdn.jsdelivr.net", "unpkg.com"],
+        },
+        content_security_policy_nonce_in=["script-src"],
+    )
     app.logger.info(
         "Security: Flask-Talisman enabled (CSP + Security Headers, "
-        "SSL_ACTIVE=%s)", SSL_ACTIVE)
+        "SSL_ACTIVE=%s)",
+        SSL_ACTIVE,
+    )
 else:
-    # Home Assistant Ingress: Talisman breaks X-Ingress-Path, manual headers are handled globally
     app.logger.info(
-        "Security: Manual CSP headers enabled (Home Assistant Ingress mode)")
+        "Security: Manual CSP headers enabled (Home Assistant Ingress mode)",
+    )
 
-# Register Blueprints
-from routes.admin import admin_bp
+# ---------------------------------------------------------------------------
+# Blueprint registration
+# ---------------------------------------------------------------------------
+
+from routes.admin import admin_bp  # noqa: E402
+
 app.register_blueprint(main_bp)
 app.register_blueprint(metrics_bp)
-app.register_blueprint(admin_bp, url_prefix='/admin')
+app.register_blueprint(admin_bp, url_prefix="/admin")
+
+# CSRF exemptions (protected by rate-limiting + PIN hash check)
+csrf.exempt("main.login")
+csrf.exempt("main.recover_pin")
 
 
-@app.errorhandler(429)
-def rate_limit_exceeded(_e):
-    """Handle 429 Too Many Requests from Flask-Limiter."""
-    app.logger.warning('Rate limit exceeded: %s', request.path)
-    flash('Zu viele Versuche. Bitte 1 Minute warten.', 'warning')
-    next_url = request.referrer or url_for('main.index')
-    return redirect(next_url), 429
-
-
-# Exempt auth routes from global CSRF (Flask-WTF 1.2.2 requires endpoint strings,
-# not function references ÃƒÂ¢€Ã¢â‚¬Â the protect() method matches against request.endpoint).
-# Login/recover_pin are protected by rate-limiting (5/min) + PIN hash check.
-csrf.exempt('main.login')
-csrf.exempt('main.recover_pin')
-
-# --- Prometheus Metrics Middleware ---
-
+# ---------------------------------------------------------------------------
+# Request lifecycle hooks
+# ---------------------------------------------------------------------------
 
 @app.before_request
-def before_request_metrics():
+def before_request_metrics() -> None:
     """Start timer for request duration."""
     g.start_time = time.time()
-    if request.endpoint != 'static':
+    if request.endpoint != "static":
         ACTIVE_SESSIONS.inc()
 
 
-
 @app.after_request
-def after_request_metrics(response):
+def after_request_metrics(response: Response) -> Response:
     """Record request duration and count."""
-    # Ignore static files and the metrics endpoint itself
-    if request.endpoint and request.endpoint not in ['static', 'metrics.metrics']:
-        request_latency = time.time() - getattr(g, 'start_time', time.time())
+    endpoint = request.endpoint or ""
+    if endpoint and endpoint not in ("static", "metrics.metrics"):
+        latency = time.time() - getattr(g, "start_time", time.time())
         HTTP_REQUESTS_TOTAL.labels(
             method=request.method,
-            endpoint=request.endpoint,
-            http_status=response.status_code
+            endpoint=endpoint,
+            http_status=response.status_code,
         ).inc()
-
         HTTP_REQUEST_DURATION_SECONDS.labels(
             method=request.method,
-            endpoint=request.endpoint
-        ).observe(request_latency)
-
+            endpoint=endpoint,
+        ).observe(latency)
     return response
 
 
 @app.before_request
-def set_nonce():
+def set_nonce() -> None:
     """Generate a random nonce for CSP on every request."""
     g.csp_nonce = secrets.token_urlsafe(16)
 
 
 @app.after_request
-def add_security_headers(response):
+def add_security_headers(response: Response) -> Response:
     """Add standard security headers to every response."""
-    # Global headers
-    response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
-    response.headers['X-XSS-Protection'] = '1; mode=block'
-    
-    # CSP Nonce support
-    nonce = getattr(g, 'csp_nonce', None)
-    
-    # IS_HOMEASSISTANT manual CSP (Talisman is disabled in this mode)
-    if IS_HOMEASSISTANT:
-        # P0-1: Avoid backslashes in f-strings for Python 3.11 compatibility
-        nonce_directive = f"'nonce-{nonce}'" if nonce else ""
-        csp_policy = (
-            "default-src 'self'; "
-            f"script-src 'self' cdn.jsdelivr.net unpkg.com {nonce_directive}; "
-            "style-src 'self' cdn.jsdelivr.net 'unsafe-inline'; "
-            "img-src 'self' data:; "
-            "font-src 'self' cdn.jsdelivr.net; "
-            "connect-src 'self' cdn.jsdelivr.net unpkg.com"
-        )
-        response.headers['Content-Security-Policy'] = csp_policy
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
 
-    # SEC-05: Strict-Transport-Security (HSTS)
-    if os.environ.get('REQUIRE_HTTPS', '0') == '1':
-        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-        
+    if IS_HOMEASSISTANT:
+        _set_manual_csp(response)
+
+    if os.environ.get("REQUIRE_HTTPS", "0") == "1":
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
     return response
 
 
-@app.teardown_request
-def teardown_request_gauge(_exception=None):
-    """Decrease active sessions gauge on request teardown."""
-    if request.endpoint != 'static':
-        ACTIVE_SESSIONS.dec()
+def _set_manual_csp(response: Response) -> None:
+    """Apply CSP header manually (Home Assistant Ingress mode)."""
+    nonce = getattr(g, "csp_nonce", None)
+    nonce_directive = f"'nonce-{nonce}'" if nonce else ""
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        f"script-src 'self' cdn.jsdelivr.net unpkg.com {nonce_directive}; "
+        "style-src 'self' cdn.jsdelivr.net 'unsafe-inline'; "
+        "img-src 'self' data:; "
+        "font-src 'self' cdn.jsdelivr.net; "
+        "connect-src 'self' cdn.jsdelivr.net unpkg.com"
+    )
 
-# Database Session Cleanup (Prevent Connection Leaks)
+
+@app.teardown_request
+def teardown_request_gauge(_exception: BaseException | None = None) -> None:
+    """Decrease active sessions gauge on request teardown."""
+    if request.endpoint != "static":
+        ACTIVE_SESSIONS.dec()
 
 
 @app.teardown_appcontext
-def remove_session(_exception=None):
-    """Ensure database session is properly cleaned up after each request.
-
-    This prevents connection leaking, especially important when:
-    - Multiple commits happen in single request
-    - Exceptions occur during transactions
-    - PDF generation fails after first commit
-
-    Critical for SQLite connection pool management.
-    """
+def remove_session(_exception: BaseException | None = None) -> None:
+    """Clean up the database session after each request."""
     db.session.remove()
 
 
-# --- Session Validation (Zombie Session Kill) ---
+# ---------------------------------------------------------------------------
+# Session validation (zombie session kill)
+# ---------------------------------------------------------------------------
 
 _SESSION_EXEMPT_ENDPOINTS = frozenset({
-    'main.login', 'main.logout', 'main.change_pin', 'static', 'metrics'
+    "main.login", "main.logout", "main.change_pin", "static", "metrics",
 })
 
+
 @app.before_request
-def validate_session():
-    """SESSION-1: Re-validate authenticated sessions on every request.
-
-    Ensures deactivated or role-changed workers cannot continue using
-    the app via stale cookies (up to 8-hour lifetime).
-    Loads the Worker via SQLAlchemy's identity map — effectively free
-    after the first access per request context.
-    """
-    worker_id = session.get('worker_id')
+def validate_session() -> WerkzeugResponse | None:
+    """Re-validate authenticated sessions on every request."""
+    worker_id = session.get("worker_id")
     if not worker_id:
-        return  # Unauthenticated — nothing to validate
+        return None
 
-    endpoint = request.endpoint or ''
-    if endpoint in _SESSION_EXEMPT_ENDPOINTS or endpoint.startswith('metrics'):
-        return  # Never redirect login/logout into a loop
+    endpoint = request.endpoint or ""
+    if endpoint in _SESSION_EXEMPT_ENDPOINTS or endpoint.startswith("metrics"):
+        return None
 
     from models import Worker
+
     try:
         worker = db.session.get(Worker, worker_id)
-    except Exception:  # pylint: disable=broad-exception-caught
+    except SQLAlchemyError:
         worker = None
 
     if not worker or not worker.is_active:
         session.clear()
-        flash('Ihre Sitzung ist nicht mehr gültig. Bitte melden Sie sich erneut an.', 'danger')
-        return redirect(url_for('main.login'))
+        flash(
+            "Ihre Sitzung ist nicht mehr gültig. "
+            "Bitte melden Sie sich erneut an.",
+            "danger",
+        )
+        return redirect(url_for("main.login"))
 
-    # Always ensure critical session data is in sync with DB state
-    session['role'] = worker.role
-    session['is_admin'] = (worker.role == WorkerRole.ADMIN.value)
-    session['worker_name'] = worker.name
+    session["role"] = worker.role
+    session["is_admin"] = worker.role == WorkerRole.ADMIN.value
+    session["worker_name"] = worker.name
+    return None
 
 
-# --- Jinja Filters ---
+# ---------------------------------------------------------------------------
+# Context processors (inject_globals helpers extracted)
+# ---------------------------------------------------------------------------
 
+def _count_urgent_tickets(worker_id: int, now: datetime) -> int:
+    """Count tickets due today or overdue assigned to *worker_id*."""
+    from models import ChecklistItem, Team, Ticket
 
-@app.context_processor
-def inject_globals():
-    """Inject global variables into templates. Skips DB queries for static/unauthenticated requests."""
-    from models import SystemSettings, Ticket
-    from enums import TicketStatus, ApprovalStatus, WorkerRole, TicketPriority
-    from flask import request
+    limit_dt = now.replace(hour=23, minute=59, second=59)
+    team_ids = Team.team_ids_for_worker(worker_id)
 
-    # FIX-06: Skip all DB queries for static assets and unrouted requests
-    _endpoint = request.endpoint or ''
-    _base = {
-        'ingress_path': request.headers.get('X-Ingress-Path', ''),
-        'system_settings': SystemSettings,
-        'TicketStatus': TicketStatus,
-        'ApprovalStatus': ApprovalStatus,
-        'WorkerRole': WorkerRole,
-        'TicketPriority': TicketPriority,
-        'urgent_count': 0, 'pending_approval_count': 0,
-        'unread_notifications_count': 0,
-        'absent_entries_with_critical': 0
-    }
-    if not session.get('worker_id') or _endpoint in ('static', 'metrics') or _endpoint.startswith('metrics'):
-        return _base
-
-    _role = session.get('role')
-    urgent_count = 0
-    # Count tickets that need attention: assigned to me OR have checklist items assigned to me,
-    # where due date is today or overdue. This matches what "Meine Aufgaben" shows.
-    now_dt = get_utc_now()
-    limit_dt = now_dt.replace(hour=23, minute=59, second=59)
-    try:
-        from models import ChecklistItem as _CItem, Team as _Team
-        _wid = session['worker_id']
-        _tids = _Team.team_ids_for_worker(_wid)
-        _team_clauses = []
-        if _tids:
-            _team_clauses = [
-                Ticket.assigned_team_id.in_(_tids),
-                Ticket.checklists.any(
-                    db.and_(
-                        _CItem.assigned_team_id.in_(_tids),
-                        _CItem.is_completed == False
-                    )
+    team_clauses: list[Any] = []
+    if team_ids:
+        team_clauses = [
+            Ticket.assigned_team_id.in_(team_ids),
+            Ticket.checklists.any(
+                db.and_(
+                    ChecklistItem.assigned_team_id.in_(team_ids),
+                    ChecklistItem.is_completed == False,  # noqa: E712
                 ),
-            ]
-        urgent_count = Ticket.query.filter(
-            Ticket.is_deleted == False,
-            Ticket.status != TicketStatus.ERLEDIGT.value,
-            Ticket.due_date.isnot(None),
-            Ticket.due_date <= limit_dt,
-            db.or_(
-                Ticket.assigned_to_id == _wid,
-                Ticket.checklists.any(
-                    db.and_(
-                        _CItem.assigned_to_id == _wid,
-                        _CItem.is_completed == False
-                    )
+            ),
+        ]
+
+    return Ticket.query.filter(
+        Ticket.is_deleted == False,  # noqa: E712
+        Ticket.status != TicketStatus.ERLEDIGT.value,
+        Ticket.due_date.isnot(None),
+        Ticket.due_date <= limit_dt,
+        db.or_(
+            Ticket.assigned_to_id == worker_id,
+            Ticket.checklists.any(
+                db.and_(
+                    ChecklistItem.assigned_to_id == worker_id,
+                    ChecklistItem.is_completed == False,  # noqa: E712
                 ),
-                *_team_clauses
-            )
-        ).count()
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        app.logger.warning("inject_globals: urgent_count query failed: %s", e)
+            ),
+            *team_clauses,
+        ),
+    ).count()
 
-    pending_approval_count = 0
-    if session.get('is_admin') or _role in (WorkerRole.HR.value, WorkerRole.MANAGEMENT.value):
-        try:
-            pending_approval_count = Ticket.query.filter_by(
-                is_deleted=False,
-                approval_status=ApprovalStatus.PENDING.value
-            ).count()
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            app.logger.warning("inject_globals: pending_approval query failed: %s", e)
 
-    unread_notifications_count = 0
+def _count_pending_approvals() -> int:
+    """Count tickets awaiting management approval."""
+    from models import Ticket
+
+    return Ticket.query.filter_by(
+        is_deleted=False,
+        approval_status=ApprovalStatus.PENDING.value,
+    ).count()
+
+
+def _count_unread_notifications(worker_id: int) -> int:
+    """Count unread notifications for *worker_id*."""
     from models import Notification
+
+    return Notification.query.filter_by(
+        user_id=worker_id, is_read=False,
+    ).count()
+
+
+def _count_absent_critical(now: datetime) -> int:
+    """Count critical tickets assigned to absent workers."""
+    from models import Ticket, Worker
+
+    now_date = now.date()
+    days_to_friday = (4 - now_date.weekday()) % 7
+    if days_to_friday == 0 and now_date.weekday() != 4:
+        days_to_friday = 7
+    week_end = now_date + timedelta(days=days_to_friday)
+
+    absent_ids = [
+        w.id
+        for w in Worker.query.filter_by(
+            is_active=True, is_out_of_office=True,
+        ).all()
+    ]
+    if not absent_ids:
+        return 0
+
+    return Ticket.query.filter(
+        Ticket.is_deleted == False,  # noqa: E712
+        Ticket.status.in_([
+            TicketStatus.OFFEN.value,
+            TicketStatus.IN_BEARBEITUNG.value,
+        ]),
+        Ticket.assigned_to_id.in_(absent_ids),
+        db.or_(
+            Ticket.priority == TicketPriority.HOCH.value,
+            Ticket.due_date <= week_end,
+        ),
+    ).count()
+
+
+def _is_worker_ooo(worker_id: int) -> bool:
+    """Return whether the worker is currently out-of-office."""
+    from models import Worker
+
+    worker = db.session.get(Worker, worker_id)
+    return bool(worker and worker.is_out_of_office)
+
+
+def _safe_query(label: str, func: Any, *args: Any) -> Any:
+    """Execute *func* and return its result, or 0 on failure."""
     try:
-        unread_notifications_count = Notification.query.filter_by(
-            user_id=session['worker_id'], 
-            is_read=False
-        ).count()
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        app.logger.warning("inject_globals: notification query failed: %s", e)
-
-    # Abwesende Mitarbeiter mit kritischen Tickets (für Nav-Badge, nur admin/management)
-    absent_entries_with_critical = 0
-    if _role in (WorkerRole.ADMIN.value, WorkerRole.HR.value, WorkerRole.MANAGEMENT.value):
-        try:
-            from models import Worker as _Worker
-            now_date = now_dt.date()
-            # On weekends (weekday 5/6), look ahead to next Friday
-            days_to_friday = (4 - now_date.weekday()) % 7
-            if days_to_friday == 0 and now_date.weekday() != 4:
-                days_to_friday = 7
-            week_end = now_date + timedelta(days=days_to_friday)
-            absent_worker_ids = [
-                w.id for w in _Worker.query.filter_by(is_active=True, is_out_of_office=True).all()
-            ]
-            if absent_worker_ids:
-                critical_count = Ticket.query.filter(
-                    Ticket.is_deleted == False,
-                    Ticket.status.in_([
-                        TicketStatus.OFFEN.value,
-                        TicketStatus.IN_BEARBEITUNG.value,
-                    ]),
-                    Ticket.assigned_to_id.in_(absent_worker_ids),
-                    db.or_(
-                        Ticket.priority == TicketPriority.HOCH.value,
-                        Ticket.due_date <= week_end
-                    )
-                ).count()
-                absent_entries_with_critical = critical_count
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            app.logger.warning("inject_globals: absent_critical query failed: %s", e)
-
-    # M-04: OOO status of current worker for header banner
-    worker_is_ooo = False
-    try:
-        from models import Worker as _Worker
-        _w = db.session.get(_Worker, session['worker_id'])
-        worker_is_ooo = bool(_w and _w.is_out_of_office)
-    except Exception:  # pylint: disable=broad-exception-caught
-        pass
-
-    # NEU-02: DRY final return — merge into _base instead of repeating keys
-    return {
-        **_base,
-        'urgent_count': urgent_count,
-        'pending_approval_count': pending_approval_count,
-        'unread_notifications_count': unread_notifications_count,
-        'absent_entries_with_critical': absent_entries_with_critical,
-        'worker_is_ooo': worker_is_ooo,
-    }
+        return func(*args)
+    except SQLAlchemyError as exc:
+        app.logger.warning("inject_globals: %s query failed: %s", label, exc)
+        return 0
 
 
 @app.context_processor
-def inject_help():
+def inject_globals() -> Dict[str, Any]:
+    """Inject global variables into templates.
+
+    Skips DB queries for static files and unauthenticated requests.
+    """
+    from models import SystemSettings
+
+    base: Dict[str, Any] = {
+        "ingress_path": request.headers.get("X-Ingress-Path", ""),
+        "system_settings": SystemSettings,
+        "TicketStatus": TicketStatus,
+        "ApprovalStatus": ApprovalStatus,
+        "WorkerRole": WorkerRole,
+        "TicketPriority": TicketPriority,
+        "urgent_count": 0,
+        "pending_approval_count": 0,
+        "unread_notifications_count": 0,
+        "absent_entries_with_critical": 0,
+    }
+
+    endpoint = request.endpoint or ""
+    worker_id = session.get("worker_id")
+    if not worker_id or endpoint in ("static", "metrics") or endpoint.startswith("metrics"):
+        return base
+
+    now_dt = get_utc_now()
+    role = session.get("role")
+
+    base["urgent_count"] = _safe_query(
+        "urgent_count", _count_urgent_tickets, worker_id, now_dt,
+    )
+
+    if session.get("is_admin") or role in _ELEVATED_ROLES:
+        base["pending_approval_count"] = _safe_query(
+            "pending_approval", _count_pending_approvals,
+        )
+
+    base["unread_notifications_count"] = _safe_query(
+        "notification", _count_unread_notifications, worker_id,
+    )
+
+    if role in _ELEVATED_ROLES:
+        base["absent_entries_with_critical"] = _safe_query(
+            "absent_critical", _count_absent_critical, now_dt,
+        )
+
+    try:
+        base["worker_is_ooo"] = _is_worker_ooo(worker_id)
+    except SQLAlchemyError:
+        base["worker_is_ooo"] = False
+
+    return base
+
+
+@app.context_processor
+def inject_help() -> Dict[str, Any]:
     """Inject context-sensitive help content for the current page."""
     from help_content import HELP
-    endpoint = request.endpoint or ''
-    # Endpoint 'main.index' → page key 'index'
-    page_key = endpoint.replace('main.', '').replace('admin.', 'admin_')
-    role = session.get('role', 'worker')
+
+    endpoint = request.endpoint or ""
+    page_key = endpoint.replace("main.", "").replace("admin.", "admin_")
+    role = session.get("role", "worker")
     help_data = HELP.get(page_key)
+
     if help_data:
-        # Filter sections by role
         filtered_sections = [
-            s for s in help_data.get('sections', [])
-            if s.get('roles') is None or role in s.get('roles', [])
+            s for s in help_data.get("sections", [])
+            if s.get("roles") is None or role in s.get("roles", [])
         ]
-        page_help = {**help_data, 'sections': filtered_sections}
+        page_help: Dict[str, Any] | None = {
+            **help_data, "sections": filtered_sections,
+        }
     else:
         page_help = None
-    return {'page_help': page_help, 'HELP': HELP}
+
+    return {"page_help": page_help, "HELP": HELP}
 
 
-@app.template_filter('local_time')
-def local_time_filter(dt):
-    """Localize UTC datetime to Europe/Berlin."""
+# ---------------------------------------------------------------------------
+# Template filters
+# ---------------------------------------------------------------------------
+
+@app.template_filter("local_time")
+def local_time_filter(dt: datetime | None) -> datetime | str:
+    """Localise UTC datetime to Europe/Berlin."""
     if not dt:
         return ""
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(ZoneInfo('Europe/Berlin'))
+    return dt.astimezone(ZoneInfo("Europe/Berlin"))
 
 
-@app.template_filter('datetime')
-def datetime_filter(dt, format='%d.%m.%Y %H:%M'):
+@app.template_filter("datetime")
+def datetime_filter(dt: datetime | None, fmt: str = "%d.%m.%Y %H:%M") -> str:
     """Format a datetime object."""
     if not dt:
         return ""
-    return dt.strftime(format)
+    return dt.strftime(fmt)
 
 
-@app.template_filter('time')
-def time_filter(dt, format='%H:%M'):
-    """Format a time from a datetime object."""
+@app.template_filter("time")
+def time_filter(dt: datetime | None, fmt: str = "%H:%M") -> str:
+    """Format the time portion of a datetime object."""
     if not dt:
         return ""
-    return dt.strftime(format)
+    return dt.strftime(fmt)
 
 
-@app.template_filter('time_ago')
-def time_ago_filter(dt):
-    """Return a pretty relative time string."""
+@app.template_filter("time_ago")
+def time_ago_filter(dt: datetime | None) -> str:
+    """Return a pretty relative time string (German)."""
     if not dt:
         return ""
-    # Standardize to naive UTC for calculation (SQLite compatibility)
     if dt.tzinfo is not None:
         dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
 
     now = get_utc_now()
     if now.tzinfo is not None:
         now = now.astimezone(timezone.utc).replace(tzinfo=None)
-    diff = now - dt
-    
-    seconds = diff.total_seconds()
+
+    seconds = (now - dt).total_seconds()
     if seconds < 60:
         return "jetzt"
     if seconds < 3600:
@@ -662,101 +702,108 @@ def time_ago_filter(dt):
     return f"vor {int(seconds // 86400)} Tg."
 
 
-@app.template_filter('status_label')
-def status_label_filter(status):
-    """Translate internal status enums to human label."""
-    labels = {
-        TicketStatus.OFFEN.value: 'Offen',
-        TicketStatus.IN_BEARBEITUNG.value: 'In Bearbeitung',
-        TicketStatus.WARTET.value: 'Wartet',
-        TicketStatus.ERLEDIGT.value: 'Erledigt'
-    }
-    return labels.get(status, status)
+_STATUS_LABELS: Dict[str, str] = {
+    TicketStatus.OFFEN.value: "Offen",
+    TicketStatus.IN_BEARBEITUNG.value: "In Bearbeitung",
+    TicketStatus.WARTET.value: "Wartet",
+    TicketStatus.ERLEDIGT.value: "Erledigt",
+}
 
 
-@app.template_filter('priority_label')
-def priority_label_filter(priority):
-    """Translate priority integer to human label."""
-    if priority == TicketPriority.HOCH.value:
-        return 'Hoch'
-    if priority == TicketPriority.MITTEL.value:
-        return 'Mittel'
-    if priority == TicketPriority.NIEDRIG.value:
-        return 'Niedrig'
-    return f'P{priority}'
+@app.template_filter("status_label")
+def status_label_filter(status: str) -> str:
+    """Translate internal status enums to human-readable label."""
+    return _STATUS_LABELS.get(status, status)
 
 
-# --- Global Error Handlers ---
-@app.errorhandler(413)  # Payload Too Large
-def request_entity_too_large(e):
-    """Handle 413 Payload Too Large error."""
-    # pylint: disable=unused-argument
-    app.logger.warning("File upload too large: %s", request.content_length)
-    # FIX: Correct 16MB limit and fix UTF-8 encoding for 'ß'
-    flash('Datei zu groß (maximal 16MB erlaubt).', 'error')
-    # fallback to index if manage is not available or context is unclear
-    return redirect(url_for('main.index'))
+_PRIO_LABELS: Dict[int, str] = {
+    TicketPriority.HOCH.value: "Hoch",
+    TicketPriority.MITTEL.value: "Mittel",
+    TicketPriority.NIEDRIG.value: "Niedrig",
+}
 
+
+@app.template_filter("priority_label")
+def priority_label_filter(priority: int) -> str:
+    """Translate priority integer to human-readable label."""
+    return _PRIO_LABELS.get(priority, f"P{priority}")
+
+
+# ---------------------------------------------------------------------------
+# Error handlers
+# ---------------------------------------------------------------------------
 
 @app.errorhandler(400)
-def bad_request(e):
-    """Handle 400 Bad Request error."""
-    if request.path.startswith('/api/'):
-        return jsonify({'success': False, 'error': e.description or 'Bad Request'}), 400
-    return render_template('400.html', error=e.description), 400
+def bad_request(exc: HTTPException) -> tuple[Response | str, int]:
+    """Handle 400 Bad Request."""
+    if request.path.startswith("/api/"):
+        return jsonify({
+            "success": False, "error": exc.description or "Bad Request",
+        }), 400
+    return render_template("400.html", error=exc.description), 400
+
+
+@app.errorhandler(404)
+def page_not_found(_exc: HTTPException) -> tuple[str, int]:
+    """Handle 404 Not Found."""
+    return render_template("404.html"), 404
+
+
+@app.errorhandler(413)
+def request_entity_too_large(_exc: HTTPException) -> WerkzeugResponse:
+    """Handle 413 Payload Too Large."""
+    app.logger.warning("File upload too large: %s", request.content_length)
+    flash("Datei zu groß (maximal 16MB erlaubt).", "error")
+    return redirect(url_for("main.index"))
+
+
+@app.errorhandler(429)
+def rate_limit_exceeded(_exc: HTTPException) -> tuple[WerkzeugResponse, int]:
+    """Handle 429 Too Many Requests from Flask-Limiter."""
+    app.logger.warning("Rate limit exceeded: %s", request.path)
+    flash("Zu viele Versuche. Bitte 1 Minute warten.", "warning")
+    next_url = request.referrer or url_for("main.index")
+    return redirect(next_url), 429
 
 
 @app.errorhandler(CSRFError)
-def handle_csrf_error(e):
-    """Handle CSRF errors specifically."""
-    app.logger.warning("CSRF Fehler: %s", e.description)
-    if request.path.startswith('/api/'):
-        return jsonify({'success': False, 'error': f'CSRF Fehler: {e.description}'}), 400
-    return render_template('400.html', error=f"Sitzung abgelaufen (CSRF): {e.description}."), 400
-
-
-@app.errorhandler(NotFound)
-def page_not_found(e):
-    """Handle 404 Not Found error."""
-    # pylint: disable=unused-argument
-    return render_template('404.html'), 404
+def handle_csrf_error(exc: CSRFError) -> tuple[Response | str, int]:
+    """Handle CSRF token errors."""
+    app.logger.warning("CSRF Fehler: %s", exc.description)
+    if request.path.startswith("/api/"):
+        return jsonify({
+            "success": False,
+            "error": f"CSRF Fehler: {exc.description}",
+        }), 400
+    return render_template(
+        "400.html",
+        error=f"Sitzung abgelaufen (CSRF): {exc.description}.",
+    ), 400
 
 
 @app.errorhandler(Exception)
-def handle_exception(e):
-    """Handle standard exceptions."""
-    # pylint: disable=unused-argument
-
-    # Pass through HTTP errors (like 400 Bad Request, 405 Method Not Allowed)
-    # instead of turning them into 500 errors.
-    if isinstance(e, HTTPException):
-        return e
-
-    app.logger.error("Unhandled Exception: %s", e, exc_info=True)
-    return render_template('500.html'), 500
+def handle_exception(exc: Exception) -> tuple[str, int] | Response:
+    """Handle unhandled exceptions (pass through HTTP errors)."""
+    if isinstance(exc, HTTPException):
+        return exc
+    app.logger.error("Unhandled Exception: %s", exc, exc_info=True)
+    return render_template("500.html"), 500
 
 
-# --- Database Setup (Moved to init_db.py for production) ---
-# Module-level initialization is disabled to avoid Gunicorn worker crashes.
-# Production deployments should call 'python init_db.py' before starting the server.
-# if 'pytest' not in sys.modules:
-#     with app.app_context():
-#         try:
-#             init_database(app)
-#         except Exception as e:
-#             app.logger.critical("APPLICATION BOOT FAILED: Database initialization error: %s", e, exc_info=True)
-#             raise
+# ---------------------------------------------------------------------------
+# Development server
+# ---------------------------------------------------------------------------
 
-
-if __name__ == '__main__':
-    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
-    require_https = os.environ.get('REQUIRE_HTTPS', '0') == '1'
-    if require_https:
+if __name__ == "__main__":
+    debug_mode = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
+    ssl_context: str | None = "adhoc" if SSL_ACTIVE else None
+    if SSL_ACTIVE:
         app.logger.info(
-            "Starte Server mit Ad-hoc-SSL-Zertifikat (REQUIRE_HTTPS=1)...")
-        app.run(host='0.0.0.0', port=5000,
-                debug=debug_mode, ssl_context='adhoc')
+            "Starte Server mit Ad-hoc-SSL-Zertifikat (REQUIRE_HTTPS=1)...",
+        )
     else:
         app.logger.info(
-            "Starte Server ohne SSL (plain HTTP) - setze REQUIRE_HTTPS=1 fÃƒÆ’Ã‚Â¼r HTTPS.")
-        app.run(host='0.0.0.0', port=5000, debug=debug_mode)
+            "Starte Server ohne SSL (plain HTTP) "
+            "- setze REQUIRE_HTTPS=1 für HTTPS.",
+        )
+    app.run(host="0.0.0.0", port=5000, debug=debug_mode, ssl_context=ssl_context)

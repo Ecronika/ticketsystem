@@ -1,191 +1,359 @@
+"""Service layer for Ticket management.
+
+Provides CRUD operations, status transitions, assignment logic,
+approval workflow, checklist handling, and dashboard queries.
 """
-Service Layer for Ticket Management.
-"""
-import base64
-import binascii
+
 import logging
 import os
+import re
 import uuid
-from datetime import datetime, timezone, timedelta
+from dataclasses import dataclass, field
+from datetime import date, datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from flask import current_app
+from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import joinedload, selectinload
 
+from enums import ApprovalStatus, TicketPriority, TicketStatus, WorkerRole
 from extensions import db
+from models import (
+    Attachment,
+    ChecklistItem,
+    Comment,
+    Notification,
+    Tag,
+    Ticket,
+    Worker,
+)
 from utils import get_utc_now
-from models import Ticket, Comment, Attachment, Tag, Worker
-from enums import TicketStatus, TicketPriority, WorkerRole, EventType, ApprovalStatus
+
 from .email_service import EmailService
 
+_logger = logging.getLogger(__name__)
 
+_ELEVATED_ROLES = frozenset({
+    WorkerRole.ADMIN.value,
+    WorkerRole.HR.value,
+    WorkerRole.MANAGEMENT.value,
+})
+
+_ALLOWED_EXTENSIONS = frozenset({
+    "png", "jpg", "jpeg", "gif", "pdf",
+    "doc", "docx", "xls", "xlsx", "txt",
+})
+
+_OPEN_STATUSES = [
+    TicketStatus.OFFEN.value,
+    TicketStatus.IN_BEARBEITUNG.value,
+    TicketStatus.WARTET.value,
+]
+
+
+# ---------------------------------------------------------------------------
+# Urgency scoring (module-level for reuse)
+# ---------------------------------------------------------------------------
+
+def _urgency_score(ticket: Ticket, now: Optional[datetime] = None) -> int:
+    """Combined urgency value.  Lower score = more urgent."""
+    if now is None:
+        now = get_utc_now()
+    prio = ticket.priority
+    if ticket.due_date is None:
+        return 500 + prio * 100
+    due = ticket.due_date
+    if due.tzinfo is not None:
+        due = due.astimezone(timezone.utc).replace(tzinfo=None)
+    days_left = (due.date() - now.date()).days
+    if days_left < 0:
+        return max(0, 50 + days_left) + prio * 5
+    if days_left == 0:
+        return 150 + prio * 5
+    if days_left <= 7:
+        return 200 + days_left * 10 + prio * 5
+    return 300 + min(100, days_left) + prio * 20
+
+
+# ---------------------------------------------------------------------------
+# Workload helpers (extracted from nested functions)
+# ---------------------------------------------------------------------------
+
+def _is_critical_ticket(ticket: Ticket, week_end: date) -> bool:
+    """Return ``True`` if a ticket requires immediate attention.
+
+    Critical means: high priority OR overdue OR due within the current
+    calendar week.  'wartet' tickets are never critical (consciously parked).
+    """
+    if ticket.status == TicketStatus.WARTET.value:
+        return False
+    if ticket.priority == TicketPriority.HOCH.value:
+        return True
+    if ticket.due_date:
+        due = ticket.due_date.date() if hasattr(ticket.due_date, "date") else ticket.due_date
+        if due <= week_end:
+            return True
+    return False
+
+
+def _workload_sort_key(ticket: Ticket, today: date) -> Tuple[int, int]:
+    """Sort key: overdue first, then by priority."""
+    if ticket.due_date:
+        due = ticket.due_date.date() if hasattr(ticket.due_date, "date") else ticket.due_date
+        days_left = (due - today).days
+    else:
+        days_left = 999
+    return (days_left, ticket.priority)
+
+
+# ---------------------------------------------------------------------------
+# Date formatting helper (replaces inline lambdas)
+# ---------------------------------------------------------------------------
+
+def _format_date(dt: Optional[datetime], fallback: str = "Keines") -> str:
+    """Format a datetime for audit log entries."""
+    return dt.strftime("%d.%m.%Y") if dt else fallback
+
+
+# ---------------------------------------------------------------------------
+# Confidential-filter builder (DRY across dashboard queries)
+# ---------------------------------------------------------------------------
+
+def _confidential_filter(
+    worker_id: int,
+    team_ids: Optional[List[int]],
+) -> list:
+    """Build SQLAlchemy OR-clauses for confidential ticket visibility."""
+    author_sub = (
+        db.session.query(Comment.ticket_id)
+        .filter(
+            Comment.event_type == "TICKET_CREATED",
+            Comment.author_id == worker_id,
+        )
+        .subquery()
+    )
+    clauses = [
+        Ticket.is_confidential == False,  # noqa: E712
+        Ticket.id.in_(author_sub),
+        Ticket.assigned_to_id == worker_id,
+        Ticket.checklists.any(ChecklistItem.assigned_to_id == worker_id),
+    ]
+    if team_ids:
+        clauses.append(Ticket.assigned_team_id.in_(team_ids))
+        clauses.append(
+            Ticket.checklists.any(ChecklistItem.assigned_team_id.in_(team_ids))
+        )
+    return clauses
+
+
+def _team_clauses(team_ids: Optional[List[int]]) -> list:
+    """Build team-based OR-clauses for ticket assignment filters."""
+    if not team_ids:
+        return []
+    return [
+        Ticket.assigned_team_id.in_(team_ids),
+        Ticket.checklists.any(
+            db.and_(
+                ChecklistItem.assigned_team_id.in_(team_ids),
+                ChecklistItem.is_completed == False,  # noqa: E712
+            )
+        ),
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Attachment handling (extracted from create_ticket)
+# ---------------------------------------------------------------------------
+
+def _save_attachments(
+    ticket_id: int,
+    attachments: list,
+) -> None:
+    """Save uploaded files and create ``Attachment`` records."""
+    from extensions import Config
+
+    data_dir = current_app.config.get("DATA_DIR", Config.get_data_dir())
+    attachments_dir = os.path.join(data_dir, "attachments")
+    os.makedirs(attachments_dir, exist_ok=True)
+
+    if "pending_files" not in db.session.info:
+        db.session.info["pending_files"] = []
+
+    for file_obj in attachments:
+        if not file_obj.filename:
+            continue
+        ext = (
+            file_obj.filename.rsplit(".", 1)[-1].lower()
+            if "." in file_obj.filename
+            else ""
+        )
+        if ext not in _ALLOWED_EXTENSIONS:
+            current_app.logger.warning(
+                "Upload blocked: Illegal extension '%s' for file %s",
+                ext, file_obj.filename,
+            )
+            continue
+        try:
+            mime_type = file_obj.mimetype or "application/octet-stream"
+            new_filename = f"ticket_{ticket_id}_{uuid.uuid4().hex[:8]}.{ext}"
+            filepath = os.path.join(attachments_dir, new_filename)
+            file_obj.save(filepath)
+            db.session.info["pending_files"].append(filepath)
+            attachment = Attachment(
+                ticket_id=ticket_id,
+                path=new_filename,
+                filename=file_obj.filename,
+                mime_type=mime_type,
+            )
+            db.session.add(attachment)
+            current_app.logger.info(
+                "Saved attachment %s for ticket %s", new_filename, ticket_id
+            )
+        except OSError as err:
+            current_app.logger.error(
+                "Error saving attachment %s: %s", file_obj.filename, err
+            )
+
+
+# ---------------------------------------------------------------------------
+# OOO admin notification (extracted from assign_ticket)
+# ---------------------------------------------------------------------------
+
+def _notify_admins_ooo_exhausted(
+    ticket_id: int, author_id: Optional[int], path_logs: List[str]
+) -> None:
+    """Notify all admins when the OOO delegation chain is exhausted."""
+    ooo_exhausted = (
+        path_logs
+        and any("kein Vertreter" in log or "Zirkuläre" in log for log in path_logs)
+    )
+    if not ooo_exhausted:
+        return
+    try:
+        admins = Worker.query.filter_by(is_active=True, role="admin").all()
+        for admin in admins:
+            if admin.id != author_id:
+                TicketService.create_notification(
+                    user_id=admin.id,
+                    message=(
+                        f"Ticket #{ticket_id} konnte nicht zugewiesen werden "
+                        "(OOO-Kette erschöpft). Manuelle Zuweisung erforderlich."
+                    ),
+                    link=f"/ticket/{ticket_id}",
+                )
+    except Exception as exc:
+        current_app.logger.warning(
+            "Admin OOO notification failed: %s", exc
+        )
+
+
+
+# ---------------------------------------------------------------------------
+# Main Service Class
+# ---------------------------------------------------------------------------
 
 class TicketService:
-    """
-    Service for handling ticket and comment operations.
-    """
+    """Service for ticket and comment operations."""
+
+    _urgency_score = staticmethod(_urgency_score)
+
+    # ------------------------------------------------------------------
+    # Create
+    # ------------------------------------------------------------------
 
     @staticmethod
-    def _urgency_score(ticket, now=None):
-        """
-        Kombinierter Dringlichkeitswert. Kleinerer Score = dringender.
-        
-        Logik:
-        - Überfällig: 0-99 (Prio 1 überfällig = 0, Prio 3 überfällig = 20)
-        - Heute fällig: 100-199
-        - Diese Woche (2-7 Tage): 200-299
-        - Später (> 7 Tage): 300-499
-        - Kein Datum: Fallback auf 500 + Prio * 100
-        """
-        if now is None:
-            now = get_utc_now()
-        
-        prio = ticket.priority  # 1=Hoch, 2=Mittel, 3=Niedrig
-        
-        if ticket.due_date is None:
-            return 500 + prio * 100
-        
-        # Deadlines immer als naive Datetimes für SQLite Vergleich
-        _due = ticket.due_date
-        if _due.tzinfo is not None:
-            _due = _due.astimezone(timezone.utc).replace(tzinfo=None)
-
-        days_left = (_due.date() - now.date()).days
-        
-        if days_left < 0:      # Überfällig
-            return max(0, 50 + days_left) + prio * 5
-        elif days_left == 0:   # Heute
-            return 150 + prio * 5
-        elif days_left <= 7:   # Diese Woche
-            return 200 + days_left * 10 + prio * 5
-        else:                  # Später
-            # Use higher multiplier for priority to keep it significant
-            return 300 + min(100, days_left) + prio * 20
-
-    @staticmethod
-    def create_ticket(title, description=None, priority=TicketPriority.MITTEL, author_name="System", author_id=None, assigned_to_id=None, assigned_team_id=None, due_date=None, tags=None, attachments=None, order_reference=None, reminder_date=None, is_confidential=False, recurrence_rule=None, checklist_template_id=None, contact_name=None, contact_phone=None, contact_channel=None, callback_requested=False, callback_due=None, commit=True):
-        """Create a new ticket and an initial comment.
+    def create_ticket(
+        title: str,
+        description: Optional[str] = None,
+        priority: Any = TicketPriority.MITTEL,
+        author_name: str = "System",
+        author_id: Optional[int] = None,
+        assigned_to_id: Optional[int] = None,
+        assigned_team_id: Optional[int] = None,
+        due_date: Optional[datetime] = None,
+        tags: Optional[List[str]] = None,
+        attachments: Optional[list] = None,
+        order_reference: Optional[str] = None,
+        reminder_date: Optional[datetime] = None,
+        is_confidential: bool = False,
+        recurrence_rule: Optional[str] = None,
+        checklist_template_id: Optional[int] = None,
+        contact_name: Optional[str] = None,
+        contact_phone: Optional[str] = None,
+        contact_channel: Optional[str] = None,
+        callback_requested: bool = False,
+        callback_due: Optional[datetime] = None,
+        commit: bool = True,
+    ) -> Ticket:
+        """Create a new ticket with an initial audit comment.
 
         Args:
-            commit: If True (default), commits the transaction immediately.
-                    Pass False in batch/scheduler contexts to keep the
-                    transaction open and commit once for the entire batch.
+            commit: When ``True`` (default), commits immediately.
+                    Pass ``False`` in batch / scheduler contexts.
         """
         try:
-            path_logs = []
+            path_logs: List[str] = []
             if assigned_to_id:
-                assigned_to_id, path_logs = TicketService._resolve_delegation(assigned_to_id)
-                
-            ticket = Ticket(
-                title=title,
-                description=description,
-                priority=int(priority.value if hasattr(priority, 'value') else priority),
-                status=TicketStatus.OFFEN.value,
-                assigned_to_id=assigned_to_id,
-                assigned_team_id=assigned_team_id,
-                is_confidential=is_confidential,
-                recurrence_rule=recurrence_rule,
-                due_date=due_date,
-                order_reference=order_reference,
-                reminder_date=reminder_date,
-                contact_name=contact_name,
-                contact_phone=contact_phone,
-                contact_channel=contact_channel,
-                callback_requested=bool(callback_requested),
-                callback_due=callback_due,
-            )
-            
-            if tags:
-                # Assuming tags is a list of Tag objects or names
-                for tag_name in tags:
-                    tag = Tag.query.filter_by(name=tag_name).first()
-                    if not tag:
-                        tag = Tag(name=tag_name)
-                        db.session.add(tag)
-                    ticket.tags.append(tag)
+                assigned_to_id, path_logs = TicketService._resolve_delegation(
+                    assigned_to_id
+                )
 
+            ticket = _build_ticket(
+                title, description, priority, assigned_to_id,
+                assigned_team_id, is_confidential, recurrence_rule,
+                due_date, order_reference, reminder_date,
+                contact_name, contact_phone, contact_channel,
+                callback_requested, callback_due,
+            )
+            _attach_tags(ticket, tags)
             db.session.add(ticket)
-            db.session.flush()  # Get ticket ID
+            db.session.flush()
 
             if checklist_template_id:
-                TicketService.apply_checklist_template(ticket.id, checklist_template_id, commit=False)
+                TicketService.apply_checklist_template(
+                    ticket.id, checklist_template_id, commit=False
+                )
 
-            # Add initial comment if description exists
-            comment_text = f"Ticket erstellt von {author_name}. Beschreibung: {description}" if description else f"Ticket erstellt von {author_name}."
-            if path_logs:
-                comment_text += "\nDelegation:\n- " + "\n- ".join(path_logs)
-            
-            comment = Comment(
-                ticket_id=ticket.id,
-                author=author_name,
-                author_id=author_id,
-                text=comment_text,
-                is_system_event=True,
-                event_type='TICKET_CREATED'
+            _add_creation_comment(
+                ticket.id, author_name, author_id, description, path_logs
             )
-            db.session.add(comment)
-
-            # Handle Multi-File Attachments
-            # FILE-1: Track saved paths in session.info for the global rollback listener (extensions.py)
-            if 'pending_files' not in db.session.info:
-                db.session.info['pending_files'] = []
 
             if attachments:
-                from extensions import Config
-                data_dir = current_app.config.get('DATA_DIR', Config.get_data_dir())
-                attachments_dir = os.path.join(data_dir, 'attachments')
-                os.makedirs(attachments_dir, exist_ok=True)
-                ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt'}
-                for file in attachments:
-                    if file.filename == '':
-                        continue
-                    
-                    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
-                    if ext not in ALLOWED_EXTENSIONS:
-                        current_app.logger.warning("Upload blocked: Illegal extension '%s' for file %s", ext, file.filename)
-                        continue
+                _save_attachments(ticket.id, attachments)
 
-                    try:
-                        mime_type = file.mimetype or 'application/octet-stream'
-                        new_filename = f"ticket_{ticket.id}_{uuid.uuid4().hex[:8]}.{ext}"
-                        filepath = os.path.join(attachments_dir, new_filename)
-                        file.save(filepath)
-                        db.session.info['pending_files'].append(filepath)
-                        attachment = Attachment(
-                            ticket_id=ticket.id,
-                            path=new_filename,
-                            filename=file.filename,
-                            mime_type=mime_type
-                        )
-                        db.session.add(attachment)
-                        current_app.logger.info("Saved attachment %s for ticket %s", new_filename, ticket.id)
-                    except Exception as err:
-                        current_app.logger.error("Error saving attachment %s: %s", file.filename, err)
-
-            # TX-1: Commit if requested, else flush to get ID
             if commit:
                 db.session.commit()
             else:
                 db.session.flush()
 
             return ticket
-        except SQLAlchemyError as e:
+        except SQLAlchemyError as exc:
             db.session.rollback()
-            current_app.logger.error("Database error creating ticket: %s", e)
-            raise
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error("Unexpected error creating ticket: %s", e)
+            current_app.logger.error("Database error creating ticket: %s", exc)
             raise
 
+    # ------------------------------------------------------------------
+    # Update
+    # ------------------------------------------------------------------
+
     @staticmethod
-    def update_ticket(ticket_id, title=None, description=None, priority=None, due_date=None, author_name="System", author_id=None):
+    def update_ticket(
+        ticket_id: int,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        priority: Optional[int] = None,
+        due_date: Optional[datetime] = None,
+        author_name: str = "System",
+        author_id: Optional[int] = None,
+    ) -> Optional[Ticket]:
         """Update ticket basic details."""
         try:
             ticket = db.session.get(Ticket, ticket_id)
             if not ticket or ticket.is_deleted:
                 return None
-            
-            changes = []
+
+            changes: List[str] = []
             if title and ticket.title != title:
                 changes.append(f"Titel: {ticket.title} -> {title}")
                 ticket.title = title
@@ -196,9 +364,10 @@ class TicketService:
                 changes.append(f"Priorität: {ticket.priority} -> {priority}")
                 ticket.priority = int(priority)
             if due_date is not None and ticket.due_date != due_date:
-                old_date = ticket.due_date.strftime('%d.%m.%Y') if ticket.due_date else "Keines"
-                new_date = due_date.strftime('%d.%m.%Y') if due_date else "Keines"
-                changes.append(f"Fälligkeit: {old_date} -> {new_date}")
+                changes.append(
+                    f"Fälligkeit: {_format_date(ticket.due_date)} "
+                    f"-> {_format_date(due_date)}"
+                )
                 ticket.due_date = due_date
 
             if changes:
@@ -209,557 +378,554 @@ class TicketService:
                     author_id=author_id,
                     text=f"Ticket aktualisiert: {', '.join(changes)}",
                     is_system_event=True,
-                    event_type='TICKET_UPDATE'
+                    event_type="TICKET_UPDATE",
                 )
                 db.session.add(comment)
                 db.session.commit()
-            
+
             return ticket
-        except SQLAlchemyError as e:
+        except SQLAlchemyError as exc:
             db.session.rollback()
-            current_app.logger.error("Database error updating ticket: %s", e)
-            raise
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error("Unexpected error updating ticket: %s", e)
+            current_app.logger.error("Database error updating ticket: %s", exc)
             raise
 
+    # ------------------------------------------------------------------
+    # Delete (soft)
+    # ------------------------------------------------------------------
+
     @staticmethod
-    def delete_ticket(ticket_id, author_name="System", author_id=None):
+    def delete_ticket(
+        ticket_id: int,
+        author_name: str = "System",
+        author_id: Optional[int] = None,
+    ) -> bool:
         """Soft-delete a ticket."""
         try:
             ticket = db.session.get(Ticket, ticket_id)
             if not ticket or ticket.is_deleted:
                 return False
-            
+
             ticket.is_deleted = True
             ticket.updated_at = get_utc_now()
-            
             comment = Comment(
                 ticket_id=ticket.id,
                 author=author_name,
                 author_id=author_id,
                 text="Ticket wurde vom System archiviert.",
                 is_system_event=True,
-                event_type='TICKET_DELETED'
+                event_type="TICKET_DELETED",
             )
             db.session.add(comment)
             db.session.commit()
             return True
-        except SQLAlchemyError as e:
+        except SQLAlchemyError as exc:
             db.session.rollback()
-            current_app.logger.error("Database error deleting ticket: %s", e)
-            raise
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error("Unexpected error deleting ticket: %s", e)
+            current_app.logger.error("Database error deleting ticket: %s", exc)
             raise
 
+    # ------------------------------------------------------------------
+    # Notifications
+    # ------------------------------------------------------------------
+
     @staticmethod
-    def create_notification(user_id, message, link=None):
-        """Helper to create an in-app notification."""
-        from models import Notification
+    def create_notification(
+        user_id: int, message: str, link: Optional[str] = None
+    ) -> None:
+        """Create an in-app notification (best-effort)."""
         try:
-            notif = Notification(user_id=user_id, message=message, link=link)
-            db.session.add(notif)
-        except Exception as e:
-            current_app.logger.error("Failed to create notification: %s", e)
+            db.session.add(
+                Notification(user_id=user_id, message=message, link=link)
+            )
+        except Exception as exc:
+            current_app.logger.error(
+                "Failed to create notification: %s", exc
+            )
+
+    # ------------------------------------------------------------------
+    # Comments
+    # ------------------------------------------------------------------
 
     @staticmethod
-    def add_comment(ticket_id, author_name, author_id, text):
-        """Add a comment to an existing ticket."""
-        import re
+    def add_comment(
+        ticket_id: int,
+        author_name: str,
+        author_id: Optional[int],
+        text: str,
+    ) -> Comment:
+        """Add a comment and process ``@mentions``."""
         try:
             comment = Comment(
                 ticket_id=ticket_id,
                 author=author_name,
                 author_id=author_id,
                 text=text,
-                is_system_event=False
+                is_system_event=False,
             )
             db.session.add(comment)
-            
-            # Update updated_at on ticket
+
             ticket = db.session.get(Ticket, ticket_id)
             if ticket:
                 ticket.updated_at = get_utc_now()
-                
-            # Trigger Mention Notifications
-            mentions = set(re.findall(r'@(\w+)', text))
-            if mentions:
-                for mention in mentions:
-                    if mention.lower() == author_name.lower():
-                        continue
-                    mentioned_worker = Worker.query.filter(Worker.name.ilike(mention)).first()
-                    if mentioned_worker:
-                        TicketService.create_notification(
-                            user_id=mentioned_worker.id,
-                            message=f"{author_name} hat Sie in Ticket #{ticket_id} erwähnt.",
-                            link=f"/ticket/{ticket_id}"
-                        )
-                        if mentioned_worker.email:
-                            EmailService.send_mention(
-                                mentioned_worker.name, ticket_id,
-                                author_name, recipient_email=mentioned_worker.email
-                            )
-            
+
+            _process_mentions(ticket_id, text, author_name)
             db.session.commit()
             return comment
-        except Exception as e:
+        except Exception as exc:
             db.session.rollback()
-            current_app.logger.error("Error adding comment: %s", e)
+            current_app.logger.error("Error adding comment: %s", exc)
             raise
 
-    @staticmethod
-    def update_status(ticket_id, status, author_name="System", author_id=None, commit=True):
-        """Update ticket status and add a system comment.
+    # ------------------------------------------------------------------
+    # Status
+    # ------------------------------------------------------------------
 
-        Args:
-            commit: If True (default), commits immediately. Pass False in
-                    batch contexts to defer the commit to the caller.
-        """
+    @staticmethod
+    def update_status(
+        ticket_id: int,
+        status: Any,
+        author_name: str = "System",
+        author_id: Optional[int] = None,
+        commit: bool = True,
+    ) -> Optional[Ticket]:
+        """Update ticket status and add a system comment."""
         try:
             ticket = db.session.get(Ticket, ticket_id)
             if not ticket or ticket.is_deleted:
                 return None
-            
+
             old_status = ticket.status
-            new_status = status.value if hasattr(status, 'value') else status
-            
+            new_status = status.value if hasattr(status, "value") else status
+
             if old_status != new_status:
                 ticket.status = new_status
                 ticket.updated_at = get_utc_now()
-                
                 comment = Comment(
                     ticket_id=ticket_id,
                     author=author_name,
                     author_id=author_id,
                     text=f"Status geändert: {old_status} -> {new_status}",
                     is_system_event=True,
-                    event_type='STATUS_CHANGE'
+                    event_type="STATUS_CHANGE",
                 )
                 db.session.add(comment)
-                # TX-1: Honour commit flag for batch-safe operation
                 if commit:
                     db.session.commit()
                 else:
                     db.session.flush()
-            
+
             return ticket
-        except Exception as e:
+        except Exception as exc:
             db.session.rollback()
-            current_app.logger.error("Error updating status: %s", e)
+            current_app.logger.error("Error updating status: %s", exc)
             raise
 
+
+    # ------------------------------------------------------------------
+    # Dashboard query
+    # ------------------------------------------------------------------
+
     @staticmethod
-    def get_dashboard_tickets(worker_id=None, search=None, status_filter=None, page=1, per_page=10,
-                             assigned_to_me=False, unassigned_only=False, callback_pending=False,
-                             start_date=None, end_date=None, author_name=None, worker_role=None,
-                             team_ids=None, assigned_worker_id=None):
-        """Fetch tickets for the dashboard with search, filtering, and pagination."""
-        from sqlalchemy.orm import joinedload, selectinload
-        from models import ChecklistItem
-        query = Ticket.query.filter_by(is_deleted=False).options(
-            joinedload(Ticket.comments),
-            joinedload(Ticket.assigned_to),
-            selectinload(Ticket.tags),
-            selectinload(Ticket.checklists)
+    def get_dashboard_tickets(
+        worker_id: Optional[int] = None,
+        search: Optional[str] = None,
+        status_filter: Optional[str] = None,
+        page: int = 1,
+        per_page: int = 10,
+        assigned_to_me: bool = False,
+        unassigned_only: bool = False,
+        callback_pending: bool = False,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        author_name: Optional[str] = None,
+        worker_role: Optional[str] = None,
+        team_ids: Optional[List[int]] = None,
+        assigned_worker_id: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Fetch tickets for the dashboard with filtering and pagination."""
+        query = _base_ticket_query()
+        tc = _team_clauses(team_ids)
+        is_elevated = worker_role in _ELEVATED_ROLES
+
+        # Confidential filter
+        if not is_elevated and worker_id is not None:
+            query = query.filter(
+                db.or_(*_confidential_filter(worker_id, team_ids))
+            )
+
+        # Assignment filters
+        query = _apply_assignment_filters(
+            query, worker_id, team_ids,
+            assigned_to_me, unassigned_only, assigned_worker_id,
         )
-        
-        _tc = [Ticket.assigned_team_id.in_(team_ids),
-               Ticket.checklists.any(ChecklistItem.assigned_team_id.in_(team_ids))] if team_ids else []
 
-        if worker_role not in [WorkerRole.ADMIN.value, WorkerRole.HR.value, WorkerRole.MANAGEMENT.value] and worker_id is not None:
-            author_subquery = db.session.query(Comment.ticket_id).filter(
-                Comment.event_type == 'TICKET_CREATED',
-                Comment.author_id == worker_id
-            ).subquery()
-            query = query.filter(
-                db.or_(
-                    Ticket.is_confidential == False,
-                    Ticket.id.in_(author_subquery),
-                    Ticket.assigned_to_id == worker_id,
-                    Ticket.checklists.any(ChecklistItem.assigned_to_id == worker_id),
-                    *_tc
-                )
-            )
-
-        if assigned_to_me and worker_id:
-            _atm_team = [Ticket.assigned_team_id.in_(team_ids),
-                         Ticket.checklists.any(db.and_(
-                             ChecklistItem.assigned_team_id.in_(team_ids),
-                             ChecklistItem.is_completed == False
-                         ))] if team_ids else []
-            query = query.filter(
-                db.or_(
-                    Ticket.assigned_to_id == worker_id,
-                    Ticket.checklists.any(
-                        db.and_(
-                            ChecklistItem.assigned_to_id == worker_id,
-                            ChecklistItem.is_completed == False
-                        )
-                    ),
-                    *_atm_team
-                )
-            )
-        elif unassigned_only:
-            query = query.filter(Ticket.assigned_to_id == None, Ticket.assigned_team_id == None)
-
-        # M-09: Filter by specific worker (used from Workload drill-down)
-        if assigned_worker_id:
-            query = query.filter(Ticket.assigned_to_id == int(assigned_worker_id))
-
+        # Callback filter
         if callback_pending:
             query = query.filter(
-                Ticket.callback_requested == True,
-                Ticket.status != TicketStatus.ERLEDIGT.value
+                Ticket.callback_requested == True,  # noqa: E712
+                Ticket.status != TicketStatus.ERLEDIGT.value,
             )
 
+        # Date range
         if start_date:
             query = query.filter(Ticket.created_at >= start_date)
         if end_date:
             query = query.filter(Ticket.created_at <= end_date)
-            
-        if author_name:
-            # Subquery to find tickets created by a specific author
-            author_subquery = db.session.query(Comment.ticket_id).filter(
-                Comment.event_type == 'TICKET_CREATED',
-                Comment.author.ilike(f"%{author_name}%")
-            ).subquery()
-            query = query.filter(Ticket.id.in_(author_subquery))
 
-        if search:
-            # FEAT-10: Extended search — also search in Comment.text (solutions, notes, URLs)
-            comment_ticket_ids = db.session.query(Comment.ticket_id).filter(
-                Comment.text.ilike(f"%{search}%")
-            ).subquery()
-            query = query.filter(
-                (Ticket.title.ilike(f"%{search}%")) | 
-                (Ticket.description.ilike(f"%{search}%")) |
-                (Ticket.order_reference.ilike(f"%{search}%")) |
-                (Ticket.id.in_(comment_ticket_ids))
+        # Author filter
+        if author_name:
+            author_sub = (
+                db.session.query(Comment.ticket_id)
+                .filter(
+                    Comment.event_type == "TICKET_CREATED",
+                    Comment.author.ilike(f"%{author_name}%"),
+                )
+                .subquery()
             )
-        
+            query = query.filter(Ticket.id.in_(author_sub))
+
+        # Full-text search
+        if search:
+            query = _apply_search_filter(query, search)
+
+        # Status filter
         if status_filter:
             query = query.filter(Ticket.status == status_filter)
         elif not search and not assigned_to_me:
-            # Default: hide closed tickets unless searching or specifically looking at "My Tickets"
-            query = query.filter(Ticket.status != TicketStatus.ERLEDIGT.value)
+            query = query.filter(
+                Ticket.status != TicketStatus.ERLEDIGT.value
+            )
 
-        # Focus / General list (Paginated)
         focus_pagination = query.order_by(
-            Ticket.priority.asc(), 
-            Ticket.created_at.desc()
+            Ticket.priority.asc(), Ticket.created_at.desc()
         ).paginate(page=page, per_page=per_page, error_out=False)
 
-        # Self: Always keep an eye on "My Tickets" (limit to top 5 for sidebar)
-        self_tickets = []
-        self_total = 0
-        if worker_id:
-            _self_team = [Ticket.assigned_team_id.in_(team_ids),
-                          Ticket.checklists.any(db.and_(
-                              ChecklistItem.assigned_team_id.in_(team_ids),
-                              ChecklistItem.is_completed == False
-                          ))] if team_ids else []
-            self_query = Ticket.query.filter_by(
-                is_deleted=False
-            ).options(
-                joinedload(Ticket.comments),
-                joinedload(Ticket.assigned_to),
-                selectinload(Ticket.tags),
-                selectinload(Ticket.checklists)
-            ).filter(
-                Ticket.status != TicketStatus.ERLEDIGT.value
-            ).filter(
-                db.or_(
-                    Ticket.assigned_to_id == worker_id,
-                    Ticket.checklists.any(
-                        db.and_(
-                            ChecklistItem.assigned_to_id == worker_id,
-                            ChecklistItem.is_completed == False
-                        )
-                    ),
-                    *_self_team
-                )
-            )
-            if worker_role not in [WorkerRole.ADMIN.value, WorkerRole.HR.value, WorkerRole.MANAGEMENT.value]:
-                author_subs = db.session.query(Comment.ticket_id).filter(
-                    Comment.event_type == 'TICKET_CREATED',
-                    Comment.author_id == worker_id
-                ).subquery()
-                self_query = self_query.filter(
-                    db.or_(
-                        Ticket.is_confidential == False,
-                        Ticket.id.in_(author_subs),
-                        Ticket.assigned_to_id == worker_id,
-                        Ticket.checklists.any(ChecklistItem.assigned_to_id == worker_id),
-                        *_tc
-                    )
-                )
-            self_total = self_query.count()
-            self_tickets = self_query.order_by(Ticket.updated_at.desc()).limit(5).all()
-
-        from sqlalchemy import func
-        from models import ChecklistItem as _CI
-        counts_query = db.session.query(
-            Ticket.status, func.count(Ticket.id)
-        ).filter_by(is_deleted=False).filter(
-            Ticket.status.in_([TicketStatus.OFFEN.value, TicketStatus.IN_BEARBEITUNG.value, TicketStatus.WARTET.value])
+        self_tickets, self_total = _fetch_self_tickets(
+            worker_id, worker_role, team_ids, tc,
         )
-        # Apply the same confidential filter so counts match visible tickets
-        if worker_role not in [WorkerRole.ADMIN.value, WorkerRole.HR.value, WorkerRole.MANAGEMENT.value] and worker_id is not None:
-            _author_sub = db.session.query(Comment.ticket_id).filter(
-                Comment.event_type == 'TICKET_CREATED',
-                Comment.author_id == worker_id
-            ).subquery()
-            _tc2 = [Ticket.assigned_team_id.in_(team_ids),
-                    Ticket.checklists.any(_CI.assigned_team_id.in_(team_ids))] if team_ids else []
-            counts_query = counts_query.filter(
-                db.or_(
-                    Ticket.is_confidential == False,
-                    Ticket.id.in_(_author_sub),
-                    Ticket.assigned_to_id == worker_id,
-                    Ticket.checklists.any(_CI.assigned_to_id == worker_id),
-                    *_tc2
-                )
-            )
-        counts = counts_query.group_by(Ticket.status).all()
-        
-        summary_counts = {s.value: 0 for s in [TicketStatus.OFFEN, TicketStatus.IN_BEARBEITUNG, TicketStatus.WARTET]}
-        for status, count in counts:
-            summary_counts[status] = count
+
+        summary_counts = _fetch_summary_counts(
+            worker_id, worker_role, team_ids,
+        )
 
         return {
-            'focus_pagination': focus_pagination,
-            'self': self_tickets,
-            'self_total': self_total,
-            'summary_counts': summary_counts
+            "focus_pagination": focus_pagination,
+            "self": self_tickets,
+            "self_total": self_total,
+            "summary_counts": summary_counts,
         }
 
-    @staticmethod
-    def get_pending_approvals(page=1, per_page=15):
-        """Fetch all tickets that are currently pending GF/admin approval."""
-        from sqlalchemy.orm import joinedload, selectinload
-        query = Ticket.query.filter_by(
-            is_deleted=False, 
-            approval_status='pending'
-        ).options(
-            joinedload(Ticket.assigned_to),
-            selectinload(Ticket.tags)
-        ).order_by(Ticket.updated_at.desc())
-        
-        return query.paginate(page=page, per_page=per_page, error_out=False)
+    # ------------------------------------------------------------------
+    # Approvals
+    # ------------------------------------------------------------------
 
     @staticmethod
-    def get_projects_summary():
-        """Fetch all projects (grouped by order_reference) and calculate progress."""
-        from sqlalchemy.orm import selectinload
-        from models import Ticket
-        from enums import TicketStatus
-        
-        query = Ticket.query.filter(
-            Ticket.is_deleted == False,
-            Ticket.order_reference != None,
-            Ticket.order_reference != ''
-        ).options(selectinload(Ticket.checklists))
-        
-        tickets = query.all()
-        projects = {}
-        
-        for t in tickets:
-            ref = t.order_reference.strip()
-            if not ref:
-                continue
-                
-            if ref not in projects:
-                projects[ref] = {
-                    'order_reference': ref,
-                    'total_tickets': 0,
-                    'completed_tickets': 0,
-                    'last_updated': t.updated_at or t.created_at,
-                    'ticket_progress_sum': 0.0,
-                    'status_counts': {s.value: 0 for s in TicketStatus}
-                }
-            
-            p = projects[ref]
-            p['total_tickets'] += 1
-            
-            t_time = t.updated_at or t.created_at
-            if t_time and (not p['last_updated'] or t_time > p['last_updated']):
-                p['last_updated'] = t_time
-                
-            if t.status in p['status_counts']:
-                p['status_counts'][t.status] += 1
-            else:
-                p['status_counts'][t.status] = 1
-                
-            is_ticket_erledigt = (t.status == TicketStatus.ERLEDIGT.value)
-            if is_ticket_erledigt:
-                p['completed_tickets'] += 1
-                
-            # Ticket Progress Calculation
-            if t.checklists:
-                completed_cl = sum(1 for c in t.checklists if c.is_completed)
-                total_cl = len(t.checklists)
-                t_prog = completed_cl / total_cl if total_cl > 0 else 0.0
-            else:
-                t_prog = 1.0 if is_ticket_erledigt else 0.0
-                
-            p['ticket_progress_sum'] += t_prog
-
-        project_list = []
-        for ref, p in projects.items():
-            if p['total_tickets'] > 0:
-                p['progress'] = int((p['ticket_progress_sum'] / p['total_tickets']) * 100)
-            else:
-                p['progress'] = 0
-            
-            p['is_completed'] = (p['progress'] == 100)
-            project_list.append(p)
-            
-        # Sort: Active projects first, then by last_updated descending
-        project_list.sort(key=lambda x: (x['is_completed'], -x['last_updated'].timestamp() if x['last_updated'] else 0))
-        return project_list
+    def get_pending_approvals(page: int = 1, per_page: int = 15) -> Any:
+        """Fetch tickets pending approval."""
+        return (
+            Ticket.query.filter_by(
+                is_deleted=False, approval_status="pending"
+            )
+            .options(
+                joinedload(Ticket.assigned_to), selectinload(Ticket.tags)
+            )
+            .order_by(Ticket.updated_at.desc())
+            .paginate(page=page, per_page=per_page, error_out=False)
+        )
 
     @staticmethod
-    def _resolve_delegation(worker_id):
-        """Resolves the final worker ID, gracefully handling OOO and loops."""
-        if not worker_id:
-            return None, []
-        
-        visited = set()
-        path_logs = []
-        current_id = worker_id
-        
-        while current_id:
-            if current_id in visited:
-                path_logs.append("Zirkuläre Vertretung erkannt. Fallback: Unzugewiesen.")
-                return None, path_logs
-                
-            visited.add(current_id)
-            w = db.session.get(Worker, current_id)
-            
-            if not w:
-                return None, path_logs
-                
-            if w.is_out_of_office:
-                if w.delegate_to_id:
-                    delegate = db.session.get(Worker, w.delegate_to_id)
-                    delegate_name = delegate.name if delegate else "Unbekannt"
-                    path_logs.append(f"{w.name} abwesend -> delegiert an {delegate_name}")
-                    current_id = w.delegate_to_id
-                else:
-                    path_logs.append(f"{w.name} abwesend (kein Vertreter). Fallback: Unzugewiesen.")
-                    return None, path_logs
-            else:
-                return current_id, path_logs
-                
-        return None, path_logs
-
-    @staticmethod
-    def assign_ticket(ticket_id, worker_id, author_name, author_id=None, team_id=None):
-        """Assign a ticket to a worker and log the change."""
+    def request_approval(
+        ticket_id: int, worker_id: int, worker_name: str
+    ) -> Tuple[bool, str]:
+        """Request approval for a ticket."""
         try:
             ticket = db.session.get(Ticket, ticket_id)
             if not ticket or ticket.is_deleted:
                 raise ValueError("Ticket nicht gefunden.")
-            
-            old_worker_name = ticket.assigned_to.name if ticket.assigned_to else "Niemand"
-            
-            path_logs = []
+            if ticket.approval_status == ApprovalStatus.PENDING.value:
+                return False, "Freigabe bereits angefragt."
+
+            ticket.approval_status = ApprovalStatus.PENDING.value
+            ticket.updated_at = get_utc_now()
+            db.session.add(Comment(
+                ticket_id=ticket.id,
+                author=worker_name,
+                author_id=worker_id,
+                text="Freigabe wurde angefordert. Das Ticket ist nun gesperrt.",
+                is_system_event=True,
+                event_type="APPROVAL_REQUEST",
+            ))
+            db.session.commit()
+            _send_approval_emails(ticket.id, worker_name)
+            return True, "Freigabe angefragt."
+        except Exception as exc:
+            db.session.rollback()
+            current_app.logger.error("Error requesting approval: %s", exc)
+            raise
+
+    @staticmethod
+    def approve_ticket(
+        ticket_id: int, worker_id: int, worker_name: str
+    ) -> Any:
+        """Approve a ticket."""
+        try:
+            ticket = db.session.get(Ticket, ticket_id)
+            if not ticket or ticket.is_deleted:
+                raise ValueError("Ticket nicht gefunden.")
+            if ticket.approval_status == ApprovalStatus.APPROVED.value:
+                return False, "Ticket bereits freigegeben."
+
+            ticket.approval_status = ApprovalStatus.APPROVED.value
+            ticket.approved_by_id = worker_id
+            ticket.approved_at = get_utc_now()
+            ticket.updated_at = get_utc_now()
+            db.session.add(Comment(
+                ticket_id=ticket.id,
+                author="System",
+                author_id=None,
+                text=f"Freigegeben durch {worker_name}",
+                is_system_event=True,
+                event_type="APPROVAL",
+            ))
+            db.session.commit()
+            _send_approval_result_email(ticket, approved=True)
+            return ticket
+        except Exception as exc:
+            db.session.rollback()
+            current_app.logger.error("Error approving ticket: %s", exc)
+            raise
+
+    @staticmethod
+    def reject_ticket(
+        ticket_id: int, worker_id: int, worker_name: str, reason: str
+    ) -> Ticket:
+        """Reject a ticket with a reason."""
+        try:
+            ticket = db.session.get(Ticket, ticket_id)
+            if not ticket or ticket.is_deleted:
+                raise ValueError("Ticket nicht gefunden.")
+
+            ticket.approval_status = ApprovalStatus.REJECTED.value
+            ticket.rejected_by_id = worker_id
+            ticket.reject_reason = reason
+            ticket.status = TicketStatus.OFFEN.value
+            ticket.updated_at = get_utc_now()
+            db.session.add(Comment(
+                ticket_id=ticket.id,
+                author="System",
+                author_id=None,
+                text=f"Freigabe abgelehnt durch {worker_name}. Grund: {reason}",
+                is_system_event=True,
+                event_type="APPROVAL_REJECTED",
+            ))
+            db.session.commit()
+            _send_approval_result_email(ticket, approved=False, reason=reason)
+            return ticket
+        except Exception as exc:
+            db.session.rollback()
+            current_app.logger.error("Error rejecting ticket: %s", exc)
+            raise
+
+    # ------------------------------------------------------------------
+    # Assignment
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _resolve_delegation(
+        worker_id: int,
+    ) -> Tuple[Optional[int], List[str]]:
+        """Resolve OOO delegation chain, detecting circular loops."""
+        if not worker_id:
+            return None, []
+
+        visited: Set[int] = set()
+        path_logs: List[str] = []
+        current_id: Optional[int] = worker_id
+
+        while current_id:
+            if current_id in visited:
+                path_logs.append(
+                    "Zirkuläre Vertretung erkannt. Fallback: Unzugewiesen."
+                )
+                return None, path_logs
+
+            visited.add(current_id)
+            worker = db.session.get(Worker, current_id)
+            if not worker:
+                return None, path_logs
+
+            if not worker.is_out_of_office:
+                return current_id, path_logs
+
+            if worker.delegate_to_id:
+                delegate = db.session.get(Worker, worker.delegate_to_id)
+                delegate_name = delegate.name if delegate else "Unbekannt"
+                path_logs.append(
+                    f"{worker.name} abwesend -> delegiert an {delegate_name}"
+                )
+                current_id = worker.delegate_to_id
+            else:
+                path_logs.append(
+                    f"{worker.name} abwesend (kein Vertreter). "
+                    "Fallback: Unzugewiesen."
+                )
+                return None, path_logs
+
+        return None, path_logs
+
+    @staticmethod
+    def assign_ticket(
+        ticket_id: int,
+        worker_id: Optional[int],
+        author_name: str,
+        author_id: Optional[int] = None,
+        team_id: Optional[int] = None,
+    ) -> Ticket:
+        """Assign a ticket to a worker (with OOO delegation)."""
+        try:
+            ticket = db.session.get(Ticket, ticket_id)
+            if not ticket or ticket.is_deleted:
+                raise ValueError("Ticket nicht gefunden.")
+
+            old_name = (
+                ticket.assigned_to.name if ticket.assigned_to else "Niemand"
+            )
+            path_logs: List[str] = []
             if worker_id:
-                worker_id, path_logs = TicketService._resolve_delegation(worker_id)
-                
+                worker_id, path_logs = TicketService._resolve_delegation(
+                    worker_id
+                )
+
+            new_name = "Niemand"
             if worker_id:
                 worker = db.session.get(Worker, worker_id)
                 if not worker:
                     raise ValueError("Mitarbeiter nicht gefunden.")
-                new_worker_name = worker.name
-            else:
-                new_worker_name = "Niemand"
+                new_name = worker.name
 
-            if ticket.assigned_to_id == worker_id and ticket.assigned_team_id == team_id and not path_logs:
+            if (
+                ticket.assigned_to_id == worker_id
+                and ticket.assigned_team_id == team_id
+                and not path_logs
+            ):
                 return ticket
 
             ticket.assigned_to_id = worker_id
             ticket.assigned_team_id = team_id
             ticket.updated_at = get_utc_now()
-            
-            # Trigger Assignment Notification
+
             if worker_id and worker_id != author_id:
                 TicketService.create_notification(
                     user_id=worker_id,
                     message=f"Ihnen wurde Ticket #{ticket_id} zugewiesen.",
-                    link=f"/ticket/{ticket_id}"
+                    link=f"/ticket/{ticket_id}",
                 )
-            
-            # Log to history
-            comment_text = f"Zuständigkeit geändert: {old_worker_name} -> {new_worker_name}."
-            if author_name == new_worker_name:
-                comment_text = f"Mitarbeiter {new_worker_name} hat sich das Ticket selbst zugewiesen."
-                
-            if path_logs:
-                comment_text += "\nDelegation:\n- " + "\n- ".join(path_logs)
 
-            # M-11: Notify all admins when OOO-chain exhausted and ticket becomes unassigned
-            ooo_exhausted = (worker_id is None and path_logs and
-                             any('kein Vertreter' in l or 'Zirkuläre' in l for l in path_logs))
-            if ooo_exhausted:
-                try:
-                    admin_workers = Worker.query.filter_by(is_active=True, role='admin').all()
-                    for admin in admin_workers:
-                        if admin.id != author_id:
-                            TicketService.create_notification(
-                                user_id=admin.id,
-                                message=(f"Ticket #{ticket_id} konnte nicht zugewiesen werden "
-                                         f"(OOO-Kette erschöpft). Manuelle Zuweisung erforderlich."),
-                                link=f"/ticket/{ticket_id}"
-                            )
-                except Exception as _e:
-                    current_app.logger.warning("M-11: Admin OOO notification failed: %s", _e)
+            comment_text = _build_assignment_comment(
+                author_name, old_name, new_name, path_logs
+            )
+            _notify_admins_ooo_exhausted(ticket_id, author_id, path_logs)
 
-            comment = Comment(
+            db.session.add(Comment(
                 ticket_id=ticket.id,
                 author=author_name,
                 author_id=author_id,
                 text=comment_text,
                 is_system_event=True,
-                event_type='ASSIGNMENT'
-            )
-            db.session.add(comment)
+                event_type="ASSIGNMENT",
+            ))
 
-            # Email notification for high-priority assignments
             if worker_id:
-                _assignee = db.session.get(Worker, worker_id)
-                if _assignee and _assignee.email:
-                    EmailService.send_notification(
-                        new_worker_name, ticket.id, ticket.priority,
-                        recipient_email=_assignee.email
-                    )
-            
+                _send_assignment_email(worker_id, new_name, ticket)
+
             db.session.commit()
             return ticket
-        except Exception as e:
+        except Exception as exc:
             db.session.rollback()
-            current_app.logger.error("Error assigning ticket: %s", e)
+            current_app.logger.error("Error assigning ticket: %s", exc)
             raise
 
     @staticmethod
-    def update_ticket_meta(ticket_id, title, priority, author_name, author_id, due_date=None, order_reference=None, reminder_date=None, tags=None):
-        """Update ticket title, priority and tags with system event log."""
+    def reassign_ticket(
+        ticket_id: int,
+        to_worker_id: int,
+        author_name: str,
+        author_id: int,
+    ) -> Ticket:
+        """Direct admin reassignment (no OOO delegation)."""
+        try:
+            ticket = db.session.get(Ticket, ticket_id)
+            if not ticket or ticket.is_deleted:
+                raise ValueError("Ticket nicht gefunden.")
+
+            to_worker = db.session.get(Worker, to_worker_id)
+            if not to_worker or not to_worker.is_active:
+                raise ValueError(
+                    "Ziel-Mitarbeiter nicht gefunden oder inaktiv."
+                )
+
+            from_name = (
+                ticket.assigned_to.name
+                if ticket.assigned_to
+                else "Nicht zugewiesen"
+            )
+            ticket.assigned_to_id = to_worker_id
+            ticket.updated_at = get_utc_now()
+
+            db.session.add(Comment(
+                ticket_id=ticket.id,
+                author=author_name,
+                author_id=author_id,
+                text=(
+                    f"Umgezuweisen durch {author_name}: "
+                    f"{from_name} → {to_worker.name}"
+                ),
+                is_system_event=True,
+                event_type="ASSIGNMENT",
+            ))
+            TicketService.create_notification(
+                user_id=to_worker_id,
+                message=(
+                    f"Ticket #{ticket.id} wurde Ihnen zugewiesen "
+                    f"(von {from_name})."
+                ),
+                link=f"/ticket/{ticket.id}",
+            )
+            db.session.commit()
+            return ticket
+        except Exception as exc:
+            db.session.rollback()
+            current_app.logger.error(
+                "Error reassigning ticket %s: %s", ticket_id, exc
+            )
+            raise
+
+
+    # ------------------------------------------------------------------
+    # Ticket meta update
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def update_ticket_meta(
+        ticket_id: int,
+        title: str,
+        priority: Optional[int],
+        author_name: str,
+        author_id: Optional[int],
+        due_date: Optional[datetime] = None,
+        order_reference: Optional[str] = None,
+        reminder_date: Optional[datetime] = None,
+        tags: Optional[List[str]] = None,
+    ) -> Ticket:
+        """Update ticket metadata with an audit trail."""
         try:
             ticket = db.session.get(Ticket, ticket_id)
             if not ticket:
                 raise ValueError("Ticket nicht gefunden")
 
-            old_title = ticket.title
-            old_prio = ticket.priority
-            old_due = ticket.due_date
-            old_order_ref = ticket.order_reference
-            old_reminder = ticket.reminder_date
-            old_tags = [t.name for t in ticket.tags]
-            
-            # Update fields
+            changes = _collect_meta_changes(
+                ticket, title, priority, due_date,
+                order_reference, reminder_date,
+            )
             ticket.title = title
             if priority is not None:
                 ticket.priority = int(priority)
@@ -767,337 +933,197 @@ class TicketService:
             ticket.order_reference = order_reference
             ticket.reminder_date = reminder_date
             ticket.updated_at = get_utc_now()
-            
-            # Log changes
-            changes = []
-            if old_title != title:
-                changes.append(f"Titel: '{old_title}' -> '{title}'")
-            if priority is not None and int(old_prio) != int(priority):
-                changes.append(f"Priorität: {old_prio} -> {priority}")
-            
-            if old_due != due_date:
-                fmt = lambda d: d.strftime('%d.%m.%Y') if d else 'Keines'
-                changes.append(f"Fälligkeit: {fmt(old_due)} -> {fmt(due_date)}")
-            
-            if old_order_ref != order_reference:
-                changes.append(f"Auftragsreferenz: '{old_order_ref or 'Keine'}' -> '{order_reference or 'Keine'}'")
-            
-            if old_reminder != reminder_date:
-                fmt = lambda d: d.strftime('%d.%m.%Y') if d else 'Keine'
-                changes.append(f"Wiedervorlage: {fmt(old_reminder)} -> {fmt(reminder_date)}")
-                
+
             if tags is not None:
-                new_tags = [t.strip() for t in tags if t.strip()]
-                if set(old_tags) != set(new_tags):
-                    changes.append(f"Tags: {', '.join(old_tags) or 'Keine'} -> {', '.join(new_tags) or 'Keine'}")
-                    # Clear and rebuild tags
-                    ticket.tags = []
-                    for tag_name in new_tags:
-                        tag = Tag.query.filter_by(name=tag_name).first()
-                        if not tag:
-                            tag = Tag(name=tag_name)
-                            db.session.add(tag)
-                        ticket.tags.append(tag)
+                tag_changes = _sync_tags(ticket, tags)
+                if tag_changes:
+                    changes.append(tag_changes)
 
             if changes:
-                comment = Comment(
+                db.session.add(Comment(
                     ticket_id=ticket.id,
                     author=author_name,
                     author_id=author_id,
                     text="Metadaten geändert: " + ", ".join(changes),
                     is_system_event=True,
-                    event_type='META_UPDATE'
-                )
-                db.session.add(comment)
+                    event_type="META_UPDATE",
+                ))
                 db.session.commit()
-            
-            return ticket
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            current_app.logger.error("Database error updating ticket meta: %s", e)
-            raise
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error("Unexpected error updating ticket meta: %s", e)
-            raise
-
-    @staticmethod
-    def request_approval(ticket_id, worker_id, worker_name):
-        try:
-            ticket = db.session.get(Ticket, ticket_id)
-            if not ticket or ticket.is_deleted:
-                raise ValueError("Ticket nicht gefunden.")
-                
-            if ticket.approval_status == ApprovalStatus.PENDING.value:
-                return False, "Freigabe bereits angefragt."
-                
-            ticket.approval_status = ApprovalStatus.PENDING.value
-            ticket.updated_at = get_utc_now()
-            
-            comment = Comment(
-                ticket_id=ticket.id,
-                author=worker_name,
-                author_id=worker_id,
-                text="Freigabe wurde angefordert. Das Ticket ist nun gesperrt.",
-                is_system_event=True,
-                event_type='APPROVAL_REQUEST'
-            )
-            db.session.add(comment)
-            db.session.commit()
-
-            # Email all admins/management about pending approval
-            try:
-                admin_workers = Worker.query.filter(
-                    Worker.is_active == True,
-                    Worker.role.in_(['admin', 'hr', 'management']),
-                    Worker.email.isnot(None)
-                ).all()
-                admin_emails = [w.email for w in admin_workers if w.email]
-                if admin_emails:
-                    EmailService.send_approval_request(admin_emails, ticket.id, worker_name)
-            except Exception as _e:
-                current_app.logger.warning("Approval request email failed: %s", _e)
-
-            return True, "Freigabe angefragt."
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error("Error requesting approval: %s", e)
-            raise
-
-    @staticmethod
-    def approve_ticket(ticket_id, worker_id, worker_name):
-        try:
-            ticket = db.session.get(Ticket, ticket_id)
-            if not ticket or ticket.is_deleted:
-                raise ValueError("Ticket nicht gefunden.")
-            
-            if ticket.approval_status == ApprovalStatus.APPROVED.value:
-                return False, "Ticket bereits freigegeben."
-                
-            ticket.approval_status = ApprovalStatus.APPROVED.value
-            ticket.approved_by_id = worker_id
-            ticket.approved_at = get_utc_now()
-            ticket.updated_at = get_utc_now()
-            
-            comment = Comment(
-                ticket_id=ticket.id,
-                author="System",
-                author_id=None,
-                text=f"Freigegeben durch {worker_name}",
-                is_system_event=True,
-                event_type='APPROVAL'
-            )
-            db.session.add(comment)
-            db.session.commit()
-
-            # Email assignee about approval
-            try:
-                if ticket.assigned_to and ticket.assigned_to.email:
-                    EmailService.send_approval_result(
-                        ticket.assigned_to.name, ticket.id, approved=True,
-                        recipient_email=ticket.assigned_to.email
-                    )
-            except Exception as _e:
-                current_app.logger.warning("Approval result email failed: %s", _e)
 
             return ticket
-        except Exception as e:
+        except SQLAlchemyError as exc:
             db.session.rollback()
-            current_app.logger.error("Error approving ticket: %s", e)
-            raise
-
-    @staticmethod
-    def reject_ticket(ticket_id, worker_id, worker_name, reason):
-        try:
-            ticket = db.session.get(Ticket, ticket_id)
-            if not ticket or ticket.is_deleted:
-                raise ValueError("Ticket nicht gefunden.")
-                
-            ticket.approval_status = ApprovalStatus.REJECTED.value
-            ticket.rejected_by_id = worker_id
-            ticket.reject_reason = reason
-            ticket.status = TicketStatus.OFFEN.value
-            ticket.updated_at = get_utc_now()
-            
-            comment = Comment(
-                ticket_id=ticket.id,
-                author="System",
-                author_id=None,
-                text=f"Freigabe abgelehnt durch {worker_name}. Grund: {reason}",
-                is_system_event=True,
-                event_type='APPROVAL_REJECTED'
+            current_app.logger.error(
+                "Database error updating ticket meta: %s", exc
             )
-            db.session.add(comment)
-            db.session.commit()
-
-            # Email assignee about rejection
-            try:
-                if ticket.assigned_to and ticket.assigned_to.email:
-                    EmailService.send_approval_result(
-                        ticket.assigned_to.name, ticket.id, approved=False,
-                        reason=reason, recipient_email=ticket.assigned_to.email
-                    )
-            except Exception as _e:
-                current_app.logger.warning("Rejection email failed: %s", _e)
-
-            return ticket
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error("Error rejecting ticket: %s", e)
             raise
 
+    # ------------------------------------------------------------------
+    # Checklists
+    # ------------------------------------------------------------------
+
     @staticmethod
-    def add_checklist_item(ticket_id, title, assigned_to_id=None, assigned_team_id=None, due_date=None, depends_on_item_id=None):
+    def add_checklist_item(
+        ticket_id: int,
+        title: str,
+        assigned_to_id: Optional[int] = None,
+        assigned_team_id: Optional[int] = None,
+        due_date: Optional[datetime] = None,
+        depends_on_item_id: Optional[int] = None,
+    ) -> ChecklistItem:
+        """Add a checklist item to a ticket."""
         try:
-            from models import ChecklistItem
             item = ChecklistItem(
-                ticket_id=ticket_id, 
-                title=title, 
+                ticket_id=ticket_id,
+                title=title,
                 assigned_to_id=assigned_to_id,
                 assigned_team_id=assigned_team_id,
                 due_date=due_date,
-                depends_on_item_id=depends_on_item_id
+                depends_on_item_id=depends_on_item_id,
             )
             db.session.add(item)
             db.session.commit()
             return item
-        except Exception as e:
+        except Exception as exc:
             db.session.rollback()
-            current_app.logger.error("Error adding checklist item: %s", e)
+            current_app.logger.error("Error adding checklist item: %s", exc)
             raise
 
     @staticmethod
-    def toggle_checklist_item(item_id, worker_name="System", worker_id=None):
+    def toggle_checklist_item(
+        item_id: int,
+        worker_name: str = "System",
+        worker_id: Optional[int] = None,
+    ) -> Optional[ChecklistItem]:
+        """Toggle a checklist item and auto-close the ticket if all done."""
         try:
-            from models import ChecklistItem, Comment
-            from enums import TicketStatus
             item = db.session.get(ChecklistItem, item_id)
-            if item:
-                if not item.is_completed and item.depends_on_item_id:
-                    parent_item = db.session.get(ChecklistItem, item.depends_on_item_id)
-                    if parent_item and not parent_item.is_completed:
-                        raise ValueError(f"Abhängigkeit nicht erfüllt: '{parent_item.title}' muss zuerst abgeschlossen werden.")
-                        
-                item.is_completed = not item.is_completed
-                ticket = item.ticket
-                
-                # FIX: Removed intermediate commit here to keep everything atomic
-                
-                if item.is_completed and ticket.status != TicketStatus.ERLEDIGT.value:
-                    # Check if all items are now finished
-                    if len(ticket.checklists) > 0 and all(c.is_completed for c in ticket.checklists):
-                        ticket.status = TicketStatus.ERLEDIGT.value
-                        comment = Comment(
-                            ticket_id=ticket.id,
-                            author=worker_name,
-                            author_id=worker_id,
-                            text="Status automatisch auf ERLEDIGT gesetzt (alle Unteraufgaben beendet).",
-                            is_system_event=True,
-                            event_type='STATUS_CHANGE'
-                        )
-                        db.session.add(comment)
-                
-                # Single final commit for everything
-                db.session.commit()
+            if not item:
+                return None
+
+            _check_dependency(item)
+            item.is_completed = not item.is_completed
+            ticket = item.ticket
+
+            if (
+                item.is_completed
+                and ticket.status != TicketStatus.ERLEDIGT.value
+                and ticket.checklists
+                and all(c.is_completed for c in ticket.checklists)
+            ):
+                ticket.status = TicketStatus.ERLEDIGT.value
+                db.session.add(Comment(
+                    ticket_id=ticket.id,
+                    author=worker_name,
+                    author_id=worker_id,
+                    text=(
+                        "Status automatisch auf ERLEDIGT gesetzt "
+                        "(alle Unteraufgaben beendet)."
+                    ),
+                    is_system_event=True,
+                    event_type="STATUS_CHANGE",
+                ))
+
+            db.session.commit()
             return item
-        except Exception as e:
+        except Exception as exc:
             db.session.rollback()
             raise
 
     @staticmethod
-    def delete_checklist_item(item_id):
+    def delete_checklist_item(item_id: int) -> bool:
+        """Delete a checklist item (clears dependencies first)."""
         try:
-            from models import ChecklistItem
             item = db.session.get(ChecklistItem, item_id)
             if item:
-                # BUG-3: Clear dependency references before deleting to prevent FK constraint error
-                ChecklistItem.query.filter_by(depends_on_item_id=item.id).update({'depends_on_item_id': None})
+                ChecklistItem.query.filter_by(
+                    depends_on_item_id=item.id
+                ).update({"depends_on_item_id": None})
                 db.session.delete(item)
                 db.session.commit()
             return True
-        except Exception as e:
+        except Exception as exc:
             db.session.rollback()
             raise
 
     @staticmethod
-    def apply_checklist_template(ticket_id, template_id, commit=True):
-        """Applies a checklist template to a ticket."""
-        from models import Ticket, ChecklistTemplate, ChecklistItem
+    def apply_checklist_template(
+        ticket_id: int, template_id: int, commit: bool = True
+    ) -> bool:
+        """Apply a checklist template to a ticket."""
+        from models import ChecklistTemplate
+
         try:
             ticket = db.session.get(Ticket, ticket_id)
             template = db.session.get(ChecklistTemplate, template_id)
-            
             if not ticket or not template:
                 raise ValueError("Ticket oder Vorlage nicht gefunden.")
-                
+
             for t_item in template.items:
-                new_item = ChecklistItem(
+                db.session.add(ChecklistItem(
                     ticket_id=ticket.id,
                     title=t_item.title,
-                    is_completed=False
-                )
-                db.session.add(new_item)
-            
-            # System-Kommentar hinzufügen
-            comment = Comment(
+                    is_completed=False,
+                ))
+            db.session.add(Comment(
                 ticket_id=ticket.id,
                 author="System",
                 text=f"Checklisten-Vorlage '{template.title}' angewendet.",
                 is_system_event=True,
-                event_type='CHECKLIST_TEMPLATE_APPLIED'
-            )
-            db.session.add(comment)
-
+                event_type="CHECKLIST_TEMPLATE_APPLIED",
+            ))
             if commit:
                 db.session.commit()
             return True
-        except Exception as e:
+        except Exception as exc:
             if commit:
                 db.session.rollback()
-            current_app.logger.error("Error applying template: %s", e)
+            current_app.logger.error("Error applying template: %s", exc)
             raise
 
+    # ------------------------------------------------------------------
+    # Projects
+    # ------------------------------------------------------------------
+
     @staticmethod
-    def get_workload_overview():
-        """
-        Auslastungsübersicht für Admin/Management.
+    def get_projects_summary() -> List[Dict[str, Any]]:
+        """Fetch projects grouped by order_reference with progress."""
+        tickets = (
+            Ticket.query.filter(
+                Ticket.is_deleted == False,  # noqa: E712
+                Ticket.order_reference.isnot(None),
+                Ticket.order_reference != "",
+            )
+            .options(selectinload(Ticket.checklists))
+            .all()
+        )
+        projects: Dict[str, Dict[str, Any]] = {}
 
-        Gibt eine Liste von Dicts zurück, gruppiert nach:
-        1. Abwesende Mitarbeiter mit kritischen Tickets (Handlungsbedarf)
-        2. Anwesende Mitarbeiter mit offenen Tickets
+        for ticket in tickets:
+            ref = ticket.order_reference.strip()
+            if not ref:
+                continue
+            project = projects.setdefault(ref, _new_project_entry(ref, ticket))
+            _accumulate_ticket(project, ticket)
 
-        Kritisch = überfällig ODER fällig in laufender Kalenderwoche ODER Priorität Hoch.
-        'wartet'-Tickets werden nie als kritisch eingestuft (bewusst geparkt).
+        return _finalize_projects(projects)
 
-        Rückgabeformat pro Eintrag:
-        {
-            'worker': Worker,
-            'open_count': int,
-            'critical_count': int,   # nur bei abwesenden Mitarbeitern relevant
-            'tickets': [Ticket, ...],          # alle offenen Tickets, sortiert
-            'critical_tickets': [Ticket, ...], # nur die kritischen (Subset)
-            'other_tickets': [Ticket, ...],    # nicht kritische
-        }
-        """
-        from datetime import date
+    # ------------------------------------------------------------------
+    # Workload overview
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def get_workload_overview() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """Return workload entries split into absent and present workers."""
         now = get_utc_now()
         today = now.date()
-
-        # Montag und Freitag der laufenden Kalenderwoche
-        week_start = today - timedelta(days=today.weekday())  # Montag
-        week_end = week_start + timedelta(days=4)             # Freitag
-
-        open_statuses = [
-            TicketStatus.OFFEN.value,
-            TicketStatus.IN_BEARBEITUNG.value,
-            TicketStatus.WARTET.value,
-        ]
+        week_start = today - timedelta(days=today.weekday())
+        week_end = week_start + timedelta(days=4)
 
         tickets = (
-            Ticket.query
-            .filter(
-                Ticket.is_deleted == False,
-                Ticket.status.in_(open_statuses),
+            Ticket.query.filter(
+                Ticket.is_deleted == False,  # noqa: E712
+                Ticket.status.in_(_OPEN_STATUSES),
                 db.or_(
                     Ticket.assigned_to_id.isnot(None),
                     Ticket.assigned_team_id.isnot(None),
@@ -1106,114 +1132,497 @@ class TicketService:
             .all()
         )
 
-        # Gruppierung nach Mitarbeiter-ID (inkl. Team-Zuweisungen)
-        tickets_by_worker = {}
-        for t in tickets:
-            if t.assigned_to_id:
-                tickets_by_worker.setdefault(t.assigned_to_id, set()).add(t)
-            if t.assigned_team_id and t.assigned_team:
-                for member in t.assigned_team.members:
-                    tickets_by_worker.setdefault(member.id, set()).add(t)
-
+        tickets_by_worker = _group_tickets_by_worker(tickets)
         workers = Worker.query.filter_by(is_active=True).all()
 
-        absent_entries = []
-        present_entries = []
+        absent: List[Dict[str, Any]] = []
+        present: List[Dict[str, Any]] = []
 
         for worker in workers:
             worker_tickets = list(tickets_by_worker.get(worker.id, []))
             if not worker_tickets:
                 continue
 
-            def _is_critical(t):
-                """Kritisch wenn: hohe Prio ODER überfällig ODER Fälligkeit in dieser Woche."""
-                if t.status == TicketStatus.WARTET.value:
-                    return False
-                if t.priority == TicketPriority.HOCH.value:
-                    return True
-                if t.due_date:
-                    due = t.due_date.date() if hasattr(t.due_date, 'date') else t.due_date
-                    if due <= week_end:   # überfällig oder in laufender KW
-                        return True
-                return False
-
-            critical = [t for t in worker_tickets if _is_critical(t)]
-            other = [t for t in worker_tickets if not _is_critical(t)]
-
-            # Sortierung: überfällig zuerst, dann nach Priorität, dann KW
-            def _sort_key(t):
-                if t.due_date:
-                    due = t.due_date.date() if hasattr(t.due_date, 'date') else t.due_date
-                    days_left = (due - today).days
-                else:
-                    days_left = 999
-                return (days_left, t.priority)
-
-            critical.sort(key=_sort_key)
-            other.sort(key=_sort_key)
-            all_sorted = critical + other
-
-            entry = {
-                'worker': worker,
-                'open_count': len(worker_tickets),
-                'critical_count': len(critical),
-                'tickets': all_sorted,
-                'critical_tickets': critical,
-                'other_tickets': other,
-            }
-
+            entry = _build_workload_entry(
+                worker, worker_tickets, today, week_end
+            )
             if worker.is_out_of_office:
-                absent_entries.append(entry)
+                absent.append(entry)
             else:
-                present_entries.append(entry)
+                present.append(entry)
 
-        # Abwesende: zuerst die mit meisten kritischen Tickets
-        absent_entries.sort(key=lambda x: (-x['critical_count'], -x['open_count']))
-        # Anwesende: nach Anzahl offener Tickets
-        present_entries.sort(key=lambda x: -x['open_count'])
+        absent.sort(
+            key=lambda x: (-x["critical_count"], -x["open_count"])
+        )
+        present.sort(key=lambda x: -x["open_count"])
+        return absent, present
 
-        return absent_entries, present_entries
 
-    @staticmethod
-    def reassign_ticket(ticket_id, to_worker_id, author_name, author_id):
-        """
-        Weist ein einzelnes Ticket einem anderen Mitarbeiter zu.
-        Direkter Admin-Eingriff — kein OOO-Delegations-Mechanismus.
-        Gibt das aktualisierte Ticket zurück.
-        """
-        try:
-            ticket = db.session.get(Ticket, ticket_id)
-            if not ticket or ticket.is_deleted:
-                raise ValueError("Ticket nicht gefunden.")
+# ---------------------------------------------------------------------------
+# Module-private helpers for TicketService methods
+# ---------------------------------------------------------------------------
 
-            to_worker = db.session.get(Worker, to_worker_id)
-            if not to_worker or not to_worker.is_active:
-                raise ValueError("Ziel-Mitarbeiter nicht gefunden oder inaktiv.")
+def _build_ticket(
+    title: str,
+    description: Optional[str],
+    priority: Any,
+    assigned_to_id: Optional[int],
+    assigned_team_id: Optional[int],
+    is_confidential: bool,
+    recurrence_rule: Optional[str],
+    due_date: Optional[datetime],
+    order_reference: Optional[str],
+    reminder_date: Optional[datetime],
+    contact_name: Optional[str],
+    contact_phone: Optional[str],
+    contact_channel: Optional[str],
+    callback_requested: bool,
+    callback_due: Optional[datetime],
+) -> Ticket:
+    """Construct a Ticket ORM object."""
+    return Ticket(
+        title=title,
+        description=description,
+        priority=int(priority.value if hasattr(priority, "value") else priority),
+        status=TicketStatus.OFFEN.value,
+        assigned_to_id=assigned_to_id,
+        assigned_team_id=assigned_team_id,
+        is_confidential=is_confidential,
+        recurrence_rule=recurrence_rule,
+        due_date=due_date,
+        order_reference=order_reference,
+        reminder_date=reminder_date,
+        contact_name=contact_name,
+        contact_phone=contact_phone,
+        contact_channel=contact_channel,
+        callback_requested=bool(callback_requested),
+        callback_due=callback_due,
+    )
 
-            from_name = ticket.assigned_to.name if ticket.assigned_to else "Nicht zugewiesen"
-            ticket.assigned_to_id = to_worker_id
-            ticket.updated_at = get_utc_now()
 
-            comment = Comment(
-                ticket_id=ticket.id,
-                author=author_name,
-                author_id=author_id,
-                text=f"Umgezuweisen durch {author_name}: {from_name} → {to_worker.name}",
-                is_system_event=True,
-                event_type='ASSIGNMENT'
+def _attach_tags(ticket: Ticket, tags: Optional[List[str]]) -> None:
+    """Resolve or create tags and attach them to the ticket."""
+    if not tags:
+        return
+    for tag_name in tags:
+        tag = Tag.query.filter_by(name=tag_name).first()
+        if not tag:
+            tag = Tag(name=tag_name)
+            db.session.add(tag)
+        ticket.tags.append(tag)
+
+
+def _add_creation_comment(
+    ticket_id: int,
+    author_name: str,
+    author_id: Optional[int],
+    description: Optional[str],
+    path_logs: List[str],
+) -> None:
+    """Add the initial 'Ticket erstellt' comment."""
+    text = (
+        f"Ticket erstellt von {author_name}. Beschreibung: {description}"
+        if description
+        else f"Ticket erstellt von {author_name}."
+    )
+    if path_logs:
+        text += "\nDelegation:\n- " + "\n- ".join(path_logs)
+    db.session.add(Comment(
+        ticket_id=ticket_id,
+        author=author_name,
+        author_id=author_id,
+        text=text,
+        is_system_event=True,
+        event_type="TICKET_CREATED",
+    ))
+
+
+def _process_mentions(
+    ticket_id: int, text: str, author_name: str
+) -> None:
+    """Detect @mentions in text and create notifications + emails."""
+    mentions = set(re.findall(r"@(\w+)", text))
+    for mention in mentions:
+        if mention.lower() == author_name.lower():
+            continue
+        mentioned = Worker.query.filter(Worker.name.ilike(mention)).first()
+        if not mentioned:
+            continue
+        TicketService.create_notification(
+            user_id=mentioned.id,
+            message=f"{author_name} hat Sie in Ticket #{ticket_id} erwähnt.",
+            link=f"/ticket/{ticket_id}",
+        )
+        if mentioned.email:
+            EmailService.send_mention(
+                mentioned.name, ticket_id, author_name,
+                recipient_email=mentioned.email,
             )
-            db.session.add(comment)
 
-            # Ziel-Mitarbeiter benachrichtigen
-            TicketService.create_notification(
-                user_id=to_worker_id,
-                message=f"Ticket #{ticket.id} wurde Ihnen zugewiesen (von {from_name}).",
-                link=f"/ticket/{ticket.id}"
+
+def _check_dependency(item: ChecklistItem) -> None:
+    """Raise if the item's dependency is not yet completed."""
+    if not item.is_completed and item.depends_on_item_id:
+        parent = db.session.get(ChecklistItem, item.depends_on_item_id)
+        if parent and not parent.is_completed:
+            raise ValueError(
+                f"Abhängigkeit nicht erfüllt: '{parent.title}' "
+                "muss zuerst abgeschlossen werden."
             )
 
-            db.session.commit()
-            return ticket
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error("Error reassigning ticket %s: %s", ticket_id, e)
-            raise
+
+def _build_assignment_comment(
+    author_name: str,
+    old_name: str,
+    new_name: str,
+    path_logs: List[str],
+) -> str:
+    """Build the assignment-change audit comment."""
+    if author_name == new_name:
+        text = (
+            f"Mitarbeiter {new_name} hat sich das Ticket "
+            "selbst zugewiesen."
+        )
+    else:
+        text = f"Zuständigkeit geändert: {old_name} -> {new_name}."
+    if path_logs:
+        text += "\nDelegation:\n- " + "\n- ".join(path_logs)
+    return text
+
+
+def _send_assignment_email(
+    worker_id: int, worker_name: str, ticket: Ticket
+) -> None:
+    """Send an email notification for assignment."""
+    assignee = db.session.get(Worker, worker_id)
+    if assignee and assignee.email:
+        EmailService.send_notification(
+            worker_name, ticket.id, ticket.priority,
+            recipient_email=assignee.email,
+        )
+
+
+def _send_approval_emails(ticket_id: int, worker_name: str) -> None:
+    """Notify admins/management about a pending approval."""
+    try:
+        admin_workers = Worker.query.filter(
+            Worker.is_active == True,  # noqa: E712
+            Worker.role.in_(["admin", "hr", "management"]),
+            Worker.email.isnot(None),
+        ).all()
+        emails = [w.email for w in admin_workers if w.email]
+        if emails:
+            EmailService.send_approval_request(emails, ticket_id, worker_name)
+    except Exception as exc:
+        current_app.logger.warning("Approval request email failed: %s", exc)
+
+
+def _send_approval_result_email(
+    ticket: Ticket,
+    approved: bool,
+    reason: Optional[str] = None,
+) -> None:
+    """Email the assignee about an approval decision."""
+    try:
+        if ticket.assigned_to and ticket.assigned_to.email:
+            EmailService.send_approval_result(
+                ticket.assigned_to.name, ticket.id,
+                approved=approved, reason=reason,
+                recipient_email=ticket.assigned_to.email,
+            )
+    except Exception as exc:
+        current_app.logger.warning("Approval result email failed: %s", exc)
+
+
+# ---------------------------------------------------------------------------
+# Meta-update helpers
+# ---------------------------------------------------------------------------
+
+def _collect_meta_changes(
+    ticket: Ticket,
+    title: str,
+    priority: Optional[int],
+    due_date: Optional[datetime],
+    order_reference: Optional[str],
+    reminder_date: Optional[datetime],
+) -> List[str]:
+    """Compare old vs new metadata and return change descriptions."""
+    changes: List[str] = []
+    if ticket.title != title:
+        changes.append(f"Titel: '{ticket.title}' -> '{title}'")
+    if priority is not None and int(ticket.priority) != int(priority):
+        changes.append(f"Priorität: {ticket.priority} -> {priority}")
+    if ticket.due_date != due_date:
+        changes.append(
+            f"Fälligkeit: {_format_date(ticket.due_date)} "
+            f"-> {_format_date(due_date)}"
+        )
+    if ticket.order_reference != order_reference:
+        changes.append(
+            f"Auftragsreferenz: '{ticket.order_reference or 'Keine'}' "
+            f"-> '{order_reference or 'Keine'}'"
+        )
+    if ticket.reminder_date != reminder_date:
+        changes.append(
+            f"Wiedervorlage: {_format_date(ticket.reminder_date, 'Keine')} "
+            f"-> {_format_date(reminder_date, 'Keine')}"
+        )
+    return changes
+
+
+def _sync_tags(ticket: Ticket, tags: List[str]) -> Optional[str]:
+    """Synchronise ticket tags and return a change description or ``None``."""
+    old_tags = [t.name for t in ticket.tags]
+    new_tags = [t.strip() for t in tags if t.strip()]
+    if set(old_tags) == set(new_tags):
+        return None
+    ticket.tags = []
+    for tag_name in new_tags:
+        tag = Tag.query.filter_by(name=tag_name).first()
+        if not tag:
+            tag = Tag(name=tag_name)
+            db.session.add(tag)
+        ticket.tags.append(tag)
+    return (
+        f"Tags: {', '.join(old_tags) or 'Keine'} "
+        f"-> {', '.join(new_tags) or 'Keine'}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Dashboard query helpers
+# ---------------------------------------------------------------------------
+
+def _base_ticket_query() -> Any:
+    """Return the base query with eager-loading for dashboard use."""
+    return Ticket.query.filter_by(is_deleted=False).options(
+        joinedload(Ticket.comments),
+        joinedload(Ticket.assigned_to),
+        selectinload(Ticket.tags),
+        selectinload(Ticket.checklists),
+    )
+
+
+def _apply_assignment_filters(
+    query: Any,
+    worker_id: Optional[int],
+    team_ids: Optional[List[int]],
+    assigned_to_me: bool,
+    unassigned_only: bool,
+    assigned_worker_id: Optional[int],
+) -> Any:
+    """Apply assignment-related filters to a ticket query."""
+    if assigned_to_me and worker_id:
+        tc = _team_clauses(team_ids)
+        query = query.filter(
+            db.or_(
+                Ticket.assigned_to_id == worker_id,
+                Ticket.checklists.any(
+                    db.and_(
+                        ChecklistItem.assigned_to_id == worker_id,
+                        ChecklistItem.is_completed == False,  # noqa: E712
+                    )
+                ),
+                *tc,
+            )
+        )
+    elif unassigned_only:
+        query = query.filter(
+            Ticket.assigned_to_id.is_(None),
+            Ticket.assigned_team_id.is_(None),
+        )
+
+    if assigned_worker_id:
+        query = query.filter(
+            Ticket.assigned_to_id == int(assigned_worker_id)
+        )
+    return query
+
+
+def _apply_search_filter(query: Any, search: str) -> Any:
+    """Apply full-text search across title, description, order ref, comments."""
+    comment_ids = (
+        db.session.query(Comment.ticket_id)
+        .filter(Comment.text.ilike(f"%{search}%"))
+        .subquery()
+    )
+    return query.filter(
+        Ticket.title.ilike(f"%{search}%")
+        | Ticket.description.ilike(f"%{search}%")
+        | Ticket.order_reference.ilike(f"%{search}%")
+        | Ticket.id.in_(comment_ids)
+    )
+
+
+def _fetch_self_tickets(
+    worker_id: Optional[int],
+    worker_role: Optional[str],
+    team_ids: Optional[List[int]],
+    tc: list,
+) -> Tuple[List[Ticket], int]:
+    """Fetch the 'My Tickets' sidebar (top 5 + total count)."""
+    if not worker_id:
+        return [], 0
+
+    stc = _team_clauses(team_ids)
+    self_query = (
+        Ticket.query.filter_by(is_deleted=False)
+        .options(
+            joinedload(Ticket.comments),
+            joinedload(Ticket.assigned_to),
+            selectinload(Ticket.tags),
+            selectinload(Ticket.checklists),
+        )
+        .filter(Ticket.status != TicketStatus.ERLEDIGT.value)
+        .filter(
+            db.or_(
+                Ticket.assigned_to_id == worker_id,
+                Ticket.checklists.any(
+                    db.and_(
+                        ChecklistItem.assigned_to_id == worker_id,
+                        ChecklistItem.is_completed == False,  # noqa: E712
+                    )
+                ),
+                *stc,
+            )
+        )
+    )
+
+    if worker_role not in _ELEVATED_ROLES:
+        self_query = self_query.filter(
+            db.or_(*_confidential_filter(worker_id, team_ids))
+        )
+
+    total = self_query.count()
+    tickets = self_query.order_by(Ticket.updated_at.desc()).limit(5).all()
+    return tickets, total
+
+
+def _fetch_summary_counts(
+    worker_id: Optional[int],
+    worker_role: Optional[str],
+    team_ids: Optional[List[int]],
+) -> Dict[str, int]:
+    """Fetch status counts for the dashboard header cards."""
+    counts_query = (
+        db.session.query(Ticket.status, func.count(Ticket.id))
+        .filter_by(is_deleted=False)
+        .filter(Ticket.status.in_(_OPEN_STATUSES))
+    )
+
+    if worker_role not in _ELEVATED_ROLES and worker_id is not None:
+        counts_query = counts_query.filter(
+            db.or_(*_confidential_filter(worker_id, team_ids))
+        )
+
+    counts = counts_query.group_by(Ticket.status).all()
+    summary: Dict[str, int] = {s: 0 for s in _OPEN_STATUSES}
+    for status, count in counts:
+        summary[status] = count
+    return summary
+
+
+# ---------------------------------------------------------------------------
+# Project helpers
+# ---------------------------------------------------------------------------
+
+def _new_project_entry(ref: str, ticket: Ticket) -> Dict[str, Any]:
+    """Initialise a project accumulator dict."""
+    return {
+        "order_reference": ref,
+        "total_tickets": 0,
+        "completed_tickets": 0,
+        "last_updated": ticket.updated_at or ticket.created_at,
+        "ticket_progress_sum": 0.0,
+        "status_counts": {s.value: 0 for s in TicketStatus},
+    }
+
+
+def _accumulate_ticket(project: Dict[str, Any], ticket: Ticket) -> None:
+    """Add a ticket's contribution to a project accumulator."""
+    project["total_tickets"] += 1
+    t_time = ticket.updated_at or ticket.created_at
+    if t_time and (
+        not project["last_updated"] or t_time > project["last_updated"]
+    ):
+        project["last_updated"] = t_time
+
+    project["status_counts"].setdefault(ticket.status, 0)
+    project["status_counts"][ticket.status] += 1
+
+    is_done = ticket.status == TicketStatus.ERLEDIGT.value
+    if is_done:
+        project["completed_tickets"] += 1
+
+    if ticket.checklists:
+        done = sum(1 for c in ticket.checklists if c.is_completed)
+        total = len(ticket.checklists)
+        progress = done / total if total > 0 else 0.0
+    else:
+        progress = 1.0 if is_done else 0.0
+    project["ticket_progress_sum"] += progress
+
+
+def _finalize_projects(
+    projects: Dict[str, Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    """Compute progress percentages and sort the project list."""
+    result: List[Dict[str, Any]] = []
+    for project in projects.values():
+        total = project["total_tickets"]
+        project["progress"] = (
+            int((project["ticket_progress_sum"] / total) * 100)
+            if total > 0
+            else 0
+        )
+        project["is_completed"] = project["progress"] == 100
+        result.append(project)
+
+    result.sort(
+        key=lambda x: (
+            x["is_completed"],
+            -(x["last_updated"].timestamp() if x["last_updated"] else 0),
+        )
+    )
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Workload helpers
+# ---------------------------------------------------------------------------
+
+def _group_tickets_by_worker(
+    tickets: List[Ticket],
+) -> Dict[int, Set[Ticket]]:
+    """Group tickets by assigned worker (including team members)."""
+    by_worker: Dict[int, Set[Ticket]] = {}
+    for ticket in tickets:
+        if ticket.assigned_to_id:
+            by_worker.setdefault(ticket.assigned_to_id, set()).add(ticket)
+        if ticket.assigned_team_id and ticket.assigned_team:
+            for member in ticket.assigned_team.members:
+                by_worker.setdefault(member.id, set()).add(ticket)
+    return by_worker
+
+
+def _build_workload_entry(
+    worker: Worker,
+    worker_tickets: List[Ticket],
+    today: date,
+    week_end: date,
+) -> Dict[str, Any]:
+    """Build a workload summary dict for a single worker."""
+    critical = [t for t in worker_tickets if _is_critical_ticket(t, week_end)]
+    other = [t for t in worker_tickets if not _is_critical_ticket(t, week_end)]
+
+    critical.sort(key=lambda t: _workload_sort_key(t, today))
+    other.sort(key=lambda t: _workload_sort_key(t, today))
+
+    return {
+        "worker": worker,
+        "open_count": len(worker_tickets),
+        "critical_count": len(critical),
+        "tickets": critical + other,
+        "critical_tickets": critical,
+        "other_tickets": other,
+    }
