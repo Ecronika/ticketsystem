@@ -1,381 +1,475 @@
-"""
-Authentication routes.
+"""Authentication routes.
 
-Handles admin authentication and session management.
+Handles worker authentication, session management, PIN recovery, and
+profile / out-of-office settings.
 """
+
+from datetime import timedelta
 from functools import wraps
-from datetime import datetime, timezone, timedelta
+from typing import Any, Callable, TypeVar
 from urllib.parse import urljoin, urlparse
 
 from flask import (
-    flash, redirect, render_template, request, session, url_for, 
-    Blueprint, current_app, make_response
+    Blueprint,
+    current_app,
+    flash,
+    jsonify,
+    make_response,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
 )
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.wrappers import Response as WerkzeugResponse
 
-from extensions import db, limiter
-from utils import get_utc_now
 from enums import WorkerRole
-from models import Worker, SystemSettings
+from extensions import db, limiter
+from models import SystemSettings, Worker
+from utils import get_utc_now
 
-# NEU-03: Pre-generate at import time so Werkzeug validates the format and
-# the comparison cost is identical to a real hash check (timing normalization)
-_TIMING_DUMMY_HASH = generate_password_hash('__timing_guard__')
+_F = TypeVar("_F", bound=Callable[..., Any])
+
+# Timing-normalisation dummy so user-enumeration via response-time is
+# infeasible (comparison cost identical to a real hash check).
+_TIMING_DUMMY_HASH: str = generate_password_hash("__timing_guard__")
+
+_ELEVATED_ROLES = frozenset({
+    WorkerRole.ADMIN.value,
+    WorkerRole.HR.value,
+    WorkerRole.MANAGEMENT.value,
+})
+
+_MAX_FAILED_LOGINS = 5
+_LOCKOUT_MINUTES = 15
 
 
+# ------------------------------------------------------------------
+# URL / redirect helpers
+# ------------------------------------------------------------------
 
-def is_safe_url(target):
-    """Robustly check if a redirect target is safe (on the same host/ingress)."""
+def is_safe_url(target: str) -> bool:
+    """Return ``True`` if *target* is on the same host or ingress path."""
     if not target:
         return False
-        
+
     ref_url = urlparse(request.host_url)
     test_url = urlparse(urljoin(request.host_url, target))
-    
-    # Check if target is same host
-    if test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc:
+
+    if test_url.scheme in ("http", "https") and ref_url.netloc == test_url.netloc:
         return True
-        
-    # Check if it matches Ingress path
-    ingress = request.headers.get('X-Ingress-Path', '')
-    if ingress and target.startswith(ingress):
-        return True
-        
-    return False
+
+    ingress: str = request.headers.get("X-Ingress-Path", "")
+    return bool(ingress and target.startswith(ingress))
 
 
-def redirect_to(endpoint, **kwargs):
-    """Helper for Ingress-aware redirects."""
-    ingress = request.headers.get('X-Ingress-Path', '')
-    target = url_for(endpoint, **kwargs)
-    
-    # Ensure no double slashes
-    if ingress.endswith('/') and target.startswith('/'):
+def redirect_to(endpoint: str, **kwargs: Any) -> WerkzeugResponse:
+    """Ingress-aware redirect helper."""
+    ingress: str = request.headers.get("X-Ingress-Path", "")
+    target: str = url_for(endpoint, **kwargs)
+
+    if ingress.endswith("/") and target.startswith("/"):
         target = target[1:]
-    elif not ingress.endswith('/') and not target.startswith('/'):
-        target = '/' + target
-        
+    elif not ingress.endswith("/") and not target.startswith("/"):
+        target = "/" + target
+
     return redirect(f"{ingress}{target}")
 
 
-def admin_required(f):
-    """Decorate to require admin permissions."""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not session.get('is_admin'):
-            if request.path.startswith('/api/'):
-                from flask import jsonify
-                return jsonify({'success': False, 'error': 'Admin-Rechte erforderlich.'}), 403
+# ------------------------------------------------------------------
+# Decorators
+# ------------------------------------------------------------------
 
-            flash('Diese Aktion erfordert Administrator-Rechte.', 'warning')
-            return redirect_to('main.login', next=request.url)
-        return f(*args, **kwargs)
-    return decorated_function
-
-
-def admin_or_management_required(f):
-    """Decorate to require admin, management, or HR role."""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        role = session.get('role')
-        if role not in (WorkerRole.ADMIN.value, WorkerRole.HR.value, WorkerRole.MANAGEMENT.value):
-            if request.path.startswith('/api/'):
-                from flask import jsonify
-                return jsonify({'success': False, 'error': 'Keine Berechtigung.'}), 403
-            flash('Diese Seite erfordert Administrator-, HR- oder Management-Rechte.', 'warning')
-            return redirect_to('main.login')
-        return f(*args, **kwargs)
-    return decorated_function
+def admin_required(func: _F) -> _F:
+    """Require admin permissions."""
+    @wraps(func)
+    def _wrapper(*args: Any, **kwargs: Any) -> Any:
+        if not session.get("is_admin"):
+            return _deny("Admin-Rechte erforderlich.", "main.login")
+        return func(*args, **kwargs)
+    return _wrapper  # type: ignore[return-value]
 
 
-def worker_required(f):
-    """Decorate to require a worker login session."""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not session.get('worker_id'):
-            if request.path.startswith('/api/'):
-                from flask import jsonify
-                return jsonify({'success': False, 'error': 'Bitte zuerst einloggen.'}), 401
+def admin_or_management_required(func: _F) -> _F:
+    """Require admin, management, or HR role."""
+    @wraps(func)
+    def _wrapper(*args: Any, **kwargs: Any) -> Any:
+        if session.get("role") not in _ELEVATED_ROLES:
+            return _deny(
+                "Diese Seite erfordert Administrator-, HR- oder "
+                "Management-Rechte.",
+                "main.login",
+            )
+        return func(*args, **kwargs)
+    return _wrapper  # type: ignore[return-value]
 
-            flash('Bitte loggen Sie sich ein.', 'info')
-            return redirect_to('main.login', next=request.url)
-        return f(*args, **kwargs)
-    return decorated_function
+
+def worker_required(func: _F) -> _F:
+    """Require a worker login session."""
+    @wraps(func)
+    def _wrapper(*args: Any, **kwargs: Any) -> Any:
+        if not session.get("worker_id"):
+            return _deny("Bitte zuerst einloggen.", "main.login", 401)
+        return func(*args, **kwargs)
+    return _wrapper  # type: ignore[return-value]
 
 
-@limiter.limit("5 per minute")
-def _setup_view():
-    """Handle initial onboarding / first-start setup."""
-    is_complete = SystemSettings.get_setting('onboarding_complete') == 'true'
-    if is_complete:
-        ingress = request.headers.get('X-Ingress-Path', '')
-        return redirect(f"{ingress}{url_for('main.login')}")
+def _deny(
+    message: str,
+    login_endpoint: str,
+    api_status: int = 403,
+) -> Any:
+    """Return a JSON error for API routes, otherwise flash and redirect."""
+    if request.path.startswith("/api/"):
+        return jsonify({"success": False, "error": message}), api_status
+    flash(message, "warning")
+    return redirect_to(login_endpoint, next=request.url)
 
-    if request.method == 'POST':
-        name = request.form.get('name')
-        pin = request.form.get('pin')
-        pin_confirm = request.form.get('pin_confirm')
 
-        if not name or not pin:
-            flash('Bitte Name und PIN angeben.', 'warning')
-            return render_template('setup.html')
-        
-        if pin != pin_confirm:
-            flash('Die PINs stimmen nicht überein.', 'warning')
-            return render_template('setup.html')
+# ------------------------------------------------------------------
+# View helpers (extracted from _login_view to reduce complexity)
+# ------------------------------------------------------------------
 
-        # Update bootstrap admin
-        admin = Worker.query.filter_by(is_admin=True).first()
-        if admin:
-            admin.name = name
-            # SEC-01: Explicitly use pbkdf2:sha256 with 600k iterations (standard in Werkzeug 3.x)
-            admin.pin_hash = generate_password_hash(pin, method='pbkdf2:sha256', salt_length=16)
-            
-            # Mark onboarding as complete
-            setting = SystemSettings.query.filter_by(key="onboarding_complete").first()
-            if setting:
-                setting.value = 'true'
-            
-            db.session.commit()
-            
-            # Auto-login
-            session.permanent = True
-            session['worker_id'] = admin.id
-            session['worker_name'] = admin.name
-            session['is_admin'] = True
-            
-            flash('Setup abgeschlossen! Willkommen im System.', 'success')
-            return redirect_to('main.index')
+def _ingress_redirect(endpoint: str) -> WerkzeugResponse:
+    """Build a redirect using the raw ingress prefix."""
+    ingress: str = request.headers.get("X-Ingress-Path", "")
+    return redirect(f"{ingress}{url_for(endpoint)}")
 
-    return render_template('setup.html')
 
-@limiter.limit("20 per minute")
-def _login_view():
-    """Handle the login view and processing."""
-    # Check for onboarding
-    if SystemSettings.get_setting('onboarding_complete') != 'true':
-        ingress = request.headers.get('X-Ingress-Path', '')
-        return redirect(f"{ingress}{url_for('main.setup')}")
+def _handle_locked_account(
+    worker: Worker,
+    now: Any,
+    workers: list[Worker],
+) -> str | None:
+    """Return a rendered login page if the account is locked, else ``None``."""
+    if not (worker.locked_until and worker.locked_until > now):
+        return None
+    remaining = worker.locked_until - now
+    minutes_left = int(remaining.total_seconds() // 60) + 1
+    flash(
+        f"Konto vorübergehend gesperrt. Bitte in {minutes_left} Min. "
+        "erneut versuchen.",
+        "danger",
+    )
+    return render_template("login.html", workers=workers)
 
-    workers = Worker.query.filter_by(is_active=True).all()
-    if not workers:
-        flash("Keine Mitarbeiter gefunden. System-Bootstrap erforderlich.", "danger")
-        return render_template('login.html', workers=[])
 
-    if request.method == 'POST':
-        worker_name = (request.form.get('worker_name') or '').strip()
-        pin = (request.form.get('pin') or '').strip()
+def _handle_successful_login(worker: Worker) -> WerkzeugResponse:
+    """Reset lockout counters and initialise the session."""
+    worker.failed_login_count = 0
+    worker.locked_until = None
+    worker.last_active = get_utc_now()
+    db.session.commit()
 
-        if not worker_name or not pin:
-            flash('Bitte Name und PIN angeben.', 'warning')
-            return render_template('login.html', workers=workers)
-
-        # Naive UTC lookup for SQLite compatibility
-        _now = get_utc_now()
-        # PERF-1: Removed .with_for_update() — SQLite has no row-level locking;
-        # WAL-mode handles concurrent writes at DB level.
-        worker = Worker.query.filter(Worker.name.ilike(worker_name), Worker.is_active == True).first()
-        if worker:
-            # Check for active lockout
-            if worker.locked_until and worker.locked_until > _now:
-                time_diff = worker.locked_until - _now
-                minutes_left = int(time_diff.total_seconds() // 60) + 1
-                flash(f'Konto vorübergehend gesperrt. Bitte in {minutes_left} Min. erneut versuchen.', 'danger')
-                return render_template('login.html', workers=workers)
-
-            if check_password_hash(worker.pin_hash, pin):
-                # Reset lockout on success
-                worker.failed_login_count = 0
-                worker.locked_until = None
-                worker.last_active = get_utc_now()
-                db.session.commit()
-
-                # SEC-2: Session fixation prevention — clear and regenerate session
-                # cookie so an attacker who planted a session ID cannot reuse it.
-                session.clear()
-                session.modified = True
-
-                session.permanent = True
-                session['worker_id'] = worker.id
-                session['worker_name'] = worker.name
-                session['is_admin'] = (worker.role == WorkerRole.ADMIN.value)
-                session['role'] = worker.role or 'worker'
-
-                if worker.needs_pin_change:
-                    flash('Bitte ändern Sie zu Ihrer Sicherheit zuerst Ihren PIN.', 'info')
-                    return redirect_to('main.change_pin')
-
-                flash(f'Willkommen zurück, {worker.name}!', 'success')
-                
-                # SEC-06: Safe Redirect
-                next_url = request.args.get('next') or request.form.get('next')
-                if next_url and is_safe_url(next_url):
-                    return redirect(next_url)
-                    
-                return redirect_to('main.my_queue')
-            else:
-                # Log failure to console for admin diagnostics
-                current_app.logger.debug("Login FAILED for '%s' - PIN mismatch.", worker.name)
-                
-                # Increment failed attempts
-                worker.failed_login_count += 1
-                if worker.failed_login_count >= 5:
-                    worker.locked_until = get_utc_now() + timedelta(minutes=15)
-                    flash('Zu viele Fehlversuche. Konto für 15 Minuten gesperrt.', 'danger')
-                else:
-                    flash('Ungültige Zugangsdaten. Bitte versuchen Sie es erneut.', 'danger')
-                db.session.commit()
-                return render_template('login.html', workers=workers)
-        else:
-            # FIX-05: SEC-02 — Perform dummy hash check to normalize timing
-            # and prevent user-enumeration via response-time side-channel
-            check_password_hash(_TIMING_DUMMY_HASH, pin)
-            flash('Ungültige Zugangsdaten oder Konto inaktiv.', 'danger')
-            return render_template('login.html', workers=workers)
-
-    return render_template('login.html', workers=workers)
-
-def _logout_view():
-    """Handle worker logout with thorough session clearing."""
-    
-    # Clear session data
     session.clear()
     session.modified = True
-    flash('Erfolgreich ausgeloggt.', 'info')
-    
-    response = make_response(redirect_to('main.login'))
-    
-    # SEC-09: Explicitly expire session cookie
-    response.set_cookie(current_app.config['SESSION_COOKIE_NAME'], '', expires=0)
-    
-    # GDPR & Shopfloor Security: Clear browser cache on logout.
-    # Note: "cookies" omitted — it wipes ALL origin cookies including HA Ingress
-    # auth tokens, causing 401 errors. The session cookie is already expired
-    # explicitly via set_cookie() above.
-    # "storage" omitted to preserve localStorage preferences (help dismissal).
-    response.headers['Clear-Site-Data'] = '"cache"'
+    session.permanent = True
+    session["worker_id"] = worker.id
+    session["worker_name"] = worker.name
+    session["is_admin"] = worker.role == WorkerRole.ADMIN.value
+    session["role"] = worker.role or "worker"
+
+    if worker.needs_pin_change:
+        flash(
+            "Bitte ändern Sie zu Ihrer Sicherheit zuerst Ihren PIN.",
+            "info",
+        )
+        return redirect_to("main.change_pin")
+
+    flash(f"Willkommen zurück, {worker.name}!", "success")
+
+    next_url = request.args.get("next") or request.form.get("next")
+    if next_url and is_safe_url(next_url):
+        return redirect(next_url)
+    return redirect_to("main.my_queue")
+
+
+def _handle_failed_login(
+    worker: Worker, workers: list[Worker],
+) -> str:
+    """Increment failure counters and render the login page."""
+    current_app.logger.debug(
+        "Login FAILED for '%s' - PIN mismatch.", worker.name,
+    )
+    worker.failed_login_count += 1
+    if worker.failed_login_count >= _MAX_FAILED_LOGINS:
+        worker.locked_until = get_utc_now() + timedelta(minutes=_LOCKOUT_MINUTES)
+        flash(
+            "Zu viele Fehlversuche. Konto für 15 Minuten gesperrt.",
+            "danger",
+        )
+    else:
+        flash(
+            "Ungültige Zugangsdaten. Bitte versuchen Sie es erneut.",
+            "danger",
+        )
+    db.session.commit()
+    return render_template("login.html", workers=workers)
+
+
+# ------------------------------------------------------------------
+# Route views
+# ------------------------------------------------------------------
+
+@limiter.limit("5 per minute")
+def _setup_view() -> str | WerkzeugResponse:
+    """Handle initial onboarding / first-start setup."""
+    if SystemSettings.get_setting("onboarding_complete") == "true":
+        return _ingress_redirect("main.login")
+
+    if request.method != "POST":
+        return render_template("setup.html")
+
+    name = request.form.get("name")
+    pin = request.form.get("pin")
+    pin_confirm = request.form.get("pin_confirm")
+
+    if not name or not pin:
+        flash("Bitte Name und PIN angeben.", "warning")
+        return render_template("setup.html")
+
+    if pin != pin_confirm:
+        flash("Die PINs stimmen nicht überein.", "warning")
+        return render_template("setup.html")
+
+    admin = Worker.query.filter_by(is_admin=True).first()
+    if not admin:
+        flash("Kein Admin-Konto gefunden.", "danger")
+        return render_template("setup.html")
+
+    admin.name = name
+    admin.pin_hash = generate_password_hash(
+        pin, method="pbkdf2:sha256", salt_length=16,
+    )
+
+    setting = SystemSettings.query.filter_by(key="onboarding_complete").first()
+    if setting:
+        setting.value = "true"
+
+    db.session.commit()
+
+    session.permanent = True
+    session["worker_id"] = admin.id
+    session["worker_name"] = admin.name
+    session["is_admin"] = True
+
+    flash("Setup abgeschlossen! Willkommen im System.", "success")
+    return redirect_to("main.index")
+
+
+@limiter.limit("20 per minute")
+def _login_view() -> str | WerkzeugResponse:
+    """Handle the login page and credential verification."""
+    if SystemSettings.get_setting("onboarding_complete") != "true":
+        return _ingress_redirect("main.setup")
+
+    workers: list[Worker] = Worker.query.filter_by(is_active=True).all()
+    if not workers:
+        flash(
+            "Keine Mitarbeiter gefunden. System-Bootstrap erforderlich.",
+            "danger",
+        )
+        return render_template("login.html", workers=[])
+
+    if request.method != "POST":
+        return render_template("login.html", workers=workers)
+
+    worker_name = (request.form.get("worker_name") or "").strip()
+    pin = (request.form.get("pin") or "").strip()
+
+    if not worker_name or not pin:
+        flash("Bitte Name und PIN angeben.", "warning")
+        return render_template("login.html", workers=workers)
+
+    now = get_utc_now()
+    worker = Worker.query.filter(
+        Worker.name.ilike(worker_name),
+        Worker.is_active == True,  # noqa: E712
+    ).first()
+
+    if not worker:
+        check_password_hash(_TIMING_DUMMY_HASH, pin)
+        flash("Ungültige Zugangsdaten oder Konto inaktiv.", "danger")
+        return render_template("login.html", workers=workers)
+
+    locked_response = _handle_locked_account(worker, now, workers)
+    if locked_response is not None:
+        return locked_response
+
+    if check_password_hash(worker.pin_hash, pin):
+        return _handle_successful_login(worker)
+
+    return _handle_failed_login(worker, workers)
+
+
+def _logout_view() -> WerkzeugResponse:
+    """Handle worker logout with thorough session clearing."""
+    session.clear()
+    session.modified = True
+    flash("Erfolgreich ausgeloggt.", "info")
+
+    response: WerkzeugResponse = make_response(redirect_to("main.login"))
+    response.set_cookie(
+        current_app.config["SESSION_COOKIE_NAME"], "", expires=0,
+    )
+    response.headers["Clear-Site-Data"] = '"cache"'
     return response
 
 
-def _recover_pin_view():
+def _recover_pin_view() -> str | WerkzeugResponse:
     """Handle PIN recovery using a single-use token."""
-    if request.method == 'POST':
-        token = request.form.get('token', '').strip().upper()
+    if request.method != "POST":
+        return render_template("recover_pin.html")
 
-        # Load existing hashes
-        saved_hashes_str = SystemSettings.get_setting(
-            'recovery_tokens_hash', '')
-        if not saved_hashes_str:
-            flash('Keine Recovery-Tokens im System hinterlegt.', 'error')
-            return render_template('recover_pin.html')
+    token: str = request.form.get("token", "").strip().upper()
 
-        hashed_tokens = saved_hashes_str.split(',')
-        valid_index = -1
+    saved_hashes_str: str = SystemSettings.get_setting(
+        "recovery_tokens_hash", "",
+    )
+    if not saved_hashes_str:
+        flash("Keine Recovery-Tokens im System hinterlegt.", "error")
+        return render_template("recover_pin.html")
 
-        for idx, h in enumerate(hashed_tokens):
-            if check_password_hash(h, token):
-                valid_index = idx
-                break
+    hashed_tokens: list[str] = saved_hashes_str.split(",")
+    valid_index = _find_valid_token(hashed_tokens, token)
 
-        if valid_index >= 0:
-            # Valid token found! Remove it from the list
-            hashed_tokens.pop(valid_index)
-            SystemSettings.set_setting(
-                'recovery_tokens_hash', ','.join(hashed_tokens))
+    if valid_index < 0:
+        flash("Ungültiger oder bereits verwendeter Token.", "error")
+        return render_template("recover_pin.html")
 
-            # Patch H-1: Fix inconsistent auth state by binding to an admin account
-            admin = Worker.query.filter_by(is_admin=True, is_active=True).first()
-            if admin:
-                # SEC-02: Protect against Session Fixation
-                session.clear()
-                session['worker_id'] = admin.id
-                session['worker_name'] = admin.name
-                session['is_admin'] = True
-                session.permanent = True
+    hashed_tokens.pop(valid_index)
+    SystemSettings.set_setting(
+        "recovery_tokens_hash", ",".join(hashed_tokens),
+    )
 
-                # Force PIN change for recovered account
-                admin.needs_pin_change = True
-                db.session.commit()
+    admin = Worker.query.filter_by(is_admin=True, is_active=True).first()
+    if not admin:
+        flash(
+            "Kein aktiver Administrator gefunden, "
+            "Wiederherstellung fehlgeschlagen.",
+            "danger",
+        )
+        return render_template("recover_pin.html")
 
-                flash('Recovery erfolgreich. Bitte ändern Sie jetzt Ihren PIN!', 'success')
-                return redirect_to('main.index')
-            else:
-                flash('Kein aktiver Administrator gefunden, Wiederherstellung fehlgeschlagen.', 'danger')
-                return render_template('recover_pin.html')
-        flash('Ungültiger oder bereits verwendeter Token.', 'error')
+    session.clear()
+    session["worker_id"] = admin.id
+    session["worker_name"] = admin.name
+    session["is_admin"] = True
+    session.permanent = True
 
-    return render_template('recover_pin.html')
+    admin.needs_pin_change = True
+    db.session.commit()
+
+    flash("Recovery erfolgreich. Bitte ändern Sie jetzt Ihren PIN!", "success")
+    return redirect_to("main.index")
 
 
-def _change_pin_view():
+def _change_pin_view() -> str | WerkzeugResponse:
     """Handle PIN change by the worker themselves."""
-    if not session.get('worker_id'):
-        ingress = request.headers.get('X-Ingress-Path', '')
-        return redirect(f"{ingress}{url_for('main.login')}")
+    if not session.get("worker_id"):
+        return _ingress_redirect("main.login")
 
-    if request.method == 'POST':
-        new_pin = request.form.get('new_pin')
-        new_pin_confirm = request.form.get('new_pin_confirm')
+    if request.method != "POST":
+        return render_template("change_pin.html")
 
-        if not new_pin or len(new_pin) < 4:
-            flash('Der PIN muss mindestens 4 Ziffern lang sein.', 'warning')
-            return render_template('change_pin.html')
+    new_pin: str = request.form.get("new_pin", "")
+    new_pin_confirm: str = request.form.get("new_pin_confirm", "")
 
-        if new_pin != new_pin_confirm:
-            flash('Die PINs stimmen nicht überein.', 'warning')
-            return render_template('change_pin.html')
+    if not new_pin or len(new_pin) < 4:
+        flash("Der PIN muss mindestens 4 Ziffern lang sein.", "warning")
+        return render_template("change_pin.html")
 
-        worker = db.session.get(Worker, session['worker_id'])
-        if worker:
-            # SEC-01: Explicitly use pbkdf2:sha256
-            worker.pin_hash = generate_password_hash(new_pin, method='pbkdf2:sha256', salt_length=16)
-            worker.needs_pin_change = False
-            db.session.commit()
-            flash('PIN erfolgreich geändert.', 'success')
-            return redirect_to('main.index')
+    if new_pin != new_pin_confirm:
+        flash("Die PINs stimmen nicht überein.", "warning")
+        return render_template("change_pin.html")
 
-    return render_template('change_pin.html')
+    worker = db.session.get(Worker, session["worker_id"])
+    if worker:
+        worker.pin_hash = generate_password_hash(
+            new_pin, method="pbkdf2:sha256", salt_length=16,
+        )
+        worker.needs_pin_change = False
+        db.session.commit()
+        flash("PIN erfolgreich geändert.", "success")
+        return redirect_to("main.index")
+
+    return render_template("change_pin.html")
 
 
-def _profile_view():
-    """Handle user profile displaying and updating OOO status."""
-    if not session.get('worker_id'):
-        ingress = request.headers.get('X-Ingress-Path', '')
-        return redirect(f"{ingress}{url_for('main.login')}")
+def _profile_view() -> str | WerkzeugResponse:
+    """Display and update the worker profile / OOO settings."""
+    if not session.get("worker_id"):
+        return _ingress_redirect("main.login")
 
-    worker = db.session.get(Worker, session['worker_id'])
+    worker = db.session.get(Worker, session["worker_id"])
     if not worker:
-        return redirect_to('main.logout')
+        return redirect_to("main.logout")
 
-    if request.method == 'POST':
-        action = request.form.get('action')
-        if action == 'update_ooo':
-            is_ooo = request.form.get('is_out_of_office') == 'on'
-            delegate_id_str = request.form.get('delegate_to_id')
-            
-            worker.is_out_of_office = is_ooo
-            if delegate_id_str and delegate_id_str.isdigit():
-                delegate_id = int(delegate_id_str)
-                if delegate_id != worker.id:
-                    worker.delegate_to_id = delegate_id
-            else:
-                worker.delegate_to_id = None
-                
+    if request.method == "POST" and request.form.get("action") == "update_ooo":
+        _update_ooo(worker)
+        flash("Abwesenheitseinstellungen aktualisiert.", "success")
+        return redirect_to("main.profile")
+
+    other_workers: list[Worker] = (
+        Worker.query
+        .filter(Worker.is_active == True, Worker.id != worker.id)  # noqa: E712
+        .order_by(Worker.name)
+        .all()
+    )
+    return render_template("profile.html", worker=worker, workers=other_workers)
+
+
+# ------------------------------------------------------------------
+# Private helpers
+# ------------------------------------------------------------------
+
+def _find_valid_token(hashed_tokens: list[str], token: str) -> int:
+    """Return the index of the matching hash, or ``-1``."""
+    for idx, hashed in enumerate(hashed_tokens):
+        if check_password_hash(hashed, token):
+            return idx
+    return -1
+
+
+def _update_ooo(worker: Worker) -> None:
+    """Apply out-of-office form data to *worker*."""
+    worker.is_out_of_office = request.form.get("is_out_of_office") == "on"
+    delegate_id_str = request.form.get("delegate_to_id", "")
+    if delegate_id_str.isdigit():
+        delegate_id = int(delegate_id_str)
+        if delegate_id != worker.id:
+            worker.delegate_to_id = delegate_id
             db.session.commit()
-            flash('Abwesenheitseinstellungen aktualisiert.', 'success')
-            return redirect_to('main.profile')
-
-    # Get active workers for delegation dropdown
-    workers = Worker.query.filter(Worker.is_active == True, Worker.id != worker.id).order_by(Worker.name).all()
-    
-    return render_template('profile.html', worker=worker, workers=workers)
+            return
+    worker.delegate_to_id = None
+    db.session.commit()
 
 
-def register_routes(bp):
-    """Register auth routes."""
-    bp.add_url_rule('/login', 'login', view_func=_login_view, methods=['GET', 'POST'])
-    bp.add_url_rule('/logout', 'logout', view_func=_logout_view, methods=['POST'])
-    bp.add_url_rule('/setup', 'setup', view_func=_setup_view, methods=['GET', 'POST'])
-    bp.add_url_rule('/recover_pin', 'recover_pin', view_func=_recover_pin_view, methods=['GET', 'POST'])
-    bp.add_url_rule('/change-pin', 'change_pin', view_func=_change_pin_view, methods=['GET', 'POST'])
-    bp.add_url_rule('/profile', 'profile', view_func=_profile_view, methods=['GET', 'POST'])
+# ------------------------------------------------------------------
+# Route registration
+# ------------------------------------------------------------------
+
+def register_routes(bp: Blueprint) -> None:
+    """Register authentication routes on *bp*."""
+    bp.add_url_rule(
+        "/login", "login", view_func=_login_view, methods=["GET", "POST"],
+    )
+    bp.add_url_rule(
+        "/logout", "logout", view_func=_logout_view, methods=["POST"],
+    )
+    bp.add_url_rule(
+        "/setup", "setup", view_func=_setup_view, methods=["GET", "POST"],
+    )
+    bp.add_url_rule(
+        "/recover_pin", "recover_pin",
+        view_func=_recover_pin_view, methods=["GET", "POST"],
+    )
+    bp.add_url_rule(
+        "/change-pin", "change_pin",
+        view_func=_change_pin_view, methods=["GET", "POST"],
+    )
+    bp.add_url_rule(
+        "/profile", "profile",
+        view_func=_profile_view, methods=["GET", "POST"],
+    )
