@@ -384,6 +384,13 @@ def _change_pin_view() -> str | WerkzeugResponse:
         flash("Die PINs stimmen nicht überein.", "warning")
         return render_template("change_pin.html")
 
+    from services.worker_service import _validate_pin
+    try:
+        _validate_pin(new_pin)
+    except ValueError as exc:
+        flash(str(exc), "warning")
+        return render_template("change_pin.html")
+
     worker = db.session.get(Worker, session["worker_id"])
     if worker:
         worker.pin_hash = generate_password_hash(
