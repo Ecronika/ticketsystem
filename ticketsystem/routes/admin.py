@@ -25,6 +25,7 @@ from models import (
     ChecklistItem,
     ChecklistTemplate,
     ChecklistTemplateItem,
+    Comment,
     SystemSettings,
     Team,
     Worker,
@@ -300,19 +301,35 @@ def _update_team() -> WerkzeugResponse | None:
 
 
 def _delete_team() -> None:
-    """Delete a team and nullify its FK references."""
+    """Delete a team and nullify its FK references.
+
+    Iterates affected tickets individually so that a system comment is
+    written to each ticket's audit trail instead of doing a silent bulk
+    UPDATE that leaves no trace of who was unassigned or why.
+    """
     team = db.session.get(Team, request.form.get("team_id"))
     if not team:
         return
     from models import Ticket
 
-    Ticket.query.filter_by(assigned_team_id=team.id).update(
-        {"assigned_team_id": None},
-    )
+    affected_tickets = Ticket.query.filter_by(assigned_team_id=team.id).all()
+    team_name = team.name
+    for ticket in affected_tickets:
+        ticket.assigned_team_id = None
+        ticket.updated_at = get_utc_now()
+        db.session.add(Comment(
+            ticket_id=ticket.id,
+            author="System",
+            text=(
+                f"Team \"{team_name}\" wurde gelöscht. "
+                "Ticket-Zuweisung wurde systemseitig aufgehoben."
+            ),
+            is_system_event=True,
+        ))
+
     ChecklistItem.query.filter_by(assigned_team_id=team.id).update(
         {"assigned_team_id": None},
     )
-    team_name = team.name
     db.session.delete(team)
     db.session.commit()
     flash(
