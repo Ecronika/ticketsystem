@@ -1334,7 +1334,8 @@ def _push_vapid_key_api() -> Response:
             _, pub = get_or_create_vapid_keys()
         return jsonify({"public_key": pub})
     except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
+        current_app.logger.error("VAPID key retrieval error: %s", exc)
+        return jsonify({"error": "Interner Serverfehler."}), 500
 
 
 def _push_subscribe_api() -> Response:
