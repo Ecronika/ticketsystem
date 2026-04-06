@@ -1359,7 +1359,7 @@ def _push_subscribe_api() -> Response:
         return jsonify({"success": True})
     except Exception as exc:
         current_app.logger.error("Push subscribe error: %s", exc)
-        return jsonify({"success": False, "error": str(exc)}), 500
+        return jsonify({"success": False, "error": "Interner Serverfehler."}), 500
 
 
 def _push_unsubscribe_api() -> Response:
@@ -1373,7 +1373,8 @@ def _push_unsubscribe_api() -> Response:
         delete_subscription(endpoint)
         return jsonify({"success": True})
     except Exception as exc:
-        return jsonify({"success": False, "error": str(exc)}), 500
+        current_app.logger.error("Push unsubscribe error: %s", exc)
+        return jsonify({"success": False, "error": "Interner Serverfehler."}), 500
 
 
 def _worker_mention_names_api() -> Response:
