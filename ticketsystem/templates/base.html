@@ -114,6 +114,9 @@
               </a></li>
               <li><hr class="dropdown-divider opacity-25"></li>
               <li><h6 class="dropdown-header small text-muted">System</h6></li>
+              <li><a class="dropdown-item small {{ 'active' if request.endpoint == 'admin.trash' else '' }}" href="{{ ingress_path }}{{ url_for('admin.trash') }}">
+                <i class="bi bi-trash3 me-2 text-danger"></i> Papierkorb
+              </a></li>
               <li><a class="dropdown-item small {{ 'active' if request.endpoint == 'admin.settings' else '' }}" href="{{ ingress_path }}{{ url_for('admin.settings') }}">
                 <i class="bi bi-gear me-2"></i> Einstellungen
               </a></li>

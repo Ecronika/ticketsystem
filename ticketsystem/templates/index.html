@@ -53,24 +53,39 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let lastCount = parseInt("{{ pagination.total or 0 }}");
     let lastUpdated = null;
+    let refreshing = false;
 
-    // --- Polling ---
-    function updateDashboard() {
+    // --- Silent table-row refresh ---
+    async function refreshTableRows() {
+        if (refreshing) return;
+        refreshing = true;
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const r = await fetch(ingress + '/api/dashboard/rows?' + params.toString());
+            if (!r.ok) return;
+            const html = await r.text();
+            const tbody = document.querySelector('#dashTable tbody');
+            if (tbody) tbody.innerHTML = html;
+        } catch(e) {}
+        finally { refreshing = false; }
+    }
+
+    // --- Polling (silently refreshes rows on change) ---
+    async function updateDashboard() {
         if (document.hidden) return;
-        fetch(ingress + '/api/dashboard/summary')
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    const changed = data.counts.summary !== lastCount ||
-                        (data.last_updated && lastUpdated && data.last_updated !== lastUpdated);
-                    if (changed) {
-                        const hint = document.getElementById('reloadHint');
-                        if (hint) hint.classList.remove('d-none');
-                    }
-                    if (!lastUpdated) lastUpdated = data.last_updated;
-                }
-            })
-            .catch(() => {});
+        try {
+            const r = await fetch(ingress + '/api/dashboard/summary');
+            const data = await r.json();
+            if (!data.success) return;
+            const changed = data.counts.summary !== lastCount ||
+                (data.last_updated && lastUpdated && data.last_updated !== lastUpdated);
+            if (changed) {
+                await refreshTableRows();
+                lastCount = data.counts.summary;
+                lastUpdated = data.last_updated;
+            }
+            if (!lastUpdated) lastUpdated = data.last_updated;
+        } catch(e) {}
     }
 
     fetch(ingress + '/api/dashboard/summary')
@@ -84,107 +99,107 @@ document.addEventListener('DOMContentLoaded', function() {
         el.addEventListener('click', (e) => { e.preventDefault(); location.reload(); });
     });
 
-    // --- Inline Status Change ---
-    document.querySelectorAll('.inline-status-select').forEach(sel => {
-        sel.addEventListener('change', async function() {
-            const ticketId = this.dataset.ticketId;
-            const newStatus = this.value;
-            const original = this.dataset.original;
-            this.disabled = true;
-            try {
-                const resp = await fetch(ingress + '/api/ticket/' + ticketId + '/status', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                    body: JSON.stringify({ status: newStatus })
-                });
-                const data = await resp.json();
-                if (data.success) {
-                    // Update status dot
-                    const dot = this.closest('td').querySelector('.status-dot');
-                    if (dot) { dot.className = 'status-dot ' + newStatus; }
-                    this.dataset.original = newStatus;
-                    if (window.showUiAlert) window.showUiAlert('Status aktualisiert.', 'success');
-                } else {
-                    this.value = original;
-                    if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Unbekannt'), 'danger');
-                }
-            } catch (e) {
-                this.value = original;
-                if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.', 'danger');
-            }
-            this.disabled = false;
-        });
-    });
-
-    // --- Inline Assignment Change ---
-    document.querySelectorAll('.inline-assign-select').forEach(sel => {
-        sel.addEventListener('change', async function() {
-            const ticketId = this.dataset.ticketId;
-            const val = this.value;
-            const original = this.dataset.original;
-            let payload = { worker_id: null, team_id: null };
-            if (val.startsWith('team_')) {
-                payload.team_id = parseInt(val.replace('team_', ''));
-            } else if (val) {
-                payload.worker_id = parseInt(val);
-            }
-            this.disabled = true;
-            try {
-                const resp = await fetch(ingress + '/api/ticket/' + ticketId + '/assign', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                    body: JSON.stringify(payload)
-                });
-                const data = await resp.json();
-                if (data.success) {
-                    this.dataset.original = val;
-                    if (window.showUiAlert) window.showUiAlert('Zuweisung aktualisiert.', 'success');
-                } else {
-                    this.value = original;
-                    if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Unbekannt'), 'danger');
-                }
-            } catch (e) {
-                this.value = original;
-                if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.', 'danger');
-            }
-            this.disabled = false;
-        });
-    });
-
-    // --- Assign to Me (quick button) ---
-    document.querySelectorAll('.assign-me-btn').forEach(btn => {
-        btn.addEventListener('click', async function(e) {
-            e.stopPropagation();
-            const ticketId = this.dataset.ticketId;
-            const workerId = this.dataset.workerId;
-            if (!workerId) return;
-            this.disabled = true;
-            try {
-                const resp = await fetch(ingress + '/api/ticket/' + ticketId + '/assign', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                    body: JSON.stringify({ worker_id: parseInt(workerId) })
-                });
-                const data = await resp.json();
-                if (data.success) {
-                    // Update the select dropdown to reflect the assignment
-                    const sel = this.closest('td').querySelector('.inline-assign-select');
-                    if (sel) {
-                        sel.value = workerId;
-                        sel.dataset.original = workerId;
+    // --- Delegated table events (survive DOM swaps after silent refresh) ---
+    const dashTable = document.getElementById('dashTable');
+    if (dashTable) {
+        dashTable.addEventListener('change', async function(e) {
+            // Inline Status Change
+            if (e.target.classList.contains('inline-status-select')) {
+                const sel = e.target;
+                const ticketId = sel.dataset.ticketId;
+                const newStatus = sel.value;
+                const original = sel.dataset.original;
+                sel.disabled = true;
+                try {
+                    const resp = await fetch(ingress + '/api/ticket/' + ticketId + '/status', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                        body: JSON.stringify({ status: newStatus })
+                    });
+                    const data = await resp.json();
+                    if (data.success) {
+                        const dot = sel.closest('td').querySelector('.status-dot');
+                        if (dot) dot.className = 'status-dot ' + newStatus;
+                        sel.dataset.original = newStatus;
+                        if (window.showUiAlert) window.showUiAlert('Status aktualisiert.', 'success');
+                    } else {
+                        sel.value = original;
+                        if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Unbekannt'), 'danger');
                     }
-                    this.remove();
-                    if (window.showUiAlert) window.showUiAlert('Ticket Ihnen zugewiesen.', 'success');
-                } else {
-                    if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Unbekannt'), 'danger');
-                    this.disabled = false;
+                } catch(e) {
+                    sel.value = original;
+                    if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.', 'danger');
                 }
-            } catch (e) {
-                if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.', 'danger');
-                this.disabled = false;
+                sel.disabled = false;
+            }
+
+            // Inline Assignment Change
+            if (e.target.classList.contains('inline-assign-select')) {
+                const sel = e.target;
+                const ticketId = sel.dataset.ticketId;
+                const val = sel.value;
+                const original = sel.dataset.original;
+                let payload = { worker_id: null, team_id: null };
+                if (val.startsWith('team_')) {
+                    payload.team_id = parseInt(val.replace('team_', ''));
+                } else if (val) {
+                    payload.worker_id = parseInt(val);
+                }
+                sel.disabled = true;
+                try {
+                    const resp = await fetch(ingress + '/api/ticket/' + ticketId + '/assign', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await resp.json();
+                    if (data.success) {
+                        sel.dataset.original = val;
+                        if (window.showUiAlert) window.showUiAlert('Zuweisung aktualisiert.', 'success');
+                    } else {
+                        sel.value = original;
+                        if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Unbekannt'), 'danger');
+                    }
+                } catch(e) {
+                    sel.value = original;
+                    if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.', 'danger');
+                }
+                sel.disabled = false;
             }
         });
-    });
+
+        dashTable.addEventListener('click', async function(e) {
+            // Assign-to-me button
+            const btn = e.target.closest('.assign-me-btn');
+            if (btn) {
+                e.stopPropagation();
+                const ticketId = btn.dataset.ticketId;
+                const workerId = btn.dataset.workerId;
+                if (!workerId) return;
+                btn.disabled = true;
+                try {
+                    const resp = await fetch(ingress + '/api/ticket/' + ticketId + '/assign', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                        body: JSON.stringify({ worker_id: parseInt(workerId) })
+                    });
+                    const data = await resp.json();
+                    if (data.success) {
+                        const sel = btn.closest('td').querySelector('.inline-assign-select');
+                        if (sel) { sel.value = workerId; sel.dataset.original = workerId; }
+                        btn.remove();
+                        if (window.showUiAlert) window.showUiAlert('Ticket Ihnen zugewiesen.', 'success');
+                    } else {
+                        if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Unbekannt'), 'danger');
+                        btn.disabled = false;
+                    }
+                } catch(e) {
+                    if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.', 'danger');
+                    btn.disabled = false;
+                }
+            }
+        });
+    }
 
     // --- Debounced Live Search ---
     const searchInput = document.getElementById('dashSearch');
@@ -199,7 +214,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- Bulk Edit Mode Toggle ---
     const bulkToggleBtn = document.getElementById('bulkToggleBtn');
-    const dashTable = document.getElementById('dashTable');
     if (bulkToggleBtn && dashTable) {
         bulkToggleBtn.addEventListener('click', function() {
             dashTable.classList.toggle('bulk-mode');
@@ -449,123 +463,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </tr>
                 </thead>
                 <tbody>
-                    {% for ticket in focus_tickets %}
-                    <tr class="{{ 'prio-high' if ticket.priority == 1 }}">
-                        <!-- Bulk checkbox (hidden by default) -->
-                        <td class="bulk-col ps-3">
-                            {% if session.get('role') != 'viewer' %}
-                            <input type="checkbox" class="form-check-input bulk-select-checkbox" value="{{ ticket.id }}" onclick="event.stopPropagation();">
-                            {% endif %}
-                        </td>
-
-                        <!-- ID -->
-                        <td class="ps-3">
-                            <span class="text-muted fw-bold small">{{ ticket.id }}</span>
-                        </td>
-
-                        <!-- Title -->
-                        <td>
-                            <a href="{{ ingress_path }}{{ url_for('main.ticket_detail', ticket_id=ticket.id) }}" class="title-link">
-                                {{ ticket.title }}
-                            </a>
-                            {% if ticket.is_confidential %}<i class="bi bi-lock-fill text-warning ms-1" title="Vertraulich"></i>{% endif %}
-                            {% if ticket.recurrence_rule %}<i class="bi bi-arrow-repeat text-primary ms-1" title="Serienticket"></i>{% endif %}
-                            {% if ticket.approval_status == 'pending' %}<span class="badge badge-subtle-warning rounded-pill x-small ms-1">FREIGABE</span>{% endif %}
-                            {% for tag in ticket.tags %}
-                            <span class="badge bg-secondary-subtle text-secondary rounded-pill fw-normal ms-1" style="font-size: 0.65rem;"><i class="bi bi-tag"></i> {{ tag.name }}</span>
-                            {% endfor %}
-                        </td>
-
-                        <!-- Baustelle/Kunde -->
-                        <td class="small text-muted text-truncate" style="max-width: 160px;">
-                            {% if ticket.order_reference %}
-                                <span title="{{ ticket.order_reference }}">{{ ticket.order_reference }}</span>
-                            {% elif ticket.contact_name %}
-                                <span title="{{ ticket.contact_name }}">{{ ticket.contact_name }}</span>
-                            {% else %}
-                                <span class="opacity-25">—</span>
-                            {% endif %}
-                        </td>
-
-                        <!-- Zuständig (inline dropdown) -->
-                        <td>
-                            {% if session.get('role') != 'viewer' %}
-                            <div class="d-flex align-items-center gap-1">
-                                <select class="inline-assign-select inline-select" data-ticket-id="{{ ticket.id }}"
-                                        data-original="{{ ('team_' ~ ticket.assigned_team_id) if ticket.assigned_team_id else (ticket.assigned_to_id or '') }}"
-                                        onmousedown="event.stopPropagation();">
-                                    <option value="" {{ 'selected' if not ticket.assigned_to_id and not ticket.assigned_team_id }}>— Keine —</option>
-                                    {% for w in workers %}
-                                    <option value="{{ w.id }}" {{ 'selected' if ticket.assigned_to_id == w.id }}>{{ w.name }}</option>
-                                    {% endfor %}
-                                    {% if teams %}
-                                    <optgroup label="Teams">
-                                        {% for t in teams %}
-                                        <option value="team_{{ t.id }}" {{ 'selected' if ticket.assigned_team_id == t.id }}>{{ t.name }}</option>
-                                        {% endfor %}
-                                    </optgroup>
-                                    {% endif %}
-                                </select>
-                                {% if not ticket.assigned_to_id and not ticket.assigned_team_id %}
-                                <button type="button"
-                                        class="btn btn-link btn-sm p-0 text-primary assign-me-btn flex-shrink-0"
-                                        data-ticket-id="{{ ticket.id }}"
-                                        data-worker-id="{{ session.get('worker_id') }}"
-                                        title="Mir zuweisen"
-                                        style="font-size:0.75rem; white-space:nowrap;">
-                                    <i class="bi bi-person-check"></i>
-                                </button>
-                                {% endif %}
-                            </div>
-                            {% else %}
-                                <span class="small">{{ ticket.assigned_to.name if ticket.assigned_to else (ticket.assigned_team.name if ticket.assigned_team else '—') }}</span>
-                            {% endif %}
-                        </td>
-
-                        <!-- Priority dot -->
-                        <td class="text-center">
-                            <span class="prio-dot {{ 'high' if ticket.priority == 1 else 'medium' if ticket.priority == 2 else 'low' }}"
-                                  title="{{ ticket.priority|priority_label }}"></span>
-                        </td>
-
-                        <!-- Status (inline dropdown) -->
-                        <td class="text-center">
-                            <span class="status-dot {{ ticket.status }} me-1"></span>
-                            {% if session.get('role') != 'viewer' %}
-                            <select class="inline-status-select inline-select" data-ticket-id="{{ ticket.id }}" data-original="{{ ticket.status }}">
-                                <option value="offen" {{ 'selected' if ticket.status == 'offen' }}>Offen</option>
-                                <option value="in_bearbeitung" {{ 'selected' if ticket.status == 'in_bearbeitung' }}>In Arbeit</option>
-                                <option value="wartet" {{ 'selected' if ticket.status == 'wartet' }}>Wartet</option>
-                                <option value="erledigt" {{ 'selected' if ticket.status == 'erledigt' }}>Erledigt</option>
-                            </select>
-                            {% else %}
-                                <span class="small">{{ ticket.status|status_label }}</span>
-                            {% endif %}
-                        </td>
-
-                        <!-- Due date -->
-                        <td class="text-end pe-3 small">
-                            {% if ticket.due_date %}
-                            <span class="fw-bold {{ 'text-danger' if ticket.due_date.date() < today.date() else 'text-warning' if ticket.due_date.date() == today.date() else 'text-muted' }}">
-                                {{ ticket.due_date|local_time|datetime('%d.%m.') }}
-                            </span>
-                            {% else %}
-                            <span class="opacity-25">—</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="8" class="text-center py-5 text-muted">
-                            <i class="bi bi-ticket-perforated display-4 mb-2 opacity-25 d-block"></i>
-                            <p class="h6 fw-bold text-secondary mb-1">Keine Tickets gefunden.</p>
-                            <p class="small opacity-75 mb-3">Das System ist bereit.</p>
-                            <a href="{{ ingress_path }}{{ url_for('main.ticket_new') }}" class="btn btn-primary rounded-pill px-4 shadow-sm btn-sm">
-                                <i class="bi bi-plus-circle me-1"></i>Neues Ticket
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
+                    {% include "components/_dashboard_rows.html" %}
                 </tbody>
             </table>
         </div>

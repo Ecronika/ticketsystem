@@ -175,3 +175,57 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setInterval(fetchNotifications, POLL_INTERVAL);
 });
+
+// ---------------------------------------------------------------------------
+// WebPush subscription manager (runs independently of the notification UI)
+// ---------------------------------------------------------------------------
+
+(function initWebPush() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+    const ingress = window.INGRESS_PATH || '';
+
+    function getCsrf() {
+        return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    }
+
+    async function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const raw = atob(base64);
+        return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+    }
+
+    async function subscribe() {
+        try {
+            const keyResp = await fetch(ingress + '/api/push/vapid-key');
+            if (!keyResp.ok) return;
+            const { public_key } = await keyResp.json();
+            if (!public_key) return;
+
+            const reg = await navigator.serviceWorker.ready;
+            const existing = await reg.pushManager.getSubscription();
+            if (existing) return; // already subscribed
+
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') return;
+
+            const sub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: await urlBase64ToUint8Array(public_key),
+            });
+
+            await fetch(ingress + '/api/push/subscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+                body: JSON.stringify(sub.toJSON()),
+            });
+        } catch(e) {
+            // WebPush setup is optional — log but don't break the page
+            console.debug('[WebPush] subscribe error:', e);
+        }
+    }
+
+    // Trigger subscription after a short delay so it doesn't block page load
+    setTimeout(subscribe, 3000);
+})();

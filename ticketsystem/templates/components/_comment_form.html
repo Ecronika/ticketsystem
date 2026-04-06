@@ -4,12 +4,14 @@
         <form id="commentForm" action="{{ ingress_path }}{{ url_for('main.add_comment', ticket_id=ticket.id) }}" method="POST">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             <label class="form-label small fw-bold"><i class="bi bi-plus-circle me-1"></i>Kommentar hinzufügen</label>
-            
-            <div class="input-group mb-2">
-                <textarea name="text" class="form-control" rows="2" placeholder="Was gibt es neues? (Pflichtfeld *)" required></textarea>
+
+            <div class="input-group mb-2 position-relative">
+                <textarea id="commentTextarea" name="text" class="form-control" rows="2" placeholder="Was gibt es neues? @Name für Erwähnung (Pflichtfeld *)" required autocomplete="off"></textarea>
                 <button type="submit" class="btn btn-primary px-4 d-lg-none">
                     <i class="bi bi-send"></i>
                 </button>
+                <!-- @mention autocomplete dropdown -->
+                <ul id="mentionDropdown" class="dropdown-menu shadow-sm" style="display:none; position:absolute; z-index:1055; max-height:200px; overflow-y:auto; min-width:200px;"></ul>
             </div>
             
             <div class="d-flex justify-content-between align-items-center">
@@ -39,3 +41,106 @@
     </div>
 </div>
 {% endif %}
+
+<script nonce="{{ g.csp_nonce }}">
+(function() {
+    const textarea = document.getElementById('commentTextarea');
+    const dropdown = document.getElementById('mentionDropdown');
+    if (!textarea || !dropdown) return;
+
+    let workerNames = null;
+    let mentionStart = -1;
+
+    // Lazy-load worker names on first @ keystroke
+    async function loadNames() {
+        if (workerNames !== null) return;
+        try {
+            const ingress = document.querySelector('nav[data-ingress]')?.dataset.ingress || '';
+            const r = await fetch(ingress + '/api/workers/mention-names');
+            const data = await r.json();
+            workerNames = data.names || [];
+        } catch(e) { workerNames = []; }
+    }
+
+    function closeDrop() {
+        dropdown.style.display = 'none';
+        dropdown.innerHTML = '';
+        mentionStart = -1;
+    }
+
+    function openDrop(matches, cursorPos) {
+        dropdown.innerHTML = '';
+        if (!matches.length) { closeDrop(); return; }
+
+        matches.forEach(name => {
+            const li = document.createElement('li');
+            li.className = 'dropdown-item py-1 px-3 small cursor-pointer';
+            li.style.cursor = 'pointer';
+            li.textContent = '@' + name;
+            li.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                insertMention(name);
+            });
+            dropdown.appendChild(li);
+        });
+
+        // Position below textarea caret (approximate)
+        dropdown.style.display = 'block';
+        dropdown.style.top = (textarea.offsetTop + textarea.offsetHeight) + 'px';
+        dropdown.style.left = textarea.offsetLeft + 'px';
+    }
+
+    function insertMention(name) {
+        const val = textarea.value;
+        const before = val.slice(0, mentionStart);
+        const after = val.slice(textarea.selectionEnd);
+        textarea.value = before + '@' + name + ' ' + after;
+        const newPos = mentionStart + name.length + 2; // +2 for @ and space
+        textarea.setSelectionRange(newPos, newPos);
+        textarea.focus();
+        closeDrop();
+    }
+
+    textarea.addEventListener('input', async function() {
+        const pos = this.selectionStart;
+        const textBefore = this.value.slice(0, pos);
+        // Find the last @ before cursor that's either at start or after whitespace
+        const match = textBefore.match(/(?:^|[\s])@(\w*)$/);
+        if (!match) { closeDrop(); return; }
+
+        await loadNames();
+        mentionStart = textBefore.lastIndexOf('@');
+        const query = match[1].toLowerCase();
+        const matches = workerNames.filter(n => n.toLowerCase().startsWith(query)).slice(0, 8);
+        openDrop(matches, pos);
+    });
+
+    textarea.addEventListener('keydown', function(e) {
+        if (dropdown.style.display === 'none') return;
+        const items = dropdown.querySelectorAll('.dropdown-item');
+        const active = dropdown.querySelector('.dropdown-item.active');
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            const next = active ? active.nextElementSibling : items[0];
+            if (active) active.classList.remove('active');
+            if (next) next.classList.add('active');
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            const prev = active ? active.previousElementSibling : items[items.length - 1];
+            if (active) active.classList.remove('active');
+            if (prev) prev.classList.add('active');
+        } else if (e.key === 'Enter' || e.key === 'Tab') {
+            if (active) {
+                e.preventDefault();
+                insertMention(active.textContent.replace('@', ''));
+            }
+        } else if (e.key === 'Escape') {
+            closeDrop();
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!dropdown.contains(e.target) && e.target !== textarea) closeDrop();
+    });
+})();
+</script>
