@@ -380,6 +380,7 @@ def _handle_ticket_creation() -> str | Response:
             checklist_template_id=template_id,
             contact_name=request.form.get("contact_name") or None,
             contact_phone=request.form.get("contact_phone") or None,
+            contact_email=request.form.get("contact_email") or None,
             contact_channel=request.form.get("contact_channel") or None,
             callback_requested=request.form.get("callback_requested") == "on",
             callback_due=callback_due,
@@ -633,6 +634,33 @@ def _update_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
         return _api_ok()
     except SQLAlchemyError:
         current_app.logger.exception("API Error in _update_ticket_api")
+        return _api_error("Ein interner Fehler ist aufgetreten.")
+
+
+@worker_required
+@limiter.limit("20 per minute")
+def _update_contact_api(ticket_id: int) -> tuple[Response, int] | Response:
+    """Update customer contact fields on a ticket."""
+    ticket = _check_ticket_access(ticket_id)
+    if not ticket:
+        return _api_error("Keine Berechtigung", 403)
+
+    data: dict[str, Any] = request.get_json(silent=True) or {}
+
+    ticket.contact_name = data.get("contact_name") or None
+    ticket.contact_phone = data.get("contact_phone") or None
+    ticket.contact_email = data.get("contact_email") or None
+    ticket.contact_channel = data.get("contact_channel") or None
+    ticket.callback_requested = bool(data.get("callback_requested", False))
+    callback_due_str = data.get("callback_due")
+    ticket.callback_due = _parse_callback_due(callback_due_str) if callback_due_str else None
+    ticket.updated_at = get_utc_now()
+
+    try:
+        db.session.commit()
+        return _api_ok()
+    except SQLAlchemyError:
+        current_app.logger.exception("API Error in _update_contact_api")
         return _api_error("Ein interner Fehler ist aufgetreten.")
 
 
@@ -1254,6 +1282,10 @@ def register_routes(bp: Blueprint) -> None:
     bp.add_url_rule(
         "/api/ticket/<int:ticket_id>/update", "update_ticket",
         view_func=worker_required(_update_ticket_api), methods=["POST"],
+    )
+    bp.add_url_rule(
+        "/api/ticket/<int:ticket_id>/update_contact", "update_contact",
+        view_func=worker_required(_update_contact_api), methods=["POST"],
     )
     bp.add_url_rule(
         "/api/ticket/<int:ticket_id>/apply_template", "apply_template",

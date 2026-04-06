@@ -650,3 +650,74 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+// Contact edit logic
+document.addEventListener('DOMContentLoaded', function() {
+    const saveContactBtn = document.getElementById('saveContactBtn');
+    if (!saveContactBtn) return;
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const ingress = document.querySelector('.navbar')?.getAttribute('data-ingress') || '';
+    const ticketId = saveContactBtn.dataset.ticketId;
+
+    // Toggle callback-due field visibility
+    const callbackCheckbox = document.getElementById('editCallbackRequested');
+    const callbackDueWrapper = document.getElementById('editCallbackDueWrapper');
+    if (callbackCheckbox && callbackDueWrapper) {
+        callbackCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                callbackDueWrapper.classList.remove('d-none');
+            } else {
+                callbackDueWrapper.classList.add('d-none');
+                const dueInput = document.getElementById('editCallbackDue');
+                if (dueInput) dueInput.value = '';
+            }
+        });
+    }
+
+    saveContactBtn.addEventListener('click', async function() {
+        const channelEl = document.querySelector('input[name="edit_contact_channel"]:checked');
+        const channel = channelEl ? channelEl.value : '';
+        const name = document.getElementById('editContactName')?.value.trim() || '';
+        const phone = document.getElementById('editContactPhone')?.value.trim() || '';
+        const email = document.getElementById('editContactEmail')?.value.trim() || '';
+        const callbackReq = document.getElementById('editCallbackRequested')?.checked || false;
+        const callbackDue = document.getElementById('editCallbackDue')?.value || null;
+
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Speichern...';
+
+        try {
+            const response = await fetch(`${ingress}/api/ticket/${ticketId}/update_contact`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({
+                    contact_name: name || null,
+                    contact_phone: phone || null,
+                    contact_email: email || null,
+                    contact_channel: channel || null,
+                    callback_requested: callbackReq,
+                    callback_due: callbackDue || null,
+                })
+            });
+            const data = await response.json();
+            if (data.success) {
+                window.showUiAlert('Kundenkontakt gespeichert.', 'success');
+                // Collapse the form and reload to refresh display
+                const collapseEl = document.getElementById('contactEditForm');
+                if (collapseEl) {
+                    bootstrap.Collapse.getOrCreateInstance(collapseEl).hide();
+                }
+                setTimeout(() => location.reload(), 600);
+            } else {
+                window.showUiAlert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
+                this.disabled = false;
+                this.innerHTML = '<i class="bi bi-floppy me-1"></i>Speichern';
+            }
+        } catch (e) {
+            window.showUiAlert('Netzwerkfehler beim Speichern.');
+            this.disabled = false;
+            this.innerHTML = '<i class="bi bi-floppy me-1"></i>Speichern';
+        }
+    });
+});

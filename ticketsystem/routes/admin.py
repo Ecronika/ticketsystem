@@ -340,7 +340,9 @@ def _set_team_members(team: Team) -> None:
 def settings() -> str | WerkzeugResponse:
     """SMTP and system settings page."""
     if request.method == "POST":
-        _dispatch_settings_action()
+        result = _dispatch_settings_action()
+        if result is not None:
+            return result
         return redirect(url_for("admin.settings"))
 
     current: dict[str, str] = {
@@ -349,7 +351,7 @@ def settings() -> str | WerkzeugResponse:
     return render_template("settings.html", smtp=current)
 
 
-def _dispatch_settings_action() -> None:
+def _dispatch_settings_action() -> WerkzeugResponse | None:
     """Route the POST action to the appropriate settings handler."""
     action = request.form.get("action")
     if action == "save_smtp":
@@ -359,6 +361,9 @@ def _dispatch_settings_action() -> None:
     elif action == "clear_smtp_password":
         SystemSettings.set_setting("smtp_password", "")
         flash("SMTP-Passwort wurde entfernt.", "success")
+    elif action == "generate_tokens":
+        return _generate_tokens()
+    return None
 
 
 def _save_smtp() -> None:

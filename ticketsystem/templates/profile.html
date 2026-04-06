@@ -11,6 +11,46 @@
 </div>
 
 <div class="row g-4">
+    <div class="col-12" id="notifications">
+        <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+            <div class="card-header border-0 py-3 px-4 bg-surface-subtle d-flex align-items-center justify-content-between">
+                <h3 class="h5 fw-bold mb-0"><i class="bi bi-bell text-primary me-2"></i> Benachrichtigungen</h3>
+                {% if notifications %}
+                <button type="button" class="btn btn-sm btn-link text-decoration-none p-0 text-primary fw-bold" style="font-size:0.8rem;" id="markAllReadProfileBtn">
+                    Alle als gelesen markieren
+                </button>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% if not notifications %}
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-bell-slash fs-2 mb-2 d-block"></i>
+                    <p class="small mb-0">Keine Benachrichtigungen vorhanden.</p>
+                </div>
+                {% else %}
+                <ul class="list-group list-group-flush">
+                    {% for n in notifications %}
+                    <li class="list-group-item px-4 py-3 {% if not n.is_read %}bg-primary-subtle border-start border-4 border-primary{% endif %}">
+                        <div class="d-flex align-items-start gap-3">
+                            <i class="bi bi-info-circle-fill {% if n.is_read %}text-muted{% else %}text-primary{% endif %} mt-1"></i>
+                            <div class="flex-grow-1">
+                                <p class="mb-1 small {% if not n.is_read %}fw-semibold{% endif %}">{{ n.message }}</p>
+                                <small class="text-muted" style="font-size:0.7rem;">{{ n.created_at|local_time|datetime('%d.%m.%Y %H:%M') }}</small>
+                            </div>
+                            {% if n.link and n.link != '#' %}
+                            <a href="{{ ingress_path }}{{ n.link }}" class="btn btn-sm btn-outline-primary rounded-pill py-0 px-2 flex-shrink-0" style="font-size:0.75rem;">
+                                Ansehen <i class="bi bi-arrow-right ms-1"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
     <div class="col-lg-6">
         <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
             <div class="card-header border-0 py-3 px-4 bg-surface-subtle">
@@ -65,7 +105,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         const oooToggle = document.getElementById('is_out_of_office');
         const delegationWrapper = document.getElementById('delegation-wrapper');
-        
+
         if(oooToggle && delegationWrapper) {
             oooToggle.addEventListener('change', function() {
                 if(this.checked) {
@@ -77,6 +117,28 @@
                     setTimeout(() => { delegationWrapper.style.display = 'none'; }, 200);
                 }
             });
+        }
+
+        // Mark all notifications as read
+        const markAllBtn = document.getElementById('markAllReadProfileBtn');
+        if (markAllBtn) {
+            markAllBtn.addEventListener('click', async function() {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                const ingress = document.querySelector('[data-ingress]')?.dataset.ingress || '';
+                try {
+                    await fetch(`${ingress}/api/notifications/read_all`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': csrfToken }
+                    });
+                    location.reload();
+                } catch(e) {}
+            });
+        }
+
+        // Scroll to notifications if hash matches
+        if (window.location.hash === '#notifications') {
+            const el = document.getElementById('notifications');
+            if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
         }
     });
 </script>

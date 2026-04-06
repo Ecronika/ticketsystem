@@ -144,9 +144,13 @@
                                         <label for="contact_name" class="form-label fw-bold small">Name des Kunden</label>
                                         <input type="text" class="form-control form-control-sm" id="contact_name" name="contact_name" placeholder="z.B. Müller GmbH">
                                     </div>
-                                    <div class="col-md-6" id="phoneField">
+                                    <div class="col-md-6">
                                         <label for="contact_phone" class="form-label fw-bold small">Telefonnummer</label>
                                         <input type="tel" class="form-control form-control-sm" id="contact_phone" name="contact_phone" placeholder="z.B. 0211 123456">
+                                    </div>
+                                    <div class="col-md-12">
+                                        <label for="contact_email" class="form-label fw-bold small">E-Mail-Adresse</label>
+                                        <input type="email" class="form-control form-control-sm" id="contact_email" name="contact_email" placeholder="z.B. kunde@beispiel.de">
                                     </div>
                                 </div>
 
@@ -461,18 +465,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         xhr.open('POST', form.action || window.location.pathname);
         xhr.send(fd);
-    });
-
-    // Kundenkontakt: show/hide phone field based on channel
-    document.querySelectorAll('input[name="contact_channel"]').forEach(function(radio) {
-        radio.addEventListener('change', function() {
-            var phoneField = document.getElementById('phoneField');
-            if (this.value === 'email' || this.value === 'persoenlich') {
-                phoneField.classList.add('d-none');
-            } else {
-                phoneField.classList.remove('d-none');
-            }
-        });
     });
 
     // Kundenkontakt: show/hide callback due date
