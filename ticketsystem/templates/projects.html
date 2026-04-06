@@ -2,6 +2,12 @@
 {% block title %}Projekte & Baustellen{% endblock %}
 
 {% block content %}
+<nav aria-label="Breadcrumb" class="mb-3">
+    <ol class="breadcrumb mb-0 small">
+        <li class="breadcrumb-item"><a href="{{ ingress_path }}{{ url_for('main.index') }}" class="text-decoration-none">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Projekte & Baustellen</li>
+    </ol>
+</nav>
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="h4 fw-bold mb-0">Projekte & Baustellen</h2>
     <!-- FEAT-13: CSV Export -->

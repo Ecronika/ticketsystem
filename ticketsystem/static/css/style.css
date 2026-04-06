@@ -73,10 +73,6 @@ small,
     /* REMOVED @media restriction to ensure 400% zoom on desktop also gets padding */
 }
 
-body {
-    padding-bottom: 100px;
-}
-
 /* Low: Suppress iOS gray tap-flash on canvas signature pads */
 canvas {
     -webkit-tap-highlight-color: transparent;
@@ -841,7 +837,8 @@ textarea:focus-visible {
 [data-theme="dark"] .badge-subtle-secondary { color: #d0d0d0 !important; }
 .alert .btn-close { min-width: 44px; min-height: 44px; }
 .border-danger.border-3 { border-left-width: 6px !important; }
-stiky-top [tabindex], .sticky-top a, .sticky-top select, .sticky-top button { scroll-margin-top: 6rem; }
+.sticky-top { z-index: 1030; }
+.sticky-top [tabindex], .sticky-top a, .sticky-top select, .sticky-top button { scroll-margin-top: 6rem; }
 
 /* v1.11.3: My Queue UI Enhancements */
 .hover-card {
@@ -873,4 +870,12 @@ stiky-top [tabindex], .sticky-top a, .sticky-top select, .sticky-top button { sc
 }
 .animate-pulse {
     animation: pulse-scale 1.8s ease infinite;
+}
+
+/* Lightbox Dialog Backdrop */
+#lightboxDialog::backdrop {
+    background: rgba(0, 0, 0, 0.8);
+}
+[data-theme="dark"] #lightboxDialog::backdrop {
+    background: rgba(0, 0, 0, 0.9);
 }
