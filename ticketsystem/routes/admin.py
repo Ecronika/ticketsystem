@@ -468,3 +468,53 @@ def _parse_tokens(
         return json.loads(tokens_json), False
     except (ValueError, json.JSONDecodeError):
         return [], False
+
+
+# ------------------------------------------------------------------
+# Papierkorb (soft-deleted ticket recovery)
+# ------------------------------------------------------------------
+
+@admin_bp.route("/trash", methods=["GET", "POST"])
+@admin_required
+def trash() -> str | WerkzeugResponse:
+    """Show soft-deleted tickets and allow restore or permanent deletion."""
+    if request.method == "POST":
+        action = request.form.get("action")
+        ticket_id = request.form.get("ticket_id", type=int)
+        if action and ticket_id:
+            _handle_trash_action(action, ticket_id)
+        return redirect(url_for("admin.trash"))
+
+    from models import Ticket
+    deleted_tickets = (
+        Ticket.query.filter_by(is_deleted=True)
+        .order_by(Ticket.updated_at.desc())
+        .all()
+    )
+    return render_template("admin_trash.html", deleted_tickets=deleted_tickets)
+
+
+def _handle_trash_action(action: str, ticket_id: int) -> None:
+    """Restore or permanently delete a soft-deleted ticket."""
+    from models import Comment, Ticket
+
+    ticket = db.session.get(Ticket, ticket_id)
+    if not ticket or not ticket.is_deleted:
+        flash("Ticket nicht gefunden.", "warning")
+        return
+
+    if action == "restore":
+        ticket.is_deleted = False
+        ticket.updated_at = get_utc_now()
+        db.session.add(Comment(
+            ticket_id=ticket.id,
+            author="System",
+            text="Ticket aus dem Papierkorb wiederhergestellt.",
+            is_system_event=True,
+        ))
+        db.session.commit()
+        flash(f"Ticket #{ticket.id} wurde wiederhergestellt.", "success")
+    elif action == "delete_permanent":
+        db.session.delete(ticket)
+        db.session.commit()
+        flash(f"Ticket #{ticket.id} wurde dauerhaft gelöscht.", "warning")

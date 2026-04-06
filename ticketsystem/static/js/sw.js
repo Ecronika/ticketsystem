@@ -20,11 +20,12 @@ self.addEventListener('activate', event => {
       return Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)));
     })
   );
+  self.clients.claim();
 });
 
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
-  
+
   // Cache-first for static assets
   if (url.pathname.includes('/static/')) {
     event.respondWith(
@@ -40,4 +41,41 @@ self.addEventListener('fetch', event => {
       })
     );
   }
+});
+
+// ---------------------------------------------------------------------------
+// WebPush: show OS-level notification on push event
+// ---------------------------------------------------------------------------
+
+self.addEventListener('push', event => {
+  let data = { title: 'Ticketsystem', body: 'Neue Benachrichtigung', url: '/' };
+  try {
+    if (event.data) data = { ...data, ...JSON.parse(event.data.text()) };
+  } catch(e) {}
+
+  const options = {
+    body: data.body,
+    icon: '/static/img/icon-192.png',
+    badge: '/static/img/icon-192.png',
+    tag: 'ticketsystem-push',
+    renotify: true,
+    data: { url: data.url },
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+      for (const client of windowClients) {
+        if (client.url.includes(url) && 'focus' in client) return client.focus();
+      }
+      if (clients.openWindow) return clients.openWindow(url);
+    })
+  );
 });

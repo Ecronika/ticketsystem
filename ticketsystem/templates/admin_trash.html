@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Papierkorb{% endblock %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col">
+        <h1 class="h3 fw-bold mb-1 display-font"><i class="bi bi-trash3 me-2 text-danger"></i>Papierkorb</h1>
+        <p class="text-secondary small mb-0">Gelöschte Tickets können hier wiederhergestellt oder endgültig entfernt werden.</p>
+    </div>
+    <div class="col-auto">
+        <a href="{{ ingress_path }}{{ url_for('admin.workers') }}" class="btn btn-outline-secondary btn-sm rounded-pill">
+            <i class="bi bi-arrow-left me-1"></i>Zurück zur Verwaltung
+        </a>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% for category, message in messages %}
+<div class="alert alert-{{ 'success' if category == 'success' else 'warning' if category == 'warning' else 'danger' }} alert-dismissible rounded-3 border-0 shadow-sm py-2" role="alert">
+    {{ message }}
+    <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert"></button>
+</div>
+{% endfor %}
+{% endwith %}
+
+<div class="card shadow-sm border-0 rounded-4">
+    <div class="card-body p-0">
+        {% if deleted_tickets %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle" style="font-size: 0.875rem;">
+                <thead>
+                    <tr class="bg-surface-subtle">
+                        <th class="ps-3" style="width: 70px;">#</th>
+                        <th>Titel</th>
+                        <th style="width: 160px;">Baustelle/Kunde</th>
+                        <th style="width: 110px;">Status</th>
+                        <th style="width: 140px;">Gelöscht am</th>
+                        <th class="pe-3 text-end" style="width: 200px;">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ticket in deleted_tickets %}
+                    <tr>
+                        <td class="ps-3 text-muted fw-bold small">{{ ticket.id }}</td>
+                        <td>
+                            <span class="fw-semibold">{{ ticket.title }}</span>
+                            {% if ticket.is_confidential %}<i class="bi bi-lock-fill text-warning ms-1" title="Vertraulich"></i>{% endif %}
+                        </td>
+                        <td class="small text-muted">
+                            {{ ticket.order_reference or ticket.contact_name or '—' }}
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary-subtle text-secondary rounded-pill">{{ ticket.status|status_label }}</span>
+                        </td>
+                        <td class="small text-muted">
+                            {{ ticket.updated_at|local_time|datetime('%d.%m.%Y %H:%M') if ticket.updated_at else '—' }}
+                        </td>
+                        <td class="pe-3 text-end">
+                            <form method="POST" action="{{ ingress_path }}{{ url_for('admin.trash') }}" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="ticket_id" value="{{ ticket.id }}">
+                                <button type="submit" name="action" value="restore"
+                                        class="btn btn-sm btn-outline-success rounded-pill me-1">
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i>Wiederherstellen
+                                </button>
+                                <button type="submit" name="action" value="delete_permanent"
+                                        class="btn btn-sm btn-outline-danger rounded-pill"
+                                        onclick="return confirm('Ticket #{{ ticket.id }} dauerhaft löschen? Diese Aktion kann nicht rückgängig gemacht werden.')">
+                                    <i class="bi bi-trash me-1"></i>Endgültig
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-trash3 display-4 mb-3 opacity-25 d-block"></i>
+            <p class="h6 fw-bold text-secondary mb-1">Der Papierkorb ist leer.</p>
+            <p class="small opacity-75">Gelöschte Tickets erscheinen hier und können wiederhergestellt werden.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -406,6 +406,40 @@ class Notification(db.Model):
 
 
 # ---------------------------------------------------------------------------
+# Push Subscription (WebPush / VAPID)
+# ---------------------------------------------------------------------------
+
+class PushSubscription(db.Model):
+    """Stores browser WebPush subscription data per worker."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    worker_id = db.Column(
+        db.Integer, db.ForeignKey("worker.id"), nullable=False
+    )
+    worker = db.relationship(
+        "Worker",
+        backref=db.backref(
+            "push_subscriptions", lazy="dynamic", cascade="all, delete-orphan"
+        ),
+    )
+
+    endpoint = db.Column(db.Text, nullable=False, unique=True)
+    p256dh = db.Column(db.Text, nullable=False)
+    auth = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=get_utc_now)
+
+    def as_subscription_info(self) -> dict:
+        """Return the dict expected by pywebpush."""
+        return {
+            "endpoint": self.endpoint,
+            "keys": {"p256dh": self.p256dh, "auth": self.auth},
+        }
+
+    def __repr__(self) -> str:
+        return f"<PushSubscription worker={self.worker_id}>"
+
+
+# ---------------------------------------------------------------------------
 # Attachment
 # ---------------------------------------------------------------------------
 

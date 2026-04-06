@@ -1264,16 +1264,24 @@ def _process_mentions(
         mentioned = Worker.query.filter(Worker.name.ilike(mention)).first()
         if not mentioned:
             continue
+        msg = f"{author_name} hat Sie in Ticket #{ticket_id} erwähnt."
+        link = f"/ticket/{ticket_id}"
         TicketService.create_notification(
             user_id=mentioned.id,
-            message=f"{author_name} hat Sie in Ticket #{ticket_id} erwähnt.",
-            link=f"/ticket/{ticket_id}",
+            message=msg,
+            link=link,
         )
         if mentioned.email and getattr(mentioned, "email_notifications_enabled", True):
             EmailService.send_mention(
                 mentioned.name, ticket_id, author_name,
                 recipient_email=mentioned.email,
             )
+        # WebPush (fire-and-forget; errors are logged but not raised)
+        try:
+            from services.push_service import send_push_to_worker
+            send_push_to_worker(mentioned.id, "Neue Erwähnung", msg, link)
+        except Exception as _push_exc:
+            current_app.logger.debug("WebPush mention failed: %s", _push_exc)
 
 
 def _check_dependency(item: ChecklistItem) -> None:

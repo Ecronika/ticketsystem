@@ -1325,10 +1325,123 @@ def _save_theme_api() -> Response:
 # Route registration
 # ------------------------------------------------------------------
 
+def _push_vapid_key_api() -> Response:
+    """Return the VAPID public key for push subscription."""
+    try:
+        from services.push_service import get_vapid_public_key, get_or_create_vapid_keys
+        pub = get_vapid_public_key()
+        if not pub:
+            _, pub = get_or_create_vapid_keys()
+        return jsonify({"public_key": pub})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+def _push_subscribe_api() -> Response:
+    """Store a push subscription for the authenticated worker."""
+    data = request.get_json(silent=True) or {}
+    endpoint = data.get("endpoint")
+    keys = data.get("keys", {})
+    p256dh = keys.get("p256dh")
+    auth = keys.get("auth")
+
+    if not endpoint or not p256dh or not auth:
+        return jsonify({"success": False, "error": "Unvollständige Subscription-Daten."}), 400
+
+    worker_id = _session_worker_id()
+    if not worker_id:
+        return jsonify({"success": False, "error": "Nicht authentifiziert."}), 401
+
+    try:
+        from services.push_service import save_subscription
+        save_subscription(worker_id, endpoint, p256dh, auth)
+        return jsonify({"success": True})
+    except Exception as exc:
+        current_app.logger.error("Push subscribe error: %s", exc)
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+def _push_unsubscribe_api() -> Response:
+    """Remove a push subscription."""
+    data = request.get_json(silent=True) or {}
+    endpoint = data.get("endpoint")
+    if not endpoint:
+        return jsonify({"success": False, "error": "Kein Endpoint angegeben."}), 400
+    try:
+        from services.push_service import delete_subscription
+        delete_subscription(endpoint)
+        return jsonify({"success": True})
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+def _worker_mention_names_api() -> Response:
+    """Return active worker names for @mention autocomplete."""
+    workers = Worker.query.filter_by(is_active=True).order_by(Worker.name).all()
+    return jsonify({"names": [w.name for w in workers]})
+
+
+def _dashboard_rows_api() -> Response:
+    """Return rendered HTML of the dashboard table rows for silent polling refresh."""
+    worker_id = _session_worker_id()
+    search = request.args.get("q", "").strip()
+    status_filter = request.args.get("status", "")
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 25, type=int)
+    per_page = min(max(per_page, 10), 100)
+    unassigned_only = request.args.get("unassigned") == "1"
+    callback_pending = request.args.get("callback_pending") == "1"
+    assigned_worker_id = request.args.get("worker_id", type=int)
+    sort_by = request.args.get("sort", "") or None
+    sort_dir = request.args.get("dir", "asc")
+    if sort_dir not in ("asc", "desc"):
+        sort_dir = "asc"
+    tab = request.args.get("tab", "all")
+
+    if tab == "unassigned":
+        unassigned_only = True
+    elif tab == "callback":
+        callback_pending = True
+    elif tab == "wartet":
+        status_filter = status_filter or "wartet"
+
+    team_ids = Team.team_ids_for_worker(worker_id) if worker_id else []
+    tickets_data = TicketService.get_dashboard_tickets(
+        worker_id=worker_id,
+        search=search,
+        status_filter=status_filter,
+        page=page,
+        per_page=per_page,
+        unassigned_only=unassigned_only,
+        callback_pending=callback_pending,
+        worker_role=session.get("role"),
+        team_ids=team_ids,
+        assigned_worker_id=assigned_worker_id,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+    )
+
+    all_workers = Worker.query.filter_by(is_active=True).order_by(Worker.name).all()
+    all_teams = Team.query.order_by(Team.name).all()
+
+    html = render_template(
+        "components/_dashboard_rows.html",
+        focus_tickets=tickets_data["focus_pagination"].items,
+        workers=all_workers,
+        teams=all_teams,
+        today=get_utc_now(),
+    )
+    return Response(html, mimetype="text/html")
+
+
 def register_routes(bp: Blueprint) -> None:
     """Register ticket routes with explicit endpoints."""
     # Dashboards
     bp.add_url_rule("/", "index", view_func=worker_required(_dashboard_view))
+    bp.add_url_rule(
+        "/api/dashboard/rows", "dashboard_rows_api",
+        view_func=worker_required(_dashboard_rows_api),
+    )
     bp.add_url_rule(
         "/archive", "archive", view_func=worker_required(_archive_view),
     )
@@ -1450,4 +1563,20 @@ def register_routes(bp: Blueprint) -> None:
     bp.add_url_rule(
         "/api/user/theme", "save_theme_api",
         view_func=_save_theme_api, methods=["POST"],
+    )
+    bp.add_url_rule(
+        "/api/workers/mention-names", "worker_mention_names",
+        view_func=worker_required(_worker_mention_names_api),
+    )
+    bp.add_url_rule(
+        "/api/push/vapid-key", "push_vapid_key",
+        view_func=worker_required(_push_vapid_key_api),
+    )
+    bp.add_url_rule(
+        "/api/push/subscribe", "push_subscribe",
+        view_func=worker_required(_push_subscribe_api), methods=["POST"],
+    )
+    bp.add_url_rule(
+        "/api/push/unsubscribe", "push_unsubscribe",
+        view_func=worker_required(_push_unsubscribe_api), methods=["POST"],
     )

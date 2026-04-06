@@ -284,8 +284,74 @@ document.addEventListener('DOMContentLoaded', function() {
     let processedFiles = [];
     let isCompressing = false;
 
-    // UX-8: Create upload progress overlay
+    // --- Web Worker for off-main-thread image compression ---
+    const ingress = document.querySelector('nav[data-ingress]')?.dataset.ingress || '';
+    const workerSupported = typeof Worker !== 'undefined' && typeof OffscreenCanvas !== 'undefined';
+    const compressWorker = workerSupported
+        ? new Worker(ingress + '{{ url_for("static", filename="js/compress.worker.js") }}')
+        : null;
+    const pendingCompressions = new Map(); // id → { resolve, reject }
+    let compressionIdCounter = 0;
+
+    if (compressWorker) {
+        compressWorker.addEventListener('message', function(e) {
+            const { id, blob, fileName, error } = e.data;
+            const pending = pendingCompressions.get(id);
+            if (!pending) return;
+            pendingCompressions.delete(id);
+            if (error) pending.reject(new Error(error));
+            else pending.resolve(new File([blob], fileName, { type: 'image/jpeg', lastModified: Date.now() }));
+        });
+    }
+
+    function compressViaWorker(file) {
+        return new Promise((resolve, reject) => {
+            const id = compressionIdCounter++;
+            pendingCompressions.set(id, { resolve, reject });
+            const reader = new FileReader();
+            reader.onload = (ev) => compressWorker.postMessage(
+                { id, arrayBuffer: ev.target.result, fileName: file.name },
+                [ev.target.result]
+            );
+            reader.onerror = () => reject(new Error('File read error'));
+            reader.readAsArrayBuffer(file);
+        });
+    }
+
+    // Dropzone: visual drag-and-drop feedback
     const dropzone = input.closest('.position-relative');
+    let dragCounter = 0; // counter avoids flicker from child element events
+
+    dropzone.addEventListener('dragenter', function(e) {
+        e.preventDefault();
+        dragCounter++;
+        dropzone.classList.add('border-primary', 'bg-primary-subtle');
+    });
+    dropzone.addEventListener('dragover', function(e) {
+        e.preventDefault(); // allow drop
+    });
+    dropzone.addEventListener('dragleave', function() {
+        dragCounter--;
+        if (dragCounter <= 0) {
+            dragCounter = 0;
+            dropzone.classList.remove('border-primary', 'bg-primary-subtle');
+        }
+    });
+    dropzone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dragCounter = 0;
+        dropzone.classList.remove('border-primary', 'bg-primary-subtle');
+        const files = e.dataTransfer?.files;
+        if (files && files.length) {
+            // Trigger the same processing pipeline as the file input
+            const dt = new DataTransfer();
+            Array.from(files).forEach(f => dt.items.add(f));
+            input.files = dt.files;
+            input.dispatchEvent(new Event('change'));
+        }
+    });
+
+    // UX-8: Create upload progress overlay
     const progressOverlay = document.createElement('div');
     progressOverlay.id = 'upload-progress-overlay';
     progressOverlay.className = 'position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center d-none';
@@ -311,11 +377,18 @@ document.addEventListener('DOMContentLoaded', function() {
             if (file.type.startsWith('image/')) {
                 processed++;
                 if (progressCount) progressCount.textContent = `${processed} / ${imageCount} Bilder`;
-                const compressedBlob = await compressImage(file);
-                processedFiles.push(new File([compressedBlob], file.name, {
-                    type: 'image/jpeg',
-                    lastModified: new Date().getTime()
-                }));
+                try {
+                    const compressFn = compressWorker ? compressViaWorker : compressImage;
+                    const result = await compressFn(file);
+                    // Worker returns a File; fallback returns a Blob
+                    processedFiles.push(result instanceof File
+                        ? result
+                        : new File([result], file.name, { type: 'image/jpeg', lastModified: Date.now() })
+                    );
+                } catch(e) {
+                    // On compression failure, keep original file
+                    processedFiles.push(file);
+                }
             } else {
                 processedFiles.push(file);
             }
