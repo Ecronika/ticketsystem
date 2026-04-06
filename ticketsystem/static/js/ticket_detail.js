@@ -194,6 +194,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const editPrioritySelect = document.getElementById('editPrioritySelect');
     const editDueDateInput = document.getElementById('editDueDateInput');
     const editOrderRefInput = document.getElementById('editOrderRefInput');
+    const editRecurrenceRule = document.getElementById('editRecurrenceRule');
     // editReminderInput already defined above
 
     if (editBtn && saveBtn && cancelEditBtn) {
@@ -218,6 +219,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const newDue = editDueDateInput ? editDueDateInput.value : null;
             const newOrderRef = editOrderRefInput ? editOrderRefInput.value.trim() : null;
             const newReminder = editReminderInput ? editReminderInput.value : null;
+            const newRecurrenceRule = editRecurrenceRule ? editRecurrenceRule.value : null;
 
             // Tags Handling: Convert comma-separated string to Array
             const tagsInput = document.getElementById('editTagsInput');
@@ -238,13 +240,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': csrfToken
                     },
-                    body: JSON.stringify({ 
-                        title: newTitle, 
+                    body: JSON.stringify({
+                        title: newTitle,
                         priority: newPrio,
                         due_date: newDue,
                         order_reference: newOrderRef,
                         reminder_date: newReminder,
-                        tags: newTags
+                        tags: newTags,
+                        recurrence_rule: newRecurrenceRule
                     })
                 });
                 const data = await response.json();

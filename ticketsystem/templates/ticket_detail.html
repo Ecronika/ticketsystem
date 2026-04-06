@@ -69,7 +69,8 @@
     var label = document.getElementById('backBtnLabel');
     var ref = document.referrer;
     var ingress = '{{ ingress_path }}';
-    if (ref && ref !== window.location.href) {
+    var isInternal = ref && ref !== window.location.href && new URL(ref).origin === window.location.origin;
+    if (isInternal) {
         btn.href = ref;
         if (ref.includes('/archive')) { label.textContent = 'Zum Archiv'; }
         else if (ref.includes('/projects')) { label.textContent = 'Zu den Projekten'; }

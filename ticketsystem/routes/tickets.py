@@ -631,6 +631,7 @@ def _update_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
             order_reference=data.get("order_reference"),
             reminder_date=reminder_date,
             tags=data.get("tags"),
+            recurrence_rule=data.get("recurrence_rule"),
         )
         return _api_ok()
     except SQLAlchemyError:
@@ -750,6 +751,10 @@ def _reject_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
 @limiter.limit("20 per minute")
 def _add_checklist_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Add a checklist item to a ticket."""
+    ticket = _check_ticket_access(ticket_id)
+    if ticket is None:
+        return _api_error("Kein Zugriff auf dieses Ticket.", 403)
+
     lock_err = check_approval_lock(ticket_id=ticket_id)
     if lock_err:
         return lock_err
@@ -780,6 +785,12 @@ def _add_checklist_api(ticket_id: int) -> tuple[Response, int] | Response:
 @limiter.limit("40 per minute")
 def _toggle_checklist_api(item_id: int) -> tuple[Response, int] | Response:
     """Toggle a checklist item's completion state."""
+    item = db.session.get(ChecklistItem, item_id)
+    if item:
+        ticket = _check_ticket_access(item.ticket_id)
+        if ticket is None:
+            return _api_error("Kein Zugriff auf dieses Ticket.", 403)
+
     lock_err = check_approval_lock(item_id=item_id)
     if lock_err:
         return lock_err
@@ -800,6 +811,12 @@ def _toggle_checklist_api(item_id: int) -> tuple[Response, int] | Response:
 @limiter.limit("20 per minute")
 def _delete_checklist_api(item_id: int) -> tuple[Response, int] | Response:
     """Delete a checklist item."""
+    item = db.session.get(ChecklistItem, item_id)
+    if item:
+        ticket = _check_ticket_access(item.ticket_id)
+        if ticket is None:
+            return _api_error("Kein Zugriff auf dieses Ticket.", 403)
+
     lock_err = check_approval_lock(item_id=item_id)
     if lock_err:
         return lock_err
@@ -814,6 +831,10 @@ def _delete_checklist_api(item_id: int) -> tuple[Response, int] | Response:
 
 def _apply_template_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Apply a checklist template to an existing ticket."""
+    ticket = _check_ticket_access(ticket_id)
+    if ticket is None:
+        return _api_error("Kein Zugriff auf dieses Ticket.", 403)
+
     lock_err = check_approval_lock(ticket_id=ticket_id)
     if lock_err:
         return lock_err
@@ -1063,9 +1084,13 @@ def _execute_bulk_action(
 ) -> int:
     """Apply *action* to each ticket in *ticket_ids*.  Returns count."""
     updated = 0
+    worker_id = _session_worker_id()
+    worker_role = session.get("role")
     for tid in ticket_ids:
         ticket = db.session.get(Ticket, tid)
         if not ticket or ticket.is_deleted:
+            continue
+        if not ticket.is_accessible_by(worker_id, worker_role):
             continue
 
         if action == "status_change":
@@ -1084,8 +1109,11 @@ def _execute_bulk_action(
                     ),
                     is_system_event=True,
                 ))
-            ticket.is_deleted = True
-            ticket.updated_at = get_utc_now()
+            TicketService.delete_ticket(
+                ticket.id,
+                author_name=_session_author(),
+                author_id=_session_worker_id(),
+            )
             updated += 1
         elif action == "set_due_date":
             updated += _bulk_set_due_date(ticket, data)
@@ -1165,18 +1193,21 @@ def _export_archive_csv() -> Response:
         query = query.filter(Ticket.id.in_(author_sub))
 
     if search:
-        comment_ids = (
-            db.session.query(Comment.ticket_id)
-            .filter(Comment.text.ilike(f"%{search}%"))
-            .subquery()
-        )
-        query = query.filter(
-            Ticket.title.ilike(f"%{search}%")
-            | Ticket.description.ilike(f"%{search}%")
-            | Ticket.order_reference.ilike(f"%{search}%")
-            | Ticket.contact_name.ilike(f"%{search}%")
-            | Ticket.id.in_(comment_ids)
-        )
+        tokens = search.split()
+        for token in tokens:
+            pattern = f"%{token}%"
+            comment_ids = (
+                db.session.query(Comment.ticket_id)
+                .filter(Comment.text.ilike(pattern))
+                .subquery()
+            )
+            query = query.filter(
+                Ticket.title.ilike(pattern)
+                | Ticket.description.ilike(pattern)
+                | Ticket.order_reference.ilike(pattern)
+                | Ticket.contact_name.ilike(pattern)
+                | Ticket.id.in_(comment_ids)
+            )
 
     query = query.order_by(Ticket.priority.asc(), Ticket.created_at.desc())
 
@@ -1286,6 +1317,18 @@ def _duplicate_ticket_api(ticket_id: int) -> Response:
             new_ticket.tags.append(tag)
 
         db.session.add(new_ticket)
+        db.session.flush()
+
+        # Copy checklist items (uncompleted)
+        for item in ticket.checklists:
+            db.session.add(ChecklistItem(
+                ticket_id=new_ticket.id,
+                title=item.title,
+                is_completed=False,
+                assigned_to_id=item.assigned_to_id,
+                assigned_team_id=item.assigned_team_id,
+            ))
+
         db.session.commit()
         return _api_ok(ticket_id=new_ticket.id)
     except SQLAlchemyError as exc:
