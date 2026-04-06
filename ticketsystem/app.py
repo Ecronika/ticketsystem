@@ -508,6 +508,17 @@ def validate_session() -> WerkzeugResponse | None:
     session["role"] = worker.role
     session["is_admin"] = worker.role == WorkerRole.ADMIN.value
     session["worker_name"] = worker.name
+
+    # BUG-001: Block access to all pages while PIN change is pending
+    if worker.needs_pin_change and endpoint not in (
+        "main.change_pin", "main.logout", "static",
+    ):
+        flash(
+            "Bitte ändern Sie zuerst Ihren PIN.",
+            "warning",
+        )
+        return redirect(url_for("main.change_pin"))
+
     return None
 
 
