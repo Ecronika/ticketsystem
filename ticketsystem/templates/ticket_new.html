@@ -2,6 +2,20 @@
 {% from 'components/_help_icon.html' import help_icon %}
 {% block title %}Neues Ticket{% endblock %}
 
+{% block styles %}
+<style nonce="{{ g.csp_nonce }}">
+    /* Custom Soft Buttons & Dropzone */
+    .btn-soft-danger { color: var(--bs-danger); border: 1px solid var(--bs-danger); background-color: transparent; }
+    .btn-check:checked + .btn-soft-danger { background-color: rgba(var(--bs-danger-rgb), 0.15); color: var(--bs-danger); border-color: var(--bs-danger); }
+    .btn-soft-primary { color: var(--bs-primary); border: 1px solid var(--bs-primary); background-color: transparent; }
+    .btn-check:checked + .btn-soft-primary { background-color: rgba(var(--bs-primary-rgb), 0.15); color: var(--bs-primary); border-color: var(--bs-primary); }
+    .btn-soft-success { color: var(--bs-success); border: 1px solid var(--bs-success); background-color: transparent; }
+    .btn-check:checked + .btn-soft-success { background-color: rgba(var(--bs-success-rgb), 0.15); color: var(--bs-success); border-color: var(--bs-success); }
+    .border-dashed { border-style: dashed !important; }
+    .cursor-pointer { cursor: pointer; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row justify-content-center mt-4">
     <div class="col-md-8 col-lg-6">
@@ -37,17 +51,6 @@
             </div>
             <div class="card-body px-4 pb-4">
                 <p class="x-small text-muted mb-3"><span class="text-danger">*</span> Pflichtfelder</p>
-                <style>
-                    /* Custom Soft Buttons & Dropzone */
-                    .btn-soft-danger { color: var(--bs-danger); border: 1px solid var(--bs-danger); background-color: transparent; }
-                    .btn-check:checked + .btn-soft-danger { background-color: rgba(var(--bs-danger-rgb), 0.15); color: var(--bs-danger); border-color: var(--bs-danger); }
-                    .btn-soft-primary { color: var(--bs-primary); border: 1px solid var(--bs-primary); background-color: transparent; }
-                    .btn-check:checked + .btn-soft-primary { background-color: rgba(var(--bs-primary-rgb), 0.15); color: var(--bs-primary); border-color: var(--bs-primary); }
-                    .btn-soft-success { color: var(--bs-success); border: 1px solid var(--bs-success); background-color: transparent; }
-                    .btn-check:checked + .btn-soft-success { background-color: rgba(var(--bs-success-rgb), 0.15); color: var(--bs-success); border-color: var(--bs-success); }
-                    .border-dashed { border-style: dashed !important; }
-                    .cursor-pointer { cursor: pointer; }
-                </style>
                 <form method="POST" enctype="multipart/form-data" id="ticket-form">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                     

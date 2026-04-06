@@ -104,9 +104,9 @@
                 <div class="rounded-circle {{ 'bg-primary' if (ticket.assigned_to_id or ticket.assigned_team_id) else 'bg-secondary' }} opacity-75" style="width: 8px; height: 8px;"></div>
                 <span id="ticketAssigneeBadge" class="small fw-semibold {{ 'text-dark' if (ticket.assigned_to_id or ticket.assigned_team_id) else 'text-muted' }} d-block text-truncate">
                     {% if ticket.assigned_to_id %}
-                        {{ ticket.assigned_to.name|upper }}
+                        {{ (ticket.assigned_to.name if ticket.assigned_to else 'Unbekannt')|upper }}
                     {% elif ticket.assigned_team_id %}
-                        TEAM: {{ ticket.assigned_team.name|upper }}
+                        TEAM: {{ (ticket.assigned_team.name if ticket.assigned_team else 'Unbekannt')|upper }}
                     {% else %}
                         NOCH NICHT ZUGEWIESEN
                     {% endif %}

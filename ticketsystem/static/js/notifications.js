@@ -31,9 +31,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.location.reload();
                 return;
             }
-            if (!res.ok) return;
+            if (!res.ok) throw new Error('Response not ok: ' + res.status);
             const data = await res.json();
-            
+
             updateBadge(data.unread_count);
             
             if (isDropdownOpen) {
@@ -41,6 +41,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (e) {
             console.error('Failed to fetch notifications', e);
+            if (isDropdownOpen) {
+                notificationList.innerHTML = '';
+                const header = document.createElement('li');
+                header.innerHTML = `<div class="dropdown-header fw-bold bg-light py-2 border-bottom text-dark">Benachrichtigungen</div>`;
+                notificationList.appendChild(header);
+                const empty = document.createElement('li');
+                empty.innerHTML = `<span class="dropdown-item-text text-muted small text-center py-4 d-block">Keine Benachrichtigungen</span>`;
+                notificationList.appendChild(empty);
+            }
         }
     }
 

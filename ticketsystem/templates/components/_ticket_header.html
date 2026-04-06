@@ -129,9 +129,12 @@
                 {% for attachment in ticket.attachments %}
                 <div class="col-6 col-md-4 col-lg-3">
                     {% if attachment.mime_type and attachment.mime_type.startswith('image/') %}
-                    <a href="{{ ingress_path }}{{ url_for('main.serve_attachment', attachment_id=attachment.id) }}" target="_blank">
+                    <a href="{{ ingress_path }}{{ url_for('main.serve_attachment', attachment_id=attachment.id) }}"
+                       class="lightbox-trigger" data-full-src="{{ ingress_path }}{{ url_for('main.serve_attachment', attachment_id=attachment.id) }}"
+                       onclick="event.preventDefault(); document.getElementById('lightboxImg').src=this.dataset.fullSrc; document.getElementById('lightboxDialog').showModal();">
                         <img src="{{ ingress_path }}{{ url_for('main.serve_attachment', attachment_id=attachment.id) }}"
                              class="img-fluid rounded-3 shadow-sm border"
+                             style="cursor: zoom-in;"
                              alt="Anhang zu Ticket #{{ ticket.id }} (Bild {{ loop.index }})"
                              loading="lazy">
                     </a>
@@ -149,3 +152,14 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Lightbox Dialog for image attachments -->
+<dialog id="lightboxDialog" style="border:none; background:transparent; padding:0; max-width:90vw; max-height:90vh; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);" onclick="if(event.target===this)this.close();">
+    <div style="position:relative; display:inline-block;">
+        <img id="lightboxImg" src="" alt="Vergrößerte Ansicht" style="max-width:90vw; max-height:85vh; border-radius:0.75rem; display:block;">
+        <button type="button" onclick="this.closest('dialog').close();" aria-label="Schließen"
+                style="position:absolute; top:-12px; right:-12px; width:36px; height:36px; border-radius:50%; border:none; background:#fff; color:#333; font-size:1.2rem; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center;">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+</dialog>
