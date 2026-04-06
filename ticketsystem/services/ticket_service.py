@@ -12,6 +12,8 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+from dateutil.relativedelta import relativedelta
+
 from flask import current_app
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
@@ -804,7 +806,7 @@ class TicketService:
                 ticket.assigned_to.name if ticket.assigned_to else "Niemand"
             )
             path_logs: List[str] = []
-            if worker_id:
+            if worker_id and worker_id != author_id:
                 worker_id, path_logs = TicketService._resolve_delegation(
                     worker_id
                 )
@@ -929,6 +931,7 @@ class TicketService:
         order_reference: Optional[str] = None,
         reminder_date: Optional[datetime] = None,
         tags: Optional[List[str]] = None,
+        recurrence_rule: Optional[str] = None,
     ) -> Ticket:
         """Update ticket metadata with an audit trail."""
         try:
@@ -947,6 +950,21 @@ class TicketService:
             ticket.order_reference = order_reference
             ticket.reminder_date = reminder_date
             ticket.updated_at = get_utc_now()
+
+            old_rule = ticket.recurrence_rule
+            new_rule = recurrence_rule or None
+            if old_rule != new_rule:
+                old_label = (old_rule or "Einmalig").capitalize()
+                new_label = (new_rule or "Einmalig").capitalize()
+                changes.append(f"Serie: {old_label} -> {new_label}")
+                ticket.recurrence_rule = new_rule
+                if new_rule:
+                    increment = _RECURRENCE_INCREMENTS.get(
+                        new_rule.lower(), relativedelta(months=1)
+                    )
+                    ticket.next_recurrence_date = get_utc_now() + increment
+                else:
+                    ticket.next_recurrence_date = None
 
             if tags is not None:
                 tag_changes = _sync_tags(ticket, tags)
@@ -1073,6 +1091,7 @@ class TicketService:
             if not ticket or not template:
                 raise ValueError("Ticket oder Vorlage nicht gefunden.")
 
+            ticket.checklist_template_id = template_id
             for t_item in template.items:
                 db.session.add(ChecklistItem(
                     ticket_id=ticket.id,
@@ -1176,6 +1195,13 @@ class TicketService:
 # Module-private helpers for TicketService methods
 # ---------------------------------------------------------------------------
 
+_RECURRENCE_INCREMENTS: Dict[str, relativedelta] = {
+    "monthly": relativedelta(months=1),
+    "quarterly": relativedelta(months=3),
+    "yearly": relativedelta(years=1),
+}
+
+
 def _build_ticket(
     title: str,
     description: Optional[str],
@@ -1195,6 +1221,13 @@ def _build_ticket(
     callback_due: Optional[datetime],
 ) -> Ticket:
     """Construct a Ticket ORM object."""
+    next_recurrence_date = None
+    if recurrence_rule:
+        increment = _RECURRENCE_INCREMENTS.get(
+            recurrence_rule.lower(), relativedelta(months=1)
+        )
+        next_recurrence_date = get_utc_now() + increment
+
     return Ticket(
         title=title,
         description=description,
@@ -1204,6 +1237,7 @@ def _build_ticket(
         assigned_team_id=assigned_team_id,
         is_confidential=is_confidential,
         recurrence_rule=recurrence_rule,
+        next_recurrence_date=next_recurrence_date,
         due_date=due_date,
         order_reference=order_reference,
         reminder_date=reminder_date,
@@ -1470,19 +1504,30 @@ def _apply_assignment_filters(
 
 
 def _apply_search_filter(query: Any, search: str) -> Any:
-    """Apply full-text search across title, description, order ref, comments."""
-    comment_ids = (
-        db.session.query(Comment.ticket_id)
-        .filter(Comment.text.ilike(f"%{search}%"))
-        .subquery()
-    )
-    return query.filter(
-        Ticket.title.ilike(f"%{search}%")
-        | Ticket.description.ilike(f"%{search}%")
-        | Ticket.order_reference.ilike(f"%{search}%")
-        | Ticket.contact_name.ilike(f"%{search}%")
-        | Ticket.id.in_(comment_ids)
-    )
+    """Apply full-text search across title, description, order ref, comments.
+
+    Splits the search string into tokens and requires ALL tokens to match
+    (in any of the searchable fields) via AND logic.
+    """
+    tokens = search.split()
+    if not tokens:
+        return query
+
+    for token in tokens:
+        pattern = f"%{token}%"
+        comment_ids = (
+            db.session.query(Comment.ticket_id)
+            .filter(Comment.text.ilike(pattern))
+            .subquery()
+        )
+        query = query.filter(
+            Ticket.title.ilike(pattern)
+            | Ticket.description.ilike(pattern)
+            | Ticket.order_reference.ilike(pattern)
+            | Ticket.contact_name.ilike(pattern)
+            | Ticket.id.in_(comment_ids)
+        )
+    return query
 
 
 def _fetch_self_tickets(

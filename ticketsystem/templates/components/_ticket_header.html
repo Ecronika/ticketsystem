@@ -66,6 +66,17 @@
                         <input type="text" id="editTagsInput" class="form-control" value="{{ ticket.tags|map(attribute='name')|join(', ') }}" placeholder="z.B. Service, Elektro">
                     </div>
                 </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Serienticket</label>
+                        <select id="editRecurrenceRule" class="form-select form-select-sm">
+                            <option value="" {{ 'selected' if not ticket.recurrence_rule }}>Einmalig (keine Serie)</option>
+                            <option value="monthly" {{ 'selected' if ticket.recurrence_rule == 'monthly' }}>Monatlich</option>
+                            <option value="quarterly" {{ 'selected' if ticket.recurrence_rule == 'quarterly' }}>Quartalsweise</option>
+                            <option value="yearly" {{ 'selected' if ticket.recurrence_rule == 'yearly' }}>Jährlich</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="mb-3 {{ 'd-none' if ticket.status != TicketStatus.WARTET.value }}" id="reminderDateWrapper">
                     <label class="form-label small fw-bold text-primary"><i class="bi bi-alarm me-1"></i>Wiedervorlage am</label>
                     <input type="date" id="editReminderDateInput" class="form-control border-primary" value="{{ ticket.reminder_date.strftime('%Y-%m-%d') if ticket.reminder_date else '' }}">
