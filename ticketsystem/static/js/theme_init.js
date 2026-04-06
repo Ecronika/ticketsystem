@@ -37,6 +37,19 @@
         } catch (e) { console.error('Theme Script Error:', e); }
     };
 
+    function persistThemeServer(theme) {
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            const ingress = document.querySelector('[data-ingress]')?.dataset.ingress || '';
+            fetch(ingress + '/api/user/theme', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ theme: theme }),
+                keepalive: true,
+            }).catch(() => {});
+        } catch (e) { /* non-critical */ }
+    }
+
     function toggleTheme() {
         const current = localStorage.getItem('ui_theme') || 'auto';
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -44,9 +57,13 @@
         const next = isCurrentlyDark ? 'light' : 'dark';
         localStorage.setItem('ui_theme', next);
         window.applyTheme(next);
+        persistThemeServer(next);
     }
 
-    const savedTheme = localStorage.getItem('ui_theme') || 'auto';
+    // Prefer server-side saved theme (injected as data-saved-theme on <html>)
+    const serverTheme = document.documentElement.dataset.savedTheme;
+    const savedTheme = serverTheme || localStorage.getItem('ui_theme') || 'auto';
+    if (serverTheme) localStorage.setItem('ui_theme', serverTheme);
     window.applyTheme(savedTheme);
 
     // H-5 Fix: Wire up both toggle buttons (navbar + avatar dropdown) after DOM ready

@@ -623,6 +623,13 @@ def inject_globals() -> Dict[str, Any]:
     except SQLAlchemyError:
         base["worker_is_ooo"] = False
 
+    try:
+        from models import Worker as _Worker
+        _w = db.session.get(_Worker, worker_id)
+        base["worker_ui_theme"] = (_w.ui_theme or "auto") if _w else "auto"
+    except SQLAlchemyError:
+        base["worker_ui_theme"] = "auto"
+
     return base
 
 

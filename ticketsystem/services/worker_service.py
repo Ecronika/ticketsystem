@@ -13,6 +13,24 @@ from extensions import db
 from models import Worker
 
 
+_WEAK_PINS: frozenset = frozenset({
+    "0000", "1111", "2222", "3333", "4444", "5555",
+    "6666", "7777", "8888", "9999", "1234", "4321",
+    "1212", "2580", "0852", "2468", "1357",
+})
+
+
+def _validate_pin(pin: str) -> None:
+    """Raise ValueError if the PIN is too simple."""
+    if not pin or len(pin) < 4:
+        raise ValueError("Die PIN muss mindestens 4 Zeichen lang sein.")
+    if pin in _WEAK_PINS:
+        raise ValueError(
+            "Diese PIN ist zu einfach (z. B. 0000, 1234). "
+            "Bitte wählen Sie eine sicherere PIN."
+        )
+
+
 class WorkerService:
     """Service layer for Worker-related operations."""
 
@@ -36,6 +54,8 @@ class WorkerService:
             raise ValueError("Name ist erforderlich.")
 
         effective_pin = pin or "0000"
+        if pin:
+            _validate_pin(pin)
 
         if Worker.query.filter_by(name=name).first():
             raise ValueError(f"Mitarbeiter '{name}' existiert bereits.")
@@ -140,6 +160,8 @@ class WorkerService:
         worker = db.session.get(Worker, worker_id)
         if not worker:
             raise ValueError("Mitarbeiter nicht gefunden.")
+
+        _validate_pin(new_pin)
 
         try:
             worker.pin_hash = generate_password_hash(new_pin)

@@ -282,6 +282,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('ticket-form');
 
     let processedFiles = [];
+    let isCompressing = false;
 
     // UX-8: Create upload progress overlay
     const dropzone = input.closest('.position-relative');
@@ -295,6 +296,7 @@ document.addEventListener('DOMContentLoaded', function() {
     input.addEventListener('change', async function(e) {
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
+        isCompressing = true;
         submitBtn.disabled = true;
         
         // UX-8: Show progress overlay for image compression
@@ -323,6 +325,7 @@ document.addEventListener('DOMContentLoaded', function() {
         renderGallery();
         updateHiddenInput();
         input.value = ''; // Reset raw input
+        isCompressing = false;
         submitBtn.disabled = false;
     });
 
@@ -420,6 +423,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     form.addEventListener('submit', function(e) {
         e.preventDefault();
+
+        // Guard: reject submit while image compression is still running
+        if (isCompressing) {
+            if (window.showUiAlert) window.showUiAlert('Bitte warten – Bilder werden noch optimiert.', 'warning');
+            return;
+        }
 
         // Sync processed files into hidden input first
         if (processedFiles.length > 0 && hiddenInput.files.length === 0) {
