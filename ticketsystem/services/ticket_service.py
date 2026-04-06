@@ -1269,7 +1269,7 @@ def _process_mentions(
             message=f"{author_name} hat Sie in Ticket #{ticket_id} erwähnt.",
             link=f"/ticket/{ticket_id}",
         )
-        if mentioned.email:
+        if mentioned.email and getattr(mentioned, "email_notifications_enabled", True):
             EmailService.send_mention(
                 mentioned.name, ticket_id, author_name,
                 recipient_email=mentioned.email,
@@ -1311,7 +1311,7 @@ def _send_assignment_email(
 ) -> None:
     """Send an email notification for assignment."""
     assignee = db.session.get(Worker, worker_id)
-    if assignee and assignee.email:
+    if assignee and assignee.email and getattr(assignee, "email_notifications_enabled", True):
         EmailService.send_notification(
             worker_name, ticket.id, ticket.priority,
             recipient_email=assignee.email,

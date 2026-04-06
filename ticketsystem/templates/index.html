@@ -151,6 +151,41 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // --- Assign to Me (quick button) ---
+    document.querySelectorAll('.assign-me-btn').forEach(btn => {
+        btn.addEventListener('click', async function(e) {
+            e.stopPropagation();
+            const ticketId = this.dataset.ticketId;
+            const workerId = this.dataset.workerId;
+            if (!workerId) return;
+            this.disabled = true;
+            try {
+                const resp = await fetch(ingress + '/api/ticket/' + ticketId + '/assign', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify({ worker_id: parseInt(workerId) })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    // Update the select dropdown to reflect the assignment
+                    const sel = this.closest('td').querySelector('.inline-assign-select');
+                    if (sel) {
+                        sel.value = workerId;
+                        sel.dataset.original = workerId;
+                    }
+                    this.remove();
+                    if (window.showUiAlert) window.showUiAlert('Ticket Ihnen zugewiesen.', 'success');
+                } else {
+                    if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Unbekannt'), 'danger');
+                    this.disabled = false;
+                }
+            } catch (e) {
+                if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.', 'danger');
+                this.disabled = false;
+            }
+        });
+    });
+
     // --- Debounced Live Search ---
     const searchInput = document.getElementById('dashSearch');
     const searchForm = document.getElementById('dashSearchForm');
@@ -231,16 +266,26 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             const data = await resp.json();
             if (data.success) {
-                if (window.showUiAlert) window.showUiAlert(data.updated + ' Tickets aktualisiert.', 'success');
-                setTimeout(() => location.reload(), 800);
+                // Store message in sessionStorage so it survives the page reload
+                sessionStorage.setItem('bulk_flash', data.updated + ' Ticket(s) aktualisiert.');
+                location.reload();
             } else {
                 if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Unbekannt'), 'danger');
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
             }
         } catch (e) {
             if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.', 'danger');
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
         }
-        btn.disabled = false;
-        btn.innerHTML = originalHtml;
+    }
+
+    // Show persisted bulk flash message after reload
+    const bulkFlash = sessionStorage.getItem('bulk_flash');
+    if (bulkFlash) {
+        sessionStorage.removeItem('bulk_flash');
+        if (window.showUiAlert) window.showUiAlert(bulkFlash, 'success');
     }
 
     document.addEventListener('change', function(e) {
@@ -445,21 +490,33 @@ document.addEventListener('DOMContentLoaded', function() {
                         <!-- Zuständig (inline dropdown) -->
                         <td>
                             {% if session.get('role') != 'viewer' %}
-                            <select class="inline-assign-select inline-select" data-ticket-id="{{ ticket.id }}"
-                                    data-original="{{ ('team_' ~ ticket.assigned_team_id) if ticket.assigned_team_id else (ticket.assigned_to_id or '') }}"
-                                    onmousedown="event.stopPropagation();">
-                                <option value="" {{ 'selected' if not ticket.assigned_to_id and not ticket.assigned_team_id }}>— Keine —</option>
-                                {% for w in workers %}
-                                <option value="{{ w.id }}" {{ 'selected' if ticket.assigned_to_id == w.id }}>{{ w.name }}</option>
-                                {% endfor %}
-                                {% if teams %}
-                                <optgroup label="Teams">
-                                    {% for t in teams %}
-                                    <option value="team_{{ t.id }}" {{ 'selected' if ticket.assigned_team_id == t.id }}>{{ t.name }}</option>
+                            <div class="d-flex align-items-center gap-1">
+                                <select class="inline-assign-select inline-select" data-ticket-id="{{ ticket.id }}"
+                                        data-original="{{ ('team_' ~ ticket.assigned_team_id) if ticket.assigned_team_id else (ticket.assigned_to_id or '') }}"
+                                        onmousedown="event.stopPropagation();">
+                                    <option value="" {{ 'selected' if not ticket.assigned_to_id and not ticket.assigned_team_id }}>— Keine —</option>
+                                    {% for w in workers %}
+                                    <option value="{{ w.id }}" {{ 'selected' if ticket.assigned_to_id == w.id }}>{{ w.name }}</option>
                                     {% endfor %}
-                                </optgroup>
+                                    {% if teams %}
+                                    <optgroup label="Teams">
+                                        {% for t in teams %}
+                                        <option value="team_{{ t.id }}" {{ 'selected' if ticket.assigned_team_id == t.id }}>{{ t.name }}</option>
+                                        {% endfor %}
+                                    </optgroup>
+                                    {% endif %}
+                                </select>
+                                {% if not ticket.assigned_to_id and not ticket.assigned_team_id %}
+                                <button type="button"
+                                        class="btn btn-link btn-sm p-0 text-primary assign-me-btn flex-shrink-0"
+                                        data-ticket-id="{{ ticket.id }}"
+                                        data-worker-id="{{ session.get('worker_id') }}"
+                                        title="Mir zuweisen"
+                                        style="font-size:0.75rem; white-space:nowrap;">
+                                    <i class="bi bi-person-check"></i>
+                                </button>
                                 {% endif %}
-                            </select>
+                            </div>
                             {% else %}
                                 <span class="small">{{ ticket.assigned_to.name if ticket.assigned_to else (ticket.assigned_team.name if ticket.assigned_team else '—') }}</span>
                             {% endif %}

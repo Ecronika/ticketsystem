@@ -1,5 +1,5 @@
 <h3 class="h5 fw-bold mb-3 px-2"><i class="bi bi-chat-left-text me-2"></i> Verlauf</h3>
-<div class="comment-history mb-4 px-2" id="ticketCommentHistory">
+<div class="comment-history mb-4 px-2" id="ticketCommentHistory" style="max-height: 50vh; overflow-y: auto;">
     {% for comment in ticket.comments|sort(attribute='created_at') %}
     {% if comment.is_system_event %}
     <div class="d-flex align-items-center gap-3 py-1 my-1 px-2 text-muted x-small animate__animated animate__fadeIn">

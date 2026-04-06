@@ -9,6 +9,9 @@
                     <button type="button" class="btn btn-sm btn-link text-secondary text-decoration-none rounded-pill px-2" id="editTicketBtn" aria-label="Ticket bearbeiten">
                         <i class="bi bi-pencil-square me-1"></i> Bearbeiten
                     </button>
+                    <button type="button" class="btn btn-sm btn-link text-secondary text-decoration-none rounded-pill px-2" id="duplicateTicketBtn" aria-label="Ticket duplizieren" data-ticket-id="{{ ticket.id }}" title="Ticket duplizieren (Kopie ohne Kommentare)">
+                        <i class="bi bi-files me-1"></i> Duplizieren
+                    </button>
                     {% endif %}
                 </div>
                 <p class="text-meta small mb-0">
@@ -51,7 +54,7 @@
                 </div>
                 <div class="row g-2 mb-3">
                     <div class="col-md-4">
-                        <label class="form-label small fw-bold">Kunden- / Auftragsnummer</label>
+                        <label class="form-label small fw-bold">Auftragsnummer</label>
                         <input type="text" id="editOrderRefInput" class="form-control" value="{{ ticket.order_reference or '' }}" placeholder="z.B. A-2024-123">
                     </div>
                     <div class="col-md-4">

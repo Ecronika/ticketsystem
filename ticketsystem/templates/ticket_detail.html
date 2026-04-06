@@ -2,6 +2,30 @@
 {% block title %}Ticket #{{ ticket.id }}{% endblock %}
 
 {% block content %}
+<div class="mb-3">
+    <a href="#" id="backBtn" class="btn btn-light btn-sm rounded-pill px-3">
+        <i class="bi bi-arrow-left me-1"></i><span id="backBtnLabel">Zurück</span>
+    </a>
+</div>
+<script nonce="{{ g.csp_nonce }}">
+(function() {
+    var btn = document.getElementById('backBtn');
+    var label = document.getElementById('backBtnLabel');
+    var ref = document.referrer;
+    var ingress = '{{ ingress_path }}';
+    if (ref && ref !== window.location.href) {
+        btn.href = ref;
+        if (ref.includes('/archive')) { label.textContent = 'Zum Archiv'; }
+        else if (ref.includes('/projects')) { label.textContent = 'Zu den Projekten'; }
+        else if (ref.includes('/approvals')) { label.textContent = 'Zu den Freigaben'; }
+        else if (ref.includes('q=') || ref.includes('tab=')) { label.textContent = 'Zur Suche'; }
+        else { label.textContent = 'Zum Dashboard'; }
+    } else {
+        btn.href = ingress + '{{ url_for("main.index") }}';
+        label.textContent = 'Zum Dashboard';
+    }
+})();
+</script>
 <div id="ticketDetailWrapper" data-ticket-id="{{ ticket.id }}">
 <div class="row g-4">
     <!-- Main Content -->

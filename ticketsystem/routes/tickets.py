@@ -1203,6 +1203,78 @@ def _export_projects_csv() -> Response:
 
 
 # ------------------------------------------------------------------
+# Duplicate ticket
+# ------------------------------------------------------------------
+
+def _duplicate_ticket_api(ticket_id: int) -> Response:
+    """Create a copy of a ticket (metadata only, without comments/history)."""
+    ticket = db.session.get(Ticket, ticket_id)
+    if not ticket:
+        return _api_error("Ticket nicht gefunden.", 404)
+
+    if not _check_ticket_access(ticket):
+        return _api_error("Keine Berechtigung.", 403)
+
+    try:
+        from models import Tag
+        new_ticket = Ticket(
+            title=f"Kopie von: {ticket.title}",
+            description=ticket.description,
+            priority=ticket.priority,
+            status=TicketStatus.OFFEN.value,
+            author=_session_author(),
+            order_reference=ticket.order_reference,
+            contact_name=ticket.contact_name,
+            contact_phone=ticket.contact_phone,
+            contact_email=ticket.contact_email,
+            contact_channel=ticket.contact_channel,
+            is_confidential=ticket.is_confidential,
+            assigned_to_id=ticket.assigned_to_id,
+            assigned_team_id=ticket.assigned_team_id,
+            created_at=get_utc_now(),
+            updated_at=get_utc_now(),
+        )
+        # Copy tags
+        for tag in ticket.tags:
+            new_ticket.tags.append(tag)
+
+        db.session.add(new_ticket)
+        db.session.commit()
+        return _api_ok(ticket_id=new_ticket.id)
+    except SQLAlchemyError as exc:
+        db.session.rollback()
+        current_app.logger.error("Duplicate ticket error: %s", exc)
+        return _api_error("Datenbankfehler beim Duplizieren.")
+
+
+# ------------------------------------------------------------------
+# Theme preference
+# ------------------------------------------------------------------
+
+def _save_theme_api() -> Response:
+    """Save the authenticated user's UI theme preference."""
+    worker_id = session.get("worker_id")
+    if not worker_id:
+        return _api_error("Nicht angemeldet.", 401)
+
+    data = request.get_json(silent=True) or {}
+    theme = data.get("theme", "").strip()
+    if theme not in ("light", "dark", "hc", "auto"):
+        return _api_error("Ungültiges Theme.", 400)
+
+    try:
+        worker = db.session.get(Worker, worker_id)
+        if worker:
+            worker.ui_theme = theme
+            db.session.commit()
+        return _api_ok()
+    except SQLAlchemyError as exc:
+        db.session.rollback()
+        current_app.logger.error("Save theme error: %s", exc)
+        return _api_error("Datenbankfehler.")
+
+
+# ------------------------------------------------------------------
 # Route registration
 # ------------------------------------------------------------------
 
@@ -1323,4 +1395,12 @@ def register_routes(bp: Blueprint) -> None:
         "/api/notifications/read_all", "read_all_notifications",
         view_func=worker_required(_api_read_all_notifications),
         methods=["POST"],
+    )
+    bp.add_url_rule(
+        "/api/ticket/<int:ticket_id>/duplicate", "duplicate_ticket_api",
+        view_func=worker_required(_duplicate_ticket_api), methods=["POST"],
+    )
+    bp.add_url_rule(
+        "/api/user/theme", "save_theme_api",
+        view_func=_save_theme_api, methods=["POST"],
     )

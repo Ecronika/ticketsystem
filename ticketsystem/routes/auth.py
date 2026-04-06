@@ -411,6 +411,11 @@ def _profile_view() -> str | WerkzeugResponse:
         flash("Abwesenheitseinstellungen aktualisiert.", "success")
         return redirect_to("main.profile")
 
+    if request.method == "POST" and request.form.get("action") == "update_notifications":
+        _update_notifications(worker)
+        flash("Benachrichtigungseinstellungen aktualisiert.", "success")
+        return redirect_to("main.profile")
+
     other_workers: list[Worker] = (
         Worker.query
         .filter(Worker.is_active == True, Worker.id != worker.id)  # noqa: E712
@@ -442,6 +447,14 @@ def _find_valid_token(hashed_tokens: list[str], token: str) -> int:
         if check_password_hash(hashed, token):
             return idx
     return -1
+
+
+def _update_notifications(worker: Worker) -> None:
+    """Apply notification preference form data to *worker*."""
+    worker.email_notifications_enabled = (
+        request.form.get("email_notifications_enabled") == "on"
+    )
+    db.session.commit()
 
 
 def _update_ooo(worker: Worker) -> None:
