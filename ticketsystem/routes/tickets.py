@@ -1218,7 +1218,6 @@ def _duplicate_ticket_api(ticket_id: int) -> Response:
             description=ticket.description,
             priority=ticket.priority,
             status=TicketStatus.OFFEN.value,
-            author=_session_author(),
             order_reference=ticket.order_reference,
             contact_name=ticket.contact_name,
             contact_phone=ticket.contact_phone,
@@ -1227,8 +1226,6 @@ def _duplicate_ticket_api(ticket_id: int) -> Response:
             is_confidential=ticket.is_confidential,
             assigned_to_id=ticket.assigned_to_id,
             assigned_team_id=ticket.assigned_team_id,
-            created_at=get_utc_now(),
-            updated_at=get_utc_now(),
         )
         # Copy tags
         for tag in ticket.tags:
