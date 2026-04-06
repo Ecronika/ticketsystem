@@ -721,32 +721,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // --- Duplicate Ticket ---
-    const duplicateBtn = document.getElementById('duplicateTicketBtn');
-    if (duplicateBtn) {
-        duplicateBtn.addEventListener('click', async function() {
-            const ingress = getIngress();
-            this.disabled = true;
-            const originalHtml = this.innerHTML;
-            this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>';
-            try {
-                const resp = await fetch(ingress + '/api/ticket/' + ticketId + '/duplicate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                });
-                const data = await resp.json();
-                if (data.success && data.ticket_id) {
-                    window.location.href = ingress + '/ticket/' + data.ticket_id;
-                } else {
-                    window.showUiAlert('Fehler: ' + (data.error || 'Duplizierung fehlgeschlagen'), 'danger');
-                    this.disabled = false;
-                    this.innerHTML = originalHtml;
-                }
-            } catch (e) {
-                window.showUiAlert('Netzwerkfehler.', 'danger');
-                this.disabled = false;
-                this.innerHTML = originalHtml;
-            }
-        });
-    }
+    // Note: Duplicate button handler is in ticket_detail.html inline script
+    // to avoid issues with JS caching across version updates.
 });
