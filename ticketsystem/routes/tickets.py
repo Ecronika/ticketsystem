@@ -21,6 +21,7 @@ from flask import (
     request,
     send_from_directory,
     session,
+    stream_with_context,
     url_for,
 )
 from markupsafe import Markup
@@ -1072,6 +1073,17 @@ def _execute_bulk_action(
         elif action == "reassign":
             updated += _bulk_reassign(ticket, data)
         elif action == "soft_delete":
+            if ticket.approval_status == ApprovalStatus.PENDING.value:
+                ticket.approval_status = ApprovalStatus.REJECTED.value
+                db.session.add(Comment(
+                    ticket_id=ticket.id,
+                    author="System",
+                    text=(
+                        "Freigabe-Anfrage automatisch abgelehnt: "
+                        "Ticket wurde gelöscht."
+                    ),
+                    is_system_event=True,
+                ))
             ticket.is_deleted = True
             ticket.updated_at = get_utc_now()
             updated += 1
@@ -1119,36 +1131,78 @@ def _bulk_set_due_date(ticket: Ticket, data: dict[str, Any]) -> int:
 # ------------------------------------------------------------------
 
 def _export_archive_csv() -> Response:
-    """Export archive tickets as CSV download."""
+    """Export archive tickets as a streaming CSV download.
+
+    Uses ``yield_per`` to avoid loading all rows into RAM at once,
+    which prevents OOM crashes on memory-constrained systems.
+    """
     search = request.args.get("q", "").strip()
     author = request.args.get("author", "").strip()
+    worker_id = _session_worker_id()
+    worker_role = session.get("role")
+    is_elevated = worker_role in _ELEVATED_ROLES
 
-    tickets_data = TicketService.get_dashboard_tickets(
-        worker_id=_session_worker_id(),
-        search=search,
-        status_filter=TicketStatus.ERLEDIGT.value,
-        page=1,
-        per_page=10000,
-        author_name=author,
-        worker_role=session.get("role"),
+    query = Ticket.query.filter(
+        Ticket.is_deleted == False,  # noqa: E712
+        Ticket.status == TicketStatus.ERLEDIGT.value,
     )
 
-    output = io.StringIO()
-    output.write("\ufeff")  # BOM for Excel UTF-8
-    writer = csv.writer(output, delimiter=";")
-    writer.writerow([
-        "ID", "Titel", "Beschreibung", "Status", "Priorität",
-        "Erstellt am", "Aktualisiert am", "Auftragsnummer",
-    ])
+    if not is_elevated and worker_id is not None:
+        from services.ticket_service import _confidential_filter
+        from models import Team
+        team_ids = Team.team_ids_for_worker(worker_id)
+        query = query.filter(db.or_(*_confidential_filter(worker_id, team_ids)))
 
-    for ticket in tickets_data["focus_pagination"].items:
-        writer.writerow(_archive_csv_row(ticket))
+    if author:
+        author_sub = (
+            db.session.query(Comment.ticket_id)
+            .filter(
+                Comment.event_type == "TICKET_CREATED",
+                Comment.author.ilike(f"%{author}%"),
+            )
+            .subquery()
+        )
+        query = query.filter(Ticket.id.in_(author_sub))
+
+    if search:
+        comment_ids = (
+            db.session.query(Comment.ticket_id)
+            .filter(Comment.text.ilike(f"%{search}%"))
+            .subquery()
+        )
+        query = query.filter(
+            Ticket.title.ilike(f"%{search}%")
+            | Ticket.description.ilike(f"%{search}%")
+            | Ticket.order_reference.ilike(f"%{search}%")
+            | Ticket.contact_name.ilike(f"%{search}%")
+            | Ticket.id.in_(comment_ids)
+        )
+
+    query = query.order_by(Ticket.priority.asc(), Ticket.created_at.desc())
+
+    @stream_with_context
+    def generate():
+        buf = io.StringIO()
+        buf.write("\ufeff")  # BOM for Excel UTF-8
+        writer = csv.writer(buf, delimiter=";")
+        writer.writerow([
+            "ID", "Titel", "Beschreibung", "Status", "Priorität",
+            "Erstellt am", "Aktualisiert am", "Auftragsnummer",
+        ])
+        yield buf.getvalue()
+
+        for ticket in query.yield_per(100):
+            buf = io.StringIO()
+            writer = csv.writer(buf, delimiter=";")
+            writer.writerow(_archive_csv_row(ticket))
+            yield buf.getvalue()
 
     return Response(
-        output.getvalue(),
+        generate(),
         mimetype="text/csv",
         headers={
             "Content-Disposition": "attachment; filename=archiv_export.csv",
+            "X-Accel-Buffering": "no",
         },
     )
 

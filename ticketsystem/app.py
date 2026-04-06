@@ -5,6 +5,7 @@ security headers, scheduler jobs, template filters, and error handlers.
 """
 
 import atexit
+import json
 import logging
 import os
 import queue
@@ -50,6 +51,7 @@ from metrics import (
 from routes import main_bp
 from routes.metrics import metrics_bp
 from services import BackupService
+from services.backup_service import is_maintenance_mode
 from utils import get_utc_now
 
 # ---------------------------------------------------------------------------
@@ -340,8 +342,56 @@ csrf.exempt("main.recover_pin")
 
 
 # ---------------------------------------------------------------------------
+# PWA manifest – served dynamically so start_url reflects the HA ingress path
+# ---------------------------------------------------------------------------
+
+@app.route("/manifest.json")
+def pwa_manifest() -> Response:
+    """Serve the PWA manifest with a dynamic start_url for HA Ingress support."""
+    ingress_path = request.headers.get("X-Ingress-Path", "").rstrip("/")
+    manifest = {
+        "name": "Ticketsystem Shopfloor",
+        "short_name": "Tickets",
+        "description": "Enterprise Ticket System for Workshop & Production",
+        "start_url": f"{ingress_path}/",
+        "display": "standalone",
+        "background_color": "#ffffff",
+        "theme_color": "#0d6efd",
+        "icons": [
+            {
+                "src": f"{ingress_path}/static/img/icon-192.png",
+                "sizes": "192x192",
+                "type": "image/png",
+            },
+            {
+                "src": f"{ingress_path}/static/img/icon-512.png",
+                "sizes": "512x512",
+                "type": "image/png",
+            },
+        ],
+    }
+    return Response(
+        json.dumps(manifest),
+        mimetype="application/manifest+json",
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
+
+
+# ---------------------------------------------------------------------------
 # Request lifecycle hooks
 # ---------------------------------------------------------------------------
+
+@app.before_request
+def check_maintenance_mode() -> Response | None:
+    """Return 503 while a DB restore is in progress."""
+    if is_maintenance_mode() and request.endpoint not in ("static",):
+        return Response(
+            "Wiederherstellung läuft – bitte in Kürze erneut versuchen.",
+            status=503,
+            headers={"Retry-After": "10", "Content-Type": "text/plain; charset=utf-8"},
+        )
+    return None
+
 
 @app.before_request
 def before_request_metrics() -> None:

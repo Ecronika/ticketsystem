@@ -23,6 +23,17 @@ from ._helpers import _remove_with_retry
 
 _logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Maintenance mode flag – set during DB restore to block new HTTP requests
+# ---------------------------------------------------------------------------
+
+_MAINTENANCE_EVENT = threading.Event()
+
+
+def is_maintenance_mode() -> bool:
+    """Return ``True`` while a DB restore is in progress."""
+    return _MAINTENANCE_EVENT.is_set()
+
 
 class BackupError(Exception):
     """Raised when a backup or restore operation fails."""
@@ -58,6 +69,7 @@ class BackupService:
 
         try:
             _extract_and_validate_zip(zip_path, temp_dir)
+            _MAINTENANCE_EVENT.set()
             _shutdown_sessions()
             _perform_restore_overwrite(data_dir, temp_dir)
 
