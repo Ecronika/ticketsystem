@@ -1208,15 +1208,11 @@ def _export_projects_csv() -> Response:
 
 def _duplicate_ticket_api(ticket_id: int) -> Response:
     """Create a copy of a ticket (metadata only, without comments/history)."""
-    ticket = db.session.get(Ticket, ticket_id)
-    if not ticket:
-        return _api_error("Ticket nicht gefunden.", 404)
-
-    if not _check_ticket_access(ticket):
-        return _api_error("Keine Berechtigung.", 403)
+    ticket = _check_ticket_access(ticket_id)
+    if ticket is None:
+        return _api_error("Ticket nicht gefunden oder keine Berechtigung.", 404)
 
     try:
-        from models import Tag
         new_ticket = Ticket(
             title=f"Kopie von: {ticket.title}",
             description=ticket.description,
