@@ -129,42 +129,97 @@
         </div>
         {% endif %}
 
-        {% if ticket.contact_name or ticket.contact_channel %}
         <hr class="text-muted opacity-25">
         <div class="mb-2 px-1">
-            <small class="text-muted d-block mb-2 x-small text-uppercase ls-wide"><i class="bi bi-headset me-1"></i>Kundenkontakt</small>
-            {% if ticket.contact_channel %}
-            <div class="d-flex align-items-center gap-2 mb-1">
-                {% if ticket.contact_channel == 'telefon' %}
-                <i class="bi bi-telephone text-info small"></i><span class="small">Telefon</span>
-                {% elif ticket.contact_channel == 'email' %}
-                <i class="bi bi-envelope text-info small"></i><span class="small">E-Mail</span>
-                {% elif ticket.contact_channel == 'persoenlich' %}
-                <i class="bi bi-person-walking text-info small"></i><span class="small">Persönlich</span>
-                {% elif ticket.contact_channel == 'petra' %}
-                <i class="bi bi-robot text-info small"></i><span class="small">Hallo Petra</span>
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <small class="text-muted x-small text-uppercase ls-wide"><i class="bi bi-headset me-1"></i>Kundenkontakt</small>
+                {% if session.get('role') != WorkerRole.VIEWER.value %}
+                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-muted" data-bs-toggle="collapse" data-bs-target="#contactEditForm" aria-expanded="false" id="contactEditToggle">
+                    <i class="bi bi-pencil-square" style="font-size:0.8rem;"></i>
+                </button>
                 {% endif %}
             </div>
-            {% endif %}
-            {% if ticket.contact_name %}
-            <div class="small fw-semibold text-truncate">{{ ticket.contact_name }}</div>
-            {% endif %}
-            {% if ticket.contact_phone %}
-            <a href="tel:{{ ticket.contact_phone }}" class="small text-decoration-none text-primary">
-                <i class="bi bi-telephone-fill me-1"></i>{{ ticket.contact_phone }}
-            </a>
-            {% endif %}
-            {% if ticket.callback_requested %}
-            <div class="mt-2 d-flex align-items-center gap-1 {% if ticket.callback_due and ticket.callback_due < now %}text-danger fw-bold{% else %}text-warning-emphasis{% endif %}">
-                <i class="bi bi-telephone-forward small"></i>
-                <span class="x-small fw-bold">Rückruf erforderlich</span>
-                {% if ticket.callback_due %}
-                <span class="x-small ms-1">bis {{ ticket.callback_due|local_time|datetime('%d.%m. %H:%M') }}</span>
+            <div id="contactDisplay">
+                {% if ticket.contact_channel %}
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    {% if ticket.contact_channel == 'telefon' %}
+                    <i class="bi bi-telephone text-info small"></i><span class="small">Telefon</span>
+                    {% elif ticket.contact_channel == 'email' %}
+                    <i class="bi bi-envelope text-info small"></i><span class="small">E-Mail</span>
+                    {% elif ticket.contact_channel == 'persoenlich' %}
+                    <i class="bi bi-person-walking text-info small"></i><span class="small">Persönlich</span>
+                    {% elif ticket.contact_channel == 'petra' %}
+                    <i class="bi bi-robot text-info small"></i><span class="small">Hallo Petra</span>
+                    {% endif %}
+                </div>
                 {% endif %}
+                {% if ticket.contact_name %}
+                <div class="small fw-semibold text-truncate">{{ ticket.contact_name }}</div>
+                {% endif %}
+                {% if ticket.contact_phone %}
+                <div><a href="tel:{{ ticket.contact_phone }}" class="small text-decoration-none text-primary">
+                    <i class="bi bi-telephone-fill me-1"></i>{{ ticket.contact_phone }}
+                </a></div>
+                {% endif %}
+                {% if ticket.contact_email %}
+                <div><a href="mailto:{{ ticket.contact_email }}" class="small text-decoration-none text-primary">
+                    <i class="bi bi-envelope-fill me-1"></i>{{ ticket.contact_email }}
+                </a></div>
+                {% endif %}
+                {% if ticket.callback_requested %}
+                <div class="mt-1 d-flex align-items-center gap-1 {% if ticket.callback_due and ticket.callback_due < now %}text-danger fw-bold{% else %}text-warning-emphasis{% endif %}">
+                    <i class="bi bi-telephone-forward small"></i>
+                    <span class="x-small fw-bold">Rückruf erforderlich</span>
+                    {% if ticket.callback_due %}
+                    <span class="x-small ms-1">bis {{ ticket.callback_due|local_time|datetime('%d.%m. %H:%M') }}</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% if not ticket.contact_name and not ticket.contact_channel and not ticket.contact_phone and not ticket.contact_email %}
+                <span class="x-small text-muted fst-italic">Keine Angaben</span>
+                {% endif %}
+            </div>
+            {% if session.get('role') != WorkerRole.VIEWER.value %}
+            <div class="collapse mt-2" id="contactEditForm">
+                <div class="card card-body p-2 border-info border-opacity-25 bg-info-subtle rounded-3">
+                    <div class="mb-2">
+                        <label class="form-label fw-bold x-small mb-1">Eingangskanal</label>
+                        <div class="d-flex flex-wrap gap-1" id="editChannelButtons">
+                            <input type="radio" class="btn-check" name="edit_contact_channel" id="ech_none" value="">
+                            <label class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill" style="font-size:0.7rem;" for="ech_none">Keiner</label>
+                            <input type="radio" class="btn-check" name="edit_contact_channel" id="ech_telefon" value="telefon" {{ 'checked' if ticket.contact_channel == 'telefon' }}>
+                            <label class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill" style="font-size:0.7rem;" for="ech_telefon"><i class="bi bi-telephone me-1"></i>Tel.</label>
+                            <input type="radio" class="btn-check" name="edit_contact_channel" id="ech_email" value="email" {{ 'checked' if ticket.contact_channel == 'email' }}>
+                            <label class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill" style="font-size:0.7rem;" for="ech_email"><i class="bi bi-envelope me-1"></i>E-Mail</label>
+                            <input type="radio" class="btn-check" name="edit_contact_channel" id="ech_persoenlich" value="persoenlich" {{ 'checked' if ticket.contact_channel == 'persoenlich' }}>
+                            <label class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill" style="font-size:0.7rem;" for="ech_persoenlich"><i class="bi bi-person-walking me-1"></i>Pers.</label>
+                            <input type="radio" class="btn-check" name="edit_contact_channel" id="ech_petra" value="petra" {{ 'checked' if ticket.contact_channel == 'petra' }}>
+                            <label class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill" style="font-size:0.7rem;" for="ech_petra"><i class="bi bi-robot me-1"></i>Petra</label>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <input type="text" class="form-control form-control-sm" id="editContactName" placeholder="Name des Kunden" value="{{ ticket.contact_name or '' }}">
+                    </div>
+                    <div class="mb-2">
+                        <input type="tel" class="form-control form-control-sm" id="editContactPhone" placeholder="Telefonnummer" value="{{ ticket.contact_phone or '' }}">
+                    </div>
+                    <div class="mb-2">
+                        <input type="email" class="form-control form-control-sm" id="editContactEmail" placeholder="E-Mail-Adresse" value="{{ ticket.contact_email or '' }}">
+                    </div>
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="editCallbackRequested" {{ 'checked' if ticket.callback_requested }}>
+                        <label class="form-check-label x-small fw-bold" for="editCallbackRequested"><i class="bi bi-telephone-forward text-warning me-1"></i>Rückruf erforderlich</label>
+                    </div>
+                    <div id="editCallbackDueWrapper" class="{{ 'd-none' if not ticket.callback_requested }}">
+                        <input type="datetime-local" class="form-control form-control-sm mb-2" id="editCallbackDue" value="{{ ticket.callback_due|local_time|datetime('%Y-%m-%dT%H:%M') if ticket.callback_due else '' }}">
+                    </div>
+                    <button type="button" class="btn btn-primary btn-sm rounded-pill w-100" id="saveContactBtn" data-ticket-id="{{ ticket.id }}">
+                        <i class="bi bi-floppy me-1"></i>Speichern
+                    </button>
+                </div>
             </div>
             {% endif %}
         </div>
-        {% endif %}
 
         <hr class="text-muted opacity-25">
 

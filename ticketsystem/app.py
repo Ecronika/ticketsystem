@@ -308,7 +308,7 @@ if not IS_HOMEASSISTANT:
             "default-src": "'self'",
             "script-src": ["'self'", "cdn.jsdelivr.net", "unpkg.com"],
             "style-src": ["'self'", "cdn.jsdelivr.net", "'unsafe-inline'"],
-            "img-src": ["'self'", "data:"],
+            "img-src": ["'self'", "data:", "blob:"],
             "font-src": ["'self'", "cdn.jsdelivr.net"],
             "connect-src": ["'self'", "cdn.jsdelivr.net", "unpkg.com"],
         },
@@ -400,7 +400,7 @@ def _set_manual_csp(response: Response) -> None:
         "default-src 'self'; "
         f"script-src 'self' cdn.jsdelivr.net unpkg.com {nonce_directive}; "
         "style-src 'self' cdn.jsdelivr.net 'unsafe-inline'; "
-        "img-src 'self' data:; "
+        "img-src 'self' data: blob:; "
         "font-src 'self' cdn.jsdelivr.net; "
         "connect-src 'self' cdn.jsdelivr.net unpkg.com"
     )

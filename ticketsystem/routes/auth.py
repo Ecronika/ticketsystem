@@ -26,7 +26,7 @@ from werkzeug.wrappers import Response as WerkzeugResponse
 
 from enums import WorkerRole
 from extensions import db, limiter
-from models import SystemSettings, Worker
+from models import Notification, SystemSettings, Worker
 from utils import get_utc_now
 
 _F = TypeVar("_F", bound=Callable[..., Any])
@@ -417,7 +417,19 @@ def _profile_view() -> str | WerkzeugResponse:
         .order_by(Worker.name)
         .all()
     )
-    return render_template("profile.html", worker=worker, workers=other_workers)
+    notifications: list[Notification] = (
+        Notification.query
+        .filter_by(user_id=worker.id)
+        .order_by(Notification.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    return render_template(
+        "profile.html",
+        worker=worker,
+        workers=other_workers,
+        notifications=notifications,
+    )
 
 
 # ------------------------------------------------------------------

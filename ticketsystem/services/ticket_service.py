@@ -281,6 +281,7 @@ class TicketService:
         checklist_template_id: Optional[int] = None,
         contact_name: Optional[str] = None,
         contact_phone: Optional[str] = None,
+        contact_email: Optional[str] = None,
         contact_channel: Optional[str] = None,
         callback_requested: bool = False,
         callback_due: Optional[datetime] = None,
@@ -303,7 +304,7 @@ class TicketService:
                 title, description, priority, assigned_to_id,
                 assigned_team_id, is_confidential, recurrence_rule,
                 due_date, order_reference, reminder_date,
-                contact_name, contact_phone, contact_channel,
+                contact_name, contact_phone, contact_email, contact_channel,
                 callback_requested, callback_due,
             )
             _attach_tags(ticket, tags)
@@ -1188,6 +1189,7 @@ def _build_ticket(
     reminder_date: Optional[datetime],
     contact_name: Optional[str],
     contact_phone: Optional[str],
+    contact_email: Optional[str],
     contact_channel: Optional[str],
     callback_requested: bool,
     callback_due: Optional[datetime],
@@ -1207,6 +1209,7 @@ def _build_ticket(
         reminder_date=reminder_date,
         contact_name=contact_name,
         contact_phone=contact_phone,
+        contact_email=contact_email,
         contact_channel=contact_channel,
         callback_requested=bool(callback_requested),
         callback_due=callback_due,
