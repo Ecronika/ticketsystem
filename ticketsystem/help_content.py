@@ -86,8 +86,7 @@ HELP: Dict[str, Dict[str, Any]] = {
             {
                 'heading': 'Spalte: Sofort handeln (rot)',
                 'text': (
-                    'Enthält Tickets, die <strong>bereits überfällig</strong> sind '
-                    'oder <strong>heute fällig</strong> werden und hohe Priorität haben. '
+                    'Enthält Tickets, die <strong>bereits überfällig</strong> sind. '
                     'Diese Aufgaben benötigen sofortige Aufmerksamkeit.'
                 ),
                 'roles': None,
@@ -95,8 +94,8 @@ HELP: Dict[str, Dict[str, Any]] = {
             {
                 'heading': 'Spalte: Heute erledigen (blau)',
                 'text': (
-                    'Tickets die heute fällig werden, aber keine hohe Priorität haben. '
-                    'Sollten noch heute abgeschlossen oder auf einen neuen Termin gesetzt werden.'
+                    'Tickets die heute fällig werden, sortiert nach Priorität. '
+                    'Tickets mit hoher Priorität stehen oben und sollten zuerst bearbeitet werden.'
                 ),
                 'roles': None,
             },
