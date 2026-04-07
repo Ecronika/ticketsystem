@@ -130,18 +130,9 @@
 
             <div class="d-flex flex-column align-items-end gap-2" id="priorityBadgeWrapper">
                 <div id="priorityStatic" class="text-end">
-                    <span class="badge bg-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }}-subtle text-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} rounded-pill px-3 py-2 d-inline-block mb-1">
+                    <span class="badge bg-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }}-subtle text-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} rounded-pill px-3 py-2 d-inline-block">
                          {{ ticket.priority|priority_label }}
                     </span>
-                    {% if ticket.approved_by_id %}
-                    <span class="badge bg-success text-white rounded-pill px-3 py-1 mb-1 d-block" title="Freigegeben am {{ ticket.approved_at.strftime('%d.%m.%Y %H:%M') if ticket.approved_at else '' }}">
-                        <i class="bi bi-check-circle-fill me-1"></i>Freigegeben
-                    </span>
-                    {% elif ticket.priority == TicketPriority.HOCH.value and session.get('role') in [WorkerRole.ADMIN.value, WorkerRole.HR.value, WorkerRole.MANAGEMENT.value] %}
-                    <button class="btn btn-sm btn-outline-success rounded-pill px-3 mb-1 d-block w-100 fw-bold shadow-sm approve-ticket-btn" data-ticket-id="{{ ticket.id }}">
-                        <i class="bi bi-check2-all me-1"></i>Freigeben
-                    </button>
-                    {% endif %}
                 </div>
                 {% if session.get('role') != 'viewer' %}
                 <div id="priorityEdit" class="d-none">
@@ -152,9 +143,6 @@
                     </select>
                 </div>
                 {% endif %}
-                <span id="ticketStatusBadge" class="badge-subtle-{{ 'danger' if ticket.status == TicketStatus.OFFEN.value else 'warning' if ticket.status == TicketStatus.IN_BEARBEITUNG.value else 'secondary' if ticket.status == TicketStatus.WARTET.value else 'success' }} rounded-pill px-3 py-1 small fw-bold">
-                    {{ ticket.status|status_label|upper }}
-                </span>
             </div>
         </div>
 

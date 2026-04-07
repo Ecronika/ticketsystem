@@ -1,10 +1,7 @@
 <div class="card shadow-sm border-0 rounded-4 sticky-top" style="top: 4.5rem; max-width: 360px;">
     <div class="card-body p-4">
-        <h4 class="h6 fw-bold mb-3">Ticket Management</h4>
-
-        <!-- Vorschlag 7: Segmented Controls für Status -->
+        <!-- Segmented Controls für Status -->
         <div class="mb-4" id="statusSection">
-            <label class="form-label small text-muted fw-bold">Status ändern</label>
             <div class="btn-group w-100 mb-2" role="group" aria-label="Status auswählen" id="statusSegmented"
                  data-original="{{ ticket.status }}"
                  {{ 'data-disabled=true' if session.get('role') == 'viewer' }}>
@@ -35,7 +32,6 @@
         </div>
 
         <div class="mb-4 position-relative select-feedback-wrapper">
-            <label for="assignSelect" class="form-label small text-muted fw-bold">Zuweisung ändern</label>
             <div class="position-relative">
                 <select id="assignSelect" class="form-select border-0 bg-surface-subtle fw-bold pe-5"
                         data-original="{{ ticket.assigned_to_id or ('team_' ~ ticket.assigned_team_id if ticket.assigned_team_id else '') }}"
@@ -62,9 +58,7 @@
             </div>
         </div>
 
-        <!-- Vorschlag 8: Border-Left Callouts für Freigabe -->
         <div class="mb-4" id="approvalSection">
-            <label class="form-label small text-muted fw-bold">Freigabe-Status</label>
 
             {% if ticket.approval_status == ApprovalStatus.PENDING.value %}
                 <div class="border-start border-3 border-warning ps-3 py-2 mb-2 small">
