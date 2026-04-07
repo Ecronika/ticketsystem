@@ -1,49 +1,46 @@
 {% if has_full_access %}
 {% macro render_item(item, is_child=False) %}
-<div class="border-bottom checklist-item position-relative transition-all bg-white-hover {{ 'ms-4 border-start border-3 ps-3' if is_child else '' }}" data-id="{{ item.id }}">
+{% set locked = False %}
+{% if item.depends_on_item_id %}
+    {% set parent = ticket.checklists|selectattr('id', 'equalto', item.depends_on_item_id)|first %}
+    {% if parent and not parent.is_completed %}
+        {% set locked = True %}
+    {% endif %}
+{% endif %}
+<div class="border-bottom checklist-item position-relative transition-all bg-white-hover {{ 'ms-4 border-start border-3 ps-3' if is_child else '' }}" data-id="{{ item.id }}" {{ 'data-locked=true' if locked }}>
     <div class="d-flex align-items-center justify-content-between min-h-44">
-        {% set locked = False %}
-        {% if item.depends_on_item_id %}
-            {% set parent = ticket.checklists|selectattr('id', 'equalto', item.depends_on_item_id)|first %}
-            {% if parent and not parent.is_completed %}
-                {% set locked = True %}
-            {% endif %}
-        {% endif %}
-        
         <label class="form-check-label d-flex align-items-center gap-3 flex-grow-1 py-3 px-2 cursor-pointer m-0 {{ 'text-muted opacity-75' if locked else '' }}" for="check_{{ item.id }}">
+            <!-- Vorschlag 12: Schloss-Overlay auf Checkbox -->
             <div class="position-relative d-flex align-items-center justify-content-center" style="width: 24px; height: 24px;">
-                <input class="form-check-input checklist-toggle m-0 border-secondary" style="width: 1.5rem; height: 1.5rem;" type="checkbox" value="" id="check_{{ item.id }}" 
-                    {% if item.is_completed %}checked{% endif %} 
+                <input class="form-check-input checklist-toggle m-0 border-secondary {{ 'opacity-25' if locked else '' }}" style="width: 1.5rem; height: 1.5rem;" type="checkbox" value="" id="check_{{ item.id }}"
+                    {% if item.is_completed %}checked{% endif %}
                     {% if session.get('role') == 'viewer' or locked %}disabled{% endif %}>
+                {% if locked %}
+                <i class="bi bi-lock-fill position-absolute text-warning" style="font-size: 0.7rem;" title="Abhängig von: {{ parent.title }}"></i>
+                {% endif %}
                 <div class="spinner-border spinner-border-sm text-primary position-absolute d-none loading-indicator" role="status"></div>
             </div>
-            
+
             <div class="d-flex flex-column justify-content-center">
                 <span class="fs-6 {{ 'text-decoration-line-through text-muted' if item.is_completed else 'fw-semibold text-body' }} item-title-text">
                     {{ item.title }}
                 </span>
-                
-                {% if item.assigned_to_id or item.assigned_team_id or item.due_date or locked %}
-                <div class="d-flex flex-wrap gap-2 mt-1">
+
+                <!-- Vorschlag 11: Kompakte Metadaten nur für offene Items -->
+                {% if not item.is_completed and (item.assigned_to_id or item.assigned_team_id or item.due_date) %}
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
                     {% if item.assigned_to_id %}
-                    <span class="badge bg-secondary-subtle text-secondary rounded-pill fw-normal" style="font-size: 0.7rem;">
-                        <i class="bi bi-person me-1"></i>{{ item.assigned_to.name }}
-                    </span>
+                    <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center fw-bold"
+                         style="width: 20px; height: 20px; font-size: 0.55rem;"
+                         title="{{ item.assigned_to.name }}">{{ item.assigned_to.name[0]|upper }}</div>
                     {% endif %}
                     {% if item.assigned_team_id %}
-                    <span class="badge bg-primary-subtle text-primary rounded-pill fw-normal" style="font-size: 0.7rem;">
-                        <i class="bi bi-people me-1"></i>{{ item.assigned_team.name }}
-                    </span>
+                    <div class="rounded-circle bg-info-subtle text-info d-flex align-items-center justify-content-center fw-bold"
+                         style="width: 20px; height: 20px; font-size: 0.55rem;"
+                         title="Team: {{ item.assigned_team.name }}">T</div>
                     {% endif %}
                     {% if item.due_date %}
-                    <span class="badge bg-light text-dark border rounded-pill fw-normal" style="font-size: 0.7rem;">
-                        <i class="bi bi-calendar me-1"></i>{{ item.due_date|local_time|datetime('%d.%m.%Y') }}
-                    </span>
-                    {% endif %}
-                    {% if locked %}
-                    <span class="badge bg-warning-subtle text-warning rounded-pill fw-normal" style="font-size: 0.7rem;">
-                        <i class="bi bi-lock-fill me-1"></i>Abhängig von: {{ parent.title }}
-                    </span>
+                    <span class="text-muted" style="font-size: 0.7rem;" title="Fällig am {{ item.due_date|local_time|datetime('%d.%m.%Y') }}">{{ item.due_date|local_time|datetime('%d.%m.%Y') }}</span>
                     {% endif %}
                 </div>
                 {% endif %}
@@ -63,9 +60,67 @@
 
 <div class="card shadow-sm border-0 rounded-4 mb-4">
     <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
-        <h4 class="h6 fw-bold mb-0"><i class="bi bi-list-check me-2"></i>Checkliste / Unteraufgaben</h4>
+        <h4 class="h6 fw-bold mb-0">Checkliste / Unteraufgaben</h4>
     </div>
     <div class="card-body p-4">
+        <!-- Vorschlag 10: Formular zuerst (oben) -->
+        {% if session.get('role') != 'viewer' %}
+        <div class="mb-3">
+            <div class="row g-2 mb-2">
+                <div class="col">
+                    <!-- Vorschlag 13: ⌘K Badge im Input -->
+                    <div class="position-relative">
+                        <input type="text" class="form-control form-control-sm pe-5" id="new-checklist-title" placeholder="Neue Aufgabe...">
+                        <kbd class="position-absolute end-0 top-50 translate-middle-y me-2 bg-surface-subtle text-muted border rounded px-1" style="font-size: 0.6rem; pointer-events: none; line-height: 1.4;">⌘K</kbd>
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <button type="button" class="btn btn-sm btn-primary fw-bold" id="add-checklist-btn">Hinzufügen</button>
+                </div>
+            </div>
+
+            <!-- Advanced Options (collapsible) -->
+            <div class="collapse" id="advancedChecklistOptions">
+                <div class="bg-surface-subtle p-3 rounded-3 border">
+                    <div class="row g-2">
+                        <div class="col-md-3">
+                            <label class="x-small text-muted mb-1">Zuweisung an Person</label>
+                            <select class="form-select form-select-sm border-0 shadow-sm" id="new-checklist-assignee">
+                                <option value="">-- Optional --</option>
+                                {% for worker in workers %}
+                                <option value="{{ worker.id }}">{{ worker.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="x-small text-muted mb-1">Zuweisung an Team</label>
+                            <select class="form-select form-select-sm border-0 shadow-sm" id="new-checklist-team">
+                                <option value="">-- Optional --</option>
+                                {% for team in teams %}
+                                <option value="{{ team.id }}">{{ team.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="x-small text-muted mb-1">Fristsetzung</label>
+                            <input type="date" class="form-control form-control-sm border-0 shadow-sm" id="new-checklist-due">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="x-small text-muted mb-1">Abhängig von</label>
+                            <select class="form-select form-select-sm border-0 shadow-sm" id="new-checklist-depends">
+                                <option value="">-- Keine Abhängigkeit --</option>
+                                {% set parents = ticket.checklists|selectattr('depends_on_item_id', 'none')|list %}
+                                {% for item in parents|sort(attribute='id') %}
+                                <option value="{{ item.id }}">{{ item.title|truncate(30) }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- List of existing checklists -->
         <div id="checklist-container" class="mb-3">
             {% set parents = ticket.checklists|selectattr('depends_on_item_id', 'none')|list %}
@@ -80,85 +135,25 @@
             {% endfor %}
         </div>
 
-        <!-- Add new item form -->
-        {% if session.get('role') != 'viewer' %}
-        <div class="bg-surface-subtle p-3 rounded-3 mt-3 border">
-            <h5 class="small fw-bold mb-3 d-flex justify-content-between align-items-center">
-                <span>Neue Unteraufgabe</span>
-                <button type="button" class="btn btn-link btn-sm text-decoration-none p-0 command-palette-trigger" data-bs-toggle="collapse" data-bs-target="#advancedChecklistOptions">
-                    Erweiterte Optionen <i class="bi bi-chevron-down small"></i>
-                </button>
-            </h5>
-            <div class="row g-2 mb-2">
-                <div class="col-md-10">
-                    <input type="text" class="form-control form-control-sm" id="new-checklist-title" placeholder="Aufgabenbeschreibung (Cmd+K für Optionen)...">
+        <!-- Apply Template Section (bleibt unten) -->
+        {% if session.get('role') != 'viewer' and templates %}
+        <div class="pt-3 border-top">
+            <div class="row g-2 align-items-center">
+                <div class="col-auto">
+                    <label class="small fw-bold text-muted mb-0">Vorlage anwenden:</label>
                 </div>
-                <div class="col-md-2">
-                    <button type="button" class="btn btn-sm btn-primary w-100 fw-bold" id="add-checklist-btn">Hinzufügen</button>
+                <div class="col">
+                    <select class="form-select form-select-sm border-0 shadow-sm" id="apply-template-select">
+                        <option value="">-- Vorlage auswählen --</option>
+                        {% for tpl in templates %}
+                        <option value="{{ tpl.id }}">{{ tpl.title }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
-            </div>
-            
-            <!-- Command Palette / Advanced Options Modal equivalent -->
-            <div class="collapse" id="advancedChecklistOptions">
-                <div class="row g-2 mt-1">
-                    <div class="col-md-3">
-                        <label class="x-small text-muted mb-1">Zuweisung an Person</label>
-                        <select class="form-select form-select-sm border-0 shadow-sm" id="new-checklist-assignee">
-                            <option value="">-- Optional --</option>
-                            {% for worker in workers %}
-                            <option value="{{ worker.id }}">{{ worker.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="x-small text-muted mb-1">Zuweisung an Team</label>
-                        <select class="form-select form-select-sm border-0 shadow-sm" id="new-checklist-team">
-                            <option value="">-- Optional --</option>
-                            {% for team in teams %}
-                            <option value="{{ team.id }}">{{ team.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="x-small text-muted mb-1">Fristsetzung</label>
-                        <input type="date" class="form-control form-control-sm border-0 shadow-sm" id="new-checklist-due">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="x-small text-muted mb-1">Abhängig von</label>
-                        <select class="form-select form-select-sm border-0 shadow-sm" id="new-checklist-depends">
-                            <option value="">-- Keine Abhängigkeit --</option>
-                            {% for item in parents|sort(attribute='id') %}
-                            <option value="{{ item.id }}">{{ item.title|truncate(30) }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                <div class="text-end mt-2">
-                    <small class="text-muted" style="font-size: 0.65rem;"><i class="bi bi-keyboard ms-1"></i> Tipp: <b>Cmd+K</b> öffnet diese Ansicht automatisch, wenn das Titelfeld fokussiert ist.</small>
+                <div class="col-auto">
+                    <button type="button" class="btn btn-sm btn-outline-primary fw-bold" id="apply-template-btn">Anwenden</button>
                 </div>
             </div>
-
-            <!-- Apply Template Section -->
-            {% if templates %}
-            <div class="mt-4 pt-3 border-top">
-                <div class="row g-2 align-items-center">
-                    <div class="col-auto">
-                        <label class="small fw-bold text-muted mb-0">Vorlage anwenden:</label>
-                    </div>
-                    <div class="col">
-                        <select class="form-select form-select-sm border-0 shadow-sm" id="apply-template-select">
-                            <option value="">-- Vorlage auswählen --</option>
-                            {% for tpl in templates %}
-                            <option value="{{ tpl.id }}">{{ tpl.title }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-auto">
-                        <button type="button" class="btn btn-sm btn-outline-primary fw-bold" id="apply-template-btn">Anwenden</button>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
         </div>
         {% endif %}
     </div>

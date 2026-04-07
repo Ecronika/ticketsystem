@@ -1,28 +1,43 @@
-<div class="card shadow-sm border-0 rounded-4 sticky-top" style="top: 4.5rem;">
+<div class="card shadow-sm border-0 rounded-4 sticky-top" style="top: 4.5rem; max-width: 360px;">
     <div class="card-body p-4">
         <h4 class="h6 fw-bold mb-3">Ticket Management</h4>
-        
-        <div class="mb-4 position-relative select-feedback-wrapper">
-            <label for="statusSelect" class="form-label small text-muted fw-bold">Status ändern</label>
-            <div class="position-relative">
-                <select id="statusSelect" class="form-select border-0 bg-surface-subtle fw-bold pe-5" 
-                        data-original="{{ ticket.status }}"
-                        {{ 'disabled' if session.get('role') == 'viewer' }}>
-                    <option value="{{ TicketStatus.OFFEN.value }}" {{ 'selected' if ticket.status == TicketStatus.OFFEN.value }}>{{ TicketStatus.OFFEN.value|status_label|upper }}</option>
-                    <option value="{{ TicketStatus.IN_BEARBEITUNG.value }}" {{ 'selected' if ticket.status == TicketStatus.IN_BEARBEITUNG.value }}>{{ TicketStatus.IN_BEARBEITUNG.value|status_label|upper }}</option>
-                    <option value="{{ TicketStatus.WARTET.value }}" {{ 'selected' if ticket.status == TicketStatus.WARTET.value }} title="Warten auf externe Aktion (Lieferung, Rückruf, ...)">{{ TicketStatus.WARTET.value|status_label|upper }}</option>
-                    <option value="{{ TicketStatus.ERLEDIGT.value }}" {{ 'selected' if ticket.status == TicketStatus.ERLEDIGT.value }}>{{ TicketStatus.ERLEDIGT.value|status_label|upper }}</option>
-                </select>
-                <div class="position-absolute top-50 end-0 translate-middle-y pe-4 d-none select-spinner" style="pointer-events: none;">
-                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                </div>
+
+        <!-- Vorschlag 7: Segmented Controls für Status -->
+        <div class="mb-4" id="statusSection">
+            <label class="form-label small text-muted fw-bold">Status ändern</label>
+            <div class="btn-group w-100 mb-2" role="group" aria-label="Status auswählen" id="statusSegmented"
+                 data-original="{{ ticket.status }}"
+                 {{ 'data-disabled=true' if session.get('role') == 'viewer' }}>
+                <button type="button" class="btn btn-sm btn-outline-secondary {{ 'active' if ticket.status == TicketStatus.OFFEN.value }}"
+                        data-status="{{ TicketStatus.OFFEN.value }}"
+                        {{ 'disabled' if session.get('role') == 'viewer' }}>Offen</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary {{ 'active' if ticket.status == TicketStatus.IN_BEARBEITUNG.value }}"
+                        data-status="{{ TicketStatus.IN_BEARBEITUNG.value }}"
+                        {{ 'disabled' if session.get('role') == 'viewer' }}>In Bearbeitung</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary {{ 'active' if ticket.status == TicketStatus.WARTET.value }}"
+                        data-status="{{ TicketStatus.WARTET.value }}"
+                        {{ 'disabled' if session.get('role') == 'viewer' }}
+                        title="Warten auf externe Aktion (Lieferung, Rückruf, ...)">Wartet</button>
             </div>
+            {% if session.get('role') != 'viewer' %}
+            <button type="button" class="btn btn-sm btn-outline-success w-100 {{ 'active' if ticket.status == TicketStatus.ERLEDIGT.value }}"
+                    id="statusDoneBtn" data-status="{{ TicketStatus.ERLEDIGT.value }}">
+                ✓ Als erledigt markieren
+            </button>
+            {% endif %}
+            <!-- Hidden select for compatibility -->
+            <select id="statusSelect" class="d-none" data-original="{{ ticket.status }}">
+                <option value="{{ TicketStatus.OFFEN.value }}" {{ 'selected' if ticket.status == TicketStatus.OFFEN.value }}>{{ TicketStatus.OFFEN.value|status_label|upper }}</option>
+                <option value="{{ TicketStatus.IN_BEARBEITUNG.value }}" {{ 'selected' if ticket.status == TicketStatus.IN_BEARBEITUNG.value }}>{{ TicketStatus.IN_BEARBEITUNG.value|status_label|upper }}</option>
+                <option value="{{ TicketStatus.WARTET.value }}" {{ 'selected' if ticket.status == TicketStatus.WARTET.value }}>{{ TicketStatus.WARTET.value|status_label|upper }}</option>
+                <option value="{{ TicketStatus.ERLEDIGT.value }}" {{ 'selected' if ticket.status == TicketStatus.ERLEDIGT.value }}>{{ TicketStatus.ERLEDIGT.value|status_label|upper }}</option>
+            </select>
         </div>
 
         <div class="mb-4 position-relative select-feedback-wrapper">
             <label for="assignSelect" class="form-label small text-muted fw-bold">Zuweisung ändern</label>
             <div class="position-relative">
-                <select id="assignSelect" class="form-select border-0 bg-surface-subtle fw-bold pe-5" 
+                <select id="assignSelect" class="form-select border-0 bg-surface-subtle fw-bold pe-5"
                         data-original="{{ ticket.assigned_to_id or ('team_' ~ ticket.assigned_team_id if ticket.assigned_team_id else '') }}"
                         {{ 'disabled' if session.get('role') == 'viewer' }}>
                     <option value="" {% if not ticket.assigned_to_id and not ticket.assigned_team_id %}selected{% endif %}>NICHT ZUGEWIESEN</option>
@@ -47,50 +62,45 @@
             </div>
         </div>
 
+        <!-- Vorschlag 8: Border-Left Callouts für Freigabe -->
         <div class="mb-4" id="approvalSection">
             <label class="form-label small text-muted fw-bold">Freigabe-Status</label>
-            
+
             {% if ticket.approval_status == ApprovalStatus.PENDING.value %}
-                <div class="alert alert-warning py-2 px-3 small mb-2 d-flex align-items-center">
-                    <i class="bi bi-hourglass-split fs-5 me-2"></i>
-                    <div>
-                        <strong>Wartet auf Freigabe</strong><br>
-                        Das Ticket ist für Bearbeitungen gesperrt.
-                    </div>
+                <div class="border-start border-3 border-warning ps-3 py-2 mb-2 small">
+                    <strong>Wartet auf Freigabe</strong><br>
+                    <span class="text-muted">Ticket ist für Bearbeitungen gesperrt.</span>
                 </div>
-                
+
                 {% if session.get('role') in [WorkerRole.ADMIN.value, WorkerRole.HR.value, WorkerRole.MANAGEMENT.value] %}
                 <div class="d-flex gap-2 mt-2">
                     <button type="button" class="btn btn-sm btn-success flex-grow-1 approve-ticket-btn" data-ticket-id="{{ ticket.id }}">
-                        <i class="bi bi-check-lg me-1"></i>Freigeben
+                        Freigeben
                     </button>
                     <button type="button" class="btn btn-sm btn-danger flex-grow-1 reject-ticket-btn" data-ticket-id="{{ ticket.id }}">
-                        <i class="bi bi-x-lg me-1"></i>Ablehnen
+                        Ablehnen
                     </button>
                 </div>
                 {% endif %}
-                
+
             {% elif ticket.approval_status == ApprovalStatus.APPROVED.value %}
-                <div class="badge bg-success-subtle text-success w-100 p-2 text-start d-flex align-items-center mb-0 border border-success-subtle">
-                    <i class="bi bi-check-circle-fill fs-5 me-2"></i>
-                    <div>
-                        <strong class="d-block">Freigegeben</strong>
-                        <span class="x-small fw-normal">Am {{ ticket.approved_at|local_time|datetime('%d.%m.%Y') }}</span>
-                    </div>
+                <div class="border-start border-3 border-success ps-3 py-2 mb-2 small">
+                    <strong class="text-success">Freigegeben</strong>
+                    <span class="text-muted d-block" style="font-size: 0.75rem;">Am {{ ticket.approved_at|local_time|datetime('%d.%m.%Y') }}</span>
                 </div>
-                
+
             {% elif ticket.approval_status == ApprovalStatus.REJECTED.value %}
-                <div class="alert alert-danger py-2 px-3 small mb-2">
-                    <div class="fw-bold"><i class="bi bi-x-circle-fill me-1"></i>Freigabe abgelehnt</div>
-                    <div class="text-meta mt-1">{{ ticket.reject_reason }}</div>
+                <div class="border-start border-3 border-danger ps-3 py-2 mb-2 small">
+                    <strong class="text-danger">Freigabe abgelehnt</strong>
+                    <div class="text-muted mt-1" style="font-size: 0.75rem;">{{ ticket.reject_reason }}</div>
                 </div>
                 {% if session.get('role') != WorkerRole.VIEWER.value %}
                 <button class="btn btn-sm btn-outline-secondary w-100 mt-2 request-approval-btn" data-ticket-id="{{ ticket.id }}">Erneut Freigabe anfordern</button>
                 {% endif %}
-                
+
             {% else %}
-                <div class="badge bg-secondary-subtle text-secondary w-100 p-2 text-start d-flex align-items-center mb-2">
-                    <i class="bi bi-dash-circle fs-5 me-2"></i> Keine Freigabe erforderlich
+                <div class="border-start border-3 border-secondary ps-3 py-2 mb-2 small text-muted">
+                    Keine Freigabe erforderlich
                 </div>
                 {% if session.get('role') != WorkerRole.VIEWER.value %}
                 <button class="btn btn-sm btn-outline-primary w-100 request-approval-btn" data-ticket-id="{{ ticket.id }}">Freigabe anfordern</button>
@@ -98,41 +108,12 @@
             {% endif %}
         </div>
 
-        <div class="mb-3 px-1">
-            <small class="text-muted d-block mb-1 x-small text-uppercase ls-wide">Aktuelle Zuweisung</small>
-            <div class="d-flex align-items-center gap-2">
-                <div class="rounded-circle {{ 'bg-primary' if (ticket.assigned_to_id or ticket.assigned_team_id) else 'bg-secondary' }} opacity-75" style="width: 8px; height: 8px;"></div>
-                <span id="ticketAssigneeBadge" class="small fw-semibold {{ 'text-dark' if (ticket.assigned_to_id or ticket.assigned_team_id) else 'text-muted' }} d-block text-truncate">
-                    {% if ticket.assigned_to_id %}
-                        {{ (ticket.assigned_to.name if ticket.assigned_to else 'Unbekannt')|upper }}
-                    {% elif ticket.assigned_team_id %}
-                        TEAM: {{ (ticket.assigned_team.name if ticket.assigned_team else 'Unbekannt')|upper }}
-                    {% else %}
-                        NOCH NICHT ZUGEWIESEN
-                    {% endif %}
-                </span>
-            </div>
-        </div>
-
-        {% if ticket.recurrence_rule %}
-        <div class="mb-3 px-1 mt-3">
-            <small class="text-muted d-block mb-1 x-small text-uppercase ls-wide">Serienticket</small>
-            <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-arrow-repeat text-primary"></i>
-                <span class="small fw-semibold text-dark d-block">
-                    {{ ticket.recurrence_rule|capitalize }}
-                    {% if ticket.next_recurrence_date %}
-                    <br><small class="text-muted fw-normal">Nächstes: {{ ticket.next_recurrence_date.strftime('%d.%m.%Y') }}</small>
-                    {% endif %}
-                </span>
-            </div>
-        </div>
-        {% endif %}
-
         <hr class="text-muted opacity-25">
+
+        <!-- Kundenkontakt -->
         <div class="mb-2 px-1">
             <div class="d-flex align-items-center justify-content-between mb-2">
-                <small class="text-muted x-small text-uppercase ls-wide"><i class="bi bi-headset me-1"></i>Kundenkontakt</small>
+                <small class="text-muted x-small text-uppercase ls-wide">Kundenkontakt</small>
                 {% if session.get('role') != WorkerRole.VIEWER.value %}
                 <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-muted" data-bs-toggle="collapse" data-bs-target="#contactEditForm" aria-expanded="false" id="contactEditToggle">
                     <i class="bi bi-pencil-square" style="font-size:0.8rem;"></i>
@@ -182,20 +163,16 @@
             {% if session.get('role') != WorkerRole.VIEWER.value %}
             <div class="collapse mt-2" id="contactEditForm">
                 <div class="card card-body p-2 border-info border-opacity-25 bg-info-subtle rounded-3">
+                    <!-- Vorschlag 9: Kompaktes Dropdown statt Radio-Pills -->
                     <div class="mb-2">
                         <label class="form-label fw-bold x-small mb-1">Eingangskanal</label>
-                        <div class="d-flex flex-wrap gap-1" id="editChannelButtons">
-                            <input type="radio" class="btn-check" name="edit_contact_channel" id="ech_none" value="">
-                            <label class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill" style="font-size:0.7rem;" for="ech_none">Keiner</label>
-                            <input type="radio" class="btn-check" name="edit_contact_channel" id="ech_telefon" value="telefon" {{ 'checked' if ticket.contact_channel == 'telefon' }}>
-                            <label class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill" style="font-size:0.7rem;" for="ech_telefon"><i class="bi bi-telephone me-1"></i>Tel.</label>
-                            <input type="radio" class="btn-check" name="edit_contact_channel" id="ech_email" value="email" {{ 'checked' if ticket.contact_channel == 'email' }}>
-                            <label class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill" style="font-size:0.7rem;" for="ech_email"><i class="bi bi-envelope me-1"></i>E-Mail</label>
-                            <input type="radio" class="btn-check" name="edit_contact_channel" id="ech_persoenlich" value="persoenlich" {{ 'checked' if ticket.contact_channel == 'persoenlich' }}>
-                            <label class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill" style="font-size:0.7rem;" for="ech_persoenlich"><i class="bi bi-person-walking me-1"></i>Pers.</label>
-                            <input type="radio" class="btn-check" name="edit_contact_channel" id="ech_petra" value="petra" {{ 'checked' if ticket.contact_channel == 'petra' }}>
-                            <label class="btn btn-outline-secondary btn-sm py-0 px-2 rounded-pill" style="font-size:0.7rem;" for="ech_petra"><i class="bi bi-robot me-1"></i>Petra</label>
-                        </div>
+                        <select class="form-select form-select-sm" id="editContactChannel">
+                            <option value="" {{ 'selected' if not ticket.contact_channel }}>Kein Kanal</option>
+                            <option value="telefon" {{ 'selected' if ticket.contact_channel == 'telefon' }}>📞 Telefon</option>
+                            <option value="email" {{ 'selected' if ticket.contact_channel == 'email' }}>📧 E-Mail</option>
+                            <option value="persoenlich" {{ 'selected' if ticket.contact_channel == 'persoenlich' }}>🚶 Persönlich</option>
+                            <option value="petra" {{ 'selected' if ticket.contact_channel == 'petra' }}>🤖 Hallo Petra</option>
+                        </select>
                     </div>
                     <div class="mb-2">
                         <input type="text" class="form-control form-control-sm" id="editContactName" placeholder="Name des Kunden" value="{{ ticket.contact_name or '' }}">
@@ -214,7 +191,7 @@
                         <input type="datetime-local" class="form-control form-control-sm mb-2" id="editCallbackDue" value="{{ ticket.callback_due|local_time|datetime('%Y-%m-%dT%H:%M') if ticket.callback_due else '' }}">
                     </div>
                     <button type="button" class="btn btn-primary btn-sm rounded-pill w-100" id="saveContactBtn" data-ticket-id="{{ ticket.id }}">
-                        <i class="bi bi-floppy me-1"></i>Speichern
+                        Speichern
                     </button>
                 </div>
             </div>
