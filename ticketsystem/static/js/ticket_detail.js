@@ -33,87 +33,9 @@ document.addEventListener('DOMContentLoaded', function() {
         sel.style.backgroundColor = map[sel.value] || '';
     };
 
+    // Status select is now handled by segmented controls above
     if (statusSelect) {
-        applySelectColor(statusSelect);
         toggleReminderField(statusSelect.value);
-
-        statusSelect.addEventListener('change', async function() {
-            const newStatus = this.value;
-            const originalValue = this.dataset.original;
-
-            // Find spinner in wrapper
-            const wrapper = this.closest('.position-relative');
-            const spinner = wrapper ? wrapper.querySelector('.select-spinner') : null;
-
-            // UX-7: Immediately disable to prevent double-submit race conditions
-            this.disabled = true;
-            this.classList.add('opacity-50');
-            if (spinner) spinner.classList.remove('d-none');
-
-            if (newStatus === 'erledigt') {
-                const confirmed = await window.showConfirm('Ticket abschließen', 'Möchten Sie dieses Ticket wirklich als erledigt markieren?');
-                if (!confirmed) {
-                    this.value = originalValue;
-                    this.disabled = false;
-                    this.classList.remove('opacity-50');
-                    if (spinner) spinner.classList.add('d-none');
-                    return;
-                }
-            }
-            
-            try {
-                const response = await fetch(`${getIngress()}/api/ticket/${ticketId}/status`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify({ status: newStatus })
-                });
-                const data = await response.json();
-                
-                if (spinner) spinner.classList.add('d-none');
-                
-                if (data.success) {
-                    this.dataset.original = newStatus;
-                    this.disabled = false;
-                    this.classList.remove('opacity-50');
-                    applySelectColor(this);
-                    toggleReminderField(newStatus);
-                    
-                    // UX Update: Badge in header
-                    const statusBadge = document.getElementById('ticketStatusBadge');
-                    if (statusBadge) {
-                        const STATUS_LABELS = {
-                            'offen': 'OFFEN',
-                            'in_bearbeitung': 'IN BEARBEITUNG',
-                            'wartet': 'WARTET',
-                            'erledigt': 'ERLEDIGT'
-                        };
-                        statusBadge.textContent = STATUS_LABELS[newStatus] || newStatus.toUpperCase();
-                        
-                        statusBadge.className = 'badge-subtle-danger';
-                        if (newStatus === 'in_bearbeitung') statusBadge.className = 'badge-subtle-warning';
-                        if (newStatus === 'wartet') statusBadge.className = 'badge-subtle-secondary';
-                        if (newStatus === 'erledigt') statusBadge.className = 'badge-subtle-success';
-                    }
-                    window.showUiAlert('Status erfolgreich aktualisiert.', 'success');
-                } else {
-                    window.showUiAlert('Fehler: ' + data.error);
-                    this.disabled = false;
-                    this.classList.remove('opacity-50');
-                    this.value = originalValue;
-                    applySelectColor(this);
-                }
-            } catch (error) {
-                if (spinner) spinner.classList.add('d-none');
-                window.showUiAlert('Netzwerkfehler beim Aktualisieren.');
-                this.disabled = false;
-                this.classList.remove('opacity-50');
-                this.value = originalValue;
-                applySelectColor(this);
-            }
-        });
     }
 
     if (assignSelect) {
@@ -176,6 +98,112 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.disabled = false;
                 this.classList.remove('opacity-50');
                 this.value = originalValue;
+            }
+        });
+    }
+
+    // --- Segmented Status Controls (UX Redesign Vorschlag 7) ---
+    const statusSegmented = document.getElementById('statusSegmented');
+    const statusDoneBtn = document.getElementById('statusDoneBtn');
+    const statusHiddenSelect = document.getElementById('statusSelect');
+
+    const updateStatusUI = (newStatus) => {
+        // Update segmented buttons active state
+        if (statusSegmented) {
+            statusSegmented.querySelectorAll('button').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.status === newStatus);
+            });
+        }
+        // Update done button
+        if (statusDoneBtn) {
+            statusDoneBtn.classList.toggle('active', newStatus === 'erledigt');
+        }
+        // Update hidden select for compatibility
+        if (statusHiddenSelect) {
+            statusHiddenSelect.value = newStatus;
+            statusHiddenSelect.dataset.original = newStatus;
+        }
+        // Update badge in header
+        const statusBadge = document.getElementById('ticketStatusBadge');
+        if (statusBadge) {
+            const STATUS_LABELS = { 'offen': 'OFFEN', 'in_bearbeitung': 'IN BEARBEITUNG', 'wartet': 'WARTET', 'erledigt': 'ERLEDIGT' };
+            statusBadge.textContent = STATUS_LABELS[newStatus] || newStatus.toUpperCase();
+            statusBadge.className = 'badge-subtle-danger';
+            if (newStatus === 'in_bearbeitung') statusBadge.className = 'badge-subtle-warning';
+            if (newStatus === 'wartet') statusBadge.className = 'badge-subtle-secondary';
+            if (newStatus === 'erledigt') statusBadge.className = 'badge-subtle-success';
+        }
+        toggleReminderField(newStatus);
+    };
+
+    const sendStatusChange = async (newStatus, btn) => {
+        const original = statusHiddenSelect ? statusHiddenSelect.dataset.original : '';
+        btn.disabled = true;
+        btn.classList.add('opacity-50');
+
+        try {
+            const response = await fetch(`${getIngress()}/api/ticket/${ticketId}/status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ status: newStatus })
+            });
+            const data = await response.json();
+            if (data.success) {
+                updateStatusUI(newStatus);
+                window.showUiAlert('Status erfolgreich aktualisiert.', 'success');
+            } else {
+                window.showUiAlert('Fehler: ' + data.error);
+                updateStatusUI(original);
+            }
+        } catch (error) {
+            window.showUiAlert('Netzwerkfehler beim Aktualisieren.');
+            updateStatusUI(original);
+        } finally {
+            btn.disabled = false;
+            btn.classList.remove('opacity-50');
+        }
+    };
+
+    if (statusSegmented) {
+        statusSegmented.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (this.classList.contains('active')) return;
+                sendStatusChange(this.dataset.status, this);
+            });
+        });
+    }
+    if (statusDoneBtn) {
+        statusDoneBtn.addEventListener('click', async function() {
+            if (this.classList.contains('active')) return;
+            const confirmed = await window.showConfirm('Ticket abschließen', 'Möchten Sie dieses Ticket wirklich als erledigt markieren?');
+            if (!confirmed) return;
+            sendStatusChange('erledigt', this);
+        });
+    }
+
+    // --- Description Truncate (UX Redesign Vorschlag 2) ---
+    const descWrapper = document.getElementById('descriptionWrapper');
+    const descToggle = document.getElementById('descriptionToggle');
+    const descGradient = document.getElementById('descriptionGradient');
+    if (descWrapper && descToggle) {
+        const checkOverflow = () => {
+            if (descWrapper.scrollHeight > 130) {
+                descGradient.classList.remove('d-none');
+                descToggle.classList.remove('d-none');
+            }
+        };
+        checkOverflow();
+        let expanded = false;
+        descToggle.addEventListener('click', () => {
+            expanded = !expanded;
+            if (expanded) {
+                descWrapper.style.maxHeight = descWrapper.scrollHeight + 'px';
+                descGradient.classList.add('d-none');
+                descToggle.textContent = 'Weniger anzeigen';
+            } else {
+                descWrapper.style.maxHeight = '120px';
+                descGradient.classList.remove('d-none');
+                descToggle.textContent = 'Mehr lesen';
             }
         });
     }
@@ -266,37 +294,44 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
 
                     // AJAX UI-Updates WITHOUT Reload
-                    // 1. Order Reference (SEC-05: DOM API to prevent XSS)
+                    // 1. Order Reference – Grid Badge (SEC-05: DOM API to prevent XSS)
                     const orderWrapper = document.getElementById('staticOrderRefWrapper');
                     if (orderWrapper) {
                         orderWrapper.textContent = '';
                         if (newOrderRef) {
-                            orderWrapper.appendChild(document.createTextNode('\u2022 '));
-                            const badge = document.createElement('span');
-                            badge.className = 'badge bg-light text-dark border';
-                            const icon = document.createElement('i');
-                            icon.className = 'bi bi-hash me-1';
-                            badge.appendChild(icon);
-                            badge.appendChild(document.createTextNode(newOrderRef));
-                            orderWrapper.appendChild(badge);
+                            const label = document.createElement('small');
+                            label.className = 'text-muted x-small text-uppercase d-block';
+                            label.style.cssText = 'font-size: 0.6rem; line-height: 1;';
+                            label.textContent = 'Auftrag';
+                            orderWrapper.appendChild(label);
+                            const val = document.createElement('span');
+                            val.className = 'fw-semibold small';
+                            val.textContent = newOrderRef;
+                            orderWrapper.appendChild(val);
                         }
                     }
 
-                    // 2. Due Date (FIX-16: DOM API eliminates innerHTML with date strings)
+                    // 2. Due Date – Grid Badge (FIX-16: DOM API eliminates innerHTML)
                     const dueWrapper = document.getElementById('staticDueWrapper');
                     if (dueWrapper) {
                         dueWrapper.textContent = '';
+                        const label = document.createElement('small');
+                        label.className = 'text-muted x-small text-uppercase d-block';
+                        label.style.cssText = 'font-size: 0.6rem; line-height: 1;';
+                        label.textContent = 'Fällig';
+                        dueWrapper.appendChild(label);
                         if (newDue) {
-                            // Date formatting helper for JS (YYYY-MM-DD -> DD.MM.YYYY)
                             const parts = newDue.split('-');
                             const formatted = `${parts[2]}.${parts[1]}.${parts[0]}`;
-                            dueWrapper.appendChild(document.createTextNode('Fällig am '));
                             const dateSpan = document.createElement('span');
-                            dateSpan.className = 'fw-bold';
+                            dateSpan.className = 'fw-semibold small';
                             dateSpan.textContent = formatted;
                             dueWrapper.appendChild(dateSpan);
                         } else {
-                            dueWrapper.textContent = 'Keine Deadline';
+                            const noDate = document.createElement('span');
+                            noDate.className = 'small text-muted';
+                            noDate.textContent = 'Keine Deadline';
+                            dueWrapper.appendChild(noDate);
                         }
                     }
 
@@ -310,9 +345,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             const span = document.createElement('span');
                             span.className = 'badge bg-secondary-subtle text-secondary rounded-pill fw-normal';
                             span.style.fontSize = '0.7rem';
-                            const icon = document.createElement('i');
-                            icon.className = 'bi bi-tag me-1';
-                            span.appendChild(icon);
                             span.appendChild(document.createTextNode(tag));
                             tagsWrapper.appendChild(span);
                         });
@@ -679,8 +711,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     saveContactBtn.addEventListener('click', async function() {
-        const channelEl = document.querySelector('input[name="edit_contact_channel"]:checked');
-        const channel = channelEl ? channelEl.value : '';
+        const channelSelect = document.getElementById('editContactChannel');
+        const channel = channelSelect ? channelSelect.value : '';
         const name = document.getElementById('editContactName')?.value.trim() || '';
         const phone = document.getElementById('editContactPhone')?.value.trim() || '';
         const email = document.getElementById('editContactEmail')?.value.trim() || '';
@@ -715,15 +747,28 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 window.showUiAlert('Fehler: ' + (data.error || 'Unbekannter Fehler'));
                 this.disabled = false;
-                this.innerHTML = '<i class="bi bi-floppy me-1"></i>Speichern';
+                this.textContent = 'Speichern';
             }
         } catch (e) {
             window.showUiAlert('Netzwerkfehler beim Speichern.');
             this.disabled = false;
-            this.innerHTML = '<i class="bi bi-floppy me-1"></i>Speichern';
+            this.textContent = 'Speichern';
         }
     });
 
     // Note: Duplicate button handler is in ticket_detail.html inline script
     // to avoid issues with JS caching across version updates.
+
+    // --- System Events Toggle (UX Redesign Vorschlag 15) ---
+    const toggleEventsBtn = document.getElementById('toggleSystemEvents');
+    if (toggleEventsBtn) {
+        let eventsVisible = true;
+        toggleEventsBtn.addEventListener('click', () => {
+            eventsVisible = !eventsVisible;
+            document.querySelectorAll('.system-event').forEach(el => {
+                el.classList.toggle('d-none', !eventsVisible);
+            });
+            toggleEventsBtn.textContent = eventsVisible ? 'System-Events ausblenden' : 'System-Events anzeigen';
+        });
+    }
 });

@@ -2,41 +2,75 @@
     <div class="card-body p-4">
         <div class="d-flex justify-content-between align-items-start mb-3">
             <!-- Static View -->
-            <div id="ticketHeaderStatic" class="{{ 'd-none' if edit_mode else '' }}">
-                <div class="d-flex align-items-center mb-1">
-                    <h1 class="h3 fw-bold mb-0 me-3" id="staticTitle">{{ ticket.title }}</h1>
+            <div id="ticketHeaderStatic" class="{{ 'd-none' if edit_mode else '' }} flex-grow-1">
+                <div class="d-flex align-items-center mb-2">
+                    <h1 class="h3 fw-bold mb-0 me-auto" id="staticTitle">{{ ticket.title }}</h1>
                     {% if session.get('role') != 'viewer' %}
-                    <button type="button" class="btn btn-sm btn-link text-secondary text-decoration-none rounded-pill px-2" id="editTicketBtn" aria-label="Ticket bearbeiten">
-                        <i class="bi bi-pencil-square me-1"></i> Bearbeiten
+                    <button type="button" class="btn btn-sm btn-link text-secondary text-decoration-none rounded-circle p-1 ms-2" id="editTicketBtn" aria-label="Ticket bearbeiten" title="Bearbeiten">
+                        <i class="bi bi-pencil-square"></i>
                     </button>
-                    <button type="button" class="btn btn-sm btn-link text-secondary text-decoration-none rounded-pill px-2" id="duplicateTicketBtn" aria-label="Ticket duplizieren" data-ticket-id="{{ ticket.id }}" title="Ticket duplizieren (Kopie ohne Kommentare)">
-                        <i class="bi bi-files me-1"></i> Duplizieren
-                    </button>
+                    <div class="dropdown ms-1">
+                        <button class="btn btn-sm btn-link text-secondary text-decoration-none rounded-circle p-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Weitere Aktionen">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-3">
+                            <li><button type="button" class="dropdown-item small" id="duplicateTicketBtn" data-ticket-id="{{ ticket.id }}"><i class="bi bi-files me-2"></i>Duplizieren</button></li>
+                        </ul>
+                    </div>
                     {% endif %}
                 </div>
-                <p class="text-meta small mb-0">
-                    Ticket #{{ ticket.id }} 
-                    <span id="staticOrderRefWrapper">
+                <!-- Metadata Grid -->
+                <div class="d-flex flex-wrap gap-2 mb-2" id="metadataGrid">
+                    <div class="bg-surface-subtle rounded-3 px-2 py-1">
+                        <small class="text-muted x-small text-uppercase d-block" style="font-size: 0.6rem; line-height: 1;">Ticket</small>
+                        <span class="fw-semibold small">#{{ ticket.id }}</span>
+                    </div>
+                    <div class="bg-surface-subtle rounded-3 px-2 py-1" id="staticOrderRefWrapper">
                         {% if ticket.order_reference %}
-                        • <span class="badge bg-light text-dark border"><i class="bi bi-hash me-1"></i>{{ ticket.order_reference }}</span>
+                        <small class="text-muted x-small text-uppercase d-block" style="font-size: 0.6rem; line-height: 1;">Auftrag</small>
+                        <span class="fw-semibold small">{{ ticket.order_reference }}</span>
                         {% endif %}
-                    </span>
-                    • <span id="staticDueWrapper">
+                    </div>
+                    <div class="bg-surface-subtle rounded-3 px-2 py-1" id="staticDueWrapper">
+                        <small class="text-muted x-small text-uppercase d-block" style="font-size: 0.6rem; line-height: 1;">Fällig</small>
                         {% if ticket.due_date %}
-                        Fällig am <span class="fw-bold">{{ ticket.due_date|local_time|datetime('%d.%m.%Y') }}</span>
+                        <span class="fw-semibold small">{{ ticket.due_date|local_time|datetime('%d.%m.%Y') }}</span>
                         {% else %}
-                        Keine Deadline
+                        <span class="small text-muted">Keine Deadline</span>
                         {% endif %}
-                    </span>
+                    </div>
+                    <div class="bg-surface-subtle rounded-3 px-2 py-1">
+                        <small class="text-muted x-small text-uppercase d-block" style="font-size: 0.6rem; line-height: 1;">Erstellt</small>
+                        <span class="small">{{ ticket.created_at|local_time|datetime('%d.%m.%Y') }}</span>
+                    </div>
                     {% if ticket.status == TicketStatus.WARTET.value and ticket.reminder_date %}
-                    • <span class="text-primary" id="staticReminderWrapper">
-                        <i class="bi bi-alarm me-1"></i>Wiedervorlage am <span class="fw-bold">{{ ticket.reminder_date|local_time|datetime('%d.%m.%Y') }}</span>
-                    </span>
+                    <div class="rounded-3 px-2 py-1 border-start border-3 border-primary bg-primary-subtle" id="staticReminderWrapper">
+                        <small class="text-primary x-small text-uppercase d-block" style="font-size: 0.6rem; line-height: 1;"><i class="bi bi-alarm me-1"></i>Wiedervorlage</small>
+                        <span class="fw-semibold small text-primary">{{ ticket.reminder_date|local_time|datetime('%d.%m.%Y') }}</span>
+                    </div>
                     {% endif %}
-                    • Erstellt am {{ ticket.created_at|local_time|datetime }}
-                </p>
+                    <!-- Read-Only Metadaten aus Sidebar migriert (Vorschlag 6) -->
+                    <div class="bg-surface-subtle rounded-3 px-2 py-1" id="headerAssigneeWrapper">
+                        <small class="text-muted x-small text-uppercase d-block" style="font-size: 0.6rem; line-height: 1;">Zugewiesen</small>
+                        <span class="fw-semibold small" id="ticketAssigneeBadge">
+                            {% if ticket.assigned_to_id %}
+                                {{ (ticket.assigned_to.name if ticket.assigned_to else 'Unbekannt') }}
+                            {% elif ticket.assigned_team_id %}
+                                Team: {{ (ticket.assigned_team.name if ticket.assigned_team else 'Unbekannt') }}
+                            {% else %}
+                                <span class="text-muted">Nicht zugewiesen</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% if ticket.recurrence_rule %}
+                    <div class="bg-surface-subtle rounded-3 px-2 py-1">
+                        <small class="text-muted x-small text-uppercase d-block" style="font-size: 0.6rem; line-height: 1;"><i class="bi bi-arrow-repeat me-1"></i>Serie</small>
+                        <span class="fw-semibold small">{{ ticket.recurrence_rule|capitalize }}</span>
+                    </div>
+                    {% endif %}
+                </div>
                 <!-- Tags Display -->
-                <div id="staticTagsWrapper" class="mt-2 d-flex flex-wrap gap-1">
+                <div id="staticTagsWrapper" class="d-flex flex-wrap gap-1">
                     {% if ticket.is_confidential %}
                     <span class="badge bg-warning-subtle text-warning border border-warning rounded-pill fw-normal" style="font-size: 0.7rem;">
                         <i class="bi bi-lock-fill me-1"></i>Vertraulich
@@ -44,7 +78,7 @@
                     {% endif %}
                     {% for tag in ticket.tags %}
                     <span class="badge bg-secondary-subtle text-secondary rounded-pill fw-normal" style="font-size: 0.7rem;">
-                        <i class="bi bi-tag me-1"></i>{{ tag.name }}
+                        {{ tag.name }}
                     </span>
                     {% endfor %}
                 </div>
@@ -126,7 +160,11 @@
 
         <div class="bg-surface-subtle p-3 rounded-4 mb-2 border border-light-subtle">
             {% if has_full_access %}
-            <p class="mb-0 text-secondary-emphasis" style="white-space: pre-wrap; line-height: 1.6;">{{ ticket.description or 'Keine Beschreibung.' }}</p>
+            <div id="descriptionWrapper" style="max-height: 120px; overflow: hidden; position: relative; transition: max-height 0.3s ease;">
+                <p class="mb-0 text-secondary-emphasis" id="descriptionText" style="white-space: pre-wrap; line-height: 1.6;">{{ ticket.description or 'Keine Beschreibung.' }}</p>
+                <div id="descriptionGradient" class="d-none" style="position: absolute; bottom: 0; left: 0; right: 0; height: 40px; background: linear-gradient(transparent, var(--bg-surface-subtle, #f8f9fa)); pointer-events: none;"></div>
+            </div>
+            <button type="button" id="descriptionToggle" class="btn btn-link btn-sm text-decoration-none p-0 mt-1 d-none" style="font-size: 0.8rem;">Mehr lesen</button>
             {% else %}
             <div class="alert alert-warning mb-0 p-3 rounded-3 d-flex align-items-center">
                 <i class="bi bi-shield-lock-fill fs-4 me-3"></i>
@@ -140,7 +178,7 @@
 
         {% if ticket.attachments and has_full_access %}
         <div class="mt-4">
-            <h4 class="h6 fw-bold mb-3"><i class="bi bi-paperclip me-2"></i>Anhänge</h4>
+            <h4 class="h6 fw-bold mb-3">Anhänge</h4>
             <div class="row g-2">
                 {% for attachment in ticket.attachments %}
                 <div class="col-6 col-md-4 col-lg-3">
