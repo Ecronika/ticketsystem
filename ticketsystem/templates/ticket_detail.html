@@ -12,11 +12,6 @@
         <li class="breadcrumb-item active" aria-current="page">Ticket #{{ ticket.id }}</li>
     </ol>
 </nav>
-<div class="mb-3">
-    <a href="#" id="backBtn" class="btn btn-light btn-sm rounded-pill px-3">
-        <i class="bi bi-arrow-left me-1"></i><span id="backBtnLabel">Zurück</span>
-    </a>
-</div>
 <div id="ticketDetailWrapper" data-ticket-id="{{ ticket.id }}">
 <div class="row g-4">
     <!-- Main Content -->
@@ -63,26 +58,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script nonce="{{ g.csp_nonce }}">
-(function() {
-    var btn = document.getElementById('backBtn');
-    var label = document.getElementById('backBtnLabel');
-    var ref = document.referrer;
-    var ingress = '{{ ingress_path }}';
-    var isInternal = ref && ref !== window.location.href && new URL(ref).origin === window.location.origin;
-    if (isInternal) {
-        btn.href = ref;
-        if (ref.includes('/archive')) { label.textContent = 'Zum Archiv'; }
-        else if (ref.includes('/projects')) { label.textContent = 'Zu den Projekten'; }
-        else if (ref.includes('/approvals')) { label.textContent = 'Zu den Freigaben'; }
-        else if (ref.includes('q=') || ref.includes('tab=')) { label.textContent = 'Zur Suche'; }
-        else { label.textContent = 'Zum Dashboard'; }
-    } else {
-        btn.href = ingress + '{{ url_for("main.index") }}';
-        label.textContent = 'Zum Dashboard';
-    }
-})();
-</script>
 <script src="{{ ingress_path }}{{ url_for('static', filename='js/ticket_detail.js') }}?v={{ config.VERSION }}"></script>
 <script nonce="{{ g.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
