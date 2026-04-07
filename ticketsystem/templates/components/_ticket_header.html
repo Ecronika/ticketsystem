@@ -21,16 +21,20 @@
                 </div>
                 <!-- Metadata Grid -->
                 <div class="d-flex flex-wrap gap-2 mb-2" id="metadataGrid">
+                    <div id="priorityStatic" class="rounded-3 px-2 py-1 bg-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }}-subtle">
+                        <small class="text-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} x-small text-uppercase d-block" style="font-size: 0.6rem; line-height: 1;">Priorität</small>
+                        <span class="fw-semibold small text-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }}">{{ ticket.priority|priority_label }}</span>
+                    </div>
                     <div class="bg-surface-subtle rounded-3 px-2 py-1">
                         <small class="text-muted x-small text-uppercase d-block" style="font-size: 0.6rem; line-height: 1;">Ticket</small>
                         <span class="fw-semibold small">#{{ ticket.id }}</span>
                     </div>
+                    {% if ticket.order_reference %}
                     <div class="bg-surface-subtle rounded-3 px-2 py-1" id="staticOrderRefWrapper">
-                        {% if ticket.order_reference %}
                         <small class="text-muted x-small text-uppercase d-block" style="font-size: 0.6rem; line-height: 1;">Auftrag</small>
                         <span class="fw-semibold small">{{ ticket.order_reference }}</span>
-                        {% endif %}
                     </div>
+                    {% endif %}
                     <div class="bg-surface-subtle rounded-3 px-2 py-1" id="staticDueWrapper">
                         <small class="text-muted x-small text-uppercase d-block" style="font-size: 0.6rem; line-height: 1;">Fällig</small>
                         {% if ticket.due_date %}
@@ -107,6 +111,14 @@
                 </div>
                 <div class="row g-2 mb-3">
                     <div class="col-md-4">
+                        <label class="form-label small fw-bold">Priorität</label>
+                        <select id="editPrioritySelect" class="form-select form-select-sm fw-bold">
+                            <option value="1" {{ 'selected' if ticket.priority == 1 }}>🔥 HOCH</option>
+                            <option value="2" {{ 'selected' if ticket.priority == 2 }}>⚡ MITTEL</option>
+                            <option value="3" {{ 'selected' if ticket.priority == 3 }}>✅ NIEDRIG</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
                         <label class="form-label small fw-bold">Serienticket</label>
                         <select id="editRecurrenceRule" class="form-select form-select-sm">
                             <option value="" {{ 'selected' if not ticket.recurrence_rule }}>Einmalig (keine Serie)</option>
@@ -127,23 +139,6 @@
                 </div>
             </div>
             {% endif %}
-
-            <div class="d-flex flex-column align-items-end gap-2" id="priorityBadgeWrapper">
-                <div id="priorityStatic" class="text-end">
-                    <span class="badge bg-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }}-subtle text-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} rounded-pill px-3 py-2 d-inline-block">
-                         {{ ticket.priority|priority_label }}
-                    </span>
-                </div>
-                {% if session.get('role') != 'viewer' %}
-                <div id="priorityEdit" class="d-none">
-                    <select id="editPrioritySelect" class="form-select form-select-sm rounded-pill fw-bold">
-                        <option value="1" {{ 'selected' if ticket.priority == 1 }}>🔥 HOCH</option>
-                        <option value="2" {{ 'selected' if ticket.priority == 2 }}>⚡ MITTEL</option>
-                        <option value="3" {{ 'selected' if ticket.priority == 3 }}>✅ NIEDRIG</option>
-                    </select>
-                </div>
-                {% endif %}
-            </div>
         </div>
 
         <div class="bg-surface-subtle p-3 rounded-4 mb-2 border border-light-subtle">

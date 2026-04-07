@@ -206,7 +206,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const headerStatic = document.getElementById('ticketHeaderStatic');
     const headerEdit = document.getElementById('ticketHeaderEdit');
     const priorityStatic = document.getElementById('priorityStatic');
-    const priorityEdit = document.getElementById('priorityEdit');
 
     const editTitleInput = document.getElementById('editTitleInput');
     const editPrioritySelect = document.getElementById('editPrioritySelect');
@@ -219,16 +218,12 @@ document.addEventListener('DOMContentLoaded', function() {
         editBtn.addEventListener('click', () => {
             headerStatic.classList.add('d-none');
             headerEdit.classList.remove('d-none');
-            priorityStatic.classList.add('d-none');
-            priorityEdit.classList.remove('d-none');
             editTitleInput.focus();
         });
 
         cancelEditBtn.addEventListener('click', () => {
             headerStatic.classList.remove('d-none');
             headerEdit.classList.add('d-none');
-            priorityStatic.classList.remove('d-none');
-            priorityEdit.classList.add('d-none');
         });
 
         saveBtn.addEventListener('click', async () => {
@@ -273,14 +268,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Update UI
                     document.getElementById('staticTitle').textContent = newTitle;
                     
-                    // Priority Badge Update
-                    const prioContainer = priorityStatic.querySelector('.badge');
+                    // Priority Badge Update (Grid-based)
                     const prioMap = { '1': 'HOCH', '2': 'MITTEL', '3': 'NIEDRIG' };
                     const classMap = { '1': 'danger', '2': 'primary', '3': 'success' };
-                    
-                    if (prioContainer) {
-                        prioContainer.textContent = prioMap[newPrio];
-                        prioContainer.className = `badge bg-${classMap[newPrio]}-subtle text-${classMap[newPrio]} rounded-pill px-3 py-2`;
+                    if (priorityStatic) {
+                        const c = classMap[newPrio];
+                        priorityStatic.className = `rounded-3 px-2 py-1 bg-${c}-subtle`;
+                        const label = priorityStatic.querySelector('small');
+                        const val = priorityStatic.querySelector('span');
+                        if (label) { label.className = `text-${c} x-small text-uppercase d-block`; label.style.cssText = 'font-size: 0.6rem; line-height: 1;'; }
+                        if (val) { val.className = `fw-semibold small text-${c}`; val.textContent = prioMap[newPrio]; }
                     }
 
                     // AJAX UI-Updates WITHOUT Reload
@@ -343,8 +340,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     // 4. Switch back to static view
                     headerStatic.classList.remove('d-none');
                     headerEdit.classList.add('d-none');
-                    priorityStatic.classList.remove('d-none');
-                    priorityEdit.classList.add('d-none');
 
                     window.showUiAlert('Ticket erfolgreich aktualisiert.', 'success');
                 } else {
@@ -749,10 +744,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Note: Duplicate button handler is in ticket_detail.html inline script
     // to avoid issues with JS caching across version updates.
 
-    // --- System Events Toggle (UX Redesign Vorschlag 15) ---
+    // --- System Events Toggle – default: hidden ---
     const toggleEventsBtn = document.getElementById('toggleSystemEvents');
     if (toggleEventsBtn) {
-        let eventsVisible = true;
+        let eventsVisible = false;
+        // Hide on load
+        document.querySelectorAll('.system-event').forEach(el => el.classList.add('d-none'));
         toggleEventsBtn.addEventListener('click', () => {
             eventsVisible = !eventsVisible;
             document.querySelectorAll('.system-event').forEach(el => {
