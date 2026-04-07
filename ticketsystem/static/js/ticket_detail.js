@@ -123,16 +123,6 @@ document.addEventListener('DOMContentLoaded', function() {
             statusHiddenSelect.value = newStatus;
             statusHiddenSelect.dataset.original = newStatus;
         }
-        // Update badge in header
-        const statusBadge = document.getElementById('ticketStatusBadge');
-        if (statusBadge) {
-            const STATUS_LABELS = { 'offen': 'OFFEN', 'in_bearbeitung': 'IN BEARBEITUNG', 'wartet': 'WARTET', 'erledigt': 'ERLEDIGT' };
-            statusBadge.textContent = STATUS_LABELS[newStatus] || newStatus.toUpperCase();
-            statusBadge.className = 'badge-subtle-danger';
-            if (newStatus === 'in_bearbeitung') statusBadge.className = 'badge-subtle-warning';
-            if (newStatus === 'wartet') statusBadge.className = 'badge-subtle-secondary';
-            if (newStatus === 'erledigt') statusBadge.className = 'badge-subtle-success';
-        }
         toggleReminderField(newStatus);
     };
 
