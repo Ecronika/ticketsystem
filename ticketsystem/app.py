@@ -260,10 +260,12 @@ if os.environ.get("RUN_SCHEDULER", "1") == "1" and not scheduler.running:
             BackupService.schedule_backup_job(app)
             from services.scheduler_service import (
                 schedule_recurring_job,
+                schedule_reminder_job,
                 schedule_sla_job,
             )
             schedule_recurring_job(app)
             schedule_sla_job(app)
+            schedule_reminder_job(app)
 
         atexit.register(scheduler.shutdown)
     except RuntimeError as exc:

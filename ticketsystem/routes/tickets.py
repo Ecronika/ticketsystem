@@ -954,34 +954,68 @@ def _apply_confidential_filter(
     )
 
 
+def _has_due_reminder(t: Ticket, today) -> bool:
+    """Return True if ticket is waiting with a reminder due today or earlier."""
+    return (
+        t.status == TicketStatus.WARTET.value
+        and t.reminder_date is not None
+        and t.reminder_date.date() <= today
+    )
+
+
 def _group_by_urgency(
     tickets: list[Ticket],
     now: datetime,
     days_horizon: int,
 ) -> dict[str, list[Ticket]]:
-    """Partition *tickets* into urgency buckets."""
+    """Partition *tickets* into urgency buckets.
+
+    Tickets with status "Wartet" whose ``reminder_date`` is due today or
+    earlier are surfaced in the "today" bucket so they appear in the
+    Kanban board as actionable follow-ups.
+    """
     effective = days_horizon if days_horizon > 0 else 999
     today = now.date()
+
+    # Collect IDs of waiting tickets promoted via reminder_date so they
+    # are not also placed into their due_date bucket.
+    reminder_ids: set[int] = set()
+    reminder_tickets: list[Ticket] = []
+    for t in tickets:
+        if _has_due_reminder(t, today):
+            reminder_ids.add(t.id)
+            reminder_tickets.append(t)
+
     return {
         "overdue": [
-            t for t in tickets if t.due_date and t.due_date.date() < today
+            t for t in tickets
+            if t.id not in reminder_ids
+            and t.due_date and t.due_date.date() < today
         ],
         "today": [
-            t for t in tickets if t.due_date and t.due_date.date() == today
-        ],
+            t for t in tickets
+            if t.id not in reminder_ids
+            and t.due_date and t.due_date.date() == today
+        ] + reminder_tickets,
         "this_week": [
             t for t in tickets
-            if t.due_date and 0 < (t.due_date.date() - today).days <= 7
+            if t.id not in reminder_ids
+            and t.due_date and 0 < (t.due_date.date() - today).days <= 7
         ],
         "upcoming": [
             t for t in tickets
-            if t.due_date
+            if t.id not in reminder_ids
+            and t.due_date
             and 7 < (t.due_date.date() - today).days <= effective
         ],
-        "no_due_date": [t for t in tickets if not t.due_date],
+        "no_due_date": [
+            t for t in tickets
+            if t.id not in reminder_ids and not t.due_date
+        ],
         "later": [
             t for t in tickets
-            if t.due_date and (t.due_date.date() - today).days > effective
+            if t.id not in reminder_ids
+            and t.due_date and (t.due_date.date() - today).days > effective
         ],
     }
 

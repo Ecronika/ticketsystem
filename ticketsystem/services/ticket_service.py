@@ -948,6 +948,8 @@ class TicketService:
                 ticket.priority = int(priority)
             ticket.due_date = due_date
             ticket.order_reference = order_reference
+            if ticket.reminder_date != reminder_date:
+                ticket.reminder_notified_at = None
             ticket.reminder_date = reminder_date
             ticket.updated_at = get_utc_now()
 

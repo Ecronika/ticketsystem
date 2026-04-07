@@ -28,6 +28,11 @@
                         Keine Deadline
                         {% endif %}
                     </span>
+                    {% if ticket.status == TicketStatus.WARTET.value and ticket.reminder_date %}
+                    • <span class="text-primary" id="staticReminderWrapper">
+                        <i class="bi bi-alarm me-1"></i>Wiedervorlage am <span class="fw-bold">{{ ticket.reminder_date|local_time|datetime('%d.%m.%Y') }}</span>
+                    </span>
+                    {% endif %}
                     • Erstellt am {{ ticket.created_at|local_time|datetime }}
                 </p>
                 <!-- Tags Display -->
