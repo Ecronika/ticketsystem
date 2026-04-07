@@ -859,9 +859,10 @@ textarea:focus-visible {
 }
 
 /* === Kanban Priority Left Stripe (v1.21) === */
-.card-prio-high  { border-left: 3px solid var(--color-danger)  !important; }
-.card-prio-medium { border-left: 3px solid var(--color-warning) !important; }
-.card-prio-low   { border-left: 3px solid var(--color-info)    !important; }
+.card-prio-high    { border-left: 3px solid var(--color-danger)  !important; }
+.card-prio-medium  { border-left: 3px solid var(--color-warning) !important; }
+.card-prio-low     { border-left: 3px solid var(--color-info)    !important; }
+.card-prio-reminder { border-left: 3px solid var(--color-primary) !important; }
 
 /* Animate Pulse (Notification Badge) */
 @keyframes pulse-scale {

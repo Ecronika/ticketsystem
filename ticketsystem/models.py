@@ -262,6 +262,7 @@ class Ticket(db.Model):
     due_date = db.Column(db.DateTime, nullable=True)
     order_reference = db.Column(db.String(50), nullable=True)
     reminder_date = db.Column(db.DateTime, nullable=True)
+    reminder_notified_at = db.Column(db.DateTime, nullable=True)
     is_deleted = db.Column(db.Boolean, default=False, nullable=False)
 
     # Team & confidentiality

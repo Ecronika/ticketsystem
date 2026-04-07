@@ -262,6 +262,62 @@ def _notify_admins_for_high_prio(ticket: Ticket, days_overdue: int) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Reminder notifications
+# ---------------------------------------------------------------------------
+
+def process_reminder_notifications(app: Flask) -> None:
+    """Daily job: send in-app notifications for tickets with due reminders.
+
+    Targets tickets where:
+    - status is "wartet"
+    - reminder_date <= today
+    - no notification has been sent yet (reminder_notified_at is NULL)
+    """
+    with app.app_context():
+        now = get_utc_now()
+        try:
+            tickets = _fetch_due_reminder_tickets(now)
+            notified = _notify_reminder_tickets(tickets, now)
+            if notified > 0:
+                db.session.commit()
+                _logger.info(
+                    "Reminder notifications: %d ticket(s) notified.", notified
+                )
+        except Exception as exc:
+            db.session.rollback()
+            _logger.error("Error in reminder notification job: %s", exc)
+
+
+def _fetch_due_reminder_tickets(now: object) -> List[Ticket]:
+    """Return waiting tickets whose reminder_date is due and not yet notified."""
+    return Ticket.query.filter(
+        Ticket.is_deleted == False,  # noqa: E712
+        Ticket.status == TicketStatus.WARTET.value,
+        Ticket.reminder_date.isnot(None),
+        Ticket.reminder_date <= now,
+        Ticket.reminder_notified_at.is_(None),
+    ).all()
+
+
+def _notify_reminder_tickets(tickets: List[Ticket], now: object) -> int:
+    """Send a notification to the assignee for each due reminder ticket."""
+    notified = 0
+    for ticket in tickets:
+        if ticket.assigned_to_id:
+            TicketService.create_notification(
+                user_id=ticket.assigned_to_id,
+                message=(
+                    f"Wiedervorlage: Ticket #{ticket.id} "
+                    f"\u201e{ticket.title}\u201c \u2014 bitte nachfassen."
+                ),
+                link=f"/ticket/{ticket.id}",
+            )
+        ticket.reminder_notified_at = now
+        notified += 1
+    return notified
+
+
+# ---------------------------------------------------------------------------
 # Scheduler registration
 # ---------------------------------------------------------------------------
 
@@ -299,3 +355,21 @@ def schedule_recurring_job(app: Flask) -> None:
         _logger.info("Scheduled job: process_recurring_tickets at 02:00")
     except Exception as exc:
         _logger.error("Failed to schedule recurring tickets job: %s", exc)
+
+
+def schedule_reminder_job(app: Flask) -> None:
+    """Register the reminder notification job (daily at 06:30 UTC)."""
+    try:
+        from extensions import scheduler
+
+        scheduler.add_job(
+            id="process_reminder_notifications_job",
+            func=lambda: process_reminder_notifications(app),
+            trigger="cron",
+            hour=6,
+            minute=30,
+            replace_existing=True,
+        )
+        _logger.info("Scheduled job: process_reminder_notifications at 06:30")
+    except Exception as exc:
+        _logger.error("Failed to schedule reminder notification job: %s", exc)
