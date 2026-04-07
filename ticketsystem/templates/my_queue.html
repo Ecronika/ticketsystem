@@ -106,8 +106,8 @@
 ------------------------------------------------------------- #}
 
 <!-- Jinja-Filter Logik: Wir zerlegen die Listen für das Kanban-Format -->
-{% set col1_tickets = groups.overdue + (groups.today | selectattr('priority', 'equalto', 1) | list) %}
-{% set col2_tickets = groups.today | rejectattr('priority', 'equalto', 1) | list %}
+{% set col1_tickets = groups.overdue %}
+{% set col2_tickets = groups.today %}
 {% if days_horizon > 0 %}
   {# Bei konkretem Zeithorizont: nur Tickets bis zum Horizont + Tickets ohne Datum #}
   {% set col3_tickets = groups.this_week + groups.upcoming + groups.no_due_date %}
