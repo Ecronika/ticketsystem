@@ -1,4 +1,3 @@
-<!-- Vorschlag 14: Reverse Sort + Vorschlag 15: System-Events Toggle -->
 <div class="d-flex justify-content-between align-items-center mb-3 px-2">
     <h3 class="h5 fw-bold mb-0">Verlauf</h3>
     <button type="button" class="btn btn-link btn-sm text-muted text-decoration-none p-0" id="toggleSystemEvents" style="font-size: 0.75rem;">
@@ -8,35 +7,27 @@
 <div class="comment-history mb-4 px-2" id="ticketCommentHistory" style="max-height: 50vh; overflow-y: auto;">
     {% for comment in ticket.comments|sort(attribute='created_at', reverse=True) %}
     {% if comment.is_system_event %}
-    <div class="d-flex align-items-center gap-3 py-1 my-1 px-2 text-muted x-small animate__animated animate__fadeIn system-event">
+    <div class="d-flex align-items-center gap-3 py-1 my-1 px-2 text-muted x-small system-event">
         <div class="flex-shrink-0 rounded-circle bg-surface-subtle border d-flex align-items-center justify-content-center"
-             style="width: 24px; height: 24px;">
-            <i class="bi bi-arrow-right fs-6 opacity-50" aria-hidden="true"></i>
+             style="width: 20px; height: 20px;">
+            <i class="bi bi-arrow-right" style="font-size: 0.6rem;" aria-hidden="true"></i>
         </div>
         <span class="flex-grow-1 fst-italic">{{ comment.text }}</span>
         <span class="text-meta ms-auto text-nowrap">{{ comment.created_at|local_time|datetime('%d.%m. %H:%M') }}</span>
     </div>
     {% else %}
-    <div class="d-flex gap-3 mb-3 {{ 'flex-row-reverse' if comment.author == session.get('worker_name') else '' }} animate__animated animate__fadeIn">
-        <div class="flex-shrink-0 rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center fw-bold shadow-sm"
-             style="width: 36px; height: 36px; font-size: 13px;">
-            {{ comment.author[0]|upper }}
+    <div class="border-bottom py-2 px-1">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="fw-semibold small">{{ comment.author }}</span>
+            <span class="text-muted" style="font-size: 0.7rem;">{{ comment.created_at|local_time|datetime('%d.%m. %H:%M') }}</span>
         </div>
-        <div class="flex-grow-1" style="max-width: 85%;">
-            <div class="card border-0 rounded-3 shadow-sm p-3 {{ 'bg-primary-subtle border-primary-subtle' if comment.author == session.get('worker_name') else 'bg-surface' }}">
-                <div class="d-flex justify-content-between mb-1">
-                    <span class="fw-semibold small {{ 'text-primary' if comment.author != session.get('worker_name') else '' }}">{{ comment.author }}</span>
-                    <span class="text-meta x-small">{{ comment.created_at|local_time|datetime('%d.%m. %H:%M') }}</span>
-                </div>
-                <p class="mb-0 small" style="white-space: pre-wrap;">
-                    {% if has_full_access %}
-                    {{ comment.text }}
-                    {% else %}
-                    <em class="text-muted"><i class="bi bi-lock-fill me-1"></i>Inhalt ausgeblendet</em>
-                    {% endif %}
-                </p>
-            </div>
-        </div>
+        <p class="mb-0 small text-secondary-emphasis" style="white-space: pre-wrap;">
+            {% if has_full_access %}
+            {{ comment.text }}
+            {% else %}
+            <em class="text-muted"><i class="bi bi-lock-fill me-1"></i>Inhalt ausgeblendet</em>
+            {% endif %}
+        </p>
     </div>
     {% endif %}
     {% else %}
