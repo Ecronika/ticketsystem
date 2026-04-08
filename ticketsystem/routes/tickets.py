@@ -81,6 +81,11 @@ def _api_ok(**extra: Any) -> Response:
     return jsonify({"success": True, **extra})
 
 
+def _is_viewer() -> bool:
+    """Return ``True`` if the current session has viewer role."""
+    return session.get("role") == WorkerRole.VIEWER.value
+
+
 def _check_ticket_access(ticket_id: int) -> Ticket | None:
     """Load a ticket and verify access; return ``None`` on failure."""
     ticket = db.session.get(Ticket, ticket_id)
@@ -173,12 +178,18 @@ def _safe_int(val: str | None) -> int | None:
 
 
 def _parse_date(raw: str | None, fmt: str = "%Y-%m-%d") -> datetime | None:
-    """Parse a date string; return ``None`` on failure."""
+    """Parse a date string; return ``None`` on failure.
+
+    Returns the parsed date at 23:59:59 so that due-date comparisons
+    treat the entire day as valid (not overdue at midnight).
+    """
     if not raw:
         return None
     try:
         clean = raw.split("T")[0]
-        return datetime.strptime(clean, fmt)
+        return datetime.strptime(clean, fmt).replace(
+            hour=23, minute=59, second=59
+        )
     except (ValueError, TypeError, IndexError):
         return None
 
@@ -465,6 +476,10 @@ def _public_ticket_view(ticket_id: int) -> tuple[str, int] | str:
 @limiter.limit("20 per minute")
 def _add_comment_view(ticket_id: int) -> Response:
     """Add a comment to a ticket."""
+    if _is_viewer():
+        flash("Keine Berechtigung.", "error")
+        return redirect_to("main.ticket_detail", ticket_id=ticket_id)
+
     ticket = _check_ticket_access(ticket_id)
     if not ticket:
         flash("Ticket nicht gefunden.", "error")
@@ -495,6 +510,9 @@ def _add_comment_view(ticket_id: int) -> Response:
 @limiter.limit("20 per minute")
 def _update_status_api(ticket_id: int) -> tuple[Response, int] | Response:
     """AJAX status update."""
+    if _is_viewer():
+        return _api_error("Keine Berechtigung", 403)
+
     ticket = _check_ticket_access(ticket_id)
     if not ticket:
         return _api_error("Keine Berechtigung", 403)
@@ -511,6 +529,15 @@ def _update_status_api(ticket_id: int) -> tuple[Response, int] | Response:
     valid_statuses = {s.value for s in TicketStatus}
     if new_status not in valid_statuses:
         return _api_error(f"Ungültiger Status: {new_status}", 400)
+
+    if new_status == TicketStatus.ERLEDIGT.value and ticket.checklists:
+        open_items = [c for c in ticket.checklists if not c.is_completed]
+        if open_items:
+            return _api_error(
+                f"Ticket kann nicht geschlossen werden: "
+                f"{len(open_items)} offene Checklisten-Aufgabe(n).",
+                400,
+            )
 
     try:
         TicketService.update_status(
@@ -530,6 +557,9 @@ def _update_status_api(ticket_id: int) -> tuple[Response, int] | Response:
 @limiter.limit("20 per minute")
 def _assign_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
     """AJAX ticket assignment."""
+    if _is_viewer():
+        return _api_error("Keine Berechtigung", 403)
+
     ticket = _check_ticket_access(ticket_id)
     if not ticket:
         return _api_error("Keine Berechtigung", 403)
@@ -556,6 +586,10 @@ def _assign_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
 @worker_required
 def _assign_to_me_view(ticket_id: int) -> str | Response:
     """Assign the ticket to the current logged-in worker."""
+    if _is_viewer():
+        flash("Keine Berechtigung.", "error")
+        return redirect_to("main.ticket_detail", ticket_id=ticket_id)
+
     ticket = _check_ticket_access(ticket_id)
     if not ticket:
         return render_template("404.html"), 404
@@ -602,6 +636,9 @@ def _reassign_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
 @limiter.limit("20 per minute")
 def _update_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Handle ticket meta updates (title, priority, due_date, tags)."""
+    if _is_viewer():
+        return _api_error("Keine Berechtigung", 403)
+
     ticket = _check_ticket_access(ticket_id)
     if not ticket:
         return _api_error("Keine Berechtigung", 403)
@@ -657,6 +694,9 @@ def _update_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
 @limiter.limit("20 per minute")
 def _update_contact_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Update customer contact fields on a ticket."""
+    if _is_viewer():
+        return _api_error("Keine Berechtigung", 403)
+
     ticket = _check_ticket_access(ticket_id)
     if not ticket:
         return _api_error("Keine Berechtigung", 403)
@@ -710,6 +750,9 @@ def _serve_attachment(attachment_id: int) -> Response | tuple[str, int]:
 @limiter.limit("20 per minute")
 def _delete_attachment_api(attachment_id: int) -> tuple[Response, int] | Response:
     """Delete an attachment from a ticket."""
+    if _is_viewer():
+        return _api_error("Keine Berechtigung", 403)
+
     attachment = db.session.get(Attachment, attachment_id)
     if not attachment:
         return _api_error("Anhang nicht gefunden.", 404)
@@ -741,6 +784,9 @@ def _delete_attachment_api(attachment_id: int) -> tuple[Response, int] | Respons
 @limiter.limit("20 per minute")
 def _request_approval_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Request management approval for a ticket."""
+    if _is_viewer():
+        return _api_error("Keine Berechtigung", 403)
+
     try:
         TicketService.request_approval(
             ticket_id, _session_worker_id(), _session_author(),
@@ -792,6 +838,9 @@ def _reject_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
 @limiter.limit("20 per minute")
 def _add_checklist_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Add a checklist item to a ticket."""
+    if _is_viewer():
+        return _api_error("Keine Berechtigung", 403)
+
     ticket = _check_ticket_access(ticket_id)
     if ticket is None:
         return _api_error("Kein Zugriff auf dieses Ticket.", 403)
@@ -824,6 +873,9 @@ def _add_checklist_api(ticket_id: int) -> tuple[Response, int] | Response:
 @limiter.limit("40 per minute")
 def _toggle_checklist_api(item_id: int) -> tuple[Response, int] | Response:
     """Toggle a checklist item's completion state."""
+    if _is_viewer():
+        return _api_error("Keine Berechtigung", 403)
+
     item = db.session.get(ChecklistItem, item_id)
     if item:
         ticket = _check_ticket_access(item.ticket_id)
@@ -850,6 +902,9 @@ def _toggle_checklist_api(item_id: int) -> tuple[Response, int] | Response:
 @limiter.limit("20 per minute")
 def _delete_checklist_api(item_id: int) -> tuple[Response, int] | Response:
     """Delete a checklist item."""
+    if _is_viewer():
+        return _api_error("Keine Berechtigung", 403)
+
     item = db.session.get(ChecklistItem, item_id)
     if item:
         ticket = _check_ticket_access(item.ticket_id)
@@ -872,6 +927,9 @@ def _delete_checklist_api(item_id: int) -> tuple[Response, int] | Response:
 @limiter.limit("30 per minute")
 def _reorder_checklist_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Reorder checklist items for a ticket."""
+    if _is_viewer():
+        return _api_error("Keine Berechtigung", 403)
+
     ticket = _check_ticket_access(ticket_id)
     if ticket is None:
         return _api_error("Kein Zugriff auf dieses Ticket.", 403)
@@ -895,6 +953,9 @@ def _reorder_checklist_api(ticket_id: int) -> tuple[Response, int] | Response:
 
 def _apply_template_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Apply a checklist template to an existing ticket."""
+    if _is_viewer():
+        return _api_error("Keine Berechtigung", 403)
+
     ticket = _check_ticket_access(ticket_id)
     if ticket is None:
         return _api_error("Kein Zugriff auf dieses Ticket.", 403)
@@ -1159,6 +1220,9 @@ def _api_read_all_notifications() -> Response:
 
 def _bulk_action_api() -> tuple[Response, int] | Response:
     """Handle bulk operations on multiple tickets."""
+    if _is_viewer():
+        return _api_error("Keine Berechtigung", 403)
+
     data: dict[str, Any] = request.get_json(silent=True) or {}
     ticket_ids: list[int] = data.get("ticket_ids", [])
     action: str | None = data.get("action")
@@ -1215,6 +1279,8 @@ def _execute_bulk_action(
             updated += 1
         elif action == "set_due_date":
             updated += _bulk_set_due_date(ticket, data)
+        elif action == "set_priority":
+            updated += _bulk_set_priority(ticket, data)
     return updated
 
 
@@ -1247,6 +1313,20 @@ def _bulk_set_due_date(ticket: Ticket, data: dict[str, Any]) -> int:
     due_date = _parse_date(due_str)
     if due_date:
         ticket.due_date = due_date
+        ticket.updated_at = get_utc_now()
+        return 1
+    return 0
+
+
+def _bulk_set_priority(ticket: Ticket, data: dict[str, Any]) -> int:
+    """Set the priority on *ticket*.  Returns 1 on success, 0 otherwise."""
+    try:
+        new_prio = int(data.get("priority", 0))
+        TicketPriority(new_prio)
+    except (ValueError, TypeError):
+        return 0
+    if ticket.priority != new_prio:
+        ticket.priority = new_prio
         ticket.updated_at = get_utc_now()
         return 1
     return 0
@@ -1493,6 +1573,10 @@ def _push_subscribe_api() -> Response:
     worker_id = _session_worker_id()
     if not worker_id:
         return jsonify({"success": False, "error": "Nicht authentifiziert."}), 401
+
+    worker = db.session.get(Worker, worker_id)
+    if worker and not worker.push_notifications_enabled:
+        return jsonify({"success": False, "error": "Push-Benachrichtigungen sind deaktiviert."}), 403
 
     try:
         from services.push_service import save_subscription

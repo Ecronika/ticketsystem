@@ -75,6 +75,7 @@ def _create_recurring_copies(tickets: List[Ticket], now: object) -> int:
             assigned_team_id=ticket.assigned_team_id,
             is_confidential=ticket.is_confidential,
             due_date=new_due_date,
+            recurrence_rule=None,
             commit=False,
         )
         _clone_checklists(ticket, new_ticket)

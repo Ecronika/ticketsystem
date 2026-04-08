@@ -112,6 +112,56 @@
             </div>
         </div>
 
+        <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
+            <div class="card-header border-0 py-3 px-4 bg-surface-subtle">
+                <h3 class="h5 fw-bold mb-0"><i class="bi bi-phone text-primary me-2"></i> Push-Benachrichtigungen</h3>
+            </div>
+            <div class="card-body p-4">
+                <form action="{{ ingress_path }}{{ url_for('main.profile') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="update_push_notifications">
+                    <div class="form-check form-switch form-switch-lg mb-3">
+                        <input class="form-check-input shadow-none" type="checkbox" role="switch"
+                               name="push_notifications_enabled" id="push_notifications_enabled"
+                               {% if worker.push_notifications_enabled %}checked{% endif %}>
+                        <label class="form-check-label ms-2 fw-bold" for="push_notifications_enabled">
+                            Browser-Push-Benachrichtigungen aktivieren
+                        </label>
+                        <div class="form-text mt-1 text-muted x-small">
+                            Wenn deaktiviert, werden keine Browser-Push-Benachrichtigungen gesendet. Bestehende Abonnements werden entfernt.
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4 shadow-sm fw-bold">
+                        <i class="bi bi-save me-1"></i> Speichern
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
+            <div class="card-header border-0 py-3 px-4 bg-surface-subtle">
+                <h3 class="h5 fw-bold mb-0"><i class="bi bi-envelope text-primary me-2"></i> E-Mail-Adresse</h3>
+            </div>
+            <div class="card-body p-4">
+                <form action="{{ ingress_path }}{{ url_for('main.profile') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="update_email">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold" for="profile_email">E-Mail</label>
+                        <input type="email" class="form-control form-control-sm" id="profile_email"
+                               name="email" value="{{ worker.email or '' }}"
+                               placeholder="name@beispiel.de">
+                        <div class="form-text mt-1 text-muted x-small">
+                            Wird für E-Mail-Benachrichtigungen und Passwortrücksetzung verwendet.
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4 shadow-sm fw-bold">
+                        <i class="bi bi-save me-1"></i> Speichern
+                    </button>
+                </form>
+            </div>
+        </div>
+
         <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
             <div class="card-header border-0 py-3 px-4 bg-surface-subtle">
                 <h3 class="h5 fw-bold mb-0"><i class="bi bi-shield-lock text-primary me-2"></i> Sicherheit</h3>
