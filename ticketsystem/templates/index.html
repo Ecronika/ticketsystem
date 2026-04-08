@@ -362,6 +362,21 @@ document.addEventListener('DOMContentLoaded', function() {
                   this, '<i class="bi bi-trash me-1"></i>Löschen');
     });
 
+    // Search clear button (no page reload)
+    const searchClearBtn = document.getElementById('searchClearBtn');
+    if (searchClearBtn && searchInput) {
+        searchClearBtn.addEventListener('click', function() {
+            searchInput.value = '';
+            clearTimeout(searchTimer);
+            searchForm.submit();
+        });
+    }
+
+    // Auto-submit for filter dropdowns
+    document.querySelectorAll('.auto-submit').forEach(el => {
+        el.addEventListener('change', () => el.form.submit());
+    });
+
 });
 </script>
 {% endblock %}
@@ -391,7 +406,21 @@ document.addEventListener('DOMContentLoaded', function() {
         <h2 class="h4 fw-bold mb-0 display-font">Alle Tickets</h2>
         <p class="text-secondary small mb-0">Triage & Dispatching</p>
     </div>
-    <div class="d-flex align-items-center gap-2">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <!-- Due-date time horizon filter -->
+        <form method="GET" action="{{ ingress_path }}{{ url_for('main.index') }}" class="d-inline-flex align-items-center">
+            <input type="hidden" name="tab" value="{{ active_tab }}">
+            {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+            {% if sort_by %}<input type="hidden" name="sort" value="{{ sort_by }}">{% endif %}
+            {% if sort_dir != 'asc' %}<input type="hidden" name="dir" value="{{ sort_dir }}">{% endif %}
+            <label class="small text-muted me-1 d-none d-md-inline">Fällig in:</label>
+            <select name="days" class="form-select form-select-sm border-0 bg-transparent fw-bold auto-submit" style="width: auto;">
+                <option value="0"  {{ 'selected' if days_horizon == 0  }}>Alle Tickets</option>
+                <option value="7"  {{ 'selected' if days_horizon == 7  }}>7 Tage</option>
+                <option value="14" {{ 'selected' if days_horizon == 14 }}>14 Tage</option>
+                <option value="30" {{ 'selected' if days_horizon == 30 }}>30 Tage</option>
+            </select>
+        </form>
         <!-- Search -->
         <form method="GET" action="{{ ingress_path }}{{ url_for('main.index') }}" class="d-inline-flex" id="dashSearchForm">
             <input type="hidden" name="tab" value="{{ active_tab }}">
@@ -401,7 +430,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search text-muted"></i></span>
                 <input type="text" name="q" id="dashSearch" class="form-control border-start-0 shadow-none" placeholder="Suche (#ID, Titel, Kunde)..." value="{{ query }}" autocomplete="off">
                 {% if query %}
-                <a href="{{ ingress_path }}{{ url_for('main.index', tab=active_tab) }}" class="input-group-text bg-transparent border-start-0 text-muted" title="Suche zurücksetzen"><i class="bi bi-x-lg"></i></a>
+                <button type="button" class="input-group-text bg-transparent border-start-0 text-muted border-0" title="Suche zurücksetzen" id="searchClearBtn" style="cursor: pointer;"><i class="bi bi-x-lg"></i></button>
                 {% endif %}
             </div>
         </form>
@@ -498,9 +527,9 @@ document.addEventListener('DOMContentLoaded', function() {
     {% endif %}
 </div>
 
-<!-- Floating Bulk Action Bar (hidden until checkboxes selected) -->
+<!-- Sticky Bulk Action Bar (hidden until checkboxes selected) -->
 {% if session.get('role') != 'viewer' %}
-<div id="bulkActionBar" class="d-none position-fixed bottom-0 start-50 translate-middle-x mb-4 bg-dark text-white rounded-4 shadow-lg px-4 py-3 align-items-center gap-2 flex-wrap" style="z-index: 1050; max-width: 95vw;">
+<div id="bulkActionBar" class="d-none sticky-top bg-dark text-white rounded-4 shadow-lg px-4 py-3 align-items-center gap-2 flex-wrap mb-3" style="z-index: 1020; top: 4.5rem; max-width: 100%;">
     <span id="bulkCount" class="fw-bold small me-1">0 ausgewählt</span>
     <div class="vr bg-secondary opacity-50 mx-1"></div>
     <select id="bulkStatusSelect" class="form-select form-select-sm bg-dark text-white border-secondary rounded-pill" style="width: auto; min-height: 34px;">

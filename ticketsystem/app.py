@@ -338,9 +338,9 @@ app.register_blueprint(main_bp)
 app.register_blueprint(metrics_bp)
 app.register_blueprint(admin_bp, url_prefix="/admin")
 
-# CSRF exemptions (protected by rate-limiting + PIN hash check)
-csrf.exempt("main.login")
+# CSRF exemptions (protected by rate-limiting + single-use token)
 csrf.exempt("main.recover_pin")
+csrf.exempt("main.reset_pin_email")
 
 
 # ---------------------------------------------------------------------------

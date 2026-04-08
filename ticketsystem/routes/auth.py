@@ -4,6 +4,8 @@ Handles worker authentication, session management, PIN recovery, and
 profile / out-of-office settings.
 """
 
+import hashlib
+import secrets
 from datetime import timedelta
 from functools import wraps
 from typing import Any, Callable, TypeVar
@@ -408,6 +410,113 @@ def _change_pin_view() -> str | WerkzeugResponse:
     return render_template("change_pin.html")
 
 
+_PIN_RESET_EXPIRY_MINUTES = 15
+
+
+@limiter.limit("5 per minute")
+def _forgot_pin_view() -> str | WerkzeugResponse:
+    """Request a PIN reset link via email."""
+    if request.method != "POST":
+        workers = Worker.query.filter(
+            Worker.is_active == True,  # noqa: E712
+            Worker.email.isnot(None),
+            Worker.email != "",
+        ).order_by(Worker.name).all()
+        return render_template("forgot_pin.html", workers=workers)
+
+    worker_id = request.form.get("worker_id")
+    if not worker_id:
+        flash("Bitte wählen Sie einen Mitarbeiter aus.", "warning")
+        return redirect_to("main.forgot_pin")
+
+    worker = db.session.get(Worker, int(worker_id))
+    if not worker or not worker.email:
+        flash("Kein gültiger Mitarbeiter oder keine E-Mail hinterlegt.", "warning")
+        return redirect_to("main.forgot_pin")
+
+    # Generate secure token
+    raw_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    expiry = get_utc_now() + timedelta(minutes=_PIN_RESET_EXPIRY_MINUTES)
+
+    # Store token hash and expiry in SystemSettings
+    SystemSettings.set_setting(
+        f"pin_reset_{worker.id}_hash", token_hash,
+    )
+    SystemSettings.set_setting(
+        f"pin_reset_{worker.id}_expiry", expiry.isoformat(),
+    )
+    db.session.commit()
+
+    # Build reset URL
+    ingress = current_app.config.get("INGRESS_PATH", "")
+    base_url = request.host_url.rstrip("/") + ingress
+    reset_url = f"{base_url}{url_for('main.reset_pin_email', token=raw_token, wid=worker.id)}"
+
+    from services.email_service import EmailService
+    sent = EmailService.send_pin_reset(worker.name, reset_url, worker.email)
+
+    if sent:
+        flash("Ein Link zum Zurücksetzen wurde an Ihre E-Mail gesendet.", "success")
+    else:
+        flash("E-Mail konnte nicht gesendet werden. Bitte kontaktieren Sie den Administrator.", "warning")
+
+    return redirect_to("main.login")
+
+
+@limiter.limit("10 per minute")
+def _reset_pin_email_view() -> str | WerkzeugResponse:
+    """Handle the PIN reset link from email."""
+    token = request.args.get("token", "")
+    wid = request.args.get("wid", type=int)
+
+    if not token or not wid:
+        flash("Ungültiger Reset-Link.", "error")
+        return redirect_to("main.login")
+
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    stored_hash = SystemSettings.get_setting(f"pin_reset_{wid}_hash") or ""
+    expiry_str = SystemSettings.get_setting(f"pin_reset_{wid}_expiry") or ""
+
+    if not stored_hash or token_hash != stored_hash:
+        flash("Ungültiger oder bereits verwendeter Reset-Link.", "error")
+        return redirect_to("main.login")
+
+    from datetime import datetime
+    try:
+        expiry = datetime.fromisoformat(expiry_str)
+    except (ValueError, TypeError):
+        flash("Ungültiger Reset-Link.", "error")
+        return redirect_to("main.login")
+
+    if get_utc_now() > expiry:
+        flash("Der Reset-Link ist abgelaufen.", "error")
+        return redirect_to("main.login")
+
+    worker = db.session.get(Worker, wid)
+    if not worker or not worker.is_active:
+        flash("Mitarbeiter nicht gefunden.", "error")
+        return redirect_to("main.login")
+
+    # Invalidate token (single use)
+    SystemSettings.set_setting(f"pin_reset_{wid}_hash", "")
+    SystemSettings.set_setting(f"pin_reset_{wid}_expiry", "")
+
+    # Log worker in and force PIN change
+    session.clear()
+    session["worker_id"] = worker.id
+    session["worker_name"] = worker.name
+    session["is_admin"] = worker.role == WorkerRole.ADMIN.value
+    session["role"] = worker.role or "worker"
+    session.permanent = True
+
+    worker.needs_pin_change = True
+    db.session.commit()
+
+    flash("Bitte setzen Sie jetzt einen neuen PIN.", "success")
+    return redirect_to("main.change_pin")
+
+
 def _profile_view() -> str | WerkzeugResponse:
     """Display and update the worker profile / OOO settings."""
     if not session.get("worker_id"):
@@ -504,6 +613,14 @@ def register_routes(bp: Blueprint) -> None:
     bp.add_url_rule(
         "/change-pin", "change_pin",
         view_func=_change_pin_view, methods=["GET", "POST"],
+    )
+    bp.add_url_rule(
+        "/forgot-pin", "forgot_pin",
+        view_func=_forgot_pin_view, methods=["GET", "POST"],
+    )
+    bp.add_url_rule(
+        "/reset-pin", "reset_pin_email",
+        view_func=_reset_pin_email_view, methods=["GET"],
     )
     bp.add_url_rule(
         "/profile", "profile",

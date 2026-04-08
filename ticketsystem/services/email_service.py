@@ -341,3 +341,61 @@ class EmailService:
             f"{days_overdue} Tag(en) überfällig.\n{url}"
         )
         return _send(recipient_email, subject, html, text)
+
+    @staticmethod
+    def send_meta_change(
+        recipient_name: str,
+        ticket_id: int,
+        changed_by: str,
+        changes: List[str],
+        recipient_email: Optional[str] = None,
+    ) -> bool:
+        """Notify worker about ticket metadata changes."""
+        if not recipient_email:
+            return False
+        subject = f"[TicketSystem] Ticket #{ticket_id} wurde bearbeitet"
+        url = _ticket_url(ticket_id)
+        changes_html = "".join(f"<li>{c}</li>" for c in changes)
+        html = (
+            f"<p>Hallo <strong>{recipient_name}</strong>,</p>"
+            f"<p><strong>{changed_by}</strong> hat Ticket "
+            f"<strong>#{ticket_id}</strong> bearbeitet:</p>"
+            f"<ul>{changes_html}</ul>"
+            f"<p><a href='{url}'>Ticket öffnen →</a></p>"
+            "<hr><p style='color:#888;font-size:0.85em;'>"
+            "TicketSystem — automatische Benachrichtigung</p>"
+        )
+        changes_text = "\n".join(f"  - {c}" for c in changes)
+        text = (
+            f"Hallo {recipient_name},\n"
+            f"{changed_by} hat Ticket #{ticket_id} bearbeitet:\n"
+            f"{changes_text}\n{url}"
+        )
+        return _send(recipient_email, subject, html, text)
+
+    @staticmethod
+    def send_pin_reset(
+        worker_name: str,
+        reset_url: str,
+        recipient_email: str,
+    ) -> bool:
+        """Send a PIN reset link to a worker."""
+        if not recipient_email:
+            return False
+        subject = "[TicketSystem] PIN zurücksetzen"
+        html = (
+            f"<p>Hallo <strong>{worker_name}</strong>,</p>"
+            "<p>Sie haben eine PIN-Zurücksetzung angefordert.</p>"
+            f"<p><a href='{reset_url}'>PIN jetzt zurücksetzen →</a></p>"
+            "<p>Dieser Link ist <strong>15 Minuten</strong> gültig.</p>"
+            "<p>Falls Sie diese Anfrage nicht gestellt haben, "
+            "können Sie diese E-Mail ignorieren.</p>"
+            "<hr><p style='color:#888;font-size:0.85em;'>"
+            "TicketSystem — automatische Benachrichtigung</p>"
+        )
+        text = (
+            f"Hallo {worker_name},\n"
+            f"PIN zurücksetzen: {reset_url}\n"
+            "Der Link ist 15 Minuten gültig."
+        )
+        return _send(recipient_email, subject, html, text)

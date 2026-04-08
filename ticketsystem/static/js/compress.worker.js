@@ -31,7 +31,9 @@ self.addEventListener('message', async function(e) {
         bitmap.close();
 
         const compressed = await canvas.convertToBlob({ type: 'image/jpeg', quality: QUALITY });
-        self.postMessage({ id, blob: compressed, fileName });
+        // Always use .jpg extension since we compress to JPEG format
+        const jpgFileName = fileName.replace(/\.[^.]+$/, '.jpg');
+        self.postMessage({ id, blob: compressed, fileName: jpgFileName });
     } catch(err) {
         self.postMessage({ id, error: err.message });
     }

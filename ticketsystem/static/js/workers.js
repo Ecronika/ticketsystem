@@ -26,6 +26,18 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         
+        // Loading indicator on save button
+        const editForm = editModalEl.querySelector('form');
+        if (editForm) {
+            editForm.addEventListener('submit', function() {
+                const saveBtn = document.getElementById('editWorkerSaveBtn');
+                if (saveBtn) {
+                    saveBtn.disabled = true;
+                    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Speichern...';
+                }
+            });
+        }
+
         document.querySelectorAll('.reset-pin-trigger').forEach(btn => {
             btn.addEventListener('click', async function() {
                 const confirmed = await window.showConfirm(

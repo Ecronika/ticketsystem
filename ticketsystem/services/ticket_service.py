@@ -545,6 +545,7 @@ class TicketService:
         assigned_worker_id: Optional[int] = None,
         sort_by: Optional[str] = None,
         sort_dir: str = "asc",
+        due_within_days: int = 0,
     ) -> Dict[str, Any]:
         """Fetch tickets for the dashboard with filtering and pagination."""
         query = _base_ticket_query()
@@ -575,6 +576,15 @@ class TicketService:
             query = query.filter(Ticket.created_at >= start_date)
         if end_date:
             query = query.filter(Ticket.created_at <= end_date)
+
+        # Due-within-days filter (show tickets due within N days or overdue)
+        if due_within_days > 0:
+            from datetime import timedelta
+            cutoff = get_utc_now() + timedelta(days=due_within_days)
+            query = query.filter(
+                Ticket.due_date.isnot(None),
+                Ticket.due_date <= cutoff,
+            )
 
         # Author filter
         if author_name:
@@ -983,6 +993,9 @@ class TicketService:
                     event_type="META_UPDATE",
                 ))
                 db.session.commit()
+
+                # Notify assigned worker and watchers about changes
+                _notify_meta_change(ticket, author_name, author_id, changes)
 
             return ticket
         except SQLAlchemyError as exc:
@@ -1428,6 +1441,47 @@ def _collect_meta_changes(
             f"-> {_format_date(reminder_date, 'Keine')}"
         )
     return changes
+
+
+def _notify_meta_change(
+    ticket: Ticket,
+    author_name: str,
+    author_id: Optional[int],
+    changes: List[str],
+) -> None:
+    """Send in-app notifications to assigned worker when ticket meta changes."""
+    recipients: List[int] = []
+    # Notify assigned worker (if not the editor)
+    if ticket.assigned_to_id and ticket.assigned_to_id != author_id:
+        recipients.append(ticket.assigned_to_id)
+
+    change_text = ", ".join(changes)
+    for wid in recipients:
+        try:
+            db.session.add(Notification(
+                user_id=wid,
+                message=(
+                    f"{author_name} hat Ticket #{ticket.id} bearbeitet: "
+                    f"{change_text[:200]}"
+                ),
+                link=f"/ticket/{ticket.id}",
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+    # Also send email notification to assigned worker
+    if ticket.assigned_to_id and ticket.assigned_to_id != author_id:
+        worker = db.session.get(Worker, ticket.assigned_to_id)
+        if worker and worker.email:
+            try:
+                from services.email_service import EmailService
+                EmailService.send_meta_change(
+                    worker.name, ticket.id, author_name,
+                    changes, worker.email,
+                )
+            except Exception:
+                pass
 
 
 def _sync_tags(ticket: Ticket, tags: List[str]) -> Optional[str]:
