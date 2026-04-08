@@ -124,10 +124,10 @@
         <!-- List of existing checklists -->
         <div id="checklist-container" class="mb-3">
             {% set parents = ticket.checklists|selectattr('depends_on_item_id', 'none')|list %}
-            {% for item in parents|sort(attribute='id') %}
+            {% for item in parents|sort(attribute='sort_order') %}
                 {{ render_item(item, False) }}
                 {% set children = ticket.checklists|selectattr('depends_on_item_id', 'equalto', item.id)|list %}
-                {% for child in children|sort(attribute='id') %}
+                {% for child in children|sort(attribute='sort_order') %}
                     {{ render_item(child, True) }}
                 {% endfor %}
             {% else %}

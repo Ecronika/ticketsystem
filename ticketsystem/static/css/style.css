@@ -880,3 +880,49 @@ textarea:focus-visible {
 [data-theme="dark"] #lightboxDialog::backdrop {
     background: rgba(0, 0, 0, 0.9);
 }
+
+/* ===== Print Styles ===== */
+@media print {
+    /* Hide non-essential UI elements */
+    .navbar, footer, .breadcrumb, #bulkActionBar,
+    .btn, button, .modal, .collapse, #commentForm,
+    .form-control, .form-select, select, .toast-container,
+    #reloadHint, .select-feedback-wrapper .select-spinner,
+    #lightboxDialog, .no-print, .checklist-delete,
+    #advancedChecklistOptions, #apply-template-btn,
+    #apply-template-select, .reset-pin-section,
+    #contactEditToggle, #contactEditForm {
+        display: none !important;
+    }
+    /* Reset background and ensure readable text */
+    body {
+        background: white !important;
+        color: black !important;
+        font-size: 11pt;
+    }
+    .card {
+        border: 1px solid #ccc !important;
+        box-shadow: none !important;
+        break-inside: avoid;
+    }
+    .card-body { padding: 0.5rem !important; }
+    /* Full width layout */
+    .container-fluid, .container { max-width: 100% !important; padding: 0 !important; }
+    .row { display: block !important; }
+    .col-lg-8, .col-xl-9, .col-lg-4, .col-xl-3 {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: none !important;
+    }
+    /* Ensure sidebar prints after main content */
+    .order-1 { order: 2 !important; }
+    .order-2 { order: 1 !important; }
+    /* Keep links visible */
+    a { color: black !important; text-decoration: none !important; }
+    a[href]:after { content: none !important; }
+    /* Checklist items visible */
+    .checklist-item { break-inside: avoid; }
+    .form-check-input { appearance: auto !important; -webkit-appearance: auto !important; }
+    /* Page setup */
+    @page { margin: 1.5cm; size: A4; }
+}

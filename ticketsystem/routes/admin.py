@@ -213,6 +213,11 @@ def _delete_template() -> None:
     """Delete a checklist template."""
     tmpl = db.session.get(ChecklistTemplate, request.form.get("template_id"))
     if tmpl:
+        # Detach template from tickets that reference it before deletion
+        from models import Ticket
+        Ticket.query.filter_by(checklist_template_id=tmpl.id).update(
+            {"checklist_template_id": None}
+        )
         db.session.delete(tmpl)
         db.session.commit()
         flash("Vorlage gelöscht.", "success")

@@ -626,6 +626,57 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Drag & Drop sorting for checklist items (SortableJS)
+    const checklistContainer = document.getElementById('checklist-container');
+    if (checklistContainer && typeof Sortable !== 'undefined') {
+        Sortable.create(checklistContainer, {
+            animation: 150,
+            handle: '.checklist-item',
+            draggable: '.checklist-item',
+            ghostClass: 'bg-primary-subtle',
+            onEnd: async function() {
+                const items = checklistContainer.querySelectorAll('.checklist-item[data-id]');
+                const order = Array.from(items).map(el => parseInt(el.dataset.id));
+                try {
+                    await fetch(`${ingress}/api/ticket/${tId}/checklist/reorder`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                        body: JSON.stringify({ order })
+                    });
+                } catch (e) {
+                    // Silently fail - order is visual until next reload
+                }
+            }
+        });
+    }
+
+    // Attachment deletion
+    document.querySelectorAll('.delete-attachment-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const attachmentId = this.dataset.attachmentId;
+            const confirmed = window.showConfirm
+                ? await window.showConfirm('Anhang löschen?', 'Möchten Sie diesen Anhang wirklich löschen? Dies kann nicht rückgängig gemacht werden.', true)
+                : confirm('Anhang wirklich löschen?');
+            if (!confirmed) return;
+
+            try {
+                const resp = await fetch(`${ingress}/api/attachment/${attachmentId}`, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRFToken': csrfToken }
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    this.closest('.col-6').remove();
+                    if (window.showUiAlert) window.showUiAlert('Anhang gelöscht.', 'success');
+                } else {
+                    if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Löschen fehlgeschlagen'), 'danger');
+                }
+            } catch (e) {
+                if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.', 'danger');
+            }
+        });
+    });
 });
 
 // CSP-Safe Event Listeners (v1.26.4 Hardening)

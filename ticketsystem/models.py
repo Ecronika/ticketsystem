@@ -194,6 +194,7 @@ class ChecklistItem(db.Model):
         remote_side="ChecklistItem.id",
         backref="dependent_items",
     )
+    sort_order = db.Column(db.Integer, default=0, nullable=False, server_default="0")
 
     def __repr__(self) -> str:
         return f"<ChecklistItem {self.title}>"
@@ -274,7 +275,7 @@ class Ticket(db.Model):
     recurrence_rule = db.Column(db.String(50), nullable=True)
     next_recurrence_date = db.Column(db.DateTime, nullable=True)
     checklist_template_id = db.Column(
-        db.Integer, db.ForeignKey("checklist_template.id"), nullable=True
+        db.Integer, db.ForeignKey("checklist_template.id", ondelete="SET NULL"), nullable=True
     )
     checklist_template = db.relationship(
         "ChecklistTemplate", backref="legacy_tickets"

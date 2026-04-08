@@ -204,6 +204,9 @@ def _dashboard_view() -> str | Response:
     if sort_dir not in ("asc", "desc"):
         sort_dir = "asc"
 
+    # Time horizon filter (due within N days, 0 = all)
+    days_horizon = request.args.get("days", 0, type=int)
+
     # Active tab: "all" (default), "unassigned", "callback", "wartet"
     tab = request.args.get("tab", "all")
 
@@ -233,6 +236,7 @@ def _dashboard_view() -> str | Response:
         assigned_worker_id=assigned_worker_id,
         sort_by=sort_by or None,
         sort_dir=sort_dir,
+        due_within_days=days_horizon,
     )
 
     all_workers = Worker.query.filter_by(is_active=True).order_by(Worker.name).all()
@@ -255,6 +259,7 @@ def _dashboard_view() -> str | Response:
         sort_by=sort_by,
         sort_dir=sort_dir,
         per_page=per_page,
+        days_horizon=days_horizon,
     )
 
 
@@ -359,7 +364,10 @@ def _handle_ticket_creation() -> str | Response:
     )
 
     template_id = _safe_int(request.form.get("template_id"))
-    due_date = _parse_date(request.form.get("due_date"))
+    raw_due_date = request.form.get("due_date")
+    due_date = _parse_date(raw_due_date)
+    if raw_due_date and not due_date:
+        flash("Ungültiges Datumsformat für Fälligkeit. Bitte verwenden Sie das Format JJJJ-MM-TT.", "warning")
     callback_due = _parse_callback_due(request.form.get("callback_due", ""))
 
     try:
@@ -531,8 +539,8 @@ def _assign_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
         return lock_err
 
     data: dict[str, Any] = request.get_json(silent=True) or {}
-    worker_id = _safe_int(str(data.get("worker_id", "")))
-    team_id = _safe_int(str(data.get("team_id", "")))
+    worker_id = _safe_int(data.get("worker_id"))
+    team_id = _safe_int(data.get("team_id"))
 
     try:
         TicketService.assign_ticket(
@@ -569,7 +577,7 @@ def _assign_to_me_view(ticket_id: int) -> str | Response:
 def _reassign_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Reassign a single ticket to another worker."""
     data: dict[str, Any] = request.get_json(silent=True) or {}
-    to_worker_id = _safe_int(str(data.get("to_worker_id", "")))
+    to_worker_id = _safe_int(data.get("to_worker_id"))
 
     if not to_worker_id:
         return _api_error("Ziel-Mitarbeiter fehlt.", 400)
@@ -617,8 +625,14 @@ def _update_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
     except (ValueError, TypeError):
         return _api_error(f"Ungültige Priorität: {new_prio}", 400)
 
-    due_date = _parse_date(data.get("due_date"))
-    reminder_date = _parse_date(data.get("reminder_date"))
+    raw_due = data.get("due_date")
+    due_date = _parse_date(raw_due)
+    if raw_due and not due_date:
+        return _api_error("Ungültiges Datumsformat für Fälligkeit.", 400)
+    raw_reminder = data.get("reminder_date")
+    reminder_date = _parse_date(raw_reminder)
+    if raw_reminder and not reminder_date:
+        return _api_error("Ungültiges Datumsformat für Erinnerung.", 400)
 
     try:
         TicketService.update_ticket_meta(
@@ -690,6 +704,33 @@ def _serve_attachment(attachment_id: int) -> Response | tuple[str, int]:
         return "Invalid Path", 400
 
     return send_from_directory(attachments_dir, safe_filename)
+
+
+@worker_required
+@limiter.limit("20 per minute")
+def _delete_attachment_api(attachment_id: int) -> tuple[Response, int] | Response:
+    """Delete an attachment from a ticket."""
+    attachment = db.session.get(Attachment, attachment_id)
+    if not attachment:
+        return _api_error("Anhang nicht gefunden.", 404)
+
+    ticket = attachment.ticket
+    if not ticket:
+        return _api_error("Ticket nicht gefunden.", 404)
+
+    # Only ticket author or admin can delete
+    wid = _session_worker_id()
+    role = session.get("role")
+    if wid != ticket.author_id and role != "admin":
+        return _api_error("Keine Berechtigung.", 403)
+
+    try:
+        db.session.delete(attachment)
+        db.session.commit()
+        return _api_ok()
+    except SQLAlchemyError:
+        current_app.logger.exception("API Error in _delete_attachment_api")
+        return _api_error("Ein interner Fehler ist aufgetreten.")
 
 
 # ------------------------------------------------------------------
@@ -768,12 +809,10 @@ def _add_checklist_api(ticket_id: int) -> tuple[Response, int] | Response:
         item = TicketService.add_checklist_item(
             ticket_id,
             title,
-            _safe_int(str(data.get("assigned_to_id", ""))),
-            assigned_team_id=_safe_int(str(data.get("assigned_team_id", ""))),
+            _safe_int(data.get("assigned_to_id")),
+            assigned_team_id=_safe_int(data.get("assigned_team_id")),
             due_date=_parse_date(data.get("due_date")),
-            depends_on_item_id=_safe_int(
-                str(data.get("depends_on_item_id", "")),
-            ),
+            depends_on_item_id=_safe_int(data.get("depends_on_item_id")),
         )
         return _api_ok(item_id=item.id)
     except SQLAlchemyError:
@@ -826,6 +865,31 @@ def _delete_checklist_api(item_id: int) -> tuple[Response, int] | Response:
         return _api_ok()
     except SQLAlchemyError:
         current_app.logger.exception("API Error in _delete_checklist_api")
+        return _api_error("Ein interner Fehler ist aufgetreten.")
+
+
+@worker_required
+@limiter.limit("30 per minute")
+def _reorder_checklist_api(ticket_id: int) -> tuple[Response, int] | Response:
+    """Reorder checklist items for a ticket."""
+    ticket = _check_ticket_access(ticket_id)
+    if ticket is None:
+        return _api_error("Kein Zugriff auf dieses Ticket.", 403)
+
+    data: dict[str, Any] = request.get_json(silent=True) or {}
+    order = data.get("order", [])
+    if not isinstance(order, list):
+        return _api_error("Ungültige Reihenfolge.", 400)
+
+    try:
+        for idx, item_id in enumerate(order):
+            item = db.session.get(ChecklistItem, item_id)
+            if item and item.ticket_id == ticket_id:
+                item.sort_order = idx
+        db.session.commit()
+        return _api_ok()
+    except SQLAlchemyError:
+        current_app.logger.exception("API Error in _reorder_checklist_api")
         return _api_error("Ein interner Fehler ist aufgetreten.")
 
 
@@ -1168,8 +1232,8 @@ def _bulk_status_change(ticket: Ticket, data: dict[str, Any]) -> int:
 
 def _bulk_reassign(ticket: Ticket, data: dict[str, Any]) -> int:
     """Reassign *ticket*.  Returns 1 on success."""
-    worker_id = _safe_int(str(data.get("worker_id", "")))
-    team_id = _safe_int(str(data.get("team_id", "")))
+    worker_id = _safe_int(data.get("worker_id"))
+    team_id = _safe_int(data.get("team_id"))
     TicketService.assign_ticket(
         ticket.id, worker_id, _session_author(),
         _session_worker_id(), team_id=team_id,
@@ -1583,6 +1647,10 @@ def register_routes(bp: Blueprint) -> None:
         view_func=_delete_checklist_api, methods=["DELETE"],
     )
     bp.add_url_rule(
+        "/api/ticket/<int:ticket_id>/checklist/reorder", "reorder_checklist",
+        view_func=_reorder_checklist_api, methods=["POST"],
+    )
+    bp.add_url_rule(
         "/api/ticket/<int:ticket_id>/status", "update_status",
         view_func=worker_required(_update_status_api), methods=["POST"],
     )
@@ -1621,6 +1689,10 @@ def register_routes(bp: Blueprint) -> None:
     bp.add_url_rule(
         "/attachment/<int:attachment_id>", "serve_attachment",
         view_func=worker_required(_serve_attachment),
+    )
+    bp.add_url_rule(
+        "/api/attachment/<int:attachment_id>", "delete_attachment",
+        view_func=_delete_attachment_api, methods=["DELETE"],
     )
     bp.add_url_rule(
         "/api/notifications", "get_notifications",
