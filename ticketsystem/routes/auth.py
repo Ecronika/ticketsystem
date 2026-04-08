@@ -581,13 +581,20 @@ def _find_valid_token(hashed_tokens: list[str], token: str) -> int:
 
 def _update_email(worker: Worker) -> None:
     """Apply email form data to *worker*."""
-    import re
-
     raw_email = (request.form.get("email") or "").strip()
-    if raw_email and not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", raw_email):
-        from flask import flash as _flash
-        _flash("Ungültige E-Mail-Adresse.", "warning")
-        return
+    if raw_email:
+        parts = raw_email.split("@")
+        valid = (
+            len(parts) == 2
+            and len(parts[0]) > 0
+            and "." in parts[1]
+            and len(parts[1]) >= 3
+            and " " not in raw_email
+        )
+        if not valid:
+            from flask import flash as _flash
+            _flash("Ungültige E-Mail-Adresse.", "warning")
+            return
     worker.email = raw_email or None
     db.session.commit()
 
