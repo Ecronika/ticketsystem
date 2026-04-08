@@ -622,7 +622,10 @@ class TicketService:
         }
         if sort_by and sort_by in _SORT_COLUMNS:
             col = _SORT_COLUMNS[sort_by]
-            order = col.asc() if sort_dir == "asc" else col.desc()
+            if sort_dir == "asc":
+                order = col.asc().nullslast()
+            else:
+                order = col.desc().nullslast()
             focus_pagination = query.order_by(
                 order, Ticket.id.desc()
             ).paginate(page=page, per_page=per_page, error_out=False)

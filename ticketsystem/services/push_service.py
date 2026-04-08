@@ -82,6 +82,10 @@ def delete_subscription(endpoint: str) -> None:
 
 def send_push_to_worker(worker_id: int, title: str, body: str, url: str = "/") -> None:
     """Send a WebPush notification to all subscriptions of *worker_id*."""
+    worker = db.session.get(Worker, worker_id)
+    if worker and not worker.push_notifications_enabled:
+        return
+
     subscriptions = PushSubscription.query.filter_by(worker_id=worker_id).all()
     if not subscriptions:
         return

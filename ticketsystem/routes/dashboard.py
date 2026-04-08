@@ -22,8 +22,9 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from enums import TicketStatus, WorkerRole
 from extensions import Config, db
-from models import Ticket
+from models import Team, Ticket
 from routes.auth import worker_required
+from services.ticket_service import _confidential_filter
 from utils import get_utc_now
 
 _dash_start_time: float = time.time()
@@ -139,7 +140,11 @@ def _compute_summary_counts() -> Tuple[Dict[str, int], str | None]:
         Ticket.is_deleted == False,  # noqa: E712
     )
     if not _is_elevated_role():
-        base = base.filter(Ticket.is_confidential == False)  # noqa: E712
+        worker_id = session.get("worker_id")
+        team_ids = Team.team_ids_for_worker(worker_id) if worker_id else []
+        base = base.filter(
+            db.or_(*_confidential_filter(worker_id, team_ids))
+        )
 
     results = base.group_by(Ticket.status).all()
     count_map: Dict[str, int] = dict(results)
@@ -148,7 +153,11 @@ def _compute_summary_counts() -> Tuple[Dict[str, int], str | None]:
         Ticket.is_deleted == False,  # noqa: E712
     )
     if not _is_elevated_role():
-        last_q = last_q.filter(Ticket.is_confidential == False)  # noqa: E712
+        worker_id = session.get("worker_id")
+        team_ids = Team.team_ids_for_worker(worker_id) if worker_id else []
+        last_q = last_q.filter(
+            db.or_(*_confidential_filter(worker_id, team_ids))
+        )
 
     last_updated = last_q.scalar()
     last_iso: str | None = last_updated.isoformat() if last_updated else None

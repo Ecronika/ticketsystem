@@ -269,6 +269,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // --- Mobile Select All Button ---
+    const selectAllMobile = document.getElementById('bulkSelectAllMobile');
+    if (selectAllMobile) {
+        selectAllMobile.addEventListener('click', function() {
+            const allCbs = document.querySelectorAll('.bulk-select-checkbox');
+            const allChecked = Array.from(allCbs).every(cb => cb.checked);
+            allCbs.forEach(cb => { cb.checked = !allChecked; });
+            if (selectAllCb) selectAllCb.checked = !allChecked;
+            updateBulkBar();
+        });
+    }
+
     async function bulkPost(payload, btn, originalHtml) {
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>...';
@@ -338,6 +350,17 @@ document.addEventListener('DOMContentLoaded', function() {
             payload.worker_id = parseInt(val);
         }
         bulkPost(payload, this, '<i class="bi bi-person-check me-1"></i>Zuweisen');
+    });
+
+    document.getElementById('bulkSetPriorityBtn')?.addEventListener('click', function() {
+        const ids = getChecked();
+        const prio = document.getElementById('bulkPrioritySelect')?.value;
+        if (!ids.length || !prio) {
+            if (window.showUiAlert) window.showUiAlert('Bitte Priorität und Tickets wählen.', 'warning');
+            return;
+        }
+        bulkPost({ ticket_ids: ids, action: 'set_priority', priority: parseInt(prio) },
+                  this, '<i class="bi bi-flag me-1"></i>Priorität setzen');
     });
 
     document.getElementById('bulkSetDueDateBtn')?.addEventListener('click', function() {
@@ -472,6 +495,15 @@ document.addEventListener('DOMContentLoaded', function() {
     </a>
 </div>
 
+<!-- Mobile Select All (visible only on small screens where thead is hidden) -->
+{% if session.get('role') != 'viewer' %}
+<div class="d-block d-md-none mb-2">
+    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill w-100" id="bulkSelectAllMobile">
+        <i class="bi bi-check2-square me-1"></i>Alle auswählen
+    </button>
+</div>
+{% endif %}
+
 <!-- Compact Data Table -->
 <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
     <div class="card-body p-0">
@@ -507,19 +539,19 @@ document.addEventListener('DOMContentLoaded', function() {
         <nav aria-label="Ticket pagination">
             <ul class="pagination pagination-sm mb-0">
                 <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
-                    <a class="page-link rounded-start-pill px-3" href="{{ ingress_path }}{{ url_for('main.index', page=pagination.prev_num, tab=active_tab, q=query, sort=sort_by, dir=sort_dir, per_page=per_page) }}">Vorherige</a>
+                    <a class="page-link rounded-start-pill px-3" href="{{ ingress_path }}{{ url_for('main.index', page=pagination.prev_num, tab=active_tab, q=query, sort=sort_by, dir=sort_dir, per_page=per_page, days=days_horizon) }}">Vorherige</a>
                 </li>
                 {% for p in pagination.iter_pages() %}
                     {% if p %}
                         <li class="page-item {{ 'active' if p == pagination.page }}">
-                            <a class="page-link" href="{{ ingress_path }}{{ url_for('main.index', page=p, tab=active_tab, q=query, sort=sort_by, dir=sort_dir, per_page=per_page) }}">{{ p }}</a>
+                            <a class="page-link" href="{{ ingress_path }}{{ url_for('main.index', page=p, tab=active_tab, q=query, sort=sort_by, dir=sort_dir, per_page=per_page, days=days_horizon) }}">{{ p }}</a>
                         </li>
                     {% else %}
                         <li class="page-item disabled"><span class="page-link">...</span></li>
                     {% endif %}
                 {% endfor %}
                 <li class="page-item {{ 'disabled' if not pagination.has_next }}">
-                    <a class="page-link rounded-end-pill px-3" href="{{ ingress_path }}{{ url_for('main.index', page=pagination.next_num, tab=active_tab, q=query, sort=sort_by, dir=sort_dir, per_page=per_page) }}">Nächste</a>
+                    <a class="page-link rounded-end-pill px-3" href="{{ ingress_path }}{{ url_for('main.index', page=pagination.next_num, tab=active_tab, q=query, sort=sort_by, dir=sort_dir, per_page=per_page, days=days_horizon) }}">Nächste</a>
                 </li>
             </ul>
         </nav>
@@ -559,6 +591,16 @@ document.addEventListener('DOMContentLoaded', function() {
     </select>
     <button type="button" id="bulkAssignBtn" class="btn btn-outline-light btn-sm rounded-pill px-3 fw-bold">
         <i class="bi bi-person-check me-1"></i>Zuweisen
+    </button>
+    <div class="vr bg-secondary opacity-50 mx-1"></div>
+    <select id="bulkPrioritySelect" class="form-select form-select-sm bg-dark text-white border-secondary rounded-pill" style="width: auto; min-height: 34px;">
+        <option value="" disabled selected>Priorität...</option>
+        <option value="1">Hoch</option>
+        <option value="2">Mittel</option>
+        <option value="3">Niedrig</option>
+    </select>
+    <button type="button" id="bulkSetPriorityBtn" class="btn btn-outline-warning btn-sm rounded-pill px-3 fw-bold">
+        <i class="bi bi-flag me-1"></i>Priorität
     </button>
     <div class="vr bg-secondary opacity-50 mx-1"></div>
     <input type="date" id="bulkDueDateInput" class="form-control form-control-sm bg-dark text-white border-secondary rounded-pill" style="width: auto; min-height: 34px; color-scheme: dark;" title="Fälligkeitsdatum setzen">

@@ -13,7 +13,7 @@ const MAX_SIZE = 1200;
 const QUALITY = 0.8;
 
 self.addEventListener('message', async function(e) {
-    const { id, arrayBuffer, fileName } = e.data;
+    const { id, arrayBuffer, mimeType, fileName } = e.data;
     try {
         const blob = new Blob([arrayBuffer]);
         const bitmap = await createImageBitmap(blob);
@@ -27,13 +27,26 @@ self.addEventListener('message', async function(e) {
 
         const canvas = new OffscreenCanvas(width, height);
         const ctx = canvas.getContext('2d');
+
+        // Preserve transparency for PNGs; fill white background for JPEG conversion
+        const isTransparent = mimeType === 'image/png' || mimeType === 'image/webp' || mimeType === 'image/gif';
+        if (!isTransparent) {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+        }
+
         ctx.drawImage(bitmap, 0, 0, width, height);
         bitmap.close();
 
-        const compressed = await canvas.convertToBlob({ type: 'image/jpeg', quality: QUALITY });
-        // Always use .jpg extension since we compress to JPEG format
-        const jpgFileName = fileName.replace(/\.[^.]+$/, '.jpg');
-        self.postMessage({ id, blob: compressed, fileName: jpgFileName });
+        let compressed, outFileName;
+        if (isTransparent) {
+            compressed = await canvas.convertToBlob({ type: 'image/png' });
+            outFileName = fileName.replace(/\.[^.]+$/, '.png');
+        } else {
+            compressed = await canvas.convertToBlob({ type: 'image/jpeg', quality: QUALITY });
+            outFileName = fileName.replace(/\.[^.]+$/, '.jpg');
+        }
+        self.postMessage({ id, blob: compressed, fileName: outFileName });
     } catch(err) {
         self.postMessage({ id, error: err.message });
     }

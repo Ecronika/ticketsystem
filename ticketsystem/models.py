@@ -90,6 +90,7 @@ class Worker(db.Model):
     # UI preferences
     ui_theme = db.Column(db.String(20), nullable=True, default="auto")
     email_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False, server_default="1")
+    push_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False, server_default="1")
 
     def __repr__(self) -> str:
         return f"<Worker {self.name}>"
