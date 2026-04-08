@@ -542,18 +542,27 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.querySelectorAll(`.checklist-item[data-depends-on="${itemId}"]`).forEach(depDiv => {
                         const depCb = depDiv.querySelector('.checklist-toggle');
                         const depLabel = depDiv.querySelector('.form-check-label');
-                        const lockIcon = depDiv.querySelector('.bi-lock-fill');
+                        const cbWrapper = depDiv.querySelector('.position-relative');
+                        let lockIcon = depDiv.querySelector('.bi-lock-fill');
                         if (data.is_completed) {
-                            // Parent completed → unlock dependent
+                            // Parent completed -> unlock dependent
                             depDiv.removeAttribute('data-locked');
                             if (depCb) { depCb.disabled = false; depCb.classList.remove('opacity-25'); }
                             if (depLabel) depLabel.classList.remove('text-muted', 'opacity-75');
                             if (lockIcon) lockIcon.remove();
                         } else {
-                            // Parent uncompleted → re-lock dependent
+                            // Parent uncompleted -> re-lock dependent
                             depDiv.setAttribute('data-locked', 'true');
-                            if (depCb) { depCb.disabled = true; depCb.classList.add('opacity-25'); }
+                            if (depCb) { depCb.disabled = true; depCb.classList.add('opacity-25'); depCb.checked = false; }
                             if (depLabel) depLabel.classList.add('text-muted', 'opacity-75');
+                            // Recreate lock icon if missing
+                            if (!lockIcon && cbWrapper) {
+                                const icon = document.createElement('i');
+                                icon.className = 'bi bi-lock-fill position-absolute text-warning';
+                                icon.style.fontSize = '0.7rem';
+                                icon.title = 'Abhängigkeit nicht abgeschlossen';
+                                cbWrapper.appendChild(icon);
+                            }
                         }
                     });
                 } else {
@@ -646,14 +655,32 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Drag & Drop sorting for checklist items (SortableJS)
+    // Only parent items (without data-depends-on) are draggable.
+    // Children move together with their parent.
     const checklistContainer = document.getElementById('checklist-container');
     if (checklistContainer && typeof Sortable !== 'undefined') {
+        // Helper: collect children that depend on a given parent id
+        const getChildren = (parentId) =>
+            Array.from(checklistContainer.querySelectorAll(
+                `.checklist-item[data-depends-on="${parentId}"]`
+            ));
+
         Sortable.create(checklistContainer, {
             animation: 150,
-            handle: '.checklist-item',
-            draggable: '.checklist-item',
+            draggable: '.checklist-item:not([data-depends-on])',
             ghostClass: 'bg-primary-subtle',
-            onEnd: async function() {
+            // After a parent is moved, reposition its children right after it
+            onEnd: async function(evt) {
+                const movedEl = evt.item;
+                const parentId = movedEl.dataset.id;
+                // Move children directly after their parent in the DOM
+                const children = getChildren(parentId);
+                let insertAfter = movedEl;
+                children.forEach(child => {
+                    insertAfter.after(child);
+                    insertAfter = child;
+                });
+                // Send full order to server
                 const items = checklistContainer.querySelectorAll('.checklist-item[data-id]');
                 const order = Array.from(items).map(el => parseInt(el.dataset.id));
                 try {
