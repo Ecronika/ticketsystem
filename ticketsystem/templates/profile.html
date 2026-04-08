@@ -11,46 +11,7 @@
 </div>
 
 <div class="row g-4">
-    <div class="col-12" id="notifications">
-        <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
-            <div class="card-header border-0 py-3 px-4 bg-surface-subtle d-flex align-items-center justify-content-between">
-                <h3 class="h5 fw-bold mb-0"><i class="bi bi-bell text-primary me-2"></i> Benachrichtigungen</h3>
-                {% if notifications %}
-                <button type="button" class="btn btn-sm btn-link text-decoration-none p-0 text-primary fw-bold" style="font-size:0.8rem;" id="markAllReadProfileBtn">
-                    Alle als gelesen markieren
-                </button>
-                {% endif %}
-            </div>
-            <div class="card-body p-0">
-                {% if not notifications %}
-                <div class="text-center text-muted py-5">
-                    <i class="bi bi-bell-slash fs-2 mb-2 d-block"></i>
-                    <p class="small mb-0">Keine Benachrichtigungen vorhanden.</p>
-                </div>
-                {% else %}
-                <ul class="list-group list-group-flush">
-                    {% for n in notifications %}
-                    <li class="list-group-item px-4 py-3 {% if not n.is_read %}bg-primary-subtle border-start border-4 border-primary{% endif %}">
-                        <div class="d-flex align-items-start gap-3">
-                            <i class="bi bi-info-circle-fill {% if n.is_read %}text-muted{% else %}text-primary{% endif %} mt-1"></i>
-                            <div class="flex-grow-1">
-                                <p class="mb-1 small {% if not n.is_read %}fw-semibold{% endif %}">{{ n.message }}</p>
-                                <small class="text-muted" style="font-size:0.7rem;">{{ n.created_at|local_time|datetime('%d.%m.%Y %H:%M') }}</small>
-                            </div>
-                            {% if n.link and n.link != '#' %}
-                            <a href="{{ ingress_path }}{{ n.link }}" class="btn btn-sm btn-outline-primary rounded-pill py-0 px-2 flex-shrink-0" style="font-size:0.75rem;">
-                                Ansehen <i class="bi bi-arrow-right ms-1"></i>
-                            </a>
-                            {% endif %}
-                        </div>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-
+    <!-- Left column: OOO, Email address, Security -->
     <div class="col-lg-6">
         <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
             <div class="card-header border-0 py-3 px-4 bg-surface-subtle">
@@ -60,7 +21,7 @@
                 <form action="{{ ingress_path }}{{ url_for('main.profile') }}" method="POST">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="update_ooo">
-                    
+
                     <div class="form-check form-switch form-switch-lg mb-4">
                         <input class="form-check-input shadow-none" type="checkbox" role="switch" name="is_out_of_office" id="is_out_of_office" {% if worker.is_out_of_office %}checked{% endif %}>
                         <label class="form-check-label ms-2 fw-bold" for="is_out_of_office">Ich bin aktuell abwesend (Out of Office)</label>
@@ -68,7 +29,7 @@
                             Wenn Sie abwesend sind, werden neu zugewiesene Tickets automatisch an Ihren Vertreter weitergeleitet, oder das Büro wird gewarnt.
                         </div>
                     </div>
-                    
+
                     <div class="mb-4" id="delegation-wrapper" {% if not worker.is_out_of_office %}style="display:none; opacity:0; transition: opacity 0.2s;"{% else %}style="opacity:1; transition: opacity 0.2s;"{% endif %}>
                         <label class="form-label small fw-bold">Meine Standard-Vertretung</label>
                         <select class="form-select form-select-sm border-1" name="delegate_to_id">
@@ -78,59 +39,7 @@
                             {% endfor %}
                         </select>
                     </div>
-                    
-                    <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4 shadow-sm fw-bold">
-                        <i class="bi bi-save me-1"></i> Speichern
-                    </button>
-                </form>
-            </div>
-        </div>
-        
-        <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
-            <div class="card-header border-0 py-3 px-4 bg-surface-subtle">
-                <h3 class="h5 fw-bold mb-0"><i class="bi bi-bell text-primary me-2"></i> E-Mail-Benachrichtigungen</h3>
-            </div>
-            <div class="card-body p-4">
-                <form action="{{ ingress_path }}{{ url_for('main.profile') }}" method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="action" value="update_notifications">
-                    <div class="form-check form-switch form-switch-lg mb-3">
-                        <input class="form-check-input shadow-none" type="checkbox" role="switch"
-                               name="email_notifications_enabled" id="email_notifications_enabled"
-                               {% if worker.email_notifications_enabled %}checked{% endif %}>
-                        <label class="form-check-label ms-2 fw-bold" for="email_notifications_enabled">
-                            E-Mail-Benachrichtigungen aktivieren
-                        </label>
-                        <div class="form-text mt-1 text-muted x-small">
-                            Wenn aktiviert, erhalten Sie E-Mails bei Zuweisung und Erwähnung (nur wenn eine E-Mail-Adresse hinterlegt ist).
-                        </div>
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4 shadow-sm fw-bold">
-                        <i class="bi bi-save me-1"></i> Speichern
-                    </button>
-                </form>
-            </div>
-        </div>
 
-        <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
-            <div class="card-header border-0 py-3 px-4 bg-surface-subtle">
-                <h3 class="h5 fw-bold mb-0"><i class="bi bi-phone text-primary me-2"></i> Push-Benachrichtigungen</h3>
-            </div>
-            <div class="card-body p-4">
-                <form action="{{ ingress_path }}{{ url_for('main.profile') }}" method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="action" value="update_push_notifications">
-                    <div class="form-check form-switch form-switch-lg mb-3">
-                        <input class="form-check-input shadow-none" type="checkbox" role="switch"
-                               name="push_notifications_enabled" id="push_notifications_enabled"
-                               {% if worker.push_notifications_enabled %}checked{% endif %}>
-                        <label class="form-check-label ms-2 fw-bold" for="push_notifications_enabled">
-                            Browser-Push-Benachrichtigungen aktivieren
-                        </label>
-                        <div class="form-text mt-1 text-muted x-small">
-                            Wenn deaktiviert, werden keine Browser-Push-Benachrichtigungen gesendet. Bestehende Abonnements werden entfernt.
-                        </div>
-                    </div>
                     <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4 shadow-sm fw-bold">
                         <i class="bi bi-save me-1"></i> Speichern
                     </button>
@@ -174,6 +83,112 @@
             </div>
         </div>
     </div>
+
+    <!-- Right column: Notification settings -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
+            <div class="card-header border-0 py-3 px-4 bg-surface-subtle">
+                <h3 class="h5 fw-bold mb-0"><i class="bi bi-bell text-primary me-2"></i> E-Mail-Benachrichtigungen</h3>
+            </div>
+            <div class="card-body p-4">
+                <form action="{{ ingress_path }}{{ url_for('main.profile') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="update_notifications">
+                    <div class="form-check form-switch form-switch-lg mb-3">
+                        <input class="form-check-input shadow-none" type="checkbox" role="switch"
+                               name="email_notifications_enabled" id="email_notifications_enabled"
+                               {% if worker.email_notifications_enabled %}checked{% endif %}>
+                        <label class="form-check-label ms-2 fw-bold" for="email_notifications_enabled">
+                            E-Mail-Benachrichtigungen aktivieren
+                        </label>
+                        <div class="form-text mt-1 text-muted x-small">
+                            Wenn aktiviert, erhalten Sie E-Mails bei Zuweisung und Erwähnung (nur wenn eine E-Mail-Adresse hinterlegt ist).
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4 shadow-sm fw-bold">
+                        <i class="bi bi-save me-1"></i> Speichern
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+            <div class="card-header border-0 py-3 px-4 bg-surface-subtle">
+                <h3 class="h5 fw-bold mb-0"><i class="bi bi-phone text-primary me-2"></i> Push-Benachrichtigungen</h3>
+            </div>
+            <div class="card-body p-4">
+                <form action="{{ ingress_path }}{{ url_for('main.profile') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="update_push_notifications">
+                    <div class="form-check form-switch form-switch-lg mb-3">
+                        <input class="form-check-input shadow-none" type="checkbox" role="switch"
+                               name="push_notifications_enabled" id="push_notifications_enabled"
+                               {% if worker.push_notifications_enabled %}checked{% endif %}>
+                        <label class="form-check-label ms-2 fw-bold" for="push_notifications_enabled">
+                            Browser-Push-Benachrichtigungen aktivieren
+                        </label>
+                        <div class="form-text mt-1 text-muted x-small">
+                            Wenn deaktiviert, werden keine Browser-Push-Benachrichtigungen gesendet. Bestehende Abonnements werden entfernt.
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4 shadow-sm fw-bold">
+                        <i class="bi bi-save me-1"></i> Speichern
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full-width: Notifications (collapsible, below settings) -->
+    <div class="col-12" id="notifications">
+        <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+            <div class="card-header border-0 py-3 px-4 bg-surface-subtle d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2">
+                    <h3 class="h5 fw-bold mb-0">
+                        <a class="text-decoration-none" data-bs-toggle="collapse" href="#notificationCollapse" role="button" aria-expanded="true" aria-controls="notificationCollapse">
+                            <i class="bi bi-bell text-primary me-2"></i> Benachrichtigungen
+                            {% if notifications %}<span class="badge bg-primary rounded-pill ms-1" style="font-size:0.7rem;">{{ notifications|length }}</span>{% endif %}
+                            <i class="bi bi-chevron-down ms-1 small" id="notifCollapseIcon"></i>
+                        </a>
+                    </h3>
+                </div>
+                {% if notifications %}
+                <button type="button" class="btn btn-sm btn-link text-decoration-none p-0 text-primary fw-bold" style="font-size:0.8rem;" id="markAllReadProfileBtn">
+                    Alle als gelesen markieren
+                </button>
+                {% endif %}
+            </div>
+            <div class="collapse show" id="notificationCollapse">
+                <div class="card-body p-0">
+                    {% if not notifications %}
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-bell-slash fs-3 mb-2 d-block"></i>
+                        <p class="small mb-0">Keine Benachrichtigungen vorhanden.</p>
+                    </div>
+                    {% else %}
+                    <ul class="list-group list-group-flush" style="max-height: 400px; overflow-y: auto;">
+                        {% for n in notifications %}
+                        <li class="list-group-item px-4 py-3 {% if not n.is_read %}bg-primary-subtle border-start border-4 border-primary{% endif %}">
+                            <div class="d-flex align-items-start gap-3">
+                                <i class="bi bi-info-circle-fill {% if n.is_read %}text-muted{% else %}text-primary{% endif %} mt-1"></i>
+                                <div class="flex-grow-1">
+                                    <p class="mb-1 small {% if not n.is_read %}fw-semibold{% endif %}">{{ n.message }}</p>
+                                    <small class="text-muted" style="font-size:0.7rem;">{{ n.created_at|local_time|datetime('%d.%m.%Y %H:%M') }}</small>
+                                </div>
+                                {% if n.link and n.link != '#' %}
+                                <a href="{{ ingress_path }}{{ n.link }}" class="btn btn-sm btn-outline-primary rounded-pill py-0 px-2 flex-shrink-0" style="font-size:0.75rem;">
+                                    Ansehen <i class="bi bi-arrow-right ms-1"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 {% block scripts %}
@@ -192,6 +207,19 @@
                     delegationWrapper.style.opacity = '0';
                     setTimeout(() => { delegationWrapper.style.display = 'none'; }, 200);
                 }
+            });
+        }
+
+        // Rotate collapse icon
+        const notifCollapse = document.getElementById('notificationCollapse');
+        const notifIcon = document.getElementById('notifCollapseIcon');
+        if (notifCollapse && notifIcon) {
+            notifCollapse.addEventListener('hide.bs.collapse', function() {
+                notifIcon.style.transform = 'rotate(-90deg)';
+                notifIcon.style.transition = 'transform 0.2s';
+            });
+            notifCollapse.addEventListener('show.bs.collapse', function() {
+                notifIcon.style.transform = 'rotate(0deg)';
             });
         }
 
