@@ -527,9 +527,9 @@ document.addEventListener('DOMContentLoaded', function() {
     {% endif %}
 </div>
 
-<!-- Sticky Bulk Action Bar (hidden until checkboxes selected) -->
+<!-- Floating Bulk Action Bar (hidden until checkboxes selected) -->
 {% if session.get('role') != 'viewer' %}
-<div id="bulkActionBar" class="d-none sticky-top bg-dark text-white rounded-4 shadow-lg px-4 py-3 align-items-center gap-2 flex-wrap mb-3" style="z-index: 1020; top: 4.5rem; max-width: 100%;">
+<div id="bulkActionBar" class="d-none position-fixed bottom-0 start-50 translate-middle-x mb-4 bg-dark text-white rounded-4 shadow-lg px-4 py-3 align-items-center gap-2 flex-wrap" style="z-index: 1050; max-width: 95vw;">
     <span id="bulkCount" class="fw-bold small me-1">0 ausgewählt</span>
     <div class="vr bg-secondary opacity-50 mx-1"></div>
     <select id="bulkStatusSelect" class="form-select form-select-sm bg-dark text-white border-secondary rounded-pill" style="width: auto; min-height: 34px;">

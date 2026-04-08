@@ -538,6 +538,24 @@ document.addEventListener('DOMContentLoaded', function() {
                         labelText.classList.remove('text-decoration-line-through', 'text-muted');
                         labelText.classList.add('fw-semibold', 'text-body');
                     }
+                    // Update dependency locks on items that depend on this one
+                    document.querySelectorAll(`.checklist-item[data-depends-on="${itemId}"]`).forEach(depDiv => {
+                        const depCb = depDiv.querySelector('.checklist-toggle');
+                        const depLabel = depDiv.querySelector('.form-check-label');
+                        const lockIcon = depDiv.querySelector('.bi-lock-fill');
+                        if (data.is_completed) {
+                            // Parent completed → unlock dependent
+                            depDiv.removeAttribute('data-locked');
+                            if (depCb) { depCb.disabled = false; depCb.classList.remove('opacity-25'); }
+                            if (depLabel) depLabel.classList.remove('text-muted', 'opacity-75');
+                            if (lockIcon) lockIcon.remove();
+                        } else {
+                            // Parent uncompleted → re-lock dependent
+                            depDiv.setAttribute('data-locked', 'true');
+                            if (depCb) { depCb.disabled = true; depCb.classList.add('opacity-25'); }
+                            if (depLabel) depLabel.classList.add('text-muted', 'opacity-75');
+                        }
+                    });
                 } else {
                     window.showUiAlert('Fehler: ' + data.error);
                     cb.checked = !cb.checked;
@@ -677,6 +695,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    // Print / PDF button
+    const printBtn = document.getElementById('printTicketBtn');
+    if (printBtn) {
+        printBtn.addEventListener('click', function() { window.print(); });
+    }
 });
 
 // CSP-Safe Event Listeners (v1.26.4 Hardening)

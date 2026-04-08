@@ -7,7 +7,7 @@
         {% set locked = True %}
     {% endif %}
 {% endif %}
-<div class="border-bottom checklist-item position-relative transition-all bg-white-hover {{ 'ms-4 border-start border-3 ps-3' if is_child else '' }}" data-id="{{ item.id }}" {{ 'data-locked=true' if locked }}>
+<div class="border-bottom checklist-item position-relative transition-all bg-white-hover {{ 'ms-4 border-start border-3 ps-3' if is_child else '' }}" data-id="{{ item.id }}" {{ 'data-locked=true' if locked }} {{ 'data-depends-on=' ~ item.depends_on_item_id if item.depends_on_item_id }}>
     <div class="d-flex align-items-center justify-content-between min-h-44">
         <label class="form-check-label d-flex align-items-center gap-3 flex-grow-1 py-3 px-2 cursor-pointer m-0 {{ 'text-muted opacity-75' if locked else '' }}" for="check_{{ item.id }}">
             <!-- Vorschlag 12: Schloss-Overlay auf Checkbox -->
