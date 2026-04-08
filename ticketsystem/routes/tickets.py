@@ -721,7 +721,7 @@ def _delete_attachment_api(attachment_id: int) -> tuple[Response, int] | Respons
     # Only ticket author or admin can delete
     wid = _session_worker_id()
     role = session.get("role")
-    if wid != ticket.author_id and role != "admin":
+    if not ticket._worker_is_author(wid) and role != "admin":
         return _api_error("Keine Berechtigung.", 403)
 
     try:

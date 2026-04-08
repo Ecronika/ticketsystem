@@ -182,7 +182,7 @@
                         <span class="small text-truncate w-100 text-body">{{ attachment.filename }}</span>
                     </a>
                     {% endif %}
-                    {% if session.get('role') != 'viewer' and (session.get('worker_id') == ticket.author_id or session.get('role') == 'admin') %}
+                    {% if session.get('role') != 'viewer' and (session.get('role') == 'admin' or ticket._worker_is_author(session.get('worker_id'))) %}
                     <button type="button" class="btn btn-sm btn-danger rounded-circle position-absolute top-0 end-0 m-1 delete-attachment-btn"
                             data-attachment-id="{{ attachment.id }}" style="width: 28px; height: 28px; padding: 0; line-height: 28px; font-size: 0.7rem;"
                             title="Anhang löschen">
