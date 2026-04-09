@@ -31,6 +31,23 @@ def _validate_pin(pin: str) -> None:
         )
 
 
+def _get_worker_or_raise(worker_id: int) -> Worker:
+    """Load a worker by ID or raise ``ValueError``."""
+    worker = db.session.get(Worker, worker_id)
+    if not worker:
+        raise ValueError("Mitarbeiter nicht gefunden.")
+    return worker
+
+
+def _commit_or_raise(error_msg: str) -> None:
+    """Commit the current session or raise ``ValueError`` on failure."""
+    try:
+        db.session.commit()
+    except SQLAlchemyError as exc:
+        db.session.rollback()
+        raise ValueError(f"{error_msg}: {exc}") from exc
+
+
 class WorkerService:
     """Service layer for Worker-related operations."""
 
@@ -65,48 +82,34 @@ class WorkerService:
                 WorkerRole.ADMIN.value if is_admin else WorkerRole.WORKER.value
             )
 
-        try:
-            new_worker = Worker(
-                name=name,
-                pin_hash=generate_password_hash(effective_pin),
-                is_admin=is_admin,
-                role=role,
-                is_active=True,
-                needs_pin_change=True,
-                email=(
-                    email.strip().lower() if email and email.strip() else None
-                ),
-            )
-            db.session.add(new_worker)
-            db.session.commit()
-            return new_worker
-        except SQLAlchemyError as exc:
-            db.session.rollback()
-            raise ValueError(
-                f"Datenbankfehler beim Erstellen des Mitarbeiters: {exc}"
-            ) from exc
+        new_worker = Worker(
+            name=name,
+            pin_hash=generate_password_hash(effective_pin),
+            is_admin=is_admin,
+            role=role,
+            is_active=True,
+            needs_pin_change=True,
+            email=(
+                email.strip().lower() if email and email.strip() else None
+            ),
+        )
+        db.session.add(new_worker)
+        _commit_or_raise("Datenbankfehler beim Erstellen des Mitarbeiters")
+        return new_worker
 
     @staticmethod
     def toggle_status(worker_id: int) -> Worker:
         """Toggle the active status of a worker (soft-delete)."""
-        worker = db.session.get(Worker, worker_id)
-        if not worker:
-            raise ValueError("Mitarbeiter nicht gefunden.")
+        worker = _get_worker_or_raise(worker_id)
 
         if _is_last_active_admin(worker) and worker.is_active:
             raise ValueError(
                 "Der letzte aktive Administrator kann nicht deaktiviert werden."
             )
 
-        try:
-            worker.is_active = not worker.is_active
-            db.session.commit()
-            return worker
-        except SQLAlchemyError as exc:
-            db.session.rollback()
-            raise ValueError(
-                f"Datenbankfehler beim Ändern des Status: {exc}"
-            ) from exc
+        worker.is_active = not worker.is_active
+        _commit_or_raise("Datenbankfehler beim Ändern des Status")
+        return worker
 
     @staticmethod
     def update_worker(
@@ -117,9 +120,7 @@ class WorkerService:
         email: Optional[str] = None,
     ) -> Worker:
         """Update worker's name, admin status, and role."""
-        worker = db.session.get(Worker, worker_id)
-        if not worker:
-            raise ValueError("Mitarbeiter nicht gefunden.")
+        worker = _get_worker_or_raise(worker_id)
         if not name:
             raise ValueError("Name ist erforderlich.")
 
@@ -138,61 +139,38 @@ class WorkerService:
                 "anderen Administrator."
             )
 
-        try:
-            worker.name = name
-            worker.is_admin = is_admin
-            worker.role = role
-            if email is not None:
-                worker.email = (
-                    email.strip().lower() if email.strip() else None
-                )
-            db.session.commit()
-            return worker
-        except SQLAlchemyError as exc:
-            db.session.rollback()
-            raise ValueError(
-                f"Datenbankfehler beim Aktualisieren des Mitarbeiters: {exc}"
-            ) from exc
+        worker.name = name
+        worker.is_admin = is_admin
+        worker.role = role
+        if email is not None:
+            worker.email = (
+                email.strip().lower() if email.strip() else None
+            )
+        _commit_or_raise("Datenbankfehler beim Aktualisieren des Mitarbeiters")
+        return worker
 
     @staticmethod
     def update_pin(worker_id: int, new_pin: str) -> Worker:
         """Update a worker's PIN."""
-        worker = db.session.get(Worker, worker_id)
-        if not worker:
-            raise ValueError("Mitarbeiter nicht gefunden.")
-
+        worker = _get_worker_or_raise(worker_id)
         _validate_pin(new_pin)
 
-        try:
-            worker.pin_hash = generate_password_hash(new_pin)
-            worker.needs_pin_change = False
-            db.session.commit()
-            return worker
-        except SQLAlchemyError as exc:
-            db.session.rollback()
-            raise ValueError(
-                f"Datenbankfehler beim Ändern der PIN: {exc}"
-            ) from exc
+        worker.pin_hash = generate_password_hash(new_pin)
+        worker.needs_pin_change = False
+        _commit_or_raise("Datenbankfehler beim Ändern der PIN")
+        return worker
 
     @staticmethod
     def admin_reset_pin(worker_id: int) -> Worker:
         """Reset a worker's PIN to ``'0000'`` as an administrator."""
-        worker = db.session.get(Worker, worker_id)
-        if not worker:
-            raise ValueError("Mitarbeiter nicht gefunden.")
+        worker = _get_worker_or_raise(worker_id)
 
-        try:
-            worker.pin_hash = generate_password_hash("0000")
-            worker.needs_pin_change = True
-            worker.failed_login_count = 0
-            worker.locked_until = None
-            db.session.commit()
-            return worker
-        except SQLAlchemyError as exc:
-            db.session.rollback()
-            raise ValueError(
-                f"Datenbankfehler beim PIN-Reset: {exc}"
-            ) from exc
+        worker.pin_hash = generate_password_hash("0000")
+        worker.needs_pin_change = True
+        worker.failed_login_count = 0
+        worker.locked_until = None
+        _commit_or_raise("Datenbankfehler beim PIN-Reset")
+        return worker
 
 
 # ---------------------------------------------------------------------------

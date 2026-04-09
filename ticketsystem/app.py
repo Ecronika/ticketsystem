@@ -41,7 +41,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.wrappers import Response as WerkzeugResponse
 
 from database_init import init_database
-from enums import ApprovalStatus, TicketPriority, TicketStatus, WorkerRole
+from enums import ELEVATED_ROLES, ApprovalStatus, TicketPriority, TicketStatus, WorkerRole
 from extensions import Config, csrf, db, limiter, scheduler
 from metrics import (
     ACTIVE_SESSIONS,
@@ -57,13 +57,6 @@ from utils import get_utc_now
 # ---------------------------------------------------------------------------
 # Application version (read from config.yaml)
 # ---------------------------------------------------------------------------
-
-_ELEVATED_ROLES = frozenset({
-    WorkerRole.ADMIN.value,
-    WorkerRole.HR.value,
-    WorkerRole.MANAGEMENT.value,
-})
-
 
 def _read_app_version() -> str:
     """Read the application version from ``config.yaml``."""
@@ -667,7 +660,7 @@ def inject_globals() -> Dict[str, Any]:
         "urgent_count", _count_urgent_tickets, worker_id, now_dt,
     )
 
-    if session.get("is_admin") or role in _ELEVATED_ROLES:
+    if session.get("is_admin") or role in ELEVATED_ROLES:
         base["pending_approval_count"] = _safe_query(
             "pending_approval", _count_pending_approvals,
         )
@@ -676,7 +669,7 @@ def inject_globals() -> Dict[str, Any]:
         "notification", _count_unread_notifications, worker_id,
     )
 
-    if role in _ELEVATED_ROLES:
+    if role in ELEVATED_ROLES:
         base["absent_entries_with_critical"] = _safe_query(
             "absent_critical", _count_absent_critical, now_dt,
         )

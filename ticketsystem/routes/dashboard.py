@@ -20,7 +20,7 @@ from flask import (
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 
-from enums import TicketStatus, WorkerRole
+from enums import ELEVATED_ROLES, TicketStatus
 from extensions import Config, db
 from models import Team, Ticket
 from routes.auth import worker_required
@@ -28,12 +28,6 @@ from services.ticket_service import _confidential_filter
 from utils import get_utc_now
 
 _dash_start_time: float = time.time()
-
-_ELEVATED_ROLES = frozenset({
-    WorkerRole.ADMIN.value,
-    WorkerRole.HR.value,
-    WorkerRole.MANAGEMENT.value,
-})
 
 
 # ------------------------------------------------------------------
@@ -127,7 +121,7 @@ def _probe_database() -> bool:
 
 def _is_elevated_role() -> bool:
     """Return ``True`` if the current session has an elevated role."""
-    return session.get("role") in _ELEVATED_ROLES
+    return session.get("role") in ELEVATED_ROLES
 
 
 def _compute_summary_counts() -> Tuple[Dict[str, int], str | None]:
