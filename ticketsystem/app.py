@@ -535,13 +535,13 @@ def _count_urgent_tickets(worker_id: int, now: datetime) -> int:
             Ticket.checklists.any(
                 db.and_(
                     ChecklistItem.assigned_team_id.in_(team_ids),
-                    ChecklistItem.is_completed == False,  # noqa: E712
+                    ChecklistItem.is_completed.is_(False),
                 ),
             ),
         ]
 
     return Ticket.query.filter(
-        Ticket.is_deleted == False,  # noqa: E712
+        Ticket.is_deleted.is_(False),
         Ticket.status != TicketStatus.ERLEDIGT.value,
         Ticket.due_date.isnot(None),
         Ticket.due_date <= limit_dt,
@@ -550,7 +550,7 @@ def _count_urgent_tickets(worker_id: int, now: datetime) -> int:
             Ticket.checklists.any(
                 db.and_(
                     ChecklistItem.assigned_to_id == worker_id,
-                    ChecklistItem.is_completed == False,  # noqa: E712
+                    ChecklistItem.is_completed.is_(False),
                 ),
             ),
             *team_clauses,
@@ -597,7 +597,7 @@ def _count_absent_critical(now: datetime) -> int:
         return 0
 
     return Ticket.query.filter(
-        Ticket.is_deleted == False,  # noqa: E712
+        Ticket.is_deleted.is_(False),
         Ticket.status.in_([
             TicketStatus.OFFEN.value,
             TicketStatus.IN_BEARBEITUNG.value,

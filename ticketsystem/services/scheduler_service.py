@@ -5,6 +5,7 @@ escalation.
 """
 
 import logging
+from collections import defaultdict
 from typing import Dict, List
 
 from dateutil.relativedelta import relativedelta
@@ -49,7 +50,7 @@ def process_recurring_tickets(app: Flask) -> None:
 def _fetch_due_recurring_tickets(now: object) -> List[Ticket]:
     """Return all non-deleted recurring tickets whose next date is due."""
     return Ticket.query.filter(
-        Ticket.is_deleted == False,  # noqa: E712 — SQLAlchemy filter
+        Ticket.is_deleted.is_(False),
         Ticket.recurrence_rule.isnot(None),
         Ticket.next_recurrence_date <= now,
     ).all()
@@ -152,7 +153,7 @@ def process_sla_escalations(app: Flask) -> None:
 def _fetch_overdue_tickets(now: object) -> List[Ticket]:
     """Return all non-deleted open tickets that are past their due date."""
     return Ticket.query.filter(
-        Ticket.is_deleted == False,  # noqa: E712
+        Ticket.is_deleted.is_(False),
         Ticket.status.in_(_OPEN_STATUSES),
         Ticket.due_date.isnot(None),
         Ticket.due_date < now,
@@ -167,8 +168,6 @@ def _escalate_tickets(
     Comments and in-app notifications are created per ticket, but emails
     are collected and sent as **one digest per recipient** at the end.
     """
-    from collections import defaultdict
-
     # Collect digest data: worker_id -> list of ticket info dicts
     assignee_digest: Dict[int, List[Dict[str, object]]] = defaultdict(list)
     high_prio_tickets: List[Dict[str, object]] = []
@@ -342,7 +341,7 @@ def process_reminder_notifications(app: Flask) -> None:
 def _fetch_due_reminder_tickets(now: object) -> List[Ticket]:
     """Return waiting tickets whose reminder_date is due and not yet notified."""
     return Ticket.query.filter(
-        Ticket.is_deleted == False,  # noqa: E712
+        Ticket.is_deleted.is_(False),
         Ticket.status == TicketStatus.WARTET.value,
         Ticket.reminder_date.isnot(None),
         Ticket.reminder_date <= now,

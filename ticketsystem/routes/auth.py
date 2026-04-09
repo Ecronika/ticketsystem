@@ -6,7 +6,7 @@ profile / out-of-office settings.
 
 import hashlib
 import secrets
-from datetime import timedelta
+from datetime import datetime, timedelta
 from functools import wraps
 from typing import Any, Callable, TypeVar
 from urllib.parse import urljoin, urlparse
@@ -281,7 +281,7 @@ def _login_view() -> str | WerkzeugResponse:
     now = get_utc_now()
     worker = Worker.query.filter(
         Worker.name.ilike(worker_name),
-        Worker.is_active == True,  # noqa: E712
+        Worker.is_active.is_(True),
     ).first()
 
     if not worker:
@@ -412,7 +412,7 @@ def _forgot_pin_view() -> str | WerkzeugResponse:
     """Request a PIN reset link via email."""
     if request.method != "POST":
         workers = Worker.query.filter(
-            Worker.is_active == True,  # noqa: E712
+            Worker.is_active.is_(True),
             Worker.email.isnot(None),
             Worker.email != "",
         ).order_by(Worker.name).all()
@@ -476,7 +476,6 @@ def _reset_pin_email_view() -> str | WerkzeugResponse:
         flash("Ungültiger oder bereits verwendeter Reset-Link.", "error")
         return redirect_to("main.login")
 
-    from datetime import datetime
     try:
         expiry = datetime.fromisoformat(expiry_str)
     except (ValueError, TypeError):
@@ -542,7 +541,7 @@ def _profile_view() -> str | WerkzeugResponse:
 
     other_workers: list[Worker] = (
         Worker.query
-        .filter(Worker.is_active == True, Worker.id != worker.id)  # noqa: E712
+        .filter(Worker.is_active.is_(True), Worker.id != worker.id)
         .order_by(Worker.name)
         .all()
     )

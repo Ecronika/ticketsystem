@@ -131,7 +131,7 @@ def _compute_summary_counts() -> Tuple[Dict[str, int], str | None]:
         A tuple of ``(counts_dict, last_updated_iso)``.
     """
     base = db.session.query(Ticket.status, func.count(Ticket.id)).filter(
-        Ticket.is_deleted == False,  # noqa: E712
+        Ticket.is_deleted.is_(False),
     )
     if not _is_elevated_role():
         worker_id = session.get("worker_id")
@@ -144,7 +144,7 @@ def _compute_summary_counts() -> Tuple[Dict[str, int], str | None]:
     count_map: Dict[str, int] = dict(results)
 
     last_q = db.session.query(func.max(Ticket.updated_at)).filter(
-        Ticket.is_deleted == False,  # noqa: E712
+        Ticket.is_deleted.is_(False),
     )
     if not _is_elevated_role():
         worker_id = session.get("worker_id")

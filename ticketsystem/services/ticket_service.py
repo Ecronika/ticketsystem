@@ -16,7 +16,6 @@ from dateutil.relativedelta import relativedelta
 
 from flask import current_app
 from sqlalchemy import func
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload, selectinload
 
 from enums import ELEVATED_ROLES, ApprovalStatus, TicketPriority, TicketStatus, WorkerRole
@@ -33,6 +32,7 @@ from models import (
 from utils import get_utc_now
 
 from .email_service import EmailService
+from ._helpers import db_transaction
 
 _logger = logging.getLogger(__name__)
 
@@ -46,6 +46,29 @@ _OPEN_STATUSES = [
     TicketStatus.IN_BEARBEITUNG.value,
     TicketStatus.WARTET.value,
 ]
+
+
+@dataclass
+class TicketFilterSpec:
+    """Filter and pagination criteria for dashboard queries."""
+
+    worker_id: Optional[int] = None
+    search: Optional[str] = None
+    status_filter: Optional[str] = None
+    page: int = 1
+    per_page: int = 25
+    assigned_to_me: bool = False
+    unassigned_only: bool = False
+    callback_pending: bool = False
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    author_name: Optional[str] = None
+    worker_role: Optional[str] = None
+    team_ids: Optional[List[int]] = field(default=None)
+    assigned_worker_id: Optional[int] = None
+    sort_by: Optional[str] = None
+    sort_dir: str = "asc"
+    due_within_days: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -146,7 +169,7 @@ def _confidential_filter(
         .subquery()
     )
     clauses = [
-        Ticket.is_confidential == False,  # noqa: E712
+        Ticket.is_confidential.is_(False),
         Ticket.id.in_(author_sub),
         Ticket.assigned_to_id == worker_id,
         Ticket.checklists.any(ChecklistItem.assigned_to_id == worker_id),
@@ -168,7 +191,7 @@ def _team_clauses(team_ids: Optional[List[int]]) -> list:
         Ticket.checklists.any(
             db.and_(
                 ChecklistItem.assigned_team_id.in_(team_ids),
-                ChecklistItem.is_completed == False,  # noqa: E712
+                ChecklistItem.is_completed.is_(False),
             )
         ),
     ]
@@ -274,6 +297,7 @@ class TicketService:
     # ------------------------------------------------------------------
 
     @staticmethod
+    @db_transaction
     def create_ticket(
         title: str,
         description: Optional[str] = None,
@@ -304,52 +328,48 @@ class TicketService:
             commit: When ``True`` (default), commits immediately.
                     Pass ``False`` in batch / scheduler contexts.
         """
-        try:
-            path_logs: List[str] = []
-            if assigned_to_id:
-                assigned_to_id, path_logs = TicketService._resolve_delegation(
-                    assigned_to_id
-                )
-
-            ticket = _build_ticket(
-                title, description, priority, assigned_to_id,
-                assigned_team_id, is_confidential, recurrence_rule,
-                due_date, order_reference, reminder_date,
-                contact_name, contact_phone, contact_email, contact_channel,
-                callback_requested, callback_due,
+        path_logs: List[str] = []
+        if assigned_to_id:
+            assigned_to_id, path_logs = TicketService._resolve_delegation(
+                assigned_to_id
             )
-            _attach_tags(ticket, tags)
-            db.session.add(ticket)
+
+        ticket = _build_ticket(
+            title, description, priority, assigned_to_id,
+            assigned_team_id, is_confidential, recurrence_rule,
+            due_date, order_reference, reminder_date,
+            contact_name, contact_phone, contact_email, contact_channel,
+            callback_requested, callback_due,
+        )
+        _attach_tags(ticket, tags)
+        db.session.add(ticket)
+        db.session.flush()
+
+        if checklist_template_id:
+            TicketService.apply_checklist_template(
+                ticket.id, checklist_template_id, commit=False
+            )
+
+        _add_creation_comment(
+            ticket.id, author_name, author_id, description, path_logs
+        )
+
+        if attachments:
+            _save_attachments(ticket.id, attachments)
+
+        if commit:
+            db.session.commit()
+        else:
             db.session.flush()
 
-            if checklist_template_id:
-                TicketService.apply_checklist_template(
-                    ticket.id, checklist_template_id, commit=False
-                )
-
-            _add_creation_comment(
-                ticket.id, author_name, author_id, description, path_logs
-            )
-
-            if attachments:
-                _save_attachments(ticket.id, attachments)
-
-            if commit:
-                db.session.commit()
-            else:
-                db.session.flush()
-
-            return ticket
-        except SQLAlchemyError as exc:
-            db.session.rollback()
-            current_app.logger.error("Database error creating ticket: %s", exc)
-            raise
+        return ticket
 
     # ------------------------------------------------------------------
     # Update
     # ------------------------------------------------------------------
 
     @staticmethod
+    @db_transaction
     def update_ticket(
         ticket_id: int,
         title: Optional[str] = None,
@@ -360,80 +380,71 @@ class TicketService:
         author_id: Optional[int] = None,
     ) -> Optional[Ticket]:
         """Update ticket basic details."""
-        try:
-            ticket = _get_ticket_or_none(ticket_id)
-            if not ticket:
-                return None
+        ticket = _get_ticket_or_none(ticket_id)
+        if not ticket:
+            return None
 
-            changes: List[str] = []
-            if title and ticket.title != title:
-                changes.append(f"Titel: {ticket.title} -> {title}")
-                ticket.title = title
-            if description and ticket.description != description:
-                changes.append("Beschreibung aktualisiert")
-                ticket.description = description
-            if priority and ticket.priority != int(priority):
-                changes.append(f"Priorität: {ticket.priority} -> {priority}")
-                ticket.priority = int(priority)
-            if due_date is not None and ticket.due_date != due_date:
-                changes.append(
-                    f"Fälligkeit: {_format_date(ticket.due_date)} "
-                    f"-> {_format_date(due_date)}"
-                )
-                ticket.due_date = due_date
+        changes: List[str] = []
+        if title and ticket.title != title:
+            changes.append(f"Titel: {ticket.title} -> {title}")
+            ticket.title = title
+        if description and ticket.description != description:
+            changes.append("Beschreibung aktualisiert")
+            ticket.description = description
+        if priority and ticket.priority != int(priority):
+            changes.append(f"Priorität: {ticket.priority} -> {priority}")
+            ticket.priority = int(priority)
+        if due_date is not None and ticket.due_date != due_date:
+            changes.append(
+                f"Fälligkeit: {_format_date(ticket.due_date)} "
+                f"-> {_format_date(due_date)}"
+            )
+            ticket.due_date = due_date
 
-            if changes:
-                ticket.updated_at = get_utc_now()
-                comment = Comment(
-                    ticket_id=ticket.id,
-                    author=author_name,
-                    author_id=author_id,
-                    text=f"Ticket aktualisiert: {', '.join(changes)}",
-                    is_system_event=True,
-                    event_type="TICKET_UPDATE",
-                )
-                db.session.add(comment)
-                db.session.commit()
+        if changes:
+            ticket.updated_at = get_utc_now()
+            comment = Comment(
+                ticket_id=ticket.id,
+                author=author_name,
+                author_id=author_id,
+                text=f"Ticket aktualisiert: {', '.join(changes)}",
+                is_system_event=True,
+                event_type="TICKET_UPDATE",
+            )
+            db.session.add(comment)
+            db.session.commit()
 
-            return ticket
-        except SQLAlchemyError as exc:
-            db.session.rollback()
-            current_app.logger.error("Database error updating ticket: %s", exc)
-            raise
+        return ticket
 
     # ------------------------------------------------------------------
     # Delete (soft)
     # ------------------------------------------------------------------
 
     @staticmethod
+    @db_transaction
     def delete_ticket(
         ticket_id: int,
         author_name: str = "System",
         author_id: Optional[int] = None,
     ) -> bool:
         """Soft-delete a ticket."""
-        try:
-            ticket = _get_ticket_or_none(ticket_id)
-            if not ticket:
-                return False
+        ticket = _get_ticket_or_none(ticket_id)
+        if not ticket:
+            return False
 
-            ticket.is_deleted = True
-            ticket.updated_at = get_utc_now()
-            comment = Comment(
-                ticket_id=ticket.id,
-                author=author_name,
-                author_id=author_id,
-                text="Ticket wurde vom System archiviert.",
-                is_system_event=True,
-                event_type="TICKET_DELETED",
-            )
-            db.session.add(comment)
-            db.session.commit()
-            return True
-        except SQLAlchemyError as exc:
-            db.session.rollback()
-            current_app.logger.error("Database error deleting ticket: %s", exc)
-            raise
+        ticket.is_deleted = True
+        ticket.updated_at = get_utc_now()
+        comment = Comment(
+            ticket_id=ticket.id,
+            author=author_name,
+            author_id=author_id,
+            text="Ticket wurde vom System archiviert.",
+            is_system_event=True,
+            event_type="TICKET_DELETED",
+        )
+        db.session.add(comment)
+        db.session.commit()
+        return True
 
     # ------------------------------------------------------------------
     # Notifications
@@ -458,6 +469,7 @@ class TicketService:
     # ------------------------------------------------------------------
 
     @staticmethod
+    @db_transaction
     def add_comment(
         ticket_id: int,
         author_name: str,
@@ -465,33 +477,29 @@ class TicketService:
         text: str,
     ) -> Comment:
         """Add a comment and process ``@mentions``."""
-        try:
-            comment = Comment(
-                ticket_id=ticket_id,
-                author=author_name,
-                author_id=author_id,
-                text=text,
-                is_system_event=False,
-            )
-            db.session.add(comment)
+        comment = Comment(
+            ticket_id=ticket_id,
+            author=author_name,
+            author_id=author_id,
+            text=text,
+            is_system_event=False,
+        )
+        db.session.add(comment)
 
-            ticket = db.session.get(Ticket, ticket_id)
-            if ticket:
-                ticket.updated_at = get_utc_now()
+        ticket = db.session.get(Ticket, ticket_id)
+        if ticket:
+            ticket.updated_at = get_utc_now()
 
-            _process_mentions(ticket_id, text, author_name)
-            db.session.commit()
-            return comment
-        except Exception as exc:
-            db.session.rollback()
-            current_app.logger.error("Error adding comment: %s", exc)
-            raise
+        _process_mentions(ticket_id, text, author_name)
+        db.session.commit()
+        return comment
 
     # ------------------------------------------------------------------
     # Status
     # ------------------------------------------------------------------
 
     @staticmethod
+    @db_transaction
     def update_status(
         ticket_id: int,
         status: Any,
@@ -500,120 +508,95 @@ class TicketService:
         commit: bool = True,
     ) -> Optional[Ticket]:
         """Update ticket status and add a system comment."""
-        try:
-            ticket = _get_ticket_or_none(ticket_id)
-            if not ticket:
-                return None
+        ticket = _get_ticket_or_none(ticket_id)
+        if not ticket:
+            return None
 
-            old_status = ticket.status
-            new_status = status.value if hasattr(status, "value") else status
+        old_status = ticket.status
+        new_status = status.value if hasattr(status, "value") else status
 
-            if old_status != new_status:
-                ticket.status = new_status
-                ticket.updated_at = get_utc_now()
-                comment = Comment(
-                    ticket_id=ticket_id,
-                    author=author_name,
-                    author_id=author_id,
-                    text=f"Status geändert: {old_status} -> {new_status}",
-                    is_system_event=True,
-                    event_type="STATUS_CHANGE",
-                )
-                db.session.add(comment)
-                if commit:
-                    db.session.commit()
-                else:
-                    db.session.flush()
+        if old_status != new_status:
+            ticket.status = new_status
+            ticket.updated_at = get_utc_now()
+            comment = Comment(
+                ticket_id=ticket_id,
+                author=author_name,
+                author_id=author_id,
+                text=f"Status geändert: {old_status} -> {new_status}",
+                is_system_event=True,
+                event_type="STATUS_CHANGE",
+            )
+            db.session.add(comment)
+            if commit:
+                db.session.commit()
+            else:
+                db.session.flush()
 
-            return ticket
-        except Exception as exc:
-            db.session.rollback()
-            current_app.logger.error("Error updating status: %s", exc)
-            raise
-
+        return ticket
 
     # ------------------------------------------------------------------
     # Dashboard query
     # ------------------------------------------------------------------
 
     @staticmethod
-    def get_dashboard_tickets(
-        worker_id: Optional[int] = None,
-        search: Optional[str] = None,
-        status_filter: Optional[str] = None,
-        page: int = 1,
-        per_page: int = 25,
-        assigned_to_me: bool = False,
-        unassigned_only: bool = False,
-        callback_pending: bool = False,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        author_name: Optional[str] = None,
-        worker_role: Optional[str] = None,
-        team_ids: Optional[List[int]] = None,
-        assigned_worker_id: Optional[int] = None,
-        sort_by: Optional[str] = None,
-        sort_dir: str = "asc",
-        due_within_days: int = 0,
-    ) -> Dict[str, Any]:
+    def get_dashboard_tickets(f: TicketFilterSpec) -> Dict[str, Any]:
         """Fetch tickets for the dashboard with filtering and pagination."""
         query = _base_ticket_query()
-        tc = _team_clauses(team_ids)
-        is_elevated = worker_role in ELEVATED_ROLES
+        is_elevated = f.worker_role in ELEVATED_ROLES
 
         # Confidential filter
-        if not is_elevated and worker_id is not None:
+        if not is_elevated and f.worker_id is not None:
             query = query.filter(
-                db.or_(*_confidential_filter(worker_id, team_ids))
+                db.or_(*_confidential_filter(f.worker_id, f.team_ids))
             )
 
         # Assignment filters
         query = _apply_assignment_filters(
-            query, worker_id, team_ids,
-            assigned_to_me, unassigned_only, assigned_worker_id,
+            query, f.worker_id, f.team_ids,
+            f.assigned_to_me, f.unassigned_only, f.assigned_worker_id,
         )
 
         # Callback filter
-        if callback_pending:
+        if f.callback_pending:
             query = query.filter(
-                Ticket.callback_requested == True,  # noqa: E712
+                Ticket.callback_requested.is_(True),
                 Ticket.status != TicketStatus.ERLEDIGT.value,
             )
 
         # Date range
-        if start_date:
-            query = query.filter(Ticket.created_at >= start_date)
-        if end_date:
-            query = query.filter(Ticket.created_at <= end_date)
+        if f.start_date:
+            query = query.filter(Ticket.created_at >= f.start_date)
+        if f.end_date:
+            query = query.filter(Ticket.created_at <= f.end_date)
 
         # Due-within-days filter (show tickets due within N days or overdue)
-        if due_within_days > 0:
-            cutoff = get_utc_now() + timedelta(days=due_within_days)
+        if f.due_within_days > 0:
+            cutoff = get_utc_now() + timedelta(days=f.due_within_days)
             query = query.filter(
                 Ticket.due_date.isnot(None),
                 Ticket.due_date <= cutoff,
             )
 
         # Author filter
-        if author_name:
+        if f.author_name:
             author_sub = (
                 db.session.query(Comment.ticket_id)
                 .filter(
                     Comment.event_type == "TICKET_CREATED",
-                    Comment.author.ilike(f"%{author_name}%"),
+                    Comment.author.ilike(f"%{f.author_name}%"),
                 )
                 .subquery()
             )
             query = query.filter(Ticket.id.in_(author_sub))
 
         # Full-text search
-        if search:
-            query = _apply_search_filter(query, search)
+        if f.search:
+            query = _apply_search_filter(query, f.search)
 
         # Status filter
-        if status_filter:
-            query = query.filter(Ticket.status == status_filter)
-        elif not search and not assigned_to_me:
+        if f.status_filter:
+            query = query.filter(Ticket.status == f.status_filter)
+        elif not f.search and not f.assigned_to_me:
             query = query.filter(
                 Ticket.status != TicketStatus.ERLEDIGT.value
             )
@@ -628,22 +611,22 @@ class TicketService:
             "due_date": Ticket.due_date,
             "order_reference": Ticket.order_reference,
         }
-        if sort_by and sort_by in _SORT_COLUMNS:
-            col = _SORT_COLUMNS[sort_by]
-            if sort_dir == "asc":
+        if f.sort_by and f.sort_by in _SORT_COLUMNS:
+            col = _SORT_COLUMNS[f.sort_by]
+            if f.sort_dir == "asc":
                 order = col.asc().nullslast()
             else:
                 order = col.desc().nullslast()
             focus_pagination = query.order_by(
                 order, Ticket.id.desc()
-            ).paginate(page=page, per_page=per_page, error_out=False)
+            ).paginate(page=f.page, per_page=f.per_page, error_out=False)
         else:
             focus_pagination = query.order_by(
                 Ticket.priority.asc(), Ticket.created_at.desc()
-            ).paginate(page=page, per_page=per_page, error_out=False)
+            ).paginate(page=f.page, per_page=f.per_page, error_out=False)
 
         summary_counts = _fetch_summary_counts(
-            worker_id, worker_role, team_ids,
+            f.worker_id, f.worker_role, f.team_ids,
         )
 
         return {
@@ -670,91 +653,79 @@ class TicketService:
         )
 
     @staticmethod
+    @db_transaction
     def request_approval(
         ticket_id: int, worker_id: int, worker_name: str
     ) -> Tuple[bool, str]:
         """Request approval for a ticket."""
-        try:
-            ticket = _get_ticket_or_raise(ticket_id)
-            if ticket.approval_status == ApprovalStatus.PENDING.value:
-                return False, "Freigabe bereits angefragt."
+        ticket = _get_ticket_or_raise(ticket_id)
+        if ticket.approval_status == ApprovalStatus.PENDING.value:
+            return False, "Freigabe bereits angefragt."
 
-            ticket.approval_status = ApprovalStatus.PENDING.value
-            ticket.updated_at = get_utc_now()
-            db.session.add(Comment(
-                ticket_id=ticket.id,
-                author=worker_name,
-                author_id=worker_id,
-                text="Freigabe wurde angefordert. Das Ticket ist nun gesperrt.",
-                is_system_event=True,
-                event_type="APPROVAL_REQUEST",
-            ))
-            db.session.commit()
-            _send_approval_emails(ticket.id, worker_name)
-            return True, "Freigabe angefragt."
-        except Exception as exc:
-            db.session.rollback()
-            current_app.logger.error("Error requesting approval: %s", exc)
-            raise
+        ticket.approval_status = ApprovalStatus.PENDING.value
+        ticket.updated_at = get_utc_now()
+        db.session.add(Comment(
+            ticket_id=ticket.id,
+            author=worker_name,
+            author_id=worker_id,
+            text="Freigabe wurde angefordert. Das Ticket ist nun gesperrt.",
+            is_system_event=True,
+            event_type="APPROVAL_REQUEST",
+        ))
+        db.session.commit()
+        _send_approval_emails(ticket.id, worker_name)
+        return True, "Freigabe angefragt."
 
     @staticmethod
+    @db_transaction
     def approve_ticket(
         ticket_id: int, worker_id: int, worker_name: str
     ) -> Any:
         """Approve a ticket."""
-        try:
-            ticket = _get_ticket_or_raise(ticket_id)
-            if ticket.approval_status == ApprovalStatus.APPROVED.value:
-                return False, "Ticket bereits freigegeben."
+        ticket = _get_ticket_or_raise(ticket_id)
+        if ticket.approval_status == ApprovalStatus.APPROVED.value:
+            return False, "Ticket bereits freigegeben."
 
-            ticket.approval_status = ApprovalStatus.APPROVED.value
-            ticket.approved_by_id = worker_id
-            ticket.approved_at = get_utc_now()
-            ticket.updated_at = get_utc_now()
-            db.session.add(Comment(
-                ticket_id=ticket.id,
-                author="System",
-                author_id=None,
-                text=f"Freigegeben durch {worker_name}",
-                is_system_event=True,
-                event_type="APPROVAL",
-            ))
-            db.session.commit()
-            _send_approval_result_email(ticket, approved=True)
-            return ticket
-        except Exception as exc:
-            db.session.rollback()
-            current_app.logger.error("Error approving ticket: %s", exc)
-            raise
+        ticket.approval_status = ApprovalStatus.APPROVED.value
+        ticket.approved_by_id = worker_id
+        ticket.approved_at = get_utc_now()
+        ticket.updated_at = get_utc_now()
+        db.session.add(Comment(
+            ticket_id=ticket.id,
+            author="System",
+            author_id=None,
+            text=f"Freigegeben durch {worker_name}",
+            is_system_event=True,
+            event_type="APPROVAL",
+        ))
+        db.session.commit()
+        _send_approval_result_email(ticket, approved=True)
+        return ticket
 
     @staticmethod
+    @db_transaction
     def reject_ticket(
         ticket_id: int, worker_id: int, worker_name: str, reason: str
     ) -> Ticket:
         """Reject a ticket with a reason."""
-        try:
-            ticket = _get_ticket_or_raise(ticket_id)
+        ticket = _get_ticket_or_raise(ticket_id)
 
-            ticket.approval_status = ApprovalStatus.REJECTED.value
-            ticket.rejected_by_id = worker_id
-            ticket.reject_reason = reason
-            ticket.status = TicketStatus.OFFEN.value
-            ticket.updated_at = get_utc_now()
-            db.session.add(Comment(
-                ticket_id=ticket.id,
-                author="System",
-                author_id=None,
-                text=f"Freigabe abgelehnt durch {worker_name}. Grund: {reason}",
-                is_system_event=True,
-                event_type="APPROVAL_REJECTED",
-            ))
-            db.session.commit()
-            _send_approval_result_email(ticket, approved=False, reason=reason)
-            return ticket
-        except Exception as exc:
-            db.session.rollback()
-            current_app.logger.error("Error rejecting ticket: %s", exc)
-            raise
+        ticket.approval_status = ApprovalStatus.REJECTED.value
+        ticket.rejected_by_id = worker_id
+        ticket.reject_reason = reason
+        ticket.status = TicketStatus.OFFEN.value
+        ticket.updated_at = get_utc_now()
+        db.session.add(Comment(
+            ticket_id=ticket.id,
+            author="System",
+            author_id=None,
+            text=f"Freigabe abgelehnt durch {worker_name}. Grund: {reason}",
+            is_system_event=True,
+            event_type="APPROVAL_REJECTED",
+        ))
+        db.session.commit()
+        _send_approval_result_email(ticket, approved=False, reason=reason)
+        return ticket
 
     # ------------------------------------------------------------------
     # Assignment
@@ -804,6 +775,7 @@ class TicketService:
         return None, path_logs
 
     @staticmethod
+    @db_transaction
     def assign_ticket(
         ticket_id: int,
         worker_id: Optional[int],
@@ -812,68 +784,64 @@ class TicketService:
         team_id: Optional[int] = None,
     ) -> Ticket:
         """Assign a ticket to a worker (with OOO delegation)."""
-        try:
-            ticket = _get_ticket_or_raise(ticket_id)
+        ticket = _get_ticket_or_raise(ticket_id)
 
-            old_name = (
-                ticket.assigned_to.name if ticket.assigned_to else "Niemand"
+        old_name = (
+            ticket.assigned_to.name if ticket.assigned_to else "Niemand"
+        )
+        path_logs: List[str] = []
+        if worker_id and worker_id != author_id:
+            worker_id, path_logs = TicketService._resolve_delegation(
+                worker_id
             )
-            path_logs: List[str] = []
-            if worker_id and worker_id != author_id:
-                worker_id, path_logs = TicketService._resolve_delegation(
-                    worker_id
-                )
 
-            new_name = "Niemand"
-            if worker_id:
-                worker = db.session.get(Worker, worker_id)
-                if not worker:
-                    raise ValueError("Mitarbeiter nicht gefunden.")
-                new_name = worker.name
+        new_name = "Niemand"
+        if worker_id:
+            worker = db.session.get(Worker, worker_id)
+            if not worker:
+                raise ValueError("Mitarbeiter nicht gefunden.")
+            new_name = worker.name
 
-            if (
-                ticket.assigned_to_id == worker_id
-                and ticket.assigned_team_id == team_id
-                and not path_logs
-            ):
-                return ticket
-
-            ticket.assigned_to_id = worker_id
-            ticket.assigned_team_id = team_id
-            ticket.updated_at = get_utc_now()
-
-            if worker_id and worker_id != author_id:
-                TicketService.create_notification(
-                    user_id=worker_id,
-                    message=f"Ihnen wurde Ticket #{ticket_id} zugewiesen.",
-                    link=f"/ticket/{ticket_id}",
-                )
-
-            comment_text = _build_assignment_comment(
-                author_name, old_name, new_name, path_logs
-            )
-            _notify_admins_ooo_exhausted(ticket_id, author_id, path_logs)
-
-            db.session.add(Comment(
-                ticket_id=ticket.id,
-                author=author_name,
-                author_id=author_id,
-                text=comment_text,
-                is_system_event=True,
-                event_type="ASSIGNMENT",
-            ))
-
-            if worker_id:
-                _send_assignment_email(worker_id, new_name, ticket)
-
-            db.session.commit()
+        if (
+            ticket.assigned_to_id == worker_id
+            and ticket.assigned_team_id == team_id
+            and not path_logs
+        ):
             return ticket
-        except Exception as exc:
-            db.session.rollback()
-            current_app.logger.error("Error assigning ticket: %s", exc)
-            raise
+
+        ticket.assigned_to_id = worker_id
+        ticket.assigned_team_id = team_id
+        ticket.updated_at = get_utc_now()
+
+        if worker_id and worker_id != author_id:
+            TicketService.create_notification(
+                user_id=worker_id,
+                message=f"Ihnen wurde Ticket #{ticket_id} zugewiesen.",
+                link=f"/ticket/{ticket_id}",
+            )
+
+        comment_text = _build_assignment_comment(
+            author_name, old_name, new_name, path_logs
+        )
+        _notify_admins_ooo_exhausted(ticket_id, author_id, path_logs)
+
+        db.session.add(Comment(
+            ticket_id=ticket.id,
+            author=author_name,
+            author_id=author_id,
+            text=comment_text,
+            is_system_event=True,
+            event_type="ASSIGNMENT",
+        ))
+
+        if worker_id:
+            _send_assignment_email(worker_id, new_name, ticket)
+
+        db.session.commit()
+        return ticket
 
     @staticmethod
+    @db_transaction
     def reassign_ticket(
         ticket_id: int,
         to_worker_id: int,
@@ -881,57 +849,50 @@ class TicketService:
         author_id: int,
     ) -> Ticket:
         """Direct admin reassignment (no OOO delegation)."""
-        try:
-            ticket = _get_ticket_or_raise(ticket_id)
+        ticket = _get_ticket_or_raise(ticket_id)
 
-            to_worker = db.session.get(Worker, to_worker_id)
-            if not to_worker or not to_worker.is_active:
-                raise ValueError(
-                    "Ziel-Mitarbeiter nicht gefunden oder inaktiv."
-                )
-
-            from_name = (
-                ticket.assigned_to.name
-                if ticket.assigned_to
-                else "Nicht zugewiesen"
+        to_worker = db.session.get(Worker, to_worker_id)
+        if not to_worker or not to_worker.is_active:
+            raise ValueError(
+                "Ziel-Mitarbeiter nicht gefunden oder inaktiv."
             )
-            ticket.assigned_to_id = to_worker_id
-            ticket.updated_at = get_utc_now()
 
-            db.session.add(Comment(
-                ticket_id=ticket.id,
-                author=author_name,
-                author_id=author_id,
-                text=(
-                    f"Umgezuweisen durch {author_name}: "
-                    f"{from_name} → {to_worker.name}"
-                ),
-                is_system_event=True,
-                event_type="ASSIGNMENT",
-            ))
-            TicketService.create_notification(
-                user_id=to_worker_id,
-                message=(
-                    f"Ticket #{ticket.id} wurde Ihnen zugewiesen "
-                    f"(von {from_name})."
-                ),
-                link=f"/ticket/{ticket.id}",
-            )
-            db.session.commit()
-            return ticket
-        except Exception as exc:
-            db.session.rollback()
-            current_app.logger.error(
-                "Error reassigning ticket %s: %s", ticket_id, exc
-            )
-            raise
+        from_name = (
+            ticket.assigned_to.name
+            if ticket.assigned_to
+            else "Nicht zugewiesen"
+        )
+        ticket.assigned_to_id = to_worker_id
+        ticket.updated_at = get_utc_now()
 
+        db.session.add(Comment(
+            ticket_id=ticket.id,
+            author=author_name,
+            author_id=author_id,
+            text=(
+                f"Umgezuweisen durch {author_name}: "
+                f"{from_name} → {to_worker.name}"
+            ),
+            is_system_event=True,
+            event_type="ASSIGNMENT",
+        ))
+        TicketService.create_notification(
+            user_id=to_worker_id,
+            message=(
+                f"Ticket #{ticket.id} wurde Ihnen zugewiesen "
+                f"(von {from_name})."
+            ),
+            link=f"/ticket/{ticket.id}",
+        )
+        db.session.commit()
+        return ticket
 
     # ------------------------------------------------------------------
     # Ticket meta update
     # ------------------------------------------------------------------
 
     @staticmethod
+    @db_transaction
     def update_ticket_meta(
         ticket_id: int,
         title: str,
@@ -945,70 +906,64 @@ class TicketService:
         recurrence_rule: Optional[str] = None,
     ) -> Ticket:
         """Update ticket metadata with an audit trail."""
-        try:
-            ticket = _get_ticket_or_raise(ticket_id)
+        ticket = _get_ticket_or_raise(ticket_id)
 
-            changes = _collect_meta_changes(
-                ticket, title, priority, due_date,
-                order_reference, reminder_date,
-            )
-            ticket.title = title
-            if priority is not None:
-                ticket.priority = int(priority)
-            ticket.due_date = due_date
-            ticket.order_reference = order_reference
-            if ticket.reminder_date != reminder_date:
-                ticket.reminder_notified_at = None
-            ticket.reminder_date = reminder_date
-            ticket.updated_at = get_utc_now()
+        changes = _collect_meta_changes(
+            ticket, title, priority, due_date,
+            order_reference, reminder_date,
+        )
+        ticket.title = title
+        if priority is not None:
+            ticket.priority = int(priority)
+        ticket.due_date = due_date
+        ticket.order_reference = order_reference
+        if ticket.reminder_date != reminder_date:
+            ticket.reminder_notified_at = None
+        ticket.reminder_date = reminder_date
+        ticket.updated_at = get_utc_now()
 
-            old_rule = ticket.recurrence_rule
-            new_rule = recurrence_rule or None
-            if old_rule != new_rule:
-                old_label = (old_rule or "Einmalig").capitalize()
-                new_label = (new_rule or "Einmalig").capitalize()
-                changes.append(f"Serie: {old_label} -> {new_label}")
-                ticket.recurrence_rule = new_rule
-                if new_rule:
-                    increment = _RECURRENCE_INCREMENTS.get(
-                        new_rule.lower(), relativedelta(months=1)
-                    )
-                    ticket.next_recurrence_date = get_utc_now() + increment
-                else:
-                    ticket.next_recurrence_date = None
+        old_rule = ticket.recurrence_rule
+        new_rule = recurrence_rule or None
+        if old_rule != new_rule:
+            old_label = (old_rule or "Einmalig").capitalize()
+            new_label = (new_rule or "Einmalig").capitalize()
+            changes.append(f"Serie: {old_label} -> {new_label}")
+            ticket.recurrence_rule = new_rule
+            if new_rule:
+                increment = _RECURRENCE_INCREMENTS.get(
+                    new_rule.lower(), relativedelta(months=1)
+                )
+                ticket.next_recurrence_date = get_utc_now() + increment
+            else:
+                ticket.next_recurrence_date = None
 
-            if tags is not None:
-                tag_changes = _sync_tags(ticket, tags)
-                if tag_changes:
-                    changes.append(tag_changes)
+        if tags is not None:
+            tag_changes = _sync_tags(ticket, tags)
+            if tag_changes:
+                changes.append(tag_changes)
 
-            if changes:
-                db.session.add(Comment(
-                    ticket_id=ticket.id,
-                    author=author_name,
-                    author_id=author_id,
-                    text="Metadaten geändert: " + ", ".join(changes),
-                    is_system_event=True,
-                    event_type="META_UPDATE",
-                ))
-                db.session.commit()
+        if changes:
+            db.session.add(Comment(
+                ticket_id=ticket.id,
+                author=author_name,
+                author_id=author_id,
+                text="Metadaten geändert: " + ", ".join(changes),
+                is_system_event=True,
+                event_type="META_UPDATE",
+            ))
+            db.session.commit()
 
-                # Notify assigned worker and watchers about changes
-                _notify_meta_change(ticket, author_name, author_id, changes)
+            # Notify assigned worker and watchers about changes
+            _notify_meta_change(ticket, author_name, author_id, changes)
 
-            return ticket
-        except SQLAlchemyError as exc:
-            db.session.rollback()
-            current_app.logger.error(
-                "Database error updating ticket meta: %s", exc
-            )
-            raise
+        return ticket
 
     # ------------------------------------------------------------------
     # Checklists
     # ------------------------------------------------------------------
 
     @staticmethod
+    @db_transaction
     def add_checklist_item(
         ticket_id: int,
         title: str,
@@ -1018,79 +973,68 @@ class TicketService:
         depends_on_item_id: Optional[int] = None,
     ) -> ChecklistItem:
         """Add a checklist item to a ticket."""
-        try:
-            item = ChecklistItem(
-                ticket_id=ticket_id,
-                title=title,
-                assigned_to_id=assigned_to_id,
-                assigned_team_id=assigned_team_id,
-                due_date=due_date,
-                depends_on_item_id=depends_on_item_id,
-            )
-            db.session.add(item)
-            db.session.commit()
-            return item
-        except Exception as exc:
-            db.session.rollback()
-            current_app.logger.error("Error adding checklist item: %s", exc)
-            raise
+        item = ChecklistItem(
+            ticket_id=ticket_id,
+            title=title,
+            assigned_to_id=assigned_to_id,
+            assigned_team_id=assigned_team_id,
+            due_date=due_date,
+            depends_on_item_id=depends_on_item_id,
+        )
+        db.session.add(item)
+        db.session.commit()
+        return item
 
     @staticmethod
+    @db_transaction
     def toggle_checklist_item(
         item_id: int,
         worker_name: str = "System",
         worker_id: Optional[int] = None,
     ) -> Optional[ChecklistItem]:
         """Toggle a checklist item and auto-close the ticket if all done."""
-        try:
-            item = db.session.get(ChecklistItem, item_id)
-            if not item:
-                return None
+        item = db.session.get(ChecklistItem, item_id)
+        if not item:
+            return None
 
-            _check_dependency(item)
-            item.is_completed = not item.is_completed
-            ticket = item.ticket
+        _check_dependency(item)
+        item.is_completed = not item.is_completed
+        ticket = item.ticket
 
-            if (
-                item.is_completed
-                and ticket.status != TicketStatus.ERLEDIGT.value
-                and ticket.checklists
-                and all(c.is_completed for c in ticket.checklists)
-            ):
-                ticket.status = TicketStatus.ERLEDIGT.value
-                db.session.add(Comment(
-                    ticket_id=ticket.id,
-                    author=worker_name,
-                    author_id=worker_id,
-                    text=(
-                        "Status automatisch auf ERLEDIGT gesetzt "
-                        "(alle Unteraufgaben beendet)."
-                    ),
-                    is_system_event=True,
-                    event_type="STATUS_CHANGE",
-                ))
+        if (
+            item.is_completed
+            and ticket.status != TicketStatus.ERLEDIGT.value
+            and ticket.checklists
+            and all(c.is_completed for c in ticket.checklists)
+        ):
+            ticket.status = TicketStatus.ERLEDIGT.value
+            db.session.add(Comment(
+                ticket_id=ticket.id,
+                author=worker_name,
+                author_id=worker_id,
+                text=(
+                    "Status automatisch auf ERLEDIGT gesetzt "
+                    "(alle Unteraufgaben beendet)."
+                ),
+                is_system_event=True,
+                event_type="STATUS_CHANGE",
+            ))
 
-            db.session.commit()
-            return item
-        except Exception as exc:
-            db.session.rollback()
-            raise
+        db.session.commit()
+        return item
 
     @staticmethod
+    @db_transaction
     def delete_checklist_item(item_id: int) -> bool:
         """Delete a checklist item (clears dependencies first)."""
-        try:
-            item = db.session.get(ChecklistItem, item_id)
-            if item:
-                ChecklistItem.query.filter_by(
-                    depends_on_item_id=item.id
-                ).update({"depends_on_item_id": None})
-                db.session.delete(item)
-                db.session.commit()
-            return True
-        except Exception as exc:
-            db.session.rollback()
-            raise
+        item = db.session.get(ChecklistItem, item_id)
+        if item:
+            ChecklistItem.query.filter_by(
+                depends_on_item_id=item.id
+            ).update({"depends_on_item_id": None})
+            db.session.delete(item)
+            db.session.commit()
+        return True
 
     @staticmethod
     def apply_checklist_template(
@@ -1137,7 +1081,7 @@ class TicketService:
         """Fetch projects grouped by order_reference with progress."""
         tickets = (
             Ticket.query.filter(
-                Ticket.is_deleted == False,  # noqa: E712
+                Ticket.is_deleted.is_(False),
                 Ticket.order_reference.isnot(None),
                 Ticket.order_reference != "",
             )
@@ -1169,7 +1113,7 @@ class TicketService:
 
         tickets = (
             Ticket.query.filter(
-                Ticket.is_deleted == False,  # noqa: E712
+                Ticket.is_deleted.is_(False),
                 Ticket.status.in_(_OPEN_STATUSES),
                 db.or_(
                     Ticket.assigned_to_id.isnot(None),
@@ -1378,7 +1322,7 @@ def _send_approval_emails(ticket_id: int, worker_name: str) -> None:
     """Notify admins/management about a pending approval."""
     try:
         admin_workers = Worker.query.filter(
-            Worker.is_active == True,  # noqa: E712
+            Worker.is_active.is_(True),
             Worker.role.in_(["admin", "hr", "management"]),
             Worker.email.isnot(None),
         ).all()
@@ -1543,7 +1487,7 @@ def _apply_assignment_filters(
                 Ticket.checklists.any(
                     db.and_(
                         ChecklistItem.assigned_to_id == worker_id,
-                        ChecklistItem.is_completed == False,  # noqa: E712
+                        ChecklistItem.is_completed.is_(False),
                     )
                 ),
                 *tc,
@@ -1615,7 +1559,7 @@ def _fetch_self_tickets(
                 Ticket.checklists.any(
                     db.and_(
                         ChecklistItem.assigned_to_id == worker_id,
-                        ChecklistItem.is_completed == False,  # noqa: E712
+                        ChecklistItem.is_completed.is_(False),
                     )
                 ),
                 *stc,
@@ -1639,7 +1583,7 @@ def _fetch_summary_counts(
     team_ids: Optional[List[int]],
 ) -> Dict[str, Any]:
     """Fetch status counts and action-driven counts for the dashboard."""
-    base_filter = Ticket.is_deleted == False  # noqa: E712
+    base_filter = Ticket.is_deleted.is_(False)
     confidential = (
         db.or_(*_confidential_filter(worker_id, team_ids))
         if worker_role not in ELEVATED_ROLES and worker_id is not None
@@ -1676,7 +1620,7 @@ def _fetch_summary_counts(
         db.session.query(func.count(Ticket.id))
         .filter(base_filter)
         .filter(Ticket.status.in_(_OPEN_STATUSES))
-        .filter(Ticket.callback_requested == True)  # noqa: E712
+        .filter(Ticket.callback_requested.is_(True))
     )
     if confidential is not None:
         callback_q = callback_q.filter(confidential)
