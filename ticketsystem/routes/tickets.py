@@ -9,6 +9,7 @@ import io
 import os
 from datetime import datetime, timezone
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from flask import (
     Blueprint,
@@ -26,7 +27,6 @@ from flask import (
 )
 from markupsafe import Markup
 from sqlalchemy.exc import SQLAlchemyError
-
 from enums import ELEVATED_ROLES, ApprovalStatus, TicketPriority, TicketStatus, WorkerRole
 from extensions import Config, db, limiter
 from models import (
@@ -46,6 +46,8 @@ from routes.auth import (
     worker_required,
 )
 from services import TicketService
+from services._helpers import api_endpoint, api_error, api_ok
+from services.ticket_service import TicketFilterSpec
 from utils import get_utc_now
 
 _PRIO_LABELS: dict[int, str] = {1: "Hoch", 2: "Mittel", 3: "Niedrig"}
@@ -63,16 +65,6 @@ def _session_author() -> str:
 def _session_worker_id() -> int | None:
     """Return the current session's worker id."""
     return session.get("worker_id")
-
-
-def _api_error(msg: str, status: int = 500) -> tuple[Response, int]:
-    """Return a JSON error response."""
-    return jsonify({"success": False, "error": msg}), status
-
-
-def _api_ok(**extra: Any) -> Response:
-    """Return a JSON success response with optional extra keys."""
-    return jsonify({"success": True, **extra})
 
 
 def _is_viewer() -> bool:
@@ -105,7 +97,7 @@ def check_approval_lock(
         ticket = db.session.get(Ticket, ticket_id)
 
     if ticket and ticket.approval_status == ApprovalStatus.PENDING.value:
-        return _api_error("Ticket ist für die Freigabe gesperrt.", 403)
+        return api_error("Ticket ist für die Freigabe gesperrt.", 403)
     return None
 
 
@@ -117,8 +109,6 @@ def _parse_callback_due(raw: str) -> datetime | None:
     """Parse a callback-due datetime string to naive UTC."""
     if not raw:
         return None
-    from zoneinfo import ZoneInfo
-
     local_tz = ZoneInfo("Europe/Berlin")
     for fmt in ("%Y-%m-%dT%H:%M", "%Y-%m-%d"):
         try:
@@ -227,7 +217,7 @@ def _dashboard_view() -> str | Response:
         status_filter = status_filter or "wartet"
 
     team_ids = Team.team_ids_for_worker(worker_id) if worker_id else []
-    tickets_data = TicketService.get_dashboard_tickets(
+    tickets_data = TicketService.get_dashboard_tickets(TicketFilterSpec(
         worker_id=worker_id,
         search=search,
         status_filter=status_filter,
@@ -242,7 +232,7 @@ def _dashboard_view() -> str | Response:
         sort_by=sort_by or None,
         sort_dir=sort_dir,
         due_within_days=days_horizon,
-    )
+    ))
 
     all_workers = Worker.query.filter_by(is_active=True).order_by(Worker.name).all()
     all_teams = Team.query.order_by(Team.name).all()
@@ -283,7 +273,7 @@ def _archive_view() -> str:
 
     wid = _session_worker_id()
     team_ids = Team.team_ids_for_worker(wid) if wid else []
-    tickets_data = TicketService.get_dashboard_tickets(
+    tickets_data = TicketService.get_dashboard_tickets(TicketFilterSpec(
         worker_id=wid,
         search=search,
         status_filter=TicketStatus.ERLEDIGT.value,
@@ -294,7 +284,7 @@ def _archive_view() -> str:
         author_name=author,
         worker_role=session.get("role"),
         team_ids=team_ids,
-    )
+    ))
 
     return render_template(
         "archive.html",
@@ -502,14 +492,15 @@ def _add_comment_view(ticket_id: int) -> Response:
 
 @worker_required
 @limiter.limit("20 per minute")
+@api_endpoint
 def _update_status_api(ticket_id: int) -> tuple[Response, int] | Response:
     """AJAX status update."""
     if _is_viewer():
-        return _api_error("Keine Berechtigung", 403)
+        return api_error("Keine Berechtigung", 403)
 
     ticket = _check_ticket_access(ticket_id)
     if not ticket:
-        return _api_error("Keine Berechtigung", 403)
+        return api_error("Keine Berechtigung", 403)
 
     lock_err = check_approval_lock(ticket_id=ticket_id)
     if lock_err:
@@ -518,29 +509,25 @@ def _update_status_api(ticket_id: int) -> tuple[Response, int] | Response:
     data: dict[str, Any] = request.get_json(silent=True) or {}
     new_status = data.get("status")
     if not new_status:
-        return _api_error("Kein Status angegeben", 400)
+        return api_error("Kein Status angegeben", 400)
 
     valid_statuses = {s.value for s in TicketStatus}
     if new_status not in valid_statuses:
-        return _api_error(f"Ungültiger Status: {new_status}", 400)
+        return api_error(f"Ungültiger Status: {new_status}", 400)
 
     if new_status == TicketStatus.ERLEDIGT.value and ticket.checklists:
         open_items = [c for c in ticket.checklists if not c.is_completed]
         if open_items:
-            return _api_error(
+            return api_error(
                 f"Ticket kann nicht geschlossen werden: "
                 f"{len(open_items)} offene Checklisten-Aufgabe(n).",
                 400,
             )
 
-    try:
-        TicketService.update_status(
-            ticket_id, new_status, _session_author(), _session_worker_id(),
-        )
-        return _api_ok()
-    except SQLAlchemyError:
-        current_app.logger.exception("API Error in _update_status_api")
-        return _api_error("Ein interner Fehler ist aufgetreten.")
+    TicketService.update_status(
+        ticket_id, new_status, _session_author(), _session_worker_id(),
+    )
+    return api_ok()
 
 
 # ------------------------------------------------------------------
@@ -549,14 +536,15 @@ def _update_status_api(ticket_id: int) -> tuple[Response, int] | Response:
 
 @worker_required
 @limiter.limit("20 per minute")
+@api_endpoint
 def _assign_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
     """AJAX ticket assignment."""
     if _is_viewer():
-        return _api_error("Keine Berechtigung", 403)
+        return api_error("Keine Berechtigung", 403)
 
     ticket = _check_ticket_access(ticket_id)
     if not ticket:
-        return _api_error("Keine Berechtigung", 403)
+        return api_error("Keine Berechtigung", 403)
 
     lock_err = check_approval_lock(ticket_id=ticket_id)
     if lock_err:
@@ -566,15 +554,11 @@ def _assign_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
     worker_id = _safe_int(data.get("worker_id"))
     team_id = _safe_int(data.get("team_id"))
 
-    try:
-        TicketService.assign_ticket(
-            ticket_id, worker_id, _session_author(),
-            _session_worker_id(), team_id=team_id,
-        )
-        return _api_ok()
-    except SQLAlchemyError:
-        current_app.logger.exception("API Error in _assign_ticket_api")
-        return _api_error("Ein interner Fehler ist aufgetreten.")
+    TicketService.assign_ticket(
+        ticket_id, worker_id, _session_author(),
+        _session_worker_id(), team_id=team_id,
+    )
+    return api_ok()
 
 
 @worker_required
@@ -602,24 +586,19 @@ def _assign_to_me_view(ticket_id: int) -> str | Response:
 
 @admin_or_management_required
 @limiter.limit("30 per minute")
+@api_endpoint
 def _reassign_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Reassign a single ticket to another worker."""
     data: dict[str, Any] = request.get_json(silent=True) or {}
     to_worker_id = _safe_int(data.get("to_worker_id"))
 
     if not to_worker_id:
-        return _api_error("Ziel-Mitarbeiter fehlt.", 400)
+        return api_error("Ziel-Mitarbeiter fehlt.", 400)
 
-    try:
-        TicketService.reassign_ticket(
-            ticket_id, to_worker_id, _session_author(), _session_worker_id(),
-        )
-        return _api_ok()
-    except ValueError as exc:
-        return _api_error(str(exc), 400)
-    except SQLAlchemyError:
-        current_app.logger.exception("API Error in _reassign_ticket_api")
-        return _api_error("Interner Fehler.")
+    TicketService.reassign_ticket(
+        ticket_id, to_worker_id, _session_author(), _session_worker_id(),
+    )
+    return api_ok()
 
 
 # ------------------------------------------------------------------
@@ -628,14 +607,15 @@ def _reassign_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
 
 @worker_required
 @limiter.limit("20 per minute")
+@api_endpoint
 def _update_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Handle ticket meta updates (title, priority, due_date, tags)."""
     if _is_viewer():
-        return _api_error("Keine Berechtigung", 403)
+        return api_error("Keine Berechtigung", 403)
 
     ticket = _check_ticket_access(ticket_id)
     if not ticket:
-        return _api_error("Keine Berechtigung", 403)
+        return api_error("Keine Berechtigung", 403)
 
     lock_err = check_approval_lock(ticket_id=ticket_id)
     if lock_err:
@@ -645,55 +625,52 @@ def _update_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
 
     new_title = data.get("title")
     if not new_title:
-        return _api_error("Titel fehlt", 400)
+        return api_error("Titel fehlt", 400)
 
     new_prio = data.get("priority")
     if new_prio is None:
-        return _api_error("Priorität fehlt", 400)
+        return api_error("Priorität fehlt", 400)
 
     try:
         TicketPriority(int(new_prio))
     except (ValueError, TypeError):
-        return _api_error(f"Ungültige Priorität: {new_prio}", 400)
+        return api_error(f"Ungültige Priorität: {new_prio}", 400)
 
     raw_due = data.get("due_date")
     due_date = _parse_date(raw_due)
     if raw_due and not due_date:
-        return _api_error("Ungültiges Datumsformat für Fälligkeit.", 400)
+        return api_error("Ungültiges Datumsformat für Fälligkeit.", 400)
     raw_reminder = data.get("reminder_date")
     reminder_date = _parse_date(raw_reminder)
     if raw_reminder and not reminder_date:
-        return _api_error("Ungültiges Datumsformat für Erinnerung.", 400)
+        return api_error("Ungültiges Datumsformat für Erinnerung.", 400)
 
-    try:
-        TicketService.update_ticket_meta(
-            ticket_id,
-            new_title,
-            new_prio,
-            _session_author(),
-            _session_worker_id(),
-            due_date=due_date,
-            order_reference=data.get("order_reference"),
-            reminder_date=reminder_date,
-            tags=data.get("tags"),
-            recurrence_rule=data.get("recurrence_rule"),
-        )
-        return _api_ok()
-    except SQLAlchemyError:
-        current_app.logger.exception("API Error in _update_ticket_api")
-        return _api_error("Ein interner Fehler ist aufgetreten.")
+    TicketService.update_ticket_meta(
+        ticket_id,
+        new_title,
+        new_prio,
+        _session_author(),
+        _session_worker_id(),
+        due_date=due_date,
+        order_reference=data.get("order_reference"),
+        reminder_date=reminder_date,
+        tags=data.get("tags"),
+        recurrence_rule=data.get("recurrence_rule"),
+    )
+    return api_ok()
 
 
 @worker_required
 @limiter.limit("20 per minute")
+@api_endpoint
 def _update_contact_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Update customer contact fields on a ticket."""
     if _is_viewer():
-        return _api_error("Keine Berechtigung", 403)
+        return api_error("Keine Berechtigung", 403)
 
     ticket = _check_ticket_access(ticket_id)
     if not ticket:
-        return _api_error("Keine Berechtigung", 403)
+        return api_error("Keine Berechtigung", 403)
 
     data: dict[str, Any] = request.get_json(silent=True) or {}
 
@@ -706,12 +683,8 @@ def _update_contact_api(ticket_id: int) -> tuple[Response, int] | Response:
     ticket.callback_due = _parse_callback_due(callback_due_str) if callback_due_str else None
     ticket.updated_at = get_utc_now()
 
-    try:
-        db.session.commit()
-        return _api_ok()
-    except SQLAlchemyError:
-        current_app.logger.exception("API Error in _update_contact_api")
-        return _api_error("Ein interner Fehler ist aufgetreten.")
+    db.session.commit()
+    return api_ok()
 
 
 @worker_required
@@ -742,32 +715,29 @@ def _serve_attachment(attachment_id: int) -> Response | tuple[str, int]:
 
 @worker_required
 @limiter.limit("20 per minute")
+@api_endpoint
 def _delete_attachment_api(attachment_id: int) -> tuple[Response, int] | Response:
     """Delete an attachment from a ticket."""
     if _is_viewer():
-        return _api_error("Keine Berechtigung", 403)
+        return api_error("Keine Berechtigung", 403)
 
     attachment = db.session.get(Attachment, attachment_id)
     if not attachment:
-        return _api_error("Anhang nicht gefunden.", 404)
+        return api_error("Anhang nicht gefunden.", 404)
 
     ticket = attachment.ticket
     if not ticket:
-        return _api_error("Ticket nicht gefunden.", 404)
+        return api_error("Ticket nicht gefunden.", 404)
 
     # Only ticket author or admin can delete
     wid = _session_worker_id()
     role = session.get("role")
     if not ticket._worker_is_author(wid) and role != "admin":
-        return _api_error("Keine Berechtigung.", 403)
+        return api_error("Keine Berechtigung.", 403)
 
-    try:
-        db.session.delete(attachment)
-        db.session.commit()
-        return _api_ok()
-    except SQLAlchemyError:
-        current_app.logger.exception("API Error in _delete_attachment_api")
-        return _api_error("Ein interner Fehler ist aufgetreten.")
+    db.session.delete(attachment)
+    db.session.commit()
+    return api_ok()
 
 
 # ------------------------------------------------------------------
@@ -776,52 +746,43 @@ def _delete_attachment_api(attachment_id: int) -> tuple[Response, int] | Respons
 
 @worker_required
 @limiter.limit("20 per minute")
+@api_endpoint
 def _request_approval_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Request management approval for a ticket."""
     if _is_viewer():
-        return _api_error("Keine Berechtigung", 403)
+        return api_error("Keine Berechtigung", 403)
 
-    try:
-        TicketService.request_approval(
-            ticket_id, _session_worker_id(), _session_author(),
-        )
-        return _api_ok()
-    except SQLAlchemyError:
-        current_app.logger.exception("API Error in _request_approval_api")
-        return _api_error("Ein interner Fehler ist aufgetreten.")
+    TicketService.request_approval(
+        ticket_id, _session_worker_id(), _session_author(),
+    )
+    return api_ok()
 
 
 @admin_required
 @limiter.limit("20 per minute")
+@api_endpoint
 def _approve_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Approve a pending ticket."""
-    try:
-        TicketService.approve_ticket(
-            ticket_id, _session_worker_id(), _session_author(),
-        )
-        return _api_ok()
-    except SQLAlchemyError:
-        current_app.logger.exception("API Error in _approve_ticket_api")
-        return _api_error("Ein interner Fehler ist aufgetreten.")
+    TicketService.approve_ticket(
+        ticket_id, _session_worker_id(), _session_author(),
+    )
+    return api_ok()
 
 
 @admin_required
 @limiter.limit("20 per minute")
+@api_endpoint
 def _reject_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Reject a pending ticket (reason required)."""
     data: dict[str, Any] = request.get_json(silent=True) or {}
     reason = data.get("reason")
     if not reason:
-        return _api_error("Ablehnungsgrund fehlt.", 400)
+        return api_error("Ablehnungsgrund fehlt.", 400)
 
-    try:
-        TicketService.reject_ticket(
-            ticket_id, _session_worker_id(), _session_author(), reason,
-        )
-        return _api_ok()
-    except SQLAlchemyError:
-        current_app.logger.exception("API Error in _reject_ticket_api")
-        return _api_error("Ein interner Fehler ist aufgetreten.")
+    TicketService.reject_ticket(
+        ticket_id, _session_worker_id(), _session_author(), reason,
+    )
+    return api_ok()
 
 
 # ------------------------------------------------------------------
@@ -830,14 +791,15 @@ def _reject_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
 
 @worker_required
 @limiter.limit("20 per minute")
+@api_endpoint
 def _add_checklist_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Add a checklist item to a ticket."""
     if _is_viewer():
-        return _api_error("Keine Berechtigung", 403)
+        return api_error("Keine Berechtigung", 403)
 
     ticket = _check_ticket_access(ticket_id)
     if ticket is None:
-        return _api_error("Kein Zugriff auf dieses Ticket.", 403)
+        return api_error("Kein Zugriff auf dieses Ticket.", 403)
 
     lock_err = check_approval_lock(ticket_id=ticket_id)
     if lock_err:
@@ -846,113 +808,101 @@ def _add_checklist_api(ticket_id: int) -> tuple[Response, int] | Response:
     data: dict[str, Any] = request.get_json(silent=True) or {}
     title = data.get("title")
     if not title:
-        return _api_error("Titel fehlt", 400)
+        return api_error("Titel fehlt", 400)
 
-    try:
-        item = TicketService.add_checklist_item(
-            ticket_id,
-            title,
-            _safe_int(data.get("assigned_to_id")),
-            assigned_team_id=_safe_int(data.get("assigned_team_id")),
-            due_date=_parse_date(data.get("due_date")),
-            depends_on_item_id=_safe_int(data.get("depends_on_item_id")),
-        )
-        return _api_ok(item_id=item.id)
-    except SQLAlchemyError:
-        current_app.logger.exception("API Error in _add_checklist_api")
-        return _api_error("Ein interner Fehler ist aufgetreten.")
+    item = TicketService.add_checklist_item(
+        ticket_id,
+        title,
+        _safe_int(data.get("assigned_to_id")),
+        assigned_team_id=_safe_int(data.get("assigned_team_id")),
+        due_date=_parse_date(data.get("due_date")),
+        depends_on_item_id=_safe_int(data.get("depends_on_item_id")),
+    )
+    return api_ok(item_id=item.id)
 
 
 @worker_required
 @limiter.limit("40 per minute")
+@api_endpoint
 def _toggle_checklist_api(item_id: int) -> tuple[Response, int] | Response:
     """Toggle a checklist item's completion state."""
     if _is_viewer():
-        return _api_error("Keine Berechtigung", 403)
+        return api_error("Keine Berechtigung", 403)
 
     item = db.session.get(ChecklistItem, item_id)
     if item:
         ticket = _check_ticket_access(item.ticket_id)
         if ticket is None:
-            return _api_error("Kein Zugriff auf dieses Ticket.", 403)
+            return api_error("Kein Zugriff auf dieses Ticket.", 403)
 
     lock_err = check_approval_lock(item_id=item_id)
     if lock_err:
         return lock_err
 
-    try:
-        item = TicketService.toggle_checklist_item(
-            item_id,
-            worker_name=_session_author(),
-            worker_id=_session_worker_id(),
-        )
-        return _api_ok(is_completed=item.is_completed if item else False)
-    except SQLAlchemyError:
-        current_app.logger.exception("API Error in _toggle_checklist_api")
-        return _api_error("Ein interner Fehler ist aufgetreten.")
+    item = TicketService.toggle_checklist_item(
+        item_id,
+        worker_name=_session_author(),
+        worker_id=_session_worker_id(),
+    )
+    return api_ok(is_completed=item.is_completed if item else False)
 
 
 @worker_required
 @limiter.limit("20 per minute")
+@api_endpoint
 def _delete_checklist_api(item_id: int) -> tuple[Response, int] | Response:
     """Delete a checklist item."""
     if _is_viewer():
-        return _api_error("Keine Berechtigung", 403)
+        return api_error("Keine Berechtigung", 403)
 
     item = db.session.get(ChecklistItem, item_id)
     if item:
         ticket = _check_ticket_access(item.ticket_id)
         if ticket is None:
-            return _api_error("Kein Zugriff auf dieses Ticket.", 403)
+            return api_error("Kein Zugriff auf dieses Ticket.", 403)
 
     lock_err = check_approval_lock(item_id=item_id)
     if lock_err:
         return lock_err
 
-    try:
-        TicketService.delete_checklist_item(item_id)
-        return _api_ok()
-    except SQLAlchemyError:
-        current_app.logger.exception("API Error in _delete_checklist_api")
-        return _api_error("Ein interner Fehler ist aufgetreten.")
+    TicketService.delete_checklist_item(item_id)
+    return api_ok()
 
 
 @worker_required
 @limiter.limit("30 per minute")
+@api_endpoint
 def _reorder_checklist_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Reorder checklist items for a ticket."""
     if _is_viewer():
-        return _api_error("Keine Berechtigung", 403)
+        return api_error("Keine Berechtigung", 403)
 
     ticket = _check_ticket_access(ticket_id)
     if ticket is None:
-        return _api_error("Kein Zugriff auf dieses Ticket.", 403)
+        return api_error("Kein Zugriff auf dieses Ticket.", 403)
 
     data: dict[str, Any] = request.get_json(silent=True) or {}
     order = data.get("order", [])
     if not isinstance(order, list):
-        return _api_error("Ungültige Reihenfolge.", 400)
+        return api_error("Ungültige Reihenfolge.", 400)
 
-    try:
-        for idx, item_id in enumerate(order):
-            item = db.session.get(ChecklistItem, item_id)
-            if item and item.ticket_id == ticket_id:
-                item.sort_order = idx
-        db.session.commit()
-        return _api_ok()
-    except SQLAlchemyError:
-        current_app.logger.exception("API Error in _reorder_checklist_api")
-        return _api_error("Ein interner Fehler ist aufgetreten.")
+    for idx, item_id in enumerate(order):
+        item = db.session.get(ChecklistItem, item_id)
+        if item and item.ticket_id == ticket_id:
+            item.sort_order = idx
+    db.session.commit()
+    return api_ok()
 
 
+@api_endpoint
 def _apply_template_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Apply a checklist template to an existing ticket."""
     if _is_viewer():
-        return _api_error("Keine Berechtigung", 403)
+        return api_error("Keine Berechtigung", 403)
 
     ticket = _check_ticket_access(ticket_id)
     if ticket is None:
-        return _api_error("Kein Zugriff auf dieses Ticket.", 403)
+        return api_error("Kein Zugriff auf dieses Ticket.", 403)
 
     lock_err = check_approval_lock(ticket_id=ticket_id)
     if lock_err:
@@ -961,13 +911,10 @@ def _apply_template_api(ticket_id: int) -> tuple[Response, int] | Response:
     data: dict[str, Any] = request.get_json(silent=True) or {}
     template_id = data.get("template_id")
     if not template_id:
-        return _api_error("Keine Vorlage ausgewählt.", 400)
+        return api_error("Keine Vorlage ausgewählt.", 400)
 
-    try:
-        TicketService.apply_checklist_template(ticket_id, template_id)
-        return _api_ok()
-    except SQLAlchemyError as exc:
-        return _api_error(str(exc))
+    TicketService.apply_checklist_template(ticket_id, template_id)
+    return api_ok()
 
 
 # ------------------------------------------------------------------
@@ -1011,13 +958,13 @@ def _build_queue_query(
             Ticket.checklists.any(
                 db.and_(
                     ChecklistItem.assigned_team_id.in_(team_ids),
-                    ChecklistItem.is_completed == False,  # noqa: E712
+                    ChecklistItem.is_completed.is_(False),
                 ),
             ),
         ]
 
     query = Ticket.query.filter(
-        Ticket.is_deleted == False,  # noqa: E712
+        Ticket.is_deleted.is_(False),
         Ticket.status != TicketStatus.ERLEDIGT.value,
     ).filter(
         db.or_(
@@ -1025,7 +972,7 @@ def _build_queue_query(
             Ticket.checklists.any(
                 db.and_(
                     ChecklistItem.assigned_to_id == worker_id,
-                    ChecklistItem.is_completed == False,  # noqa: E712
+                    ChecklistItem.is_completed.is_(False),
                 ),
             ),
             *team_clauses,
@@ -1160,8 +1107,8 @@ def _api_read_notification(notif_id: int) -> tuple[Response, int] | Response:
     if notif and notif.user_id == worker_id:
         notif.is_read = True
         db.session.commit()
-        return _api_ok()
-    return _api_error("Not found", 404)
+        return api_ok()
+    return api_error("Not found", 404)
 
 
 def _api_read_all_notifications() -> Response:
@@ -1171,32 +1118,29 @@ def _api_read_all_notifications() -> Response:
         user_id=worker_id, is_read=False,
     ).update({"is_read": True})
     db.session.commit()
-    return _api_ok()
+    return api_ok()
 
 
 # ------------------------------------------------------------------
 # Bulk actions
 # ------------------------------------------------------------------
 
+@api_endpoint
 def _bulk_action_api() -> tuple[Response, int] | Response:
     """Handle bulk operations on multiple tickets."""
     if _is_viewer():
-        return _api_error("Keine Berechtigung", 403)
+        return api_error("Keine Berechtigung", 403)
 
     data: dict[str, Any] = request.get_json(silent=True) or {}
     ticket_ids: list[int] = data.get("ticket_ids", [])
     action: str | None = data.get("action")
 
     if not ticket_ids or not action:
-        return _api_error("Keine Tickets oder Aktion angegeben.", 400)
+        return api_error("Keine Tickets oder Aktion angegeben.", 400)
 
-    try:
-        updated = _execute_bulk_action(ticket_ids, action, data)
-        db.session.commit()
-        return _api_ok(updated=updated)
-    except SQLAlchemyError as exc:
-        db.session.rollback()
-        return _api_error(str(exc))
+    updated = _execute_bulk_action(ticket_ids, action, data)
+    db.session.commit()
+    return api_ok(updated=updated)
 
 
 def _execute_bulk_action(
@@ -1309,7 +1253,7 @@ def _export_archive_csv() -> Response:
     is_elevated = worker_role in ELEVATED_ROLES
 
     query = Ticket.query.filter(
-        Ticket.is_deleted == False,  # noqa: E712
+        Ticket.is_deleted.is_(False),
         Ticket.status == TicketStatus.ERLEDIGT.value,
     )
 
@@ -1429,77 +1373,69 @@ def _export_projects_csv() -> Response:
 # Duplicate ticket
 # ------------------------------------------------------------------
 
+@api_endpoint
 def _duplicate_ticket_api(ticket_id: int) -> Response:
     """Create a copy of a ticket (metadata only, without comments/history)."""
     ticket = _check_ticket_access(ticket_id)
     if ticket is None:
-        return _api_error("Ticket nicht gefunden oder keine Berechtigung.", 404)
+        return api_error("Ticket nicht gefunden oder keine Berechtigung.", 404)
 
-    try:
-        new_ticket = Ticket(
-            title=f"Kopie von: {ticket.title}",
-            description=ticket.description,
-            priority=ticket.priority,
-            status=TicketStatus.OFFEN.value,
-            order_reference=ticket.order_reference,
-            contact_name=ticket.contact_name,
-            contact_phone=ticket.contact_phone,
-            contact_email=ticket.contact_email,
-            contact_channel=ticket.contact_channel,
-            is_confidential=ticket.is_confidential,
-            assigned_to_id=ticket.assigned_to_id,
-            assigned_team_id=ticket.assigned_team_id,
-        )
-        # Copy tags
-        for tag in ticket.tags:
-            new_ticket.tags.append(tag)
+    new_ticket = Ticket(
+        title=f"Kopie von: {ticket.title}",
+        description=ticket.description,
+        priority=ticket.priority,
+        status=TicketStatus.OFFEN.value,
+        order_reference=ticket.order_reference,
+        contact_name=ticket.contact_name,
+        contact_phone=ticket.contact_phone,
+        contact_email=ticket.contact_email,
+        contact_channel=ticket.contact_channel,
+        is_confidential=ticket.is_confidential,
+        assigned_to_id=ticket.assigned_to_id,
+        assigned_team_id=ticket.assigned_team_id,
+    )
+    # Copy tags
+    for tag in ticket.tags:
+        new_ticket.tags.append(tag)
 
-        db.session.add(new_ticket)
-        db.session.flush()
+    db.session.add(new_ticket)
+    db.session.flush()
 
-        # Copy checklist items (uncompleted)
-        for item in ticket.checklists:
-            db.session.add(ChecklistItem(
-                ticket_id=new_ticket.id,
-                title=item.title,
-                is_completed=False,
-                assigned_to_id=item.assigned_to_id,
-                assigned_team_id=item.assigned_team_id,
-            ))
+    # Copy checklist items (uncompleted)
+    for item in ticket.checklists:
+        db.session.add(ChecklistItem(
+            ticket_id=new_ticket.id,
+            title=item.title,
+            is_completed=False,
+            assigned_to_id=item.assigned_to_id,
+            assigned_team_id=item.assigned_team_id,
+        ))
 
-        db.session.commit()
-        return _api_ok(ticket_id=new_ticket.id)
-    except SQLAlchemyError as exc:
-        db.session.rollback()
-        current_app.logger.error("Duplicate ticket error: %s", exc)
-        return _api_error("Datenbankfehler beim Duplizieren.")
+    db.session.commit()
+    return api_ok(ticket_id=new_ticket.id)
 
 
 # ------------------------------------------------------------------
 # Theme preference
 # ------------------------------------------------------------------
 
+@api_endpoint
 def _save_theme_api() -> Response:
     """Save the authenticated user's UI theme preference."""
     worker_id = session.get("worker_id")
     if not worker_id:
-        return _api_error("Nicht angemeldet.", 401)
+        return api_error("Nicht angemeldet.", 401)
 
     data = request.get_json(silent=True) or {}
     theme = data.get("theme", "").strip()
     if theme not in ("light", "dark", "hc", "auto"):
-        return _api_error("Ungültiges Theme.", 400)
+        return api_error("Ungültiges Theme.", 400)
 
-    try:
-        worker = db.session.get(Worker, worker_id)
-        if worker:
-            worker.ui_theme = theme
-            db.session.commit()
-        return _api_ok()
-    except SQLAlchemyError as exc:
-        db.session.rollback()
-        current_app.logger.error("Save theme error: %s", exc)
-        return _api_error("Datenbankfehler.")
+    worker = db.session.get(Worker, worker_id)
+    if worker:
+        worker.ui_theme = theme
+        db.session.commit()
+    return api_ok()
 
 
 # ------------------------------------------------------------------
@@ -1593,7 +1529,7 @@ def _dashboard_rows_api() -> Response:
         status_filter = status_filter or "wartet"
 
     team_ids = Team.team_ids_for_worker(worker_id) if worker_id else []
-    tickets_data = TicketService.get_dashboard_tickets(
+    tickets_data = TicketService.get_dashboard_tickets(TicketFilterSpec(
         worker_id=worker_id,
         search=search,
         status_filter=status_filter,
@@ -1606,7 +1542,7 @@ def _dashboard_rows_api() -> Response:
         assigned_worker_id=assigned_worker_id,
         sort_by=sort_by,
         sort_dir=sort_dir,
-    )
+    ))
 
     all_workers = Worker.query.filter_by(is_active=True).order_by(Worker.name).all()
     all_teams = Team.query.order_by(Team.name).all()

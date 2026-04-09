@@ -1,8 +1,68 @@
 """Service-layer helper utilities."""
 
+import functools
 import os
 import shutil
 import time
+
+from flask import current_app, jsonify
+from sqlalchemy.exc import SQLAlchemyError
+
+from extensions import db
+
+
+# ---------------------------------------------------------------------------
+# Database / API decorators
+# ---------------------------------------------------------------------------
+
+def db_transaction(func):
+    """Decorator: rollback + log + reraise on database errors.
+
+    Wraps a service method so that any ``SQLAlchemyError`` triggers an
+    automatic ``db.session.rollback()``, logs the error, and re-raises.
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except SQLAlchemyError as exc:
+            db.session.rollback()
+            current_app.logger.error(
+                "Database error in %s: %s", func.__qualname__, exc,
+            )
+            raise
+    return wrapper
+
+
+def api_ok(**extra):
+    """Return a JSON success response."""
+    return jsonify({"success": True, **extra})
+
+
+def api_error(msg: str, status: int = 500):
+    """Return a JSON error response with the given *status* code."""
+    return jsonify({"success": False, "error": msg}), status
+
+
+def api_endpoint(func):
+    """Decorator: catch ValueError (400) and SQLAlchemyError (500).
+
+    Translates ``ValueError`` into a 400 JSON response and any
+    ``SQLAlchemyError`` into a 500 JSON response while logging the
+    full traceback.
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except ValueError as exc:
+            return api_error(str(exc), 400)
+        except SQLAlchemyError:
+            current_app.logger.exception(
+                "API error in %s", func.__name__,
+            )
+            return api_error("Ein interner Fehler ist aufgetreten.")
+    return wrapper
 
 
 def _remove_with_retry(path: str, retries: int = 3, delay: float = 0.5) -> bool:

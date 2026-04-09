@@ -236,7 +236,16 @@ class ChecklistTemplateItem(db.Model):
 # ---------------------------------------------------------------------------
 
 class Ticket(db.Model):
-    """Main Ticket model for tracking issues and tasks."""
+    """Main Ticket model for tracking issues and tasks.
+
+    Architecture note: this model has grown to encompass 6 distinct
+    concerns.  The following column groups are candidates for extraction
+    into dedicated tables in a future migration:
+
+    - Contact fields (contact_*, callback_*) -> TicketContact
+    - Approval fields (approval_*, approved_*, rejected_*, reject_reason) -> ApprovalProcess
+    - Recurrence fields (recurrence_rule, next_recurrence_date) -> RecurrenceSchedule
+    """
 
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
