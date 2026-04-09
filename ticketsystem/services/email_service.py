@@ -343,6 +343,166 @@ class EmailService:
         return _send(recipient_email, subject, html, text)
 
     @staticmethod
+    def send_sla_escalation_digest(
+        recipient_name: str,
+        tickets: List[Dict[str, object]],
+        recipient_email: Optional[str] = None,
+    ) -> bool:
+        """Send a single digest email listing all overdue tickets for one worker.
+
+        Each entry in *tickets* must contain the keys:
+        ``id``, ``title``, ``days_overdue``, ``priority``.
+        """
+        if not recipient_email or not tickets:
+            return False
+
+        # Sort: highest priority first, then most overdue first
+        sorted_tickets = sorted(
+            tickets, key=lambda t: (t["priority"], -t["days_overdue"])
+        )
+
+        count = len(sorted_tickets)
+        high_count = sum(1 for t in sorted_tickets if t["priority"] == 1)
+
+        subject = (
+            f"[TicketSystem] SLA-Statusbericht: "
+            f"{count} Ticket(s) überfällig"
+        )
+
+        # Build HTML table
+        rows = ""
+        for t in sorted_tickets:
+            prio_label = _PRIO_LABELS.get(t["priority"], str(t["priority"]))
+            url = _ticket_url(t["id"])
+            prio_color = (
+                "#dc3545" if t["priority"] == 1
+                else "#fd7e14" if t["priority"] == 2
+                else "#6c757d"
+            )
+            rows += (
+                "<tr>"
+                f"<td style='padding:6px 12px;border-bottom:1px solid #eee;'>"
+                f"<a href='{url}'>#{t['id']}</a></td>"
+                f"<td style='padding:6px 12px;border-bottom:1px solid #eee;'>"
+                f"{t['title']}</td>"
+                f"<td style='padding:6px 12px;border-bottom:1px solid #eee;"
+                f"color:{prio_color};font-weight:bold;'>{prio_label}</td>"
+                f"<td style='padding:6px 12px;border-bottom:1px solid #eee;"
+                f"text-align:right;'>{t['days_overdue']}</td>"
+                "</tr>"
+            )
+
+        summary = f"{count} Ticket(s) überfällig"
+        if high_count:
+            summary += f" — davon <strong>{high_count}</strong> mit Prio HOCH"
+
+        html = (
+            f"<p>Hallo <strong>{recipient_name}</strong>,</p>"
+            f"<p>Ihr täglicher SLA-Statusbericht: {summary}.</p>"
+            "<table style='border-collapse:collapse;width:100%;"
+            "font-family:sans-serif;font-size:14px;'>"
+            "<thead><tr style='background:#f8f9fa;'>"
+            "<th style='padding:8px 12px;text-align:left;border-bottom:2px "
+            "solid #dee2e6;'>Ticket</th>"
+            "<th style='padding:8px 12px;text-align:left;border-bottom:2px "
+            "solid #dee2e6;'>Titel</th>"
+            "<th style='padding:8px 12px;text-align:left;border-bottom:2px "
+            "solid #dee2e6;'>Priorität</th>"
+            "<th style='padding:8px 12px;text-align:right;border-bottom:2px "
+            "solid #dee2e6;'>Tage überfällig</th>"
+            "</tr></thead>"
+            f"<tbody>{rows}</tbody></table>"
+            "<hr><p style='color:#888;font-size:0.85em;'>"
+            "TicketSystem — täglicher SLA-Statusbericht</p>"
+        )
+
+        # Plain-text fallback
+        lines = [f"Hallo {recipient_name},", "", f"SLA-Statusbericht: {count} Ticket(s) überfällig.", ""]
+        for t in sorted_tickets:
+            prio_label = _PRIO_LABELS.get(t["priority"], str(t["priority"]))
+            url = _ticket_url(t["id"])
+            lines.append(
+                f"  #{t['id']} — {t['title']} (Prio {prio_label}, "
+                f"{t['days_overdue']} Tage) {url}"
+            )
+        text = "\n".join(lines)
+
+        return _send(recipient_email, subject, html, text)
+
+    @staticmethod
+    def send_sla_admin_digest(
+        admin_name: str,
+        tickets: List[Dict[str, object]],
+        admin_email: Optional[str] = None,
+    ) -> bool:
+        """Send admins a digest of all high-priority overdue tickets.
+
+        Each entry in *tickets* must contain the keys:
+        ``id``, ``title``, ``days_overdue``, ``priority``, ``assignee_name``.
+        """
+        if not admin_email or not tickets:
+            return False
+
+        sorted_tickets = sorted(
+            tickets, key=lambda t: -t["days_overdue"]
+        )
+        count = len(sorted_tickets)
+
+        subject = (
+            f"[TicketSystem] Admin-Bericht: "
+            f"{count} Prio-HOCH-Ticket(s) überfällig"
+        )
+
+        rows = ""
+        for t in sorted_tickets:
+            url = _ticket_url(t["id"])
+            rows += (
+                "<tr>"
+                f"<td style='padding:6px 12px;border-bottom:1px solid #eee;'>"
+                f"<a href='{url}'>#{t['id']}</a></td>"
+                f"<td style='padding:6px 12px;border-bottom:1px solid #eee;'>"
+                f"{t['title']}</td>"
+                f"<td style='padding:6px 12px;border-bottom:1px solid #eee;'>"
+                f"{t.get('assignee_name', '—')}</td>"
+                f"<td style='padding:6px 12px;border-bottom:1px solid #eee;"
+                f"text-align:right;'>{t['days_overdue']}</td>"
+                "</tr>"
+            )
+
+        html = (
+            f"<p>Hallo <strong>{admin_name}</strong>,</p>"
+            f"<p>Es gibt <strong>{count}</strong> überfällige Ticket(s) "
+            "mit Priorität <strong style='color:#dc3545;'>HOCH</strong>:</p>"
+            "<table style='border-collapse:collapse;width:100%;"
+            "font-family:sans-serif;font-size:14px;'>"
+            "<thead><tr style='background:#f8f9fa;'>"
+            "<th style='padding:8px 12px;text-align:left;border-bottom:2px "
+            "solid #dee2e6;'>Ticket</th>"
+            "<th style='padding:8px 12px;text-align:left;border-bottom:2px "
+            "solid #dee2e6;'>Titel</th>"
+            "<th style='padding:8px 12px;text-align:left;border-bottom:2px "
+            "solid #dee2e6;'>Zuständig</th>"
+            "<th style='padding:8px 12px;text-align:right;border-bottom:2px "
+            "solid #dee2e6;'>Tage überfällig</th>"
+            "</tr></thead>"
+            f"<tbody>{rows}</tbody></table>"
+            "<hr><p style='color:#888;font-size:0.85em;'>"
+            "TicketSystem — täglicher Admin-Statusbericht</p>"
+        )
+
+        lines = [f"Hallo {admin_name},", "", f"Admin-Bericht: {count} Prio-HOCH-Ticket(s) überfällig.", ""]
+        for t in sorted_tickets:
+            url = _ticket_url(t["id"])
+            lines.append(
+                f"  #{t['id']} — {t['title']} "
+                f"(Zuständig: {t.get('assignee_name', '—')}, "
+                f"{t['days_overdue']} Tage) {url}"
+            )
+        text = "\n".join(lines)
+
+        return _send(admin_email, subject, html, text)
+
+    @staticmethod
     def send_meta_change(
         recipient_name: str,
         ticket_id: int,

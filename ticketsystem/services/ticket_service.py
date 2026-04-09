@@ -1386,7 +1386,10 @@ def _send_approval_emails(ticket_id: int, worker_name: str) -> None:
             Worker.role.in_(["admin", "hr", "management"]),
             Worker.email.isnot(None),
         ).all()
-        emails = [w.email for w in admin_workers if w.email]
+        emails = [
+            w.email for w in admin_workers
+            if w.email and getattr(w, "email_notifications_enabled", True)
+        ]
         if emails:
             EmailService.send_approval_request(emails, ticket_id, worker_name)
     except Exception as exc:
@@ -1400,11 +1403,12 @@ def _send_approval_result_email(
 ) -> None:
     """Email the assignee about an approval decision."""
     try:
-        if ticket.assigned_to and ticket.assigned_to.email:
+        assignee = ticket.assigned_to
+        if assignee and assignee.email and getattr(assignee, "email_notifications_enabled", True):
             EmailService.send_approval_result(
-                ticket.assigned_to.name, ticket.id,
+                assignee.name, ticket.id,
                 approved=approved, reason=reason,
-                recipient_email=ticket.assigned_to.email,
+                recipient_email=assignee.email,
             )
     except Exception as exc:
         current_app.logger.warning("Approval result email failed: %s", exc)
@@ -1476,7 +1480,7 @@ def _notify_meta_change(
     # Also send email notification to assigned worker
     if ticket.assigned_to_id and ticket.assigned_to_id != author_id:
         worker = db.session.get(Worker, ticket.assigned_to_id)
-        if worker and worker.email:
+        if worker and worker.email and getattr(worker, "email_notifications_enabled", True):
             try:
                 from services.email_service import EmailService
                 EmailService.send_meta_change(

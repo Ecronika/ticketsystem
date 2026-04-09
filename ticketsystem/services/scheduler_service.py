@@ -135,6 +135,10 @@ def process_sla_escalations(app: Flask) -> None:
         Prio 3 (Niedrig):3 days
 
     Anti-spam: re-escalation only after 23 hours.
+
+    Instead of sending one email per ticket, this job collects all escalated
+    tickets and sends a **single digest email per worker** as a daily status
+    report.  Admins receive a separate digest for all high-priority tickets.
     """
     with app.app_context():
         from models import Comment, Worker
@@ -172,8 +176,17 @@ def _fetch_overdue_tickets(now: object) -> List[Ticket]:
 def _escalate_tickets(
     tickets: List[Ticket], now: object, email_service: object
 ) -> int:
-    """Evaluate and escalate each overdue ticket.  Returns count."""
+    """Evaluate and escalate each overdue ticket.  Returns count.
+
+    Comments and in-app notifications are created per ticket, but emails
+    are collected and sent as **one digest per recipient** at the end.
+    """
+    from collections import defaultdict
     from models import Comment, Worker
+
+    # Collect digest data: worker_id -> list of ticket info dicts
+    assignee_digest: Dict[int, List[Dict[str, object]]] = defaultdict(list)
+    high_prio_tickets: List[Dict[str, object]] = []
 
     escalated = 0
     for ticket in tickets:
@@ -181,10 +194,39 @@ def _escalate_tickets(
             continue
         days_overdue = (now.date() - ticket.due_date.date()).days
         _add_escalation_comment(ticket, days_overdue)
-        _notify_assignee(ticket, days_overdue, email_service)
-        _notify_admins_for_high_prio(ticket, days_overdue)
+        _create_escalation_notification(ticket, days_overdue)
+
+        # Collect for digest email instead of sending immediately
+        if ticket.assigned_to_id:
+            assignee_digest[ticket.assigned_to_id].append({
+                "id": ticket.id,
+                "title": ticket.title,
+                "days_overdue": days_overdue,
+                "priority": ticket.priority,
+            })
+
+        if ticket.priority == TicketPriority.HOCH.value:
+            high_prio_tickets.append({
+                "id": ticket.id,
+                "title": ticket.title,
+                "days_overdue": days_overdue,
+                "priority": ticket.priority,
+                "assignee_name": (
+                    ticket.assigned_to.name
+                    if ticket.assigned_to else "—"
+                ),
+            })
+
+        _create_admin_notifications_for_high_prio(ticket, days_overdue)
         ticket.last_escalated_at = now
         escalated += 1
+
+    # Send one digest email per assignee
+    _send_assignee_digests(assignee_digest, email_service)
+
+    # Send one admin digest for all high-priority tickets
+    _send_admin_digest(high_prio_tickets, email_service)
+
     return escalated
 
 
@@ -218,10 +260,10 @@ def _add_escalation_comment(ticket: Ticket, days_overdue: int) -> None:
     db.session.add(comment)
 
 
-def _notify_assignee(
-    ticket: Ticket, days_overdue: int, email_service: object
+def _create_escalation_notification(
+    ticket: Ticket, days_overdue: int
 ) -> None:
-    """Send in-app and email notifications to the ticket assignee."""
+    """Create an in-app notification for the ticket assignee (no email)."""
     if not ticket.assigned_to_id:
         return
     TicketService.create_notification(
@@ -232,19 +274,12 @@ def _notify_assignee(
         ),
         link=f"/ticket/{ticket.id}",
     )
-    if ticket.assigned_to and ticket.assigned_to.email:
-        email_service.send_sla_escalation(
-            ticket.assigned_to.name,
-            ticket.id,
-            ticket.title,
-            days_overdue,
-            ticket.priority,
-            recipient_email=ticket.assigned_to.email,
-        )
 
 
-def _notify_admins_for_high_prio(ticket: Ticket, days_overdue: int) -> None:
-    """For high-priority tickets, also notify all active admins."""
+def _create_admin_notifications_for_high_prio(
+    ticket: Ticket, days_overdue: int
+) -> None:
+    """For high-priority tickets, create in-app notifications for admins."""
     from models import Worker
 
     if ticket.priority != TicketPriority.HOCH.value:
@@ -260,6 +295,44 @@ def _notify_admins_for_high_prio(ticket: Ticket, days_overdue: int) -> None:
                 ),
                 link=f"/ticket/{ticket.id}",
             )
+
+
+def _send_assignee_digests(
+    assignee_digest: Dict[int, List[Dict[str, object]]],
+    email_service: object,
+) -> None:
+    """Send one consolidated SLA digest email per assignee."""
+    from models import Worker
+
+    for worker_id, ticket_list in assignee_digest.items():
+        worker = db.session.get(Worker, worker_id)
+        if not worker or not worker.email:
+            continue
+        if not getattr(worker, "email_notifications_enabled", True):
+            continue
+        email_service.send_sla_escalation_digest(
+            worker.name, ticket_list, recipient_email=worker.email,
+        )
+
+
+def _send_admin_digest(
+    high_prio_tickets: List[Dict[str, object]],
+    email_service: object,
+) -> None:
+    """Send one consolidated admin digest for all high-priority escalations."""
+    from models import Worker
+
+    if not high_prio_tickets:
+        return
+    admins = Worker.query.filter_by(role="admin", is_active=True).all()
+    for admin in admins:
+        if not admin.email:
+            continue
+        if not getattr(admin, "email_notifications_enabled", True):
+            continue
+        email_service.send_sla_admin_digest(
+            admin.name, high_prio_tickets, admin_email=admin.email,
+        )
 
 
 # ---------------------------------------------------------------------------
