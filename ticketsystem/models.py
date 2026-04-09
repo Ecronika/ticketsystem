@@ -8,7 +8,7 @@ from sqlalchemy import event
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import object_session
 
-from enums import TicketPriority, TicketStatus, WorkerRole
+from enums import ELEVATED_ROLES, TicketPriority, TicketStatus, WorkerRole
 from extensions import Config, db
 from utils import get_utc_now
 
@@ -235,13 +235,6 @@ class ChecklistTemplateItem(db.Model):
 # Ticket
 # ---------------------------------------------------------------------------
 
-_ELEVATED_ROLES = frozenset({
-    WorkerRole.ADMIN.value,
-    WorkerRole.HR.value,
-    WorkerRole.MANAGEMENT.value,
-})
-
-
 class Ticket(db.Model):
     """Main Ticket model for tracking issues and tasks."""
 
@@ -336,7 +329,7 @@ class Ticket(db.Model):
         """
         if not self.is_confidential:
             return True
-        if role in _ELEVATED_ROLES:
+        if role in ELEVATED_ROLES:
             return True
         if self.assigned_to_id == worker_id:
             return True

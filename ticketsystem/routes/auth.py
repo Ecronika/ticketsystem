@@ -26,7 +26,7 @@ from flask import (
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.wrappers import Response as WerkzeugResponse
 
-from enums import WorkerRole
+from enums import ELEVATED_ROLES, WorkerRole
 from extensions import db, limiter
 from models import Notification, SystemSettings, Worker
 from utils import get_utc_now
@@ -36,12 +36,6 @@ _F = TypeVar("_F", bound=Callable[..., Any])
 # Timing-normalisation dummy so user-enumeration via response-time is
 # infeasible (comparison cost identical to a real hash check).
 _TIMING_DUMMY_HASH: str = generate_password_hash("__timing_guard__")
-
-_ELEVATED_ROLES = frozenset({
-    WorkerRole.ADMIN.value,
-    WorkerRole.HR.value,
-    WorkerRole.MANAGEMENT.value,
-})
 
 _MAX_FAILED_LOGINS = 5
 _LOCKOUT_MINUTES = 15
@@ -97,7 +91,7 @@ def admin_or_management_required(func: _F) -> _F:
     """Require admin, management, or HR role."""
     @wraps(func)
     def _wrapper(*args: Any, **kwargs: Any) -> Any:
-        if session.get("role") not in _ELEVATED_ROLES:
+        if session.get("role") not in ELEVATED_ROLES:
             return _deny(
                 "Diese Seite erfordert Administrator-, HR- oder "
                 "Management-Rechte.",

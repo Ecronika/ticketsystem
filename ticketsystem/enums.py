@@ -7,7 +7,7 @@ __all__ = [
     "TicketPriority",
     "WorkerRole",
     "ApprovalStatus",
-    "EventType",
+    "ELEVATED_ROLES",
 ]
 
 
@@ -47,6 +47,13 @@ class WorkerRole(str, Enum):
         return self.value
 
 
+ELEVATED_ROLES = frozenset({
+    WorkerRole.ADMIN.value,
+    WorkerRole.HR.value,
+    WorkerRole.MANAGEMENT.value,
+})
+
+
 class ApprovalStatus(str, Enum):
     """Approval states for a ticket."""
 
@@ -58,17 +65,3 @@ class ApprovalStatus(str, Enum):
     def __str__(self) -> str:
         return self.value
 
-
-class EventType(str, Enum):
-    """Audit event types stored in ``Comment.event_type``."""
-
-    TICKET_CREATED = "TICKET_CREATED"
-    STATUS_CHANGED = "STATUS_CHANGED"
-    ASSIGNED = "ASSIGNED"
-    COMMENT_ADDED = "COMMENT_ADDED"
-    APPROVED = "APPROVED"
-    REJECTED = "REJECTED"
-    APPROVAL_REQUESTED = "APPROVAL_REQUESTED"
-
-    def __str__(self) -> str:
-        return self.value

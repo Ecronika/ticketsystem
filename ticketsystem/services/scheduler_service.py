@@ -5,7 +5,6 @@ escalation.
 """
 
 import logging
-from datetime import timedelta
 from typing import Dict, List
 
 from dateutil.relativedelta import relativedelta
@@ -13,17 +12,12 @@ from flask import Flask
 
 from enums import TicketPriority, TicketStatus
 from extensions import db
-from models import Ticket
-from services.ticket_service import TicketService
+from models import Comment, Ticket, Worker
+from services.email_service import EmailService
+from services.ticket_service import TicketService, _OPEN_STATUSES, _RECURRENCE_INCREMENTS
 from utils import get_utc_now
 
 _logger = logging.getLogger(__name__)
-
-_RECURRENCE_INCREMENTS: Dict[str, relativedelta] = {
-    "monthly": relativedelta(months=1),
-    "quarterly": relativedelta(months=3),
-    "yearly": relativedelta(years=1),
-}
 
 _GRACE_DAYS: Dict[int, int] = {1: 0, 2: 1, 3: 3}
 _ANTI_SPAM_HOURS = 23
@@ -141,9 +135,6 @@ def process_sla_escalations(app: Flask) -> None:
     report.  Admins receive a separate digest for all high-priority tickets.
     """
     with app.app_context():
-        from models import Comment, Worker
-        from services.email_service import EmailService
-
         now = get_utc_now()
         try:
             overdue_tickets = _fetch_overdue_tickets(now)
@@ -160,14 +151,9 @@ def process_sla_escalations(app: Flask) -> None:
 
 def _fetch_overdue_tickets(now: object) -> List[Ticket]:
     """Return all non-deleted open tickets that are past their due date."""
-    open_statuses = [
-        TicketStatus.OFFEN.value,
-        TicketStatus.IN_BEARBEITUNG.value,
-        TicketStatus.WARTET.value,
-    ]
     return Ticket.query.filter(
         Ticket.is_deleted == False,  # noqa: E712
-        Ticket.status.in_(open_statuses),
+        Ticket.status.in_(_OPEN_STATUSES),
         Ticket.due_date.isnot(None),
         Ticket.due_date < now,
     ).all()
@@ -182,7 +168,6 @@ def _escalate_tickets(
     are collected and sent as **one digest per recipient** at the end.
     """
     from collections import defaultdict
-    from models import Comment, Worker
 
     # Collect digest data: worker_id -> list of ticket info dicts
     assignee_digest: Dict[int, List[Dict[str, object]]] = defaultdict(list)
@@ -245,8 +230,6 @@ def _should_escalate(ticket: Ticket, now: object) -> bool:
 
 def _add_escalation_comment(ticket: Ticket, days_overdue: int) -> None:
     """Add a system comment documenting the SLA escalation."""
-    from models import Comment
-
     comment = Comment(
         ticket_id=ticket.id,
         author="System",
@@ -280,8 +263,6 @@ def _create_admin_notifications_for_high_prio(
     ticket: Ticket, days_overdue: int
 ) -> None:
     """For high-priority tickets, create in-app notifications for admins."""
-    from models import Worker
-
     if ticket.priority != TicketPriority.HOCH.value:
         return
     admins = Worker.query.filter_by(role="admin", is_active=True).all()
@@ -302,13 +283,11 @@ def _send_assignee_digests(
     email_service: object,
 ) -> None:
     """Send one consolidated SLA digest email per assignee."""
-    from models import Worker
-
     for worker_id, ticket_list in assignee_digest.items():
         worker = db.session.get(Worker, worker_id)
         if not worker or not worker.email:
             continue
-        if not getattr(worker, "email_notifications_enabled", True):
+        if not worker.email_notifications_enabled:
             continue
         email_service.send_sla_escalation_digest(
             worker.name, ticket_list, recipient_email=worker.email,
@@ -320,15 +299,13 @@ def _send_admin_digest(
     email_service: object,
 ) -> None:
     """Send one consolidated admin digest for all high-priority escalations."""
-    from models import Worker
-
     if not high_prio_tickets:
         return
     admins = Worker.query.filter_by(role="admin", is_active=True).all()
     for admin in admins:
         if not admin.email:
             continue
-        if not getattr(admin, "email_notifications_enabled", True):
+        if not admin.email_notifications_enabled:
             continue
         email_service.send_sla_admin_digest(
             admin.name, high_prio_tickets, admin_email=admin.email,

@@ -25,6 +25,24 @@ _logger = logging.getLogger(__name__)
 
 _PRIO_LABELS: Dict[int, str] = {1: "HOCH", 2: "MITTEL", 3: "NIEDRIG"}
 
+_EMAIL_FOOTER = (
+    "<hr><p style='color:#888;font-size:0.85em;'>"
+    "TicketSystem — automatische Benachrichtigung</p>"
+)
+_EMAIL_FOOTER_SLA = (
+    "<hr><p style='color:#888;font-size:0.85em;'>"
+    "TicketSystem — täglicher SLA-Statusbericht</p>"
+)
+_EMAIL_FOOTER_ADMIN = (
+    "<hr><p style='color:#888;font-size:0.85em;'>"
+    "TicketSystem — täglicher Admin-Statusbericht</p>"
+)
+
+_TABLE_STYLE = "border-collapse:collapse;width:100%;font-family:sans-serif;font-size:14px;"
+_TH_STYLE = "padding:8px 12px;text-align:left;border-bottom:2px solid #dee2e6;"
+_TH_STYLE_RIGHT = "padding:8px 12px;text-align:right;border-bottom:2px solid #dee2e6;"
+_TD_STYLE = "padding:6px 12px;border-bottom:1px solid #eee;"
+
 
 # ---------------------------------------------------------------------------
 # SMTP plumbing
@@ -205,8 +223,7 @@ class EmailService:
             f"<p>Ihnen wurde Ticket <strong>#{ticket_id}</strong> "
             f"mit Priorität <strong>{prio_label}</strong> zugewiesen.</p>"
             f"<p><a href='{url}'>Ticket öffnen →</a></p>"
-            "<hr><p style='color:#888;font-size:0.85em;'>"
-            "TicketSystem — automatische Benachrichtigung</p>"
+            + _EMAIL_FOOTER
         )
         text = (
             f"Hallo {recipient_name},\n"
@@ -235,8 +252,7 @@ class EmailService:
             f"<p><strong>{mentioned_by}</strong> hat Sie in einem "
             f"Kommentar zu Ticket <strong>#{ticket_id}</strong> erwähnt.</p>"
             f"<p><a href='{url}'>Zum Kommentar →</a></p>"
-            "<hr><p style='color:#888;font-size:0.85em;'>"
-            "TicketSystem — automatische Benachrichtigung</p>"
+            + _EMAIL_FOOTER
         )
         text = (
             f"Hallo {recipient_name},\n"
@@ -259,8 +275,7 @@ class EmailService:
             f"<p><strong>{requester_name}</strong> bittet um Freigabe "
             f"für Ticket <strong>#{ticket_id}</strong>.</p>"
             f"<p><a href='{url}'>Freigabe erteilen oder ablehnen →</a></p>"
-            "<hr><p style='color:#888;font-size:0.85em;'>"
-            "TicketSystem — automatische Benachrichtigung</p>"
+            + _EMAIL_FOOTER
         )
         text = (
             f"{requester_name} bittet um Freigabe "
@@ -302,8 +317,7 @@ class EmailService:
             f"<p>Hallo <strong>{recipient_name}</strong>,</p>"
             f"<p>{body}</p>"
             f"<p><a href='{url}'>Ticket öffnen →</a></p>"
-            "<hr><p style='color:#888;font-size:0.85em;'>"
-            "TicketSystem — automatische Benachrichtigung</p>"
+            + _EMAIL_FOOTER
         )
         return _send(recipient_email, subject, html)
 
@@ -332,8 +346,7 @@ class EmailService:
             f"<strong>{days_overdue} Tag(en)</strong> überfällig und "
             "wurde bisher nicht abgeschlossen.</p>"
             f"<p><a href='{url}'>Ticket jetzt bearbeiten →</a></p>"
-            "<hr><p style='color:#888;font-size:0.85em;'>"
-            "TicketSystem — automatische SLA-Benachrichtigung</p>"
+            + _EMAIL_FOOTER_SLA
         )
         text = (
             f"Hallo {recipient_name},\n"
@@ -381,13 +394,13 @@ class EmailService:
             )
             rows += (
                 "<tr>"
-                f"<td style='padding:6px 12px;border-bottom:1px solid #eee;'>"
+                f"<td style='{_TD_STYLE}'>"
                 f"<a href='{url}'>#{t['id']}</a></td>"
-                f"<td style='padding:6px 12px;border-bottom:1px solid #eee;'>"
+                f"<td style='{_TD_STYLE}'>"
                 f"{t['title']}</td>"
-                f"<td style='padding:6px 12px;border-bottom:1px solid #eee;"
+                f"<td style='{_TD_STYLE}"
                 f"color:{prio_color};font-weight:bold;'>{prio_label}</td>"
-                f"<td style='padding:6px 12px;border-bottom:1px solid #eee;"
+                f"<td style='{_TD_STYLE}"
                 f"text-align:right;'>{t['days_overdue']}</td>"
                 "</tr>"
             )
@@ -399,21 +412,15 @@ class EmailService:
         html = (
             f"<p>Hallo <strong>{recipient_name}</strong>,</p>"
             f"<p>Ihr täglicher SLA-Statusbericht: {summary}.</p>"
-            "<table style='border-collapse:collapse;width:100%;"
-            "font-family:sans-serif;font-size:14px;'>"
+            f"<table style='{_TABLE_STYLE}'>"
             "<thead><tr style='background:#f8f9fa;'>"
-            "<th style='padding:8px 12px;text-align:left;border-bottom:2px "
-            "solid #dee2e6;'>Ticket</th>"
-            "<th style='padding:8px 12px;text-align:left;border-bottom:2px "
-            "solid #dee2e6;'>Titel</th>"
-            "<th style='padding:8px 12px;text-align:left;border-bottom:2px "
-            "solid #dee2e6;'>Priorität</th>"
-            "<th style='padding:8px 12px;text-align:right;border-bottom:2px "
-            "solid #dee2e6;'>Tage überfällig</th>"
+            f"<th style='{_TH_STYLE}'>Ticket</th>"
+            f"<th style='{_TH_STYLE}'>Titel</th>"
+            f"<th style='{_TH_STYLE}'>Priorität</th>"
+            f"<th style='{_TH_STYLE_RIGHT}'>Tage überfällig</th>"
             "</tr></thead>"
             f"<tbody>{rows}</tbody></table>"
-            "<hr><p style='color:#888;font-size:0.85em;'>"
-            "TicketSystem — täglicher SLA-Statusbericht</p>"
+            + _EMAIL_FOOTER_SLA
         )
 
         # Plain-text fallback
@@ -458,13 +465,13 @@ class EmailService:
             url = _ticket_url(t["id"])
             rows += (
                 "<tr>"
-                f"<td style='padding:6px 12px;border-bottom:1px solid #eee;'>"
+                f"<td style='{_TD_STYLE}'>"
                 f"<a href='{url}'>#{t['id']}</a></td>"
-                f"<td style='padding:6px 12px;border-bottom:1px solid #eee;'>"
+                f"<td style='{_TD_STYLE}'>"
                 f"{t['title']}</td>"
-                f"<td style='padding:6px 12px;border-bottom:1px solid #eee;'>"
+                f"<td style='{_TD_STYLE}'>"
                 f"{t.get('assignee_name', '—')}</td>"
-                f"<td style='padding:6px 12px;border-bottom:1px solid #eee;"
+                f"<td style='{_TD_STYLE}"
                 f"text-align:right;'>{t['days_overdue']}</td>"
                 "</tr>"
             )
@@ -473,21 +480,15 @@ class EmailService:
             f"<p>Hallo <strong>{admin_name}</strong>,</p>"
             f"<p>Es gibt <strong>{count}</strong> überfällige Ticket(s) "
             "mit Priorität <strong style='color:#dc3545;'>HOCH</strong>:</p>"
-            "<table style='border-collapse:collapse;width:100%;"
-            "font-family:sans-serif;font-size:14px;'>"
+            f"<table style='{_TABLE_STYLE}'>"
             "<thead><tr style='background:#f8f9fa;'>"
-            "<th style='padding:8px 12px;text-align:left;border-bottom:2px "
-            "solid #dee2e6;'>Ticket</th>"
-            "<th style='padding:8px 12px;text-align:left;border-bottom:2px "
-            "solid #dee2e6;'>Titel</th>"
-            "<th style='padding:8px 12px;text-align:left;border-bottom:2px "
-            "solid #dee2e6;'>Zuständig</th>"
-            "<th style='padding:8px 12px;text-align:right;border-bottom:2px "
-            "solid #dee2e6;'>Tage überfällig</th>"
+            f"<th style='{_TH_STYLE}'>Ticket</th>"
+            f"<th style='{_TH_STYLE}'>Titel</th>"
+            f"<th style='{_TH_STYLE}'>Zuständig</th>"
+            f"<th style='{_TH_STYLE_RIGHT}'>Tage überfällig</th>"
             "</tr></thead>"
             f"<tbody>{rows}</tbody></table>"
-            "<hr><p style='color:#888;font-size:0.85em;'>"
-            "TicketSystem — täglicher Admin-Statusbericht</p>"
+            + _EMAIL_FOOTER_ADMIN
         )
 
         lines = [f"Hallo {admin_name},", "", f"Admin-Bericht: {count} Prio-HOCH-Ticket(s) überfällig.", ""]
@@ -522,8 +523,7 @@ class EmailService:
             f"<strong>#{ticket_id}</strong> bearbeitet:</p>"
             f"<ul>{changes_html}</ul>"
             f"<p><a href='{url}'>Ticket öffnen →</a></p>"
-            "<hr><p style='color:#888;font-size:0.85em;'>"
-            "TicketSystem — automatische Benachrichtigung</p>"
+            + _EMAIL_FOOTER
         )
         changes_text = "\n".join(f"  - {c}" for c in changes)
         text = (
@@ -550,8 +550,7 @@ class EmailService:
             "<p>Dieser Link ist <strong>15 Minuten</strong> gültig.</p>"
             "<p>Falls Sie diese Anfrage nicht gestellt haben, "
             "können Sie diese E-Mail ignorieren.</p>"
-            "<hr><p style='color:#888;font-size:0.85em;'>"
-            "TicketSystem — automatische Benachrichtigung</p>"
+            + _EMAIL_FOOTER
         )
         text = (
             f"Hallo {worker_name},\n"

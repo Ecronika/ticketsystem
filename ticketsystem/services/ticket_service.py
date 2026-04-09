@@ -19,7 +19,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload, selectinload
 
-from enums import ApprovalStatus, TicketPriority, TicketStatus, WorkerRole
+from enums import ELEVATED_ROLES, ApprovalStatus, TicketPriority, TicketStatus, WorkerRole
 from extensions import db
 from models import (
     Attachment,
@@ -35,12 +35,6 @@ from utils import get_utc_now
 from .email_service import EmailService
 
 _logger = logging.getLogger(__name__)
-
-_ELEVATED_ROLES = frozenset({
-    WorkerRole.ADMIN.value,
-    WorkerRole.HR.value,
-    WorkerRole.MANAGEMENT.value,
-})
 
 _ALLOWED_EXTENSIONS = frozenset({
     "png", "jpg", "jpeg", "gif", "pdf",
@@ -116,6 +110,22 @@ def _workload_sort_key(ticket: Ticket, today: date) -> Tuple[int, int]:
 def _format_date(dt: Optional[datetime], fallback: str = "Keines") -> str:
     """Format a datetime for audit log entries."""
     return dt.strftime("%d.%m.%Y") if dt else fallback
+
+
+def _get_ticket_or_raise(ticket_id: int) -> Ticket:
+    """Load a non-deleted ticket or raise ``ValueError``."""
+    ticket = db.session.get(Ticket, ticket_id)
+    if not ticket or ticket.is_deleted:
+        raise ValueError("Ticket nicht gefunden.")
+    return ticket
+
+
+def _get_ticket_or_none(ticket_id: int) -> Optional[Ticket]:
+    """Load a non-deleted ticket or return ``None``."""
+    ticket = db.session.get(Ticket, ticket_id)
+    if not ticket or ticket.is_deleted:
+        return None
+    return ticket
 
 
 # ---------------------------------------------------------------------------
@@ -250,7 +260,6 @@ def _notify_admins_ooo_exhausted(
         )
 
 
-
 # ---------------------------------------------------------------------------
 # Main Service Class
 # ---------------------------------------------------------------------------
@@ -352,8 +361,8 @@ class TicketService:
     ) -> Optional[Ticket]:
         """Update ticket basic details."""
         try:
-            ticket = db.session.get(Ticket, ticket_id)
-            if not ticket or ticket.is_deleted:
+            ticket = _get_ticket_or_none(ticket_id)
+            if not ticket:
                 return None
 
             changes: List[str] = []
@@ -404,8 +413,8 @@ class TicketService:
     ) -> bool:
         """Soft-delete a ticket."""
         try:
-            ticket = db.session.get(Ticket, ticket_id)
-            if not ticket or ticket.is_deleted:
+            ticket = _get_ticket_or_none(ticket_id)
+            if not ticket:
                 return False
 
             ticket.is_deleted = True
@@ -492,8 +501,8 @@ class TicketService:
     ) -> Optional[Ticket]:
         """Update ticket status and add a system comment."""
         try:
-            ticket = db.session.get(Ticket, ticket_id)
-            if not ticket or ticket.is_deleted:
+            ticket = _get_ticket_or_none(ticket_id)
+            if not ticket:
                 return None
 
             old_status = ticket.status
@@ -550,7 +559,7 @@ class TicketService:
         """Fetch tickets for the dashboard with filtering and pagination."""
         query = _base_ticket_query()
         tc = _team_clauses(team_ids)
-        is_elevated = worker_role in _ELEVATED_ROLES
+        is_elevated = worker_role in ELEVATED_ROLES
 
         # Confidential filter
         if not is_elevated and worker_id is not None:
@@ -579,7 +588,6 @@ class TicketService:
 
         # Due-within-days filter (show tickets due within N days or overdue)
         if due_within_days > 0:
-            from datetime import timedelta
             cutoff = get_utc_now() + timedelta(days=due_within_days)
             query = query.filter(
                 Ticket.due_date.isnot(None),
@@ -667,9 +675,7 @@ class TicketService:
     ) -> Tuple[bool, str]:
         """Request approval for a ticket."""
         try:
-            ticket = db.session.get(Ticket, ticket_id)
-            if not ticket or ticket.is_deleted:
-                raise ValueError("Ticket nicht gefunden.")
+            ticket = _get_ticket_or_raise(ticket_id)
             if ticket.approval_status == ApprovalStatus.PENDING.value:
                 return False, "Freigabe bereits angefragt."
 
@@ -697,9 +703,7 @@ class TicketService:
     ) -> Any:
         """Approve a ticket."""
         try:
-            ticket = db.session.get(Ticket, ticket_id)
-            if not ticket or ticket.is_deleted:
-                raise ValueError("Ticket nicht gefunden.")
+            ticket = _get_ticket_or_raise(ticket_id)
             if ticket.approval_status == ApprovalStatus.APPROVED.value:
                 return False, "Ticket bereits freigegeben."
 
@@ -729,9 +733,7 @@ class TicketService:
     ) -> Ticket:
         """Reject a ticket with a reason."""
         try:
-            ticket = db.session.get(Ticket, ticket_id)
-            if not ticket or ticket.is_deleted:
-                raise ValueError("Ticket nicht gefunden.")
+            ticket = _get_ticket_or_raise(ticket_id)
 
             ticket.approval_status = ApprovalStatus.REJECTED.value
             ticket.rejected_by_id = worker_id
@@ -811,9 +813,7 @@ class TicketService:
     ) -> Ticket:
         """Assign a ticket to a worker (with OOO delegation)."""
         try:
-            ticket = db.session.get(Ticket, ticket_id)
-            if not ticket or ticket.is_deleted:
-                raise ValueError("Ticket nicht gefunden.")
+            ticket = _get_ticket_or_raise(ticket_id)
 
             old_name = (
                 ticket.assigned_to.name if ticket.assigned_to else "Niemand"
@@ -882,9 +882,7 @@ class TicketService:
     ) -> Ticket:
         """Direct admin reassignment (no OOO delegation)."""
         try:
-            ticket = db.session.get(Ticket, ticket_id)
-            if not ticket or ticket.is_deleted:
-                raise ValueError("Ticket nicht gefunden.")
+            ticket = _get_ticket_or_raise(ticket_id)
 
             to_worker = db.session.get(Worker, to_worker_id)
             if not to_worker or not to_worker.is_active:
@@ -948,9 +946,7 @@ class TicketService:
     ) -> Ticket:
         """Update ticket metadata with an audit trail."""
         try:
-            ticket = db.session.get(Ticket, ticket_id)
-            if not ticket:
-                raise ValueError("Ticket nicht gefunden")
+            ticket = _get_ticket_or_raise(ticket_id)
 
             changes = _collect_meta_changes(
                 ticket, title, priority, due_date,
@@ -1323,7 +1319,7 @@ def _process_mentions(
             message=msg,
             link=link,
         )
-        if mentioned.email and getattr(mentioned, "email_notifications_enabled", True):
+        if mentioned.email and mentioned.email_notifications_enabled:
             EmailService.send_mention(
                 mentioned.name, ticket_id, author_name,
                 recipient_email=mentioned.email,
@@ -1371,7 +1367,7 @@ def _send_assignment_email(
 ) -> None:
     """Send an email notification for assignment."""
     assignee = db.session.get(Worker, worker_id)
-    if assignee and assignee.email and getattr(assignee, "email_notifications_enabled", True):
+    if assignee and assignee.email and assignee.email_notifications_enabled:
         EmailService.send_notification(
             worker_name, ticket.id, ticket.priority,
             recipient_email=assignee.email,
@@ -1388,7 +1384,7 @@ def _send_approval_emails(ticket_id: int, worker_name: str) -> None:
         ).all()
         emails = [
             w.email for w in admin_workers
-            if w.email and getattr(w, "email_notifications_enabled", True)
+            if w.email and w.email_notifications_enabled
         ]
         if emails:
             EmailService.send_approval_request(emails, ticket_id, worker_name)
@@ -1404,7 +1400,7 @@ def _send_approval_result_email(
     """Email the assignee about an approval decision."""
     try:
         assignee = ticket.assigned_to
-        if assignee and assignee.email and getattr(assignee, "email_notifications_enabled", True):
+        if assignee and assignee.email and assignee.email_notifications_enabled:
             EmailService.send_approval_result(
                 assignee.name, ticket.id,
                 approved=approved, reason=reason,
@@ -1480,7 +1476,7 @@ def _notify_meta_change(
     # Also send email notification to assigned worker
     if ticket.assigned_to_id and ticket.assigned_to_id != author_id:
         worker = db.session.get(Worker, ticket.assigned_to_id)
-        if worker and worker.email and getattr(worker, "email_notifications_enabled", True):
+        if worker and worker.email and worker.email_notifications_enabled:
             try:
                 from services.email_service import EmailService
                 EmailService.send_meta_change(
@@ -1627,7 +1623,7 @@ def _fetch_self_tickets(
         )
     )
 
-    if worker_role not in _ELEVATED_ROLES:
+    if worker_role not in ELEVATED_ROLES:
         self_query = self_query.filter(
             db.or_(*_confidential_filter(worker_id, team_ids))
         )
@@ -1646,7 +1642,7 @@ def _fetch_summary_counts(
     base_filter = Ticket.is_deleted == False  # noqa: E712
     confidential = (
         db.or_(*_confidential_filter(worker_id, team_ids))
-        if worker_role not in _ELEVATED_ROLES and worker_id is not None
+        if worker_role not in ELEVATED_ROLES and worker_id is not None
         else None
     )
 

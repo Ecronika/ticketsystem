@@ -27,7 +27,7 @@ from flask import (
 from markupsafe import Markup
 from sqlalchemy.exc import SQLAlchemyError
 
-from enums import ApprovalStatus, TicketPriority, TicketStatus, WorkerRole
+from enums import ELEVATED_ROLES, ApprovalStatus, TicketPriority, TicketStatus, WorkerRole
 from extensions import Config, db, limiter
 from models import (
     Attachment,
@@ -47,12 +47,6 @@ from routes.auth import (
 )
 from services import TicketService
 from utils import get_utc_now
-
-_ELEVATED_ROLES = frozenset({
-    WorkerRole.ADMIN.value,
-    WorkerRole.HR.value,
-    WorkerRole.MANAGEMENT.value,
-})
 
 _PRIO_LABELS: dict[int, str] = {1: "Hoch", 2: "Mittel", 3: "Niedrig"}
 
@@ -1038,45 +1032,11 @@ def _build_queue_query(
         ),
     )
 
-    if worker_role not in _ELEVATED_ROLES:
-        query = _apply_confidential_filter(query, worker_id, team_ids)
+    if worker_role not in ELEVATED_ROLES:
+        from services.ticket_service import _confidential_filter
+        query = query.filter(db.or_(*_confidential_filter(worker_id, team_ids)))
 
     return query
-
-
-def _apply_confidential_filter(
-    query: Any,
-    worker_id: int | None,
-    team_ids: list[int],
-) -> Any:
-    """Filter out confidential tickets the worker cannot see."""
-    conf_team: list[Any] = []
-    if team_ids:
-        conf_team = [
-            Ticket.assigned_team_id.in_(team_ids),
-            Ticket.checklists.any(
-                ChecklistItem.assigned_team_id.in_(team_ids),
-            ),
-        ]
-    author_sub = (
-        db.session.query(Comment.ticket_id)
-        .filter(
-            Comment.event_type == "TICKET_CREATED",
-            Comment.author_id == worker_id,
-        )
-        .subquery()
-    )
-    return query.filter(
-        db.or_(
-            Ticket.is_confidential == False,  # noqa: E712
-            Ticket.id.in_(author_sub),
-            Ticket.assigned_to_id == worker_id,
-            Ticket.checklists.any(
-                ChecklistItem.assigned_to_id == worker_id,
-            ),
-            *conf_team,
-        ),
-    )
 
 
 def _has_due_reminder(t: Ticket, today) -> bool:
@@ -1346,7 +1306,7 @@ def _export_archive_csv() -> Response:
     author = request.args.get("author", "").strip()
     worker_id = _session_worker_id()
     worker_role = session.get("role")
-    is_elevated = worker_role in _ELEVATED_ROLES
+    is_elevated = worker_role in ELEVATED_ROLES
 
     query = Ticket.query.filter(
         Ticket.is_deleted == False,  # noqa: E712
