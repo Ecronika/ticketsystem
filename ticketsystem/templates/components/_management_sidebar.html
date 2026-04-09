@@ -114,43 +114,44 @@
                 </button>
                 {% endif %}
             </div>
+            {% set c = ticket.contact %}
             <div id="contactDisplay">
-                {% if ticket.contact_channel %}
+                {% if c and c.channel %}
                 <div class="d-flex align-items-center gap-2 mb-1">
-                    {% if ticket.contact_channel == 'telefon' %}
+                    {% if c.channel == 'telefon' %}
                     <i class="bi bi-telephone text-info small"></i><span class="small">Telefon</span>
-                    {% elif ticket.contact_channel == 'email' %}
+                    {% elif c.channel == 'email' %}
                     <i class="bi bi-envelope text-info small"></i><span class="small">E-Mail</span>
-                    {% elif ticket.contact_channel == 'persoenlich' %}
+                    {% elif c.channel == 'persoenlich' %}
                     <i class="bi bi-person-walking text-info small"></i><span class="small">Persönlich</span>
-                    {% elif ticket.contact_channel == 'petra' %}
+                    {% elif c.channel == 'petra' %}
                     <i class="bi bi-robot text-info small"></i><span class="small">Hallo Petra</span>
                     {% endif %}
                 </div>
                 {% endif %}
-                {% if ticket.contact_name %}
-                <div class="small fw-semibold text-truncate">{{ ticket.contact_name }}</div>
+                {% if c and c.name %}
+                <div class="small fw-semibold text-truncate">{{ c.name }}</div>
                 {% endif %}
-                {% if ticket.contact_phone %}
-                <div><a href="tel:{{ ticket.contact_phone }}" class="small text-decoration-none text-primary">
-                    <i class="bi bi-telephone-fill me-1"></i>{{ ticket.contact_phone }}
+                {% if c and c.phone %}
+                <div><a href="tel:{{ c.phone }}" class="small text-decoration-none text-primary">
+                    <i class="bi bi-telephone-fill me-1"></i>{{ c.phone }}
                 </a></div>
                 {% endif %}
-                {% if ticket.contact_email %}
-                <div><a href="mailto:{{ ticket.contact_email }}" class="small text-decoration-none text-primary">
-                    <i class="bi bi-envelope-fill me-1"></i>{{ ticket.contact_email }}
+                {% if c and c.email %}
+                <div><a href="mailto:{{ c.email }}" class="small text-decoration-none text-primary">
+                    <i class="bi bi-envelope-fill me-1"></i>{{ c.email }}
                 </a></div>
                 {% endif %}
-                {% if ticket.callback_requested %}
-                <div class="mt-1 d-flex align-items-center gap-1 {% if ticket.callback_due and ticket.callback_due < now %}text-danger fw-bold{% else %}text-warning-emphasis{% endif %}">
+                {% if c and c.callback_requested %}
+                <div class="mt-1 d-flex align-items-center gap-1 {% if c.callback_due and c.callback_due < now %}text-danger fw-bold{% else %}text-warning-emphasis{% endif %}">
                     <i class="bi bi-telephone-forward small"></i>
                     <span class="x-small fw-bold">Rückruf erforderlich</span>
-                    {% if ticket.callback_due %}
-                    <span class="x-small ms-1">bis {{ ticket.callback_due|local_time|datetime('%d.%m. %H:%M') }}</span>
+                    {% if c.callback_due %}
+                    <span class="x-small ms-1">bis {{ c.callback_due|local_time|datetime('%d.%m. %H:%M') }}</span>
                     {% endif %}
                 </div>
                 {% endif %}
-                {% if not ticket.contact_name and not ticket.contact_channel and not ticket.contact_phone and not ticket.contact_email %}
+                {% if not c or (not c.name and not c.channel and not c.phone and not c.email) %}
                 <span class="x-small text-muted fst-italic">Keine Angaben</span>
                 {% endif %}
             </div>
@@ -161,28 +162,28 @@
                     <div class="mb-2">
                         <label class="form-label fw-bold x-small mb-1">Eingangskanal</label>
                         <select class="form-select form-select-sm" id="editContactChannel">
-                            <option value="" {{ 'selected' if not ticket.contact_channel }}>Kein Kanal</option>
-                            <option value="telefon" {{ 'selected' if ticket.contact_channel == 'telefon' }}>📞 Telefon</option>
-                            <option value="email" {{ 'selected' if ticket.contact_channel == 'email' }}>📧 E-Mail</option>
-                            <option value="persoenlich" {{ 'selected' if ticket.contact_channel == 'persoenlich' }}>🚶 Persönlich</option>
-                            <option value="petra" {{ 'selected' if ticket.contact_channel == 'petra' }}>🤖 Hallo Petra</option>
+                            <option value="" {{ 'selected' if not c or not c.channel }}>Kein Kanal</option>
+                            <option value="telefon" {{ 'selected' if c and c.channel == 'telefon' }}>📞 Telefon</option>
+                            <option value="email" {{ 'selected' if c and c.channel == 'email' }}>📧 E-Mail</option>
+                            <option value="persoenlich" {{ 'selected' if c and c.channel == 'persoenlich' }}>🚶 Persönlich</option>
+                            <option value="petra" {{ 'selected' if c and c.channel == 'petra' }}>🤖 Hallo Petra</option>
                         </select>
                     </div>
                     <div class="mb-2">
-                        <input type="text" class="form-control form-control-sm" id="editContactName" placeholder="Name des Kunden" value="{{ ticket.contact_name or '' }}">
+                        <input type="text" class="form-control form-control-sm" id="editContactName" placeholder="Name des Kunden" value="{{ c.name or '' if c else '' }}">
                     </div>
                     <div class="mb-2">
-                        <input type="tel" class="form-control form-control-sm" id="editContactPhone" placeholder="Telefonnummer" value="{{ ticket.contact_phone or '' }}">
+                        <input type="tel" class="form-control form-control-sm" id="editContactPhone" placeholder="Telefonnummer" value="{{ c.phone or '' if c else '' }}">
                     </div>
                     <div class="mb-2">
-                        <input type="email" class="form-control form-control-sm" id="editContactEmail" placeholder="E-Mail-Adresse" value="{{ ticket.contact_email or '' }}">
+                        <input type="email" class="form-control form-control-sm" id="editContactEmail" placeholder="E-Mail-Adresse" value="{{ c.email or '' if c else '' }}">
                     </div>
                     <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" id="editCallbackRequested" {{ 'checked' if ticket.callback_requested }}>
+                        <input class="form-check-input" type="checkbox" id="editCallbackRequested" {{ 'checked' if c and c.callback_requested }}>
                         <label class="form-check-label x-small fw-bold" for="editCallbackRequested"><i class="bi bi-telephone-forward text-warning me-1"></i>Rückruf erforderlich</label>
                     </div>
-                    <div id="editCallbackDueWrapper" class="{{ 'd-none' if not ticket.callback_requested }}">
-                        <input type="datetime-local" class="form-control form-control-sm mb-2" id="editCallbackDue" value="{{ ticket.callback_due|local_time|datetime('%Y-%m-%dT%H:%M') if ticket.callback_due else '' }}">
+                    <div id="editCallbackDueWrapper" class="{{ 'd-none' if not c or not c.callback_requested }}">
+                        <input type="datetime-local" class="form-control form-control-sm mb-2" id="editCallbackDue" value="{{ c.callback_due|local_time|datetime('%Y-%m-%dT%H:%M') if c and c.callback_due else '' }}">
                     </div>
                     <button type="button" class="btn btn-primary btn-sm rounded-pill w-100" id="saveContactBtn" data-ticket-id="{{ ticket.id }}">
                         Speichern

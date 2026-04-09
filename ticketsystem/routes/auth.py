@@ -111,6 +111,16 @@ def worker_required(func: _F) -> _F:
     return _wrapper  # type: ignore[return-value]
 
 
+def write_required(func: _F) -> _F:
+    """Block VIEWER role from write endpoints (API → JSON 403, HTML → flash)."""
+    @wraps(func)
+    def _wrapper(*args: Any, **kwargs: Any) -> Any:
+        if session.get("role") == WorkerRole.VIEWER.value:
+            return _deny("Keine Berechtigung.", "main.index")
+        return func(*args, **kwargs)
+    return _wrapper  # type: ignore[return-value]
+
+
 def _deny(
     message: str,
     login_endpoint: str,

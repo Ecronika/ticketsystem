@@ -48,7 +48,7 @@
                             {% if ticket.is_confidential %}<i class="bi bi-lock-fill text-warning ms-1" title="Vertraulich"></i>{% endif %}
                         </td>
                         <td class="small text-muted">
-                            {{ ticket.order_reference or ticket.contact_name or '—' }}
+                            {{ ticket.order_reference or (ticket.contact.name if ticket.contact else '') or '—' }}
                         </td>
                         <td>
                             <span class="badge bg-secondary-subtle text-secondary rounded-pill">{{ ticket.status|status_label }}</span>
