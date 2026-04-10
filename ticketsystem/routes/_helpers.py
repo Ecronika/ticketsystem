@@ -1,13 +1,11 @@
 """Shared helpers for route modules.
 
-Contains session helpers, access checks, form parsing utilities,
+Contains access checks, form parsing utilities,
 and constants used across multiple ticket route sub-modules.
 """
 
 from datetime import date, datetime, timezone
-from typing import Any
-
-from flask import Response, jsonify, request, session
+from flask import Response
 from zoneinfo import ZoneInfo
 
 from enums import ApprovalStatus
@@ -19,29 +17,17 @@ _PRIO_LABELS: dict[int, str] = {1: "Hoch", 2: "Mittel", 3: "Niedrig"}
 
 
 # ------------------------------------------------------------------
-# Session helpers
-# ------------------------------------------------------------------
-
-def _session_author() -> str:
-    """Return the current session's worker name or ``'System'``."""
-    return session.get("worker_name", "System")
-
-
-def _session_worker_id() -> int | None:
-    """Return the current session's worker id."""
-    return session.get("worker_id")
-
-
-# ------------------------------------------------------------------
 # Access checks
 # ------------------------------------------------------------------
 
-def _check_ticket_access(ticket_id: int) -> Ticket | None:
+def _check_ticket_access(
+    ticket_id: int,
+    worker_id: int | None,
+    role: str | None,
+) -> Ticket | None:
     """Load a ticket and verify access; return ``None`` on failure."""
     ticket = db.session.get(Ticket, ticket_id)
-    if not ticket or not ticket.is_accessible_by(
-        _session_worker_id(), session.get("role"),
-    ):
+    if not ticket or not ticket.is_accessible_by(worker_id, role):
         return None
     return ticket
 
@@ -90,6 +76,7 @@ def _parse_callback_due(raw: str) -> datetime | None:
 def _parse_assignment_ids(
     raw_worker: str | None,
     raw_team: str | None,
+    fallback_worker_id: int | None = None,
 ) -> tuple[int | None, int | None]:
     """Parse the combined worker/team assignment form fields.
 
@@ -103,8 +90,8 @@ def _parse_assignment_ids(
         assigned_team_id = _safe_int(raw_worker[5:])
     elif raw_worker and raw_worker.isdigit():
         assigned_to_id = int(raw_worker)
-    elif _session_worker_id():
-        assigned_to_id = _session_worker_id()
+    elif fallback_worker_id:
+        assigned_to_id = fallback_worker_id
 
     if raw_team and not assigned_team_id:
         if raw_team.startswith("team_"):

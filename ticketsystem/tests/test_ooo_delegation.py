@@ -1,5 +1,5 @@
 import pytest
-from services.ticket_service import TicketService
+from services.ticket_assignment_service import TicketAssignmentService
 from services.worker_service import WorkerService
 from models import Worker
 from extensions import db
@@ -22,7 +22,7 @@ def test_circular_delegation(test_app):
     db.session.commit()
 
     # Try delegation resolution
-    final_id, logs = TicketService._resolve_delegation(w1.id)
+    final_id, logs = TicketAssignmentService._resolve_delegation(w1.id)
     assert final_id is None
     assert any("Zirkuläre Vertretung erkannt" in log for log in logs)
 
@@ -35,6 +35,6 @@ def test_linear_delegation(test_app):
 
     db.session.commit()
 
-    final_id, logs = TicketService._resolve_delegation(w4.id)
+    final_id, logs = TicketAssignmentService._resolve_delegation(w4.id)
     assert final_id == w5.id
     assert any("L1 abwesend -> delegiert an L2" in log for log in logs)

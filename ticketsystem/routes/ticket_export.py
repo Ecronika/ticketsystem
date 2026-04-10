@@ -7,19 +7,19 @@ from typing import Any
 from flask import Blueprint, Response, request, session, stream_with_context
 
 from enums import ELEVATED_ROLES, ApprovalStatus, TicketPriority, TicketStatus
-from extensions import db, limiter
-from models import Comment, Team, Ticket, TicketContact
+from extensions import db
+from models import Comment, Team, Ticket
 from routes.auth import worker_required, write_required
-from services import TicketService
 from services._helpers import api_endpoint, api_error, api_ok
+from services.dashboard_service import DashboardService
+from services.ticket_assignment_service import TicketAssignmentService
+from services.ticket_core_service import TicketCoreService
 from utils import get_utc_now
 
 from ._helpers import (
     _PRIO_LABELS,
     _parse_date,
     _safe_int,
-    _session_author,
-    _session_worker_id,
 )
 
 
@@ -39,7 +39,9 @@ def _bulk_action_api() -> tuple[Response, int] | Response:
     if not ticket_ids or not action:
         return api_error("Keine Tickets oder Aktion angegeben.", 400)
 
-    updated = _execute_bulk_action(ticket_ids, action, data)
+    worker_id = session.get("worker_id")
+    author = session.get("worker_name", "System")
+    updated = _execute_bulk_action(ticket_ids, action, data, worker_id, author)
     db.session.commit()
     return api_ok(updated=updated)
 
@@ -48,10 +50,11 @@ def _execute_bulk_action(
     ticket_ids: list[int],
     action: str,
     data: dict[str, Any],
+    worker_id: int | None,
+    author: str,
 ) -> int:
     """Apply *action* to each ticket in *ticket_ids*.  Returns count."""
     updated = 0
-    worker_id = _session_worker_id()
     worker_role = session.get("role")
     for tid in ticket_ids:
         ticket = db.session.get(Ticket, tid)
@@ -61,9 +64,9 @@ def _execute_bulk_action(
             continue
 
         if action == "status_change":
-            updated += _bulk_status_change(ticket, data)
+            updated += _bulk_status_change(ticket, data, author, worker_id)
         elif action == "reassign":
-            updated += _bulk_reassign(ticket, data)
+            updated += _bulk_reassign(ticket, data, author, worker_id)
         elif action == "soft_delete":
             if ticket.approval and ticket.approval.status == ApprovalStatus.PENDING.value:
                 ticket.approval.status = ApprovalStatus.REJECTED.value
@@ -76,10 +79,8 @@ def _execute_bulk_action(
                     ),
                     is_system_event=True,
                 ))
-            TicketService.delete_ticket(
-                ticket.id,
-                author_name=_session_author(),
-                author_id=_session_worker_id(),
+            TicketCoreService.delete_ticket(
+                ticket.id, author_name=author, author_id=worker_id,
             )
             updated += 1
         elif action == "set_due_date":
@@ -89,25 +90,26 @@ def _execute_bulk_action(
     return updated
 
 
-def _bulk_status_change(ticket: Ticket, data: dict[str, Any]) -> int:
+def _bulk_status_change(
+    ticket: Ticket, data: dict[str, Any], author: str, worker_id: int | None,
+) -> int:
     """Apply a status change to *ticket*.  Returns 1 on success, 0 otherwise."""
     new_status = data.get("new_status")
     valid = {s.value for s in TicketStatus}
     if new_status and new_status in valid:
-        TicketService.update_status(
-            ticket.id, new_status, _session_author(), _session_worker_id(),
-        )
+        TicketCoreService.update_status(ticket.id, new_status, author, worker_id)
         return 1
     return 0
 
 
-def _bulk_reassign(ticket: Ticket, data: dict[str, Any]) -> int:
+def _bulk_reassign(
+    ticket: Ticket, data: dict[str, Any], author: str, worker_id: int | None,
+) -> int:
     """Reassign *ticket*.  Returns 1 on success."""
-    worker_id = _safe_int(data.get("worker_id"))
+    target_worker_id = _safe_int(data.get("worker_id"))
     team_id = _safe_int(data.get("team_id"))
-    TicketService.assign_ticket(
-        ticket.id, worker_id, _session_author(),
-        _session_worker_id(), team_id=team_id,
+    TicketAssignmentService.assign_ticket(
+        ticket.id, target_worker_id, author, worker_id, team_id=team_id,
     )
     return 1
 
@@ -146,7 +148,7 @@ def _export_archive_csv() -> Response:
     """Export archive tickets as a streaming CSV download."""
     search = request.args.get("q", "").strip()
     author = request.args.get("author", "").strip()
-    worker_id = _session_worker_id()
+    worker_id = session.get("worker_id")
     worker_role = session.get("role")
     is_elevated = worker_role in ELEVATED_ROLES
 
@@ -156,7 +158,7 @@ def _export_archive_csv() -> Response:
     )
 
     if not is_elevated and worker_id is not None:
-        from services.ticket_service import _confidential_filter
+        from services._ticket_helpers import _confidential_filter
         team_ids = Team.team_ids_for_worker(worker_id)
         query = query.filter(db.or_(*_confidential_filter(worker_id, team_ids)))
 
@@ -172,23 +174,8 @@ def _export_archive_csv() -> Response:
         query = query.filter(Ticket.id.in_(author_sub))
 
     if search:
-        tokens = search.split()
-        for token in tokens:
-            pattern = f"%{token}%"
-            comment_ids = (
-                db.session.query(Comment.ticket_id)
-                .filter(Comment.text.ilike(pattern))
-                .subquery()
-            )
-            query = query.filter(
-                Ticket.title.ilike(pattern)
-                | Ticket.description.ilike(pattern)
-                | Ticket.order_reference.ilike(pattern)
-                | Ticket.contact.has(TicketContact.name.ilike(pattern))
-                | Ticket.contact.has(TicketContact.email.ilike(pattern))
-                | Ticket.contact.has(TicketContact.phone.ilike(pattern))
-                | Ticket.id.in_(comment_ids)
-            )
+        from services._ticket_helpers import apply_search_filter
+        query = apply_search_filter(query, search)
 
     query = query.order_by(Ticket.priority.asc(), Ticket.created_at.desc())
 
@@ -236,7 +223,7 @@ def _archive_csv_row(ticket: Ticket) -> list[str]:
 @worker_required
 def _export_projects_csv() -> Response:
     """Export projects summary as CSV download."""
-    projects = TicketService.get_projects_summary()
+    projects = DashboardService.get_projects_summary()
 
     output = io.StringIO()
     output.write("\ufeff")

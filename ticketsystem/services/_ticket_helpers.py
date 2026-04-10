@@ -2,17 +2,17 @@
 
 This module is the single source of truth for low-level ticket utilities
 that are consumed by ``ticket_core_service``, ``ticket_assignment_service``,
-``dashboard_service``, and the backward-compatible ``ticket_service`` facade.
+and ``dashboard_service``.
 """
 
 import logging
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from dateutil.relativedelta import relativedelta
 
-from enums import ELEVATED_ROLES, TicketPriority, TicketStatus
+from enums import TicketPriority, TicketStatus
 from exceptions import TicketNotFoundError
 from extensions import db
 from models import ChecklistItem, Comment, Ticket, TicketContact
@@ -204,3 +204,36 @@ def _team_clauses(team_ids: Optional[List[int]]) -> list:
             )
         ),
     ]
+
+
+# ---------------------------------------------------------------------------
+# Full-text search filter
+# ---------------------------------------------------------------------------
+
+def apply_search_filter(query: Any, search: str) -> Any:
+    """Apply full-text search across ticket fields and comments.
+
+    Searches title, description, order reference, contact name/email/phone,
+    and comment text.  Multiple tokens are AND-combined.
+    """
+    tokens = search.split()
+    if not tokens:
+        return query
+
+    for token in tokens:
+        pattern = f"%{token}%"
+        comment_ids = (
+            db.session.query(Comment.ticket_id)
+            .filter(Comment.text.ilike(pattern))
+            .subquery()
+        )
+        query = query.filter(
+            Ticket.title.ilike(pattern)
+            | Ticket.description.ilike(pattern)
+            | Ticket.order_reference.ilike(pattern)
+            | Ticket.contact.has(TicketContact.name.ilike(pattern))
+            | Ticket.contact.has(TicketContact.email.ilike(pattern))
+            | Ticket.contact.has(TicketContact.phone.ilike(pattern))
+            | Ticket.id.in_(comment_ids)
+        )
+    return query

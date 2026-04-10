@@ -19,7 +19,7 @@ from flask import (
 
 from enums import ApprovalStatus, TicketPriority, TicketStatus
 from extensions import Config, db, limiter
-from models import Attachment, ChecklistItem, Ticket, Worker
+from models import Attachment
 from routes.auth import (
     admin_or_management_required,
     admin_required,
@@ -27,17 +27,16 @@ from routes.auth import (
     worker_required,
     write_required,
 )
-from services import TicketService
 from services._helpers import api_endpoint, api_error, api_ok
-from utils import get_utc_now
+from services.ticket_approval_service import TicketApprovalService
+from services.ticket_assignment_service import TicketAssignmentService
+from services.ticket_core_service import TicketCoreService
 
 from ._helpers import (
     _check_ticket_access,
     _parse_callback_due,
     _parse_date,
     _safe_int,
-    _session_author,
-    _session_worker_id,
     check_approval_lock,
 )
 
@@ -51,7 +50,9 @@ from ._helpers import (
 @limiter.limit("20 per minute")
 def _add_comment_view(ticket_id: int) -> Response:
     """Add a comment to a ticket."""
-    ticket = _check_ticket_access(ticket_id)
+    worker_id = session.get("worker_id")
+    role = session.get("role")
+    ticket = _check_ticket_access(ticket_id, worker_id, role)
     if not ticket:
         flash("Ticket nicht gefunden.", "error")
         return redirect_to("main.index")
@@ -68,9 +69,8 @@ def _add_comment_view(ticket_id: int) -> Response:
 
     text = request.form.get("text")
     if text:
-        TicketService.add_comment(
-            ticket_id, _session_author(), _session_worker_id(), text,
-        )
+        author = session.get("worker_name", "System")
+        TicketCoreService.add_comment(ticket_id, author, worker_id, text)
         flash("Kommentar hinzugefügt.", "success")
     return redirect_to(
         "main.ticket_detail", ticket_id=ticket_id, _anchor="comment-form",
@@ -83,7 +83,9 @@ def _add_comment_view(ticket_id: int) -> Response:
 @api_endpoint
 def _update_status_api(ticket_id: int) -> tuple[Response, int] | Response:
     """AJAX status update."""
-    ticket = _check_ticket_access(ticket_id)
+    worker_id = session.get("worker_id")
+    role = session.get("role")
+    ticket = _check_ticket_access(ticket_id, worker_id, role)
     if not ticket:
         return api_error("Keine Berechtigung", 403)
 
@@ -109,9 +111,8 @@ def _update_status_api(ticket_id: int) -> tuple[Response, int] | Response:
                 400,
             )
 
-    TicketService.update_status(
-        ticket_id, new_status, _session_author(), _session_worker_id(),
-    )
+    author = session.get("worker_name", "System")
+    TicketCoreService.update_status(ticket_id, new_status, author, worker_id)
     return api_ok()
 
 
@@ -125,7 +126,9 @@ def _update_status_api(ticket_id: int) -> tuple[Response, int] | Response:
 @api_endpoint
 def _assign_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
     """AJAX ticket assignment."""
-    ticket = _check_ticket_access(ticket_id)
+    current_worker_id = session.get("worker_id")
+    role = session.get("role")
+    ticket = _check_ticket_access(ticket_id, current_worker_id, role)
     if not ticket:
         return api_error("Keine Berechtigung", 403)
 
@@ -134,12 +137,13 @@ def _assign_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
         return lock_err
 
     data: dict[str, Any] = request.get_json(silent=True) or {}
-    worker_id = _safe_int(data.get("worker_id"))
+    target_worker_id = _safe_int(data.get("worker_id"))
     team_id = _safe_int(data.get("team_id"))
 
-    TicketService.assign_ticket(
-        ticket_id, worker_id, _session_author(),
-        _session_worker_id(), team_id=team_id,
+    author = session.get("worker_name", "System")
+    TicketAssignmentService.assign_ticket(
+        ticket_id, target_worker_id, author,
+        current_worker_id, team_id=team_id,
     )
     return api_ok()
 
@@ -148,7 +152,9 @@ def _assign_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
 @write_required
 def _assign_to_me_view(ticket_id: int) -> str | Response:
     """Assign the ticket to the current logged-in worker."""
-    ticket = _check_ticket_access(ticket_id)
+    worker_id = session.get("worker_id")
+    role = session.get("role")
+    ticket = _check_ticket_access(ticket_id, worker_id, role)
     if not ticket:
         return "", 404
 
@@ -156,9 +162,9 @@ def _assign_to_me_view(ticket_id: int) -> str | Response:
         flash("Ticket ist für die Freigabe gesperrt.", "error")
         return redirect_to("main.ticket_detail", ticket_id=ticket_id)
 
-    wid = _session_worker_id()
-    if wid:
-        TicketService.assign_ticket(ticket_id, wid, _session_author(), wid)
+    if worker_id:
+        author = session.get("worker_name", "System")
+        TicketAssignmentService.assign_ticket(ticket_id, worker_id, author, worker_id)
         flash("Ticket wurde Ihnen zugewiesen.", "success")
 
     return redirect_to("main.ticket_detail", ticket_id=ticket_id)
@@ -175,8 +181,10 @@ def _reassign_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
     if not to_worker_id:
         return api_error("Ziel-Mitarbeiter fehlt.", 400)
 
-    TicketService.reassign_ticket(
-        ticket_id, to_worker_id, _session_author(), _session_worker_id(),
+    author = session.get("worker_name", "System")
+    worker_id = session.get("worker_id")
+    TicketAssignmentService.reassign_ticket(
+        ticket_id, to_worker_id, author, worker_id,
     )
     return api_ok()
 
@@ -191,7 +199,9 @@ def _reassign_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
 @api_endpoint
 def _update_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Handle ticket meta updates (title, priority, due_date, tags)."""
-    ticket = _check_ticket_access(ticket_id)
+    worker_id = session.get("worker_id")
+    role = session.get("role")
+    ticket = _check_ticket_access(ticket_id, worker_id, role)
     if not ticket:
         return api_error("Keine Berechtigung", 403)
 
@@ -223,12 +233,13 @@ def _update_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
     if raw_reminder and not reminder_date:
         return api_error("Ungültiges Datumsformat für Erinnerung.", 400)
 
-    TicketService.update_ticket_meta(
+    author = session.get("worker_name", "System")
+    TicketCoreService.update_ticket_meta(
         ticket_id,
         new_title,
         new_prio,
-        _session_author(),
-        _session_worker_id(),
+        author,
+        worker_id,
         due_date=due_date,
         order_reference=data.get("order_reference"),
         reminder_date=reminder_date,
@@ -244,23 +255,27 @@ def _update_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
 @api_endpoint
 def _update_contact_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Update customer contact fields on a ticket."""
-    ticket = _check_ticket_access(ticket_id)
+    worker_id = session.get("worker_id")
+    role = session.get("role")
+    ticket = _check_ticket_access(ticket_id, worker_id, role)
     if not ticket:
         return api_error("Keine Berechtigung", 403)
 
     data: dict[str, Any] = request.get_json(silent=True) or {}
-
-    c = ticket.ensure_contact()
-    c.name = data.get("contact_name") or None
-    c.phone = data.get("contact_phone") or None
-    c.email = data.get("contact_email") or None
-    c.channel = data.get("contact_channel") or None
-    c.callback_requested = bool(data.get("callback_requested", False))
     callback_due_str = data.get("callback_due")
-    c.callback_due = _parse_callback_due(callback_due_str) if callback_due_str else None
-    ticket.updated_at = get_utc_now()
 
-    db.session.commit()
+    from services._ticket_helpers import ContactInfo
+    TicketCoreService.update_contact(
+        ticket_id,
+        ContactInfo(
+            name=data.get("contact_name") or None,
+            phone=data.get("contact_phone") or None,
+            email=data.get("contact_email") or None,
+            channel=data.get("contact_channel") or None,
+            callback_requested=bool(data.get("callback_requested", False)),
+            callback_due=_parse_callback_due(callback_due_str) if callback_due_str else None,
+        ),
+    )
     return api_ok()
 
 
@@ -280,7 +295,7 @@ def _serve_attachment(attachment_id: int) -> Response | tuple[str, int]:
         if ticket.is_deleted:
             return "Forbidden", 403
         if ticket.is_confidential and not ticket.is_accessible_by(
-            _session_worker_id(), session.get("role"),
+            session.get("worker_id"), session.get("role"),
         ):
             return "Forbidden", 403
 
@@ -309,7 +324,7 @@ def _delete_attachment_api(attachment_id: int) -> tuple[Response, int] | Respons
         return api_error("Ticket nicht gefunden.", 404)
 
     # Only ticket author or admin can delete
-    wid = _session_worker_id()
+    wid = session.get("worker_id")
     role = session.get("role")
     if not ticket._worker_is_author(wid) and role != "admin":
         return api_error("Keine Berechtigung.", 403)
@@ -329,9 +344,9 @@ def _delete_attachment_api(attachment_id: int) -> tuple[Response, int] | Respons
 @api_endpoint
 def _request_approval_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Request management approval for a ticket."""
-    TicketService.request_approval(
-        ticket_id, _session_worker_id(), _session_author(),
-    )
+    worker_id = session.get("worker_id")
+    author = session.get("worker_name", "System")
+    TicketApprovalService.request_approval(ticket_id, worker_id, author)
     return api_ok()
 
 
@@ -340,9 +355,9 @@ def _request_approval_api(ticket_id: int) -> tuple[Response, int] | Response:
 @api_endpoint
 def _approve_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Approve a pending ticket."""
-    TicketService.approve_ticket(
-        ticket_id, _session_worker_id(), _session_author(),
-    )
+    worker_id = session.get("worker_id")
+    author = session.get("worker_name", "System")
+    TicketApprovalService.approve_ticket(ticket_id, worker_id, author)
     return api_ok()
 
 
@@ -356,9 +371,9 @@ def _reject_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
     if not reason:
         return api_error("Ablehnungsgrund fehlt.", 400)
 
-    TicketService.reject_ticket(
-        ticket_id, _session_worker_id(), _session_author(), reason,
-    )
+    worker_id = session.get("worker_id")
+    author = session.get("worker_name", "System")
+    TicketApprovalService.reject_ticket(ticket_id, worker_id, author, reason)
     return api_ok()
 
 
@@ -371,46 +386,13 @@ def _reject_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
 @api_endpoint
 def _duplicate_ticket_api(ticket_id: int) -> Response:
     """Create a copy of a ticket (metadata only, without comments/history)."""
-    ticket = _check_ticket_access(ticket_id)
+    worker_id = session.get("worker_id")
+    role = session.get("role")
+    ticket = _check_ticket_access(ticket_id, worker_id, role)
     if ticket is None:
         return api_error("Ticket nicht gefunden oder keine Berechtigung.", 404)
 
-    src = ticket.contact
-    new_ticket = Ticket(
-        title=f"Kopie von: {ticket.title}",
-        description=ticket.description,
-        priority=ticket.priority,
-        status=TicketStatus.OFFEN.value,
-        order_reference=ticket.order_reference,
-        is_confidential=ticket.is_confidential,
-        assigned_to_id=ticket.assigned_to_id,
-        assigned_team_id=ticket.assigned_team_id,
-    )
-    c = new_ticket.ensure_contact()
-    if src:
-        c.name = src.name
-        c.phone = src.phone
-        c.email = src.email
-        c.channel = src.channel
-        c.callback_requested = src.callback_requested
-    # Copy tags
-    for tag in ticket.tags:
-        new_ticket.tags.append(tag)
-
-    db.session.add(new_ticket)
-    db.session.flush()
-
-    # Copy checklist items (uncompleted)
-    for item in ticket.checklists:
-        db.session.add(ChecklistItem(
-            ticket_id=new_ticket.id,
-            title=item.title,
-            is_completed=False,
-            assigned_to_id=item.assigned_to_id,
-            assigned_team_id=item.assigned_team_id,
-        ))
-
-    db.session.commit()
+    new_ticket = TicketCoreService.duplicate_ticket(ticket_id)
     return api_ok(ticket_id=new_ticket.id)
 
 

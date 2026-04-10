@@ -23,6 +23,7 @@ from ._ticket_helpers import (
     _is_critical_ticket,
     _team_clauses,
     _workload_sort_key,
+    apply_search_filter,
 )
 
 _logger = logging.getLogger(__name__)
@@ -75,32 +76,6 @@ def _apply_assignment_filters(
     if assigned_worker_id:
         query = query.filter(
             Ticket.assigned_to_id == int(assigned_worker_id)
-        )
-    return query
-
-
-def _apply_search_filter(query: Any, search: str) -> Any:
-    """Apply full-text search across title, description, order ref,
-    contact fields, and comments."""
-    tokens = search.split()
-    if not tokens:
-        return query
-
-    for token in tokens:
-        pattern = f"%{token}%"
-        comment_ids = (
-            db.session.query(Comment.ticket_id)
-            .filter(Comment.text.ilike(pattern))
-            .subquery()
-        )
-        query = query.filter(
-            Ticket.title.ilike(pattern)
-            | Ticket.description.ilike(pattern)
-            | Ticket.order_reference.ilike(pattern)
-            | Ticket.contact.has(TicketContact.name.ilike(pattern))
-            | Ticket.contact.has(TicketContact.email.ilike(pattern))
-            | Ticket.contact.has(TicketContact.phone.ilike(pattern))
-            | Ticket.id.in_(comment_ids)
         )
     return query
 
@@ -323,7 +298,7 @@ class DashboardService:
 
         # Full-text search
         if f.search:
-            query = _apply_search_filter(query, f.search)
+            query = apply_search_filter(query, f.search)
 
         # Status filter
         if f.status_filter:
