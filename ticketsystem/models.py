@@ -8,7 +8,7 @@ from sqlalchemy import event
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import object_session
 
-from enums import ELEVATED_ROLES, TicketPriority, TicketStatus, WorkerRole
+from enums import ELEVATED_ROLES, TicketStatus
 from extensions import Config, db
 from utils import get_utc_now
 

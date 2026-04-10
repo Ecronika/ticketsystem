@@ -16,7 +16,7 @@ import sys
 import time
 from datetime import datetime, timedelta, timezone
 from logging.handlers import QueueHandler, QueueListener, RotatingFileHandler
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 from zoneinfo import ZoneInfo
 
 from flask import (
@@ -36,11 +36,10 @@ from flask_wtf.csrf import CSRFError
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
-from werkzeug.exceptions import HTTPException, NotFound
+from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.wrappers import Response as WerkzeugResponse
 
-from database_init import init_database
 from enums import ELEVATED_ROLES, ApprovalStatus, TicketPriority, TicketStatus, WorkerRole
 from exceptions import DomainError
 from extensions import Config, csrf, db, limiter, scheduler
@@ -54,6 +53,7 @@ from routes.metrics import metrics_bp
 from services import BackupService
 from services.backup_service import is_maintenance_mode
 from utils import get_utc_now
+
 
 # ---------------------------------------------------------------------------
 # Application version (read from config.yaml)

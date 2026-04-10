@@ -6,7 +6,7 @@ dedicated service module.
 """
 
 import logging
-from typing import Any, List, Optional, Set, Tuple
+from typing import List, Optional, Set, Tuple
 
 from flask import current_app
 
