@@ -151,12 +151,17 @@ def process_sla_escalations(app: Flask) -> None:
 
 
 def _fetch_overdue_tickets(now: object) -> List[Ticket]:
-    """Return all non-deleted open tickets that are past their due date."""
+    """Return all non-deleted open tickets that are past their due date.
+
+    Compares against midnight of today so that a ticket due today is not
+    flagged as overdue until the following day.
+    """
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     return Ticket.query.filter(
         Ticket.is_deleted.is_(False),
         Ticket.status.in_(_OPEN_STATUSES),
         Ticket.due_date.isnot(None),
-        Ticket.due_date < now,
+        Ticket.due_date < today_start,
     ).all()
 
 

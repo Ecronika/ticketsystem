@@ -22,8 +22,8 @@
     <td class="small text-muted text-truncate" style="max-width: 160px;">
         {% if ticket.order_reference %}
             <span title="{{ ticket.order_reference }}">{{ ticket.order_reference }}</span>
-        {% elif ticket.contact_name %}
-            <span title="{{ ticket.contact_name }}">{{ ticket.contact_name }}</span>
+        {% elif ticket.contact and ticket.contact.name %}
+            <span title="{{ ticket.contact.name }}">{{ ticket.contact.name }}</span>
         {% else %}
             <span class="opacity-25">—</span>
         {% endif %}

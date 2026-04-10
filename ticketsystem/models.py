@@ -232,20 +232,35 @@ class ChecklistTemplateItem(db.Model):
 
 
 # ---------------------------------------------------------------------------
+# Ticket contact (extracted from Ticket to normalize the schema)
+# ---------------------------------------------------------------------------
+
+class TicketContact(db.Model):
+    """Customer contact information associated with a ticket (1-to-1)."""
+
+    __tablename__ = "ticket_contact"
+
+    ticket_id = db.Column(
+        db.Integer, db.ForeignKey("ticket.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    name = db.Column(db.String(100), nullable=True)
+    phone = db.Column(db.String(50), nullable=True)
+    email = db.Column(db.String(150), nullable=True)
+    channel = db.Column(db.String(20), nullable=True)
+    callback_requested = db.Column(db.Boolean, default=False, nullable=False)
+    callback_due = db.Column(db.DateTime, nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<TicketContact ticket={self.ticket_id} name={self.name!r}>"
+
+
+# ---------------------------------------------------------------------------
 # Ticket
 # ---------------------------------------------------------------------------
 
 class Ticket(db.Model):
-    """Main Ticket model for tracking issues and tasks.
-
-    Architecture note: this model has grown to encompass 6 distinct
-    concerns.  The following column groups are candidates for extraction
-    into dedicated tables in a future migration:
-
-    - Contact fields (contact_*, callback_*) -> TicketContact
-    - Approval fields (approval_*, approved_*, rejected_*, reject_reason) -> ApprovalProcess
-    - Recurrence fields (recurrence_rule, next_recurrence_date) -> RecurrenceSchedule
-    """
+    """Main Ticket model for tracking issues and tasks."""
 
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
@@ -284,13 +299,11 @@ class Ticket(db.Model):
         "ChecklistTemplate", backref="legacy_tickets"
     )
 
-    # Customer contact (v1.15.0)
-    contact_name = db.Column(db.String(100), nullable=True)
-    contact_phone = db.Column(db.String(50), nullable=True)
-    contact_email = db.Column(db.String(150), nullable=True)
-    contact_channel = db.Column(db.String(20), nullable=True)
-    callback_requested = db.Column(db.Boolean, default=False, nullable=False)
-    callback_due = db.Column(db.DateTime, nullable=True)
+    # Customer contact (1-to-1 relationship, extracted in v1.31.0)
+    contact = db.relationship(
+        "TicketContact", uselist=False, backref="ticket",
+        cascade="all, delete-orphan",
+    )
 
     # Approval workflow
     approval_status = db.Column(

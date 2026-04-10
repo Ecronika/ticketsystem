@@ -27,6 +27,7 @@ from models import (
     Notification,
     Tag,
     Ticket,
+    TicketContact,
     Worker,
 )
 from utils import get_utc_now
@@ -559,7 +560,7 @@ class TicketService:
         # Callback filter
         if f.callback_pending:
             query = query.filter(
-                Ticket.callback_requested.is_(True),
+                Ticket.contact.has(TicketContact.callback_requested.is_(True)),
                 Ticket.status != TicketStatus.ERLEDIGT.value,
             )
 
@@ -569,12 +570,15 @@ class TicketService:
         if f.end_date:
             query = query.filter(Ticket.created_at <= f.end_date)
 
-        # Due-within-days filter (show tickets due within N days or overdue)
+        # Due-within-days filter (show tickets due within N calendar days or overdue)
         if f.due_within_days > 0:
-            cutoff = get_utc_now() + timedelta(days=f.due_within_days)
+            now = get_utc_now()
+            cutoff_end = (now + timedelta(days=f.due_within_days)).replace(
+                hour=23, minute=59, second=59, microsecond=0,
+            )
             query = query.filter(
                 Ticket.due_date.isnot(None),
-                Ticket.due_date <= cutoff,
+                Ticket.due_date <= cutoff_end,
             )
 
         # Author filter
@@ -1178,7 +1182,7 @@ def _build_ticket(
     callback_requested: bool,
     callback_due: Optional[datetime],
 ) -> Ticket:
-    """Construct a Ticket ORM object."""
+    """Construct a Ticket ORM object with associated TicketContact."""
     next_recurrence_date = None
     if recurrence_rule:
         increment = _RECURRENCE_INCREMENTS.get(
@@ -1186,7 +1190,7 @@ def _build_ticket(
         )
         next_recurrence_date = get_utc_now() + increment
 
-    return Ticket(
+    ticket = Ticket(
         title=title,
         description=description,
         priority=int(priority.value if hasattr(priority, "value") else priority),
@@ -1199,13 +1203,16 @@ def _build_ticket(
         due_date=due_date,
         order_reference=order_reference,
         reminder_date=reminder_date,
-        contact_name=contact_name,
-        contact_phone=contact_phone,
-        contact_email=contact_email,
-        contact_channel=contact_channel,
+    )
+    ticket.contact = TicketContact(
+        name=contact_name,
+        phone=contact_phone,
+        email=contact_email,
+        channel=contact_channel,
         callback_requested=bool(callback_requested),
         callback_due=callback_due,
     )
+    return ticket
 
 
 def _attach_tags(ticket: Ticket, tags: Optional[List[str]]) -> None:
@@ -1527,7 +1534,7 @@ def _apply_search_filter(query: Any, search: str) -> Any:
             Ticket.title.ilike(pattern)
             | Ticket.description.ilike(pattern)
             | Ticket.order_reference.ilike(pattern)
-            | Ticket.contact_name.ilike(pattern)
+            | Ticket.contact.has(TicketContact.name.ilike(pattern))
             | Ticket.id.in_(comment_ids)
         )
     return query
@@ -1620,7 +1627,7 @@ def _fetch_summary_counts(
         db.session.query(func.count(Ticket.id))
         .filter(base_filter)
         .filter(Ticket.status.in_(_OPEN_STATUSES))
-        .filter(Ticket.callback_requested.is_(True))
+        .filter(Ticket.contact.has(TicketContact.callback_requested.is_(True)))
     )
     if confidential is not None:
         callback_q = callback_q.filter(confidential)

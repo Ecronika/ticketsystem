@@ -27,7 +27,7 @@ from flask import (
 )
 from markupsafe import Markup
 from sqlalchemy.exc import SQLAlchemyError
-from enums import ELEVATED_ROLES, ApprovalStatus, TicketPriority, TicketStatus, WorkerRole
+from enums import ELEVATED_ROLES, ApprovalStatus, TicketPriority, TicketStatus
 from extensions import Config, db, limiter
 from models import (
     Attachment,
@@ -37,6 +37,7 @@ from models import (
     Notification,
     Team,
     Ticket,
+    TicketContact,
     Worker,
 )
 from routes.auth import (
@@ -44,6 +45,7 @@ from routes.auth import (
     admin_required,
     redirect_to,
     worker_required,
+    write_required,
 )
 from services import TicketService
 from services._helpers import api_endpoint, api_error, api_ok
@@ -65,11 +67,6 @@ def _session_author() -> str:
 def _session_worker_id() -> int | None:
     """Return the current session's worker id."""
     return session.get("worker_id")
-
-
-def _is_viewer() -> bool:
-    """Return ``True`` if the current session has viewer role."""
-    return session.get("role") == WorkerRole.VIEWER.value
 
 
 def _check_ticket_access(ticket_id: int) -> Ticket | None:
@@ -162,18 +159,12 @@ def _safe_int(val: str | None) -> int | None:
 
 
 def _parse_date(raw: str | None, fmt: str = "%Y-%m-%d") -> datetime | None:
-    """Parse a date string; return ``None`` on failure.
-
-    Returns the parsed date at 23:59:59 so that due-date comparisons
-    treat the entire day as valid (not overdue at midnight).
-    """
+    """Parse a date string to a midnight datetime; return ``None`` on failure."""
     if not raw:
         return None
     try:
         clean = raw.split("T")[0]
-        return datetime.strptime(clean, fmt).replace(
-            hour=23, minute=59, second=59
-        )
+        return datetime.strptime(clean, fmt)
     except (ValueError, TypeError, IndexError):
         return None
 
@@ -457,13 +448,10 @@ def _public_ticket_view(ticket_id: int) -> tuple[str, int] | str:
 # ------------------------------------------------------------------
 
 @worker_required
+@write_required
 @limiter.limit("20 per minute")
 def _add_comment_view(ticket_id: int) -> Response:
     """Add a comment to a ticket."""
-    if _is_viewer():
-        flash("Keine Berechtigung.", "error")
-        return redirect_to("main.ticket_detail", ticket_id=ticket_id)
-
     ticket = _check_ticket_access(ticket_id)
     if not ticket:
         flash("Ticket nicht gefunden.", "error")
@@ -491,13 +479,11 @@ def _add_comment_view(ticket_id: int) -> Response:
 
 
 @worker_required
+@write_required
 @limiter.limit("20 per minute")
 @api_endpoint
 def _update_status_api(ticket_id: int) -> tuple[Response, int] | Response:
     """AJAX status update."""
-    if _is_viewer():
-        return api_error("Keine Berechtigung", 403)
-
     ticket = _check_ticket_access(ticket_id)
     if not ticket:
         return api_error("Keine Berechtigung", 403)
@@ -535,13 +521,11 @@ def _update_status_api(ticket_id: int) -> tuple[Response, int] | Response:
 # ------------------------------------------------------------------
 
 @worker_required
+@write_required
 @limiter.limit("20 per minute")
 @api_endpoint
 def _assign_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
     """AJAX ticket assignment."""
-    if _is_viewer():
-        return api_error("Keine Berechtigung", 403)
-
     ticket = _check_ticket_access(ticket_id)
     if not ticket:
         return api_error("Keine Berechtigung", 403)
@@ -562,12 +546,9 @@ def _assign_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
 
 
 @worker_required
+@write_required
 def _assign_to_me_view(ticket_id: int) -> str | Response:
     """Assign the ticket to the current logged-in worker."""
-    if _is_viewer():
-        flash("Keine Berechtigung.", "error")
-        return redirect_to("main.ticket_detail", ticket_id=ticket_id)
-
     ticket = _check_ticket_access(ticket_id)
     if not ticket:
         return render_template("404.html"), 404
@@ -606,13 +587,11 @@ def _reassign_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
 # ------------------------------------------------------------------
 
 @worker_required
+@write_required
 @limiter.limit("20 per minute")
 @api_endpoint
 def _update_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Handle ticket meta updates (title, priority, due_date, tags)."""
-    if _is_viewer():
-        return api_error("Keine Berechtigung", 403)
-
     ticket = _check_ticket_access(ticket_id)
     if not ticket:
         return api_error("Keine Berechtigung", 403)
@@ -661,26 +640,26 @@ def _update_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
 
 
 @worker_required
+@write_required
 @limiter.limit("20 per minute")
 @api_endpoint
 def _update_contact_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Update customer contact fields on a ticket."""
-    if _is_viewer():
-        return api_error("Keine Berechtigung", 403)
-
     ticket = _check_ticket_access(ticket_id)
     if not ticket:
         return api_error("Keine Berechtigung", 403)
 
     data: dict[str, Any] = request.get_json(silent=True) or {}
 
-    ticket.contact_name = data.get("contact_name") or None
-    ticket.contact_phone = data.get("contact_phone") or None
-    ticket.contact_email = data.get("contact_email") or None
-    ticket.contact_channel = data.get("contact_channel") or None
-    ticket.callback_requested = bool(data.get("callback_requested", False))
+    if not ticket.contact:
+        ticket.contact = TicketContact(ticket_id=ticket.id)
+    ticket.contact.name = data.get("contact_name") or None
+    ticket.contact.phone = data.get("contact_phone") or None
+    ticket.contact.email = data.get("contact_email") or None
+    ticket.contact.channel = data.get("contact_channel") or None
+    ticket.contact.callback_requested = bool(data.get("callback_requested", False))
     callback_due_str = data.get("callback_due")
-    ticket.callback_due = _parse_callback_due(callback_due_str) if callback_due_str else None
+    ticket.contact.callback_due = _parse_callback_due(callback_due_str) if callback_due_str else None
     ticket.updated_at = get_utc_now()
 
     db.session.commit()
@@ -714,13 +693,11 @@ def _serve_attachment(attachment_id: int) -> Response | tuple[str, int]:
 
 
 @worker_required
+@write_required
 @limiter.limit("20 per minute")
 @api_endpoint
 def _delete_attachment_api(attachment_id: int) -> tuple[Response, int] | Response:
     """Delete an attachment from a ticket."""
-    if _is_viewer():
-        return api_error("Keine Berechtigung", 403)
-
     attachment = db.session.get(Attachment, attachment_id)
     if not attachment:
         return api_error("Anhang nicht gefunden.", 404)
@@ -745,13 +722,11 @@ def _delete_attachment_api(attachment_id: int) -> tuple[Response, int] | Respons
 # ------------------------------------------------------------------
 
 @worker_required
+@write_required
 @limiter.limit("20 per minute")
 @api_endpoint
 def _request_approval_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Request management approval for a ticket."""
-    if _is_viewer():
-        return api_error("Keine Berechtigung", 403)
-
     TicketService.request_approval(
         ticket_id, _session_worker_id(), _session_author(),
     )
@@ -790,13 +765,11 @@ def _reject_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
 # ------------------------------------------------------------------
 
 @worker_required
+@write_required
 @limiter.limit("20 per minute")
 @api_endpoint
 def _add_checklist_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Add a checklist item to a ticket."""
-    if _is_viewer():
-        return api_error("Keine Berechtigung", 403)
-
     ticket = _check_ticket_access(ticket_id)
     if ticket is None:
         return api_error("Kein Zugriff auf dieses Ticket.", 403)
@@ -822,13 +795,11 @@ def _add_checklist_api(ticket_id: int) -> tuple[Response, int] | Response:
 
 
 @worker_required
+@write_required
 @limiter.limit("40 per minute")
 @api_endpoint
 def _toggle_checklist_api(item_id: int) -> tuple[Response, int] | Response:
     """Toggle a checklist item's completion state."""
-    if _is_viewer():
-        return api_error("Keine Berechtigung", 403)
-
     item = db.session.get(ChecklistItem, item_id)
     if item:
         ticket = _check_ticket_access(item.ticket_id)
@@ -848,13 +819,11 @@ def _toggle_checklist_api(item_id: int) -> tuple[Response, int] | Response:
 
 
 @worker_required
+@write_required
 @limiter.limit("20 per minute")
 @api_endpoint
 def _delete_checklist_api(item_id: int) -> tuple[Response, int] | Response:
     """Delete a checklist item."""
-    if _is_viewer():
-        return api_error("Keine Berechtigung", 403)
-
     item = db.session.get(ChecklistItem, item_id)
     if item:
         ticket = _check_ticket_access(item.ticket_id)
@@ -870,13 +839,11 @@ def _delete_checklist_api(item_id: int) -> tuple[Response, int] | Response:
 
 
 @worker_required
+@write_required
 @limiter.limit("30 per minute")
 @api_endpoint
 def _reorder_checklist_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Reorder checklist items for a ticket."""
-    if _is_viewer():
-        return api_error("Keine Berechtigung", 403)
-
     ticket = _check_ticket_access(ticket_id)
     if ticket is None:
         return api_error("Kein Zugriff auf dieses Ticket.", 403)
@@ -894,12 +861,10 @@ def _reorder_checklist_api(ticket_id: int) -> tuple[Response, int] | Response:
     return api_ok()
 
 
+@write_required
 @api_endpoint
 def _apply_template_api(ticket_id: int) -> tuple[Response, int] | Response:
     """Apply a checklist template to an existing ticket."""
-    if _is_viewer():
-        return api_error("Keine Berechtigung", 403)
-
     ticket = _check_ticket_access(ticket_id)
     if ticket is None:
         return api_error("Kein Zugriff auf dieses Ticket.", 403)
@@ -1125,12 +1090,10 @@ def _api_read_all_notifications() -> Response:
 # Bulk actions
 # ------------------------------------------------------------------
 
+@write_required
 @api_endpoint
 def _bulk_action_api() -> tuple[Response, int] | Response:
     """Handle bulk operations on multiple tickets."""
-    if _is_viewer():
-        return api_error("Keine Berechtigung", 403)
-
     data: dict[str, Any] = request.get_json(silent=True) or {}
     ticket_ids: list[int] = data.get("ticket_ids", [])
     action: str | None = data.get("action")
@@ -1287,7 +1250,7 @@ def _export_archive_csv() -> Response:
                 Ticket.title.ilike(pattern)
                 | Ticket.description.ilike(pattern)
                 | Ticket.order_reference.ilike(pattern)
-                | Ticket.contact_name.ilike(pattern)
+                | Ticket.contact.has(TicketContact.name.ilike(pattern))
                 | Ticket.id.in_(comment_ids)
             )
 
@@ -1380,19 +1343,23 @@ def _duplicate_ticket_api(ticket_id: int) -> Response:
     if ticket is None:
         return api_error("Ticket nicht gefunden oder keine Berechtigung.", 404)
 
+    src = ticket.contact
     new_ticket = Ticket(
         title=f"Kopie von: {ticket.title}",
         description=ticket.description,
         priority=ticket.priority,
         status=TicketStatus.OFFEN.value,
         order_reference=ticket.order_reference,
-        contact_name=ticket.contact_name,
-        contact_phone=ticket.contact_phone,
-        contact_email=ticket.contact_email,
-        contact_channel=ticket.contact_channel,
         is_confidential=ticket.is_confidential,
         assigned_to_id=ticket.assigned_to_id,
         assigned_team_id=ticket.assigned_team_id,
+    )
+    new_ticket.contact = TicketContact(
+        name=src.name if src else None,
+        phone=src.phone if src else None,
+        email=src.email if src else None,
+        channel=src.channel if src else None,
+        callback_requested=src.callback_requested if src else False,
     )
     # Copy tags
     for tag in ticket.tags:
