@@ -29,9 +29,8 @@
       {% endif %}
       {# Fälligkeitsdatum #}
       {% if ticket.due_date %}
-        {% set due = ticket.due_date.date() %}
         <span class="badge {{ 'bg-danger text-white fw-bold' if is_overdue else 'bg-secondary-subtle text-secondary border border-secondary-subtle' }}" style="font-size:0.65rem;">
-          <i class="bi bi-calendar-event me-1" aria-hidden="true"></i>{{ due.strftime('%d.%m.%Y') }}
+          <i class="bi bi-calendar-event me-1" aria-hidden="true"></i>{{ ticket.due_date.strftime('%d.%m.%Y') }}
           {% if is_overdue %}<span class="ms-1">(überfällig)</span>{% endif %}
         </span>
       {% endif %}

@@ -186,7 +186,7 @@ class ChecklistItem(db.Model):
         db.Integer, db.ForeignKey("team.id"), nullable=True
     )
     assigned_team = db.relationship("Team", foreign_keys=[assigned_team_id])
-    due_date = db.Column(db.DateTime, nullable=True)
+    due_date = db.Column(db.Date, nullable=True)
     depends_on_item_id = db.Column(
         db.Integer, db.ForeignKey("checklist_item.id"), nullable=True
     )
@@ -232,7 +232,7 @@ class ChecklistTemplateItem(db.Model):
 
 
 # ---------------------------------------------------------------------------
-# Ticket contact (extracted from Ticket to normalize the schema)
+# Ticket satellite tables (extracted from Ticket to normalize the schema)
 # ---------------------------------------------------------------------------
 
 class TicketContact(db.Model):
@@ -253,6 +253,47 @@ class TicketContact(db.Model):
 
     def __repr__(self) -> str:
         return f"<TicketContact ticket={self.ticket_id} name={self.name!r}>"
+
+
+class TicketApproval(db.Model):
+    """Approval workflow state for a ticket (1-to-1)."""
+
+    __tablename__ = "ticket_approval"
+
+    ticket_id = db.Column(
+        db.Integer, db.ForeignKey("ticket.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    status = db.Column(db.String(20), default="none", nullable=False)
+    approved_by_id = db.Column(
+        db.Integer, db.ForeignKey("worker.id"), nullable=True,
+    )
+    approved_by = db.relationship("Worker", foreign_keys=[approved_by_id])
+    approved_at = db.Column(db.DateTime, nullable=True)
+    rejected_by_id = db.Column(
+        db.Integer, db.ForeignKey("worker.id"), nullable=True,
+    )
+    rejected_by = db.relationship("Worker", foreign_keys=[rejected_by_id])
+    reject_reason = db.Column(db.Text, nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<TicketApproval ticket={self.ticket_id} status={self.status!r}>"
+
+
+class TicketRecurrence(db.Model):
+    """Recurrence schedule for a ticket (1-to-1)."""
+
+    __tablename__ = "ticket_recurrence"
+
+    ticket_id = db.Column(
+        db.Integer, db.ForeignKey("ticket.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    rule = db.Column(db.String(50), nullable=False)
+    next_date = db.Column(db.DateTime, nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<TicketRecurrence ticket={self.ticket_id} rule={self.rule!r}>"
 
 
 # ---------------------------------------------------------------------------
@@ -278,7 +319,7 @@ class Ticket(db.Model):
         "Worker", backref="tickets", foreign_keys=[assigned_to_id]
     )
 
-    due_date = db.Column(db.DateTime, nullable=True)
+    due_date = db.Column(db.Date, nullable=True)
     order_reference = db.Column(db.String(50), nullable=True)
     reminder_date = db.Column(db.DateTime, nullable=True)
     reminder_notified_at = db.Column(db.DateTime, nullable=True)
@@ -290,36 +331,27 @@ class Ticket(db.Model):
     )
     assigned_team = db.relationship("Team", backref="tickets")
     is_confidential = db.Column(db.Boolean, default=False, nullable=False)
-    recurrence_rule = db.Column(db.String(50), nullable=True)
-    next_recurrence_date = db.Column(db.DateTime, nullable=True)
     checklist_template_id = db.Column(
         db.Integer, db.ForeignKey("checklist_template.id", ondelete="SET NULL"), nullable=True
     )
     checklist_template = db.relationship(
         "ChecklistTemplate", backref="legacy_tickets"
     )
+    last_escalated_at = db.Column(db.DateTime, nullable=True)
 
-    # Customer contact (1-to-1 relationship, extracted in v1.31.0)
+    # 1-to-1 satellite relationships
     contact = db.relationship(
         "TicketContact", uselist=False, backref="ticket",
         cascade="all, delete-orphan",
     )
-
-    # Approval workflow
-    approval_status = db.Column(
-        db.String(20), default="none", nullable=False
+    approval = db.relationship(
+        "TicketApproval", uselist=False, backref="ticket",
+        cascade="all, delete-orphan",
     )
-    approved_by_id = db.Column(
-        db.Integer, db.ForeignKey("worker.id"), nullable=True
+    recurrence = db.relationship(
+        "TicketRecurrence", uselist=False, backref="ticket",
+        cascade="all, delete-orphan",
     )
-    approved_by = db.relationship("Worker", foreign_keys=[approved_by_id])
-    approved_at = db.Column(db.DateTime, nullable=True)
-    rejected_by_id = db.Column(
-        db.Integer, db.ForeignKey("worker.id"), nullable=True
-    )
-    rejected_by = db.relationship("Worker", foreign_keys=[rejected_by_id])
-    reject_reason = db.Column(db.Text, nullable=True)
-    last_escalated_at = db.Column(db.DateTime, nullable=True)
 
     checklists = db.relationship(
         "ChecklistItem", backref="ticket", cascade="all, delete-orphan"

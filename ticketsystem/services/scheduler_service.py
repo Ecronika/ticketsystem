@@ -13,7 +13,7 @@ from flask import Flask
 
 from enums import TicketPriority, TicketStatus
 from extensions import db
-from models import Comment, Ticket, Worker
+from models import Comment, Ticket, TicketRecurrence, Worker
 from services.email_service import EmailService
 from services.ticket_service import TicketService, _OPEN_STATUSES, _RECURRENCE_INCREMENTS
 from utils import get_utc_now
@@ -51,8 +51,7 @@ def _fetch_due_recurring_tickets(now: object) -> List[Ticket]:
     """Return all non-deleted recurring tickets whose next date is due."""
     return Ticket.query.filter(
         Ticket.is_deleted.is_(False),
-        Ticket.recurrence_rule.isnot(None),
-        Ticket.next_recurrence_date <= now,
+        Ticket.recurrence.has(TicketRecurrence.next_date <= now),
     ).all()
 
 
@@ -82,10 +81,9 @@ def _create_recurring_copies(tickets: List[Ticket], now: object) -> int:
 def _compute_new_due_date(ticket: Ticket, now: object) -> object:
     """Derive a new due date for the cloned ticket."""
     if ticket.due_date and ticket.created_at:
-        return now + (ticket.due_date - ticket.created_at)
-    if ticket.due_date:
-        return now + (ticket.due_date - now)
-    return None
+        delta = ticket.due_date - ticket.created_at.date()
+        return (now.date() + delta)
+    return ticket.due_date
 
 
 def _clone_checklists(source: Ticket, target: Ticket) -> None:
@@ -101,20 +99,21 @@ def _clone_checklists(source: Ticket, target: Ticket) -> None:
 
 
 def _advance_recurrence_date(ticket: Ticket, now: object) -> None:
-    """Move *ticket.next_recurrence_date* forward by its recurrence rule."""
-    rule = ticket.recurrence_rule.lower()
+    """Move the recurrence next_date forward by the ticket's rule."""
+    rec = ticket.recurrence
+    rule = rec.rule.lower()
     increment = _RECURRENCE_INCREMENTS.get(rule)
     if increment is None:
         _logger.warning(
-            "Unknown recurrence_rule '%s' for ticket %d — defaulting to monthly",
+            "Unknown recurrence rule '%s' for ticket %d — defaulting to monthly",
             rule, ticket.id,
         )
         increment = relativedelta(months=1)
 
-    next_date = ticket.next_recurrence_date
+    next_date = rec.next_date
     while next_date <= now:
         next_date += increment
-    ticket.next_recurrence_date = next_date
+    rec.next_date = next_date
 
 
 # ---------------------------------------------------------------------------
@@ -153,15 +152,13 @@ def process_sla_escalations(app: Flask) -> None:
 def _fetch_overdue_tickets(now: object) -> List[Ticket]:
     """Return all non-deleted open tickets that are past their due date.
 
-    Compares against midnight of today so that a ticket due today is not
-    flagged as overdue until the following day.
+    Tickets due today are not flagged as overdue until the following day.
     """
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     return Ticket.query.filter(
         Ticket.is_deleted.is_(False),
         Ticket.status.in_(_OPEN_STATUSES),
         Ticket.due_date.isnot(None),
-        Ticket.due_date < today_start,
+        Ticket.due_date < now.date(),
     ).all()
 
 
@@ -181,7 +178,7 @@ def _escalate_tickets(
     for ticket in tickets:
         if not _should_escalate(ticket, now):
             continue
-        days_overdue = (now.date() - ticket.due_date.date()).days
+        days_overdue = (now.date() - ticket.due_date).days
         _add_escalation_comment(ticket, days_overdue)
         _create_escalation_notification(ticket, days_overdue)
 
@@ -221,7 +218,7 @@ def _escalate_tickets(
 
 def _should_escalate(ticket: Ticket, now: object) -> bool:
     """Check grace period and anti-spam rules for a single ticket."""
-    days_overdue = (now.date() - ticket.due_date.date()).days
+    days_overdue = (now.date() - ticket.due_date).days
     grace = _GRACE_DAYS.get(ticket.priority, 1)
     if days_overdue < grace:
         return False

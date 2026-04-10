@@ -7,7 +7,7 @@ views, bulk actions, CSV exports, and notification endpoints.
 import csv
 import io
 import os
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -17,7 +17,6 @@ from flask import (
     current_app,
     flash,
     jsonify,
-    redirect,
     render_template,
     request,
     send_from_directory,
@@ -93,7 +92,7 @@ def check_approval_lock(
     elif ticket_id:
         ticket = db.session.get(Ticket, ticket_id)
 
-    if ticket and ticket.approval_status == ApprovalStatus.PENDING.value:
+    if ticket and ticket.approval and ticket.approval.status == ApprovalStatus.PENDING.value:
         return api_error("Ticket ist für die Freigabe gesperrt.", 403)
     return None
 
@@ -158,13 +157,13 @@ def _safe_int(val: str | None) -> int | None:
         return None
 
 
-def _parse_date(raw: str | None, fmt: str = "%Y-%m-%d") -> datetime | None:
-    """Parse a date string to a midnight datetime; return ``None`` on failure."""
+def _parse_date(raw: str | None, fmt: str = "%Y-%m-%d") -> date | None:
+    """Parse a date string; return ``None`` on failure."""
     if not raw:
         return None
     try:
         clean = raw.split("T")[0]
-        return datetime.strptime(clean, fmt)
+        return datetime.strptime(clean, fmt).date()
     except (ValueError, TypeError, IndexError):
         return None
 
@@ -173,6 +172,7 @@ def _parse_date(raw: str | None, fmt: str = "%Y-%m-%d") -> datetime | None:
 # Dashboard & Archive views
 # ------------------------------------------------------------------
 
+@worker_required
 def _dashboard_view() -> str | Response:
     """Main dashboard view."""
     worker_id = _session_worker_id()
@@ -238,7 +238,7 @@ def _dashboard_view() -> str | Response:
         assigned_to_me=assigned_to_me,
         unassigned_only=unassigned_only,
         callback_pending=callback_pending,
-        today=get_utc_now(),
+        today=date.today(),
         workers=all_workers,
         teams=all_teams,
         active_tab=tab,
@@ -249,6 +249,7 @@ def _dashboard_view() -> str | Response:
     )
 
 
+@worker_required
 def _archive_view() -> str:
     """Completed-tickets archive view."""
     search = request.args.get("q", "").strip()
@@ -260,7 +261,7 @@ def _archive_view() -> str:
     start_date = _parse_date(start_date_str)
     end_date = _parse_date(end_date_str)
     if end_date:
-        end_date = end_date.replace(hour=23, minute=59, second=59)
+        end_date = end_date + timedelta(days=1)
 
     wid = _session_worker_id()
     team_ids = Team.team_ids_for_worker(wid) if wid else []
@@ -299,6 +300,7 @@ def _approvals_view() -> str:
     )
 
 
+@worker_required
 def _projects_view() -> str:
     """Project / Baustellen overview."""
     projects = TicketService.get_projects_summary()
@@ -861,6 +863,7 @@ def _reorder_checklist_api(ticket_id: int) -> tuple[Response, int] | Response:
     return api_ok()
 
 
+@worker_required
 @write_required
 @api_endpoint
 def _apply_template_api(ticket_id: int) -> tuple[Response, int] | Response:
@@ -886,6 +889,7 @@ def _apply_template_api(ticket_id: int) -> tuple[Response, int] | Response:
 # My Queue view
 # ------------------------------------------------------------------
 
+@worker_required
 def _my_queue_view() -> str:
     """Personal task queue grouped by urgency."""
     worker_id = _session_worker_id()
@@ -906,7 +910,7 @@ def _my_queue_view() -> str:
         tickets=tickets_list,
         urgent_count=urgent_count,
         days_horizon=days_horizon,
-        today=now,
+        today=now.date(),
     )
 
 
@@ -987,23 +991,23 @@ def _group_by_urgency(
         "overdue": [
             t for t in tickets
             if t.id not in reminder_ids
-            and t.due_date and t.due_date.date() < today
+            and t.due_date and t.due_date < today
         ],
         "today": [
             t for t in tickets
             if t.id not in reminder_ids
-            and t.due_date and t.due_date.date() == today
+            and t.due_date and t.due_date == today
         ] + reminder_tickets,
         "this_week": [
             t for t in tickets
             if t.id not in reminder_ids
-            and t.due_date and 0 < (t.due_date.date() - today).days <= 7
+            and t.due_date and 0 < (t.due_date - today).days <= 7
         ],
         "upcoming": [
             t for t in tickets
             if t.id not in reminder_ids
             and t.due_date
-            and 7 < (t.due_date.date() - today).days <= effective
+            and 7 < (t.due_date - today).days <= effective
         ],
         "no_due_date": [
             t for t in tickets
@@ -1012,7 +1016,7 @@ def _group_by_urgency(
         "later": [
             t for t in tickets
             if t.id not in reminder_ids
-            and t.due_date and (t.due_date.date() - today).days > effective
+            and t.due_date and (t.due_date - today).days > effective
         ],
     }
 
@@ -1033,7 +1037,7 @@ def _workload_view() -> str:
         absent_entries=absent_entries,
         present_entries=present_entries,
         active_workers=active_workers,
-        today=get_utc_now(),
+        today=date.today(),
     )
 
 
@@ -1041,6 +1045,7 @@ def _workload_view() -> str:
 # Notification APIs
 # ------------------------------------------------------------------
 
+@worker_required
 def _api_get_notifications() -> Response:
     """Fetch recent notifications for the dropdown."""
     worker_id = _session_worker_id()
@@ -1065,6 +1070,7 @@ def _api_get_notifications() -> Response:
     })
 
 
+@worker_required
 def _api_read_notification(notif_id: int) -> tuple[Response, int] | Response:
     """Mark a single notification as read."""
     worker_id = _session_worker_id()
@@ -1076,6 +1082,7 @@ def _api_read_notification(notif_id: int) -> tuple[Response, int] | Response:
     return api_error("Not found", 404)
 
 
+@worker_required
 def _api_read_all_notifications() -> Response:
     """Mark all notifications for the current worker as read."""
     worker_id = _session_worker_id()
@@ -1090,6 +1097,7 @@ def _api_read_all_notifications() -> Response:
 # Bulk actions
 # ------------------------------------------------------------------
 
+@worker_required
 @write_required
 @api_endpoint
 def _bulk_action_api() -> tuple[Response, int] | Response:
@@ -1127,8 +1135,8 @@ def _execute_bulk_action(
         elif action == "reassign":
             updated += _bulk_reassign(ticket, data)
         elif action == "soft_delete":
-            if ticket.approval_status == ApprovalStatus.PENDING.value:
-                ticket.approval_status = ApprovalStatus.REJECTED.value
+            if ticket.approval and ticket.approval.status == ApprovalStatus.PENDING.value:
+                ticket.approval.status = ApprovalStatus.REJECTED.value
                 db.session.add(Comment(
                     ticket_id=ticket.id,
                     author="System",
@@ -1203,6 +1211,7 @@ def _bulk_set_priority(ticket: Ticket, data: dict[str, Any]) -> int:
 # CSV exports
 # ------------------------------------------------------------------
 
+@worker_required
 def _export_archive_csv() -> Response:
     """Export archive tickets as a streaming CSV download.
 
@@ -1297,6 +1306,7 @@ def _archive_csv_row(ticket: Ticket) -> list[str]:
     ]
 
 
+@worker_required
 def _export_projects_csv() -> Response:
     """Export projects summary as CSV download."""
     projects = TicketService.get_projects_summary()
@@ -1336,6 +1346,8 @@ def _export_projects_csv() -> Response:
 # Duplicate ticket
 # ------------------------------------------------------------------
 
+@worker_required
+@write_required
 @api_endpoint
 def _duplicate_ticket_api(ticket_id: int) -> Response:
     """Create a copy of a ticket (metadata only, without comments/history)."""
@@ -1386,6 +1398,7 @@ def _duplicate_ticket_api(ticket_id: int) -> Response:
 # Theme preference
 # ------------------------------------------------------------------
 
+@worker_required
 @api_endpoint
 def _save_theme_api() -> Response:
     """Save the authenticated user's UI theme preference."""
@@ -1409,6 +1422,7 @@ def _save_theme_api() -> Response:
 # Route registration
 # ------------------------------------------------------------------
 
+@worker_required
 def _push_vapid_key_api() -> Response:
     """Return the VAPID public key for push subscription."""
     try:
@@ -1422,6 +1436,7 @@ def _push_vapid_key_api() -> Response:
         return jsonify({"error": "Interner Serverfehler."}), 500
 
 
+@worker_required
 def _push_subscribe_api() -> Response:
     """Store a push subscription for the authenticated worker."""
     data = request.get_json(silent=True) or {}
@@ -1450,6 +1465,7 @@ def _push_subscribe_api() -> Response:
         return jsonify({"success": False, "error": "Interner Serverfehler."}), 500
 
 
+@worker_required
 def _push_unsubscribe_api() -> Response:
     """Remove a push subscription."""
     data = request.get_json(silent=True) or {}
@@ -1465,12 +1481,14 @@ def _push_unsubscribe_api() -> Response:
         return jsonify({"success": False, "error": "Interner Serverfehler."}), 500
 
 
+@worker_required
 def _worker_mention_names_api() -> Response:
     """Return active worker names for @mention autocomplete."""
     workers = Worker.query.filter_by(is_active=True).order_by(Worker.name).all()
     return jsonify({"names": [w.name for w in workers]})
 
 
+@worker_required
 def _dashboard_rows_api() -> Response:
     """Return rendered HTML of the dashboard table rows for silent polling refresh."""
     worker_id = _session_worker_id()
@@ -1519,29 +1537,26 @@ def _dashboard_rows_api() -> Response:
         focus_tickets=tickets_data["focus_pagination"].items,
         workers=all_workers,
         teams=all_teams,
-        today=get_utc_now(),
+        today=date.today(),
     )
     return Response(html, mimetype="text/html")
 
 
 def register_routes(bp: Blueprint) -> None:
-    """Register ticket routes with explicit endpoints."""
+    """Register ticket routes with explicit endpoints.
+
+    Auth decorators live on the function definitions, not here.
+    """
     # Dashboards
-    bp.add_url_rule("/", "index", view_func=worker_required(_dashboard_view))
+    bp.add_url_rule("/", "index", view_func=_dashboard_view)
     bp.add_url_rule(
         "/api/dashboard/rows", "dashboard_rows_api",
-        view_func=worker_required(_dashboard_rows_api),
+        view_func=_dashboard_rows_api,
     )
-    bp.add_url_rule(
-        "/archive", "archive", view_func=worker_required(_archive_view),
-    )
-    bp.add_url_rule(
-        "/my-queue", "my_queue", view_func=worker_required(_my_queue_view),
-    )
+    bp.add_url_rule("/archive", "archive", view_func=_archive_view)
+    bp.add_url_rule("/my-queue", "my_queue", view_func=_my_queue_view)
     bp.add_url_rule("/approvals", "approvals", view_func=_approvals_view)
-    bp.add_url_rule(
-        "/projects", "projects", view_func=worker_required(_projects_view),
-    )
+    bp.add_url_rule("/projects", "projects", view_func=_projects_view)
     bp.add_url_rule("/workload", "workload", view_func=_workload_view)
 
     # Ticket creation & view
@@ -1552,7 +1567,7 @@ def register_routes(bp: Blueprint) -> None:
     )
     bp.add_url_rule(
         "/ticket/<int:ticket_id>", "ticket_detail",
-        view_func=worker_required(_ticket_detail_view),
+        view_func=_ticket_detail_view,
     )
     bp.add_url_rule(
         "/ticket/<int:ticket_id>/public", "ticket_public",
@@ -1562,16 +1577,16 @@ def register_routes(bp: Blueprint) -> None:
     # Actions & API
     bp.add_url_rule(
         "/ticket/<int:ticket_id>/comment", "add_comment",
-        view_func=worker_required(_add_comment_view), methods=["POST"],
+        view_func=_add_comment_view, methods=["POST"],
     )
     bp.add_url_rule(
         "/ticket/<int:ticket_id>/assign_me", "assign_to_me",
-        view_func=worker_required(_assign_to_me_view), methods=["POST"],
+        view_func=_assign_to_me_view, methods=["POST"],
     )
     bp.add_url_rule(
         "/api/ticket/<int:ticket_id>/request_approval",
         "request_approval_api",
-        view_func=worker_required(_request_approval_api), methods=["POST"],
+        view_func=_request_approval_api, methods=["POST"],
     )
     bp.add_url_rule(
         "/api/ticket/<int:ticket_id>/approve", "approve_ticket_api",
@@ -1599,23 +1614,23 @@ def register_routes(bp: Blueprint) -> None:
     )
     bp.add_url_rule(
         "/api/ticket/<int:ticket_id>/status", "update_status",
-        view_func=worker_required(_update_status_api), methods=["POST"],
+        view_func=_update_status_api, methods=["POST"],
     )
     bp.add_url_rule(
         "/api/ticket/<int:ticket_id>/assign", "assign_ticket_api",
-        view_func=worker_required(_assign_ticket_api), methods=["POST"],
+        view_func=_assign_ticket_api, methods=["POST"],
     )
     bp.add_url_rule(
         "/api/ticket/<int:ticket_id>/update", "update_ticket",
-        view_func=worker_required(_update_ticket_api), methods=["POST"],
+        view_func=_update_ticket_api, methods=["POST"],
     )
     bp.add_url_rule(
         "/api/ticket/<int:ticket_id>/update_contact", "update_contact",
-        view_func=worker_required(_update_contact_api), methods=["POST"],
+        view_func=_update_contact_api, methods=["POST"],
     )
     bp.add_url_rule(
         "/api/ticket/<int:ticket_id>/apply_template", "apply_template",
-        view_func=worker_required(_apply_template_api), methods=["POST"],
+        view_func=_apply_template_api, methods=["POST"],
     )
     bp.add_url_rule(
         "/api/ticket/<int:ticket_id>/reassign", "reassign_ticket_api",
@@ -1623,19 +1638,19 @@ def register_routes(bp: Blueprint) -> None:
     )
     bp.add_url_rule(
         "/api/tickets/bulk", "bulk_action_api",
-        view_func=worker_required(_bulk_action_api), methods=["POST"],
+        view_func=_bulk_action_api, methods=["POST"],
     )
     bp.add_url_rule(
         "/api/export/archive", "export_archive_csv",
-        view_func=worker_required(_export_archive_csv),
+        view_func=_export_archive_csv,
     )
     bp.add_url_rule(
         "/api/export/projects", "export_projects_csv",
-        view_func=worker_required(_export_projects_csv),
+        view_func=_export_projects_csv,
     )
     bp.add_url_rule(
         "/attachment/<int:attachment_id>", "serve_attachment",
-        view_func=worker_required(_serve_attachment),
+        view_func=_serve_attachment,
     )
     bp.add_url_rule(
         "/api/attachment/<int:attachment_id>", "delete_attachment",
@@ -1643,20 +1658,19 @@ def register_routes(bp: Blueprint) -> None:
     )
     bp.add_url_rule(
         "/api/notifications", "get_notifications",
-        view_func=worker_required(_api_get_notifications), methods=["GET"],
+        view_func=_api_get_notifications, methods=["GET"],
     )
     bp.add_url_rule(
         "/api/notifications/<int:notif_id>/read", "read_notification",
-        view_func=worker_required(_api_read_notification), methods=["POST"],
+        view_func=_api_read_notification, methods=["POST"],
     )
     bp.add_url_rule(
         "/api/notifications/read_all", "read_all_notifications",
-        view_func=worker_required(_api_read_all_notifications),
-        methods=["POST"],
+        view_func=_api_read_all_notifications, methods=["POST"],
     )
     bp.add_url_rule(
         "/api/ticket/<int:ticket_id>/duplicate", "duplicate_ticket_api",
-        view_func=worker_required(_duplicate_ticket_api), methods=["POST"],
+        view_func=_duplicate_ticket_api, methods=["POST"],
     )
     bp.add_url_rule(
         "/api/user/theme", "save_theme_api",
@@ -1664,17 +1678,17 @@ def register_routes(bp: Blueprint) -> None:
     )
     bp.add_url_rule(
         "/api/workers/mention-names", "worker_mention_names",
-        view_func=worker_required(_worker_mention_names_api),
+        view_func=_worker_mention_names_api,
     )
     bp.add_url_rule(
         "/api/push/vapid-key", "push_vapid_key",
-        view_func=worker_required(_push_vapid_key_api),
+        view_func=_push_vapid_key_api,
     )
     bp.add_url_rule(
         "/api/push/subscribe", "push_subscribe",
-        view_func=worker_required(_push_subscribe_api), methods=["POST"],
+        view_func=_push_subscribe_api, methods=["POST"],
     )
     bp.add_url_rule(
         "/api/push/unsubscribe", "push_unsubscribe",
-        view_func=worker_required(_push_unsubscribe_api), methods=["POST"],
+        view_func=_push_unsubscribe_api, methods=["POST"],
     )

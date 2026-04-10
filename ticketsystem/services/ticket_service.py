@@ -9,7 +9,7 @@ import os
 import re
 import uuid
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from dateutil.relativedelta import relativedelta
@@ -27,7 +27,9 @@ from models import (
     Notification,
     Tag,
     Ticket,
+    TicketApproval,
     TicketContact,
+    TicketRecurrence,
     Worker,
 )
 from utils import get_utc_now
@@ -83,10 +85,7 @@ def _urgency_score(ticket: Ticket, now: Optional[datetime] = None) -> int:
     prio = ticket.priority
     if ticket.due_date is None:
         return 500 + prio * 100
-    due = ticket.due_date
-    if due.tzinfo is not None:
-        due = due.astimezone(timezone.utc).replace(tzinfo=None)
-    days_left = (due.date() - now.date()).days
+    days_left = (ticket.due_date - now.date()).days
     if days_left < 0:
         return max(0, 50 + days_left) + prio * 5
     if days_left == 0:
@@ -111,8 +110,7 @@ def _is_critical_ticket(ticket: Ticket, week_end: date) -> bool:
     if ticket.priority == TicketPriority.HOCH.value:
         return True
     if ticket.due_date:
-        due = ticket.due_date.date() if hasattr(ticket.due_date, "date") else ticket.due_date
-        if due <= week_end:
+        if ticket.due_date <= week_end:
             return True
     return False
 
@@ -120,8 +118,7 @@ def _is_critical_ticket(ticket: Ticket, week_end: date) -> bool:
 def _workload_sort_key(ticket: Ticket, today: date) -> Tuple[int, int]:
     """Sort key: overdue first, then by priority."""
     if ticket.due_date:
-        due = ticket.due_date.date() if hasattr(ticket.due_date, "date") else ticket.due_date
-        days_left = (due - today).days
+        days_left = (ticket.due_date - today).days
     else:
         days_left = 999
     return (days_left, ticket.priority)
@@ -568,17 +565,14 @@ class TicketService:
         if f.start_date:
             query = query.filter(Ticket.created_at >= f.start_date)
         if f.end_date:
-            query = query.filter(Ticket.created_at <= f.end_date)
+            query = query.filter(Ticket.created_at < f.end_date)
 
         # Due-within-days filter (show tickets due within N calendar days or overdue)
         if f.due_within_days > 0:
-            now = get_utc_now()
-            cutoff_end = (now + timedelta(days=f.due_within_days)).replace(
-                hour=23, minute=59, second=59, microsecond=0,
-            )
+            cutoff = (date.today() + timedelta(days=f.due_within_days))
             query = query.filter(
                 Ticket.due_date.isnot(None),
-                Ticket.due_date <= cutoff_end,
+                Ticket.due_date <= cutoff,
             )
 
         # Author filter
@@ -646,8 +640,9 @@ class TicketService:
     def get_pending_approvals(page: int = 1, per_page: int = 15) -> Any:
         """Fetch tickets pending approval."""
         return (
-            Ticket.query.filter_by(
-                is_deleted=False, approval_status="pending"
+            Ticket.query.filter(
+                Ticket.is_deleted.is_(False),
+                Ticket.approval.has(TicketApproval.status == "pending"),
             )
             .options(
                 joinedload(Ticket.assigned_to), selectinload(Ticket.tags)
@@ -663,10 +658,12 @@ class TicketService:
     ) -> Tuple[bool, str]:
         """Request approval for a ticket."""
         ticket = _get_ticket_or_raise(ticket_id)
-        if ticket.approval_status == ApprovalStatus.PENDING.value:
+        if ticket.approval and ticket.approval.status == ApprovalStatus.PENDING.value:
             return False, "Freigabe bereits angefragt."
 
-        ticket.approval_status = ApprovalStatus.PENDING.value
+        if not ticket.approval:
+            ticket.approval = TicketApproval()
+        ticket.approval.status = ApprovalStatus.PENDING.value
         ticket.updated_at = get_utc_now()
         db.session.add(Comment(
             ticket_id=ticket.id,
@@ -687,12 +684,14 @@ class TicketService:
     ) -> Any:
         """Approve a ticket."""
         ticket = _get_ticket_or_raise(ticket_id)
-        if ticket.approval_status == ApprovalStatus.APPROVED.value:
+        if ticket.approval and ticket.approval.status == ApprovalStatus.APPROVED.value:
             return False, "Ticket bereits freigegeben."
 
-        ticket.approval_status = ApprovalStatus.APPROVED.value
-        ticket.approved_by_id = worker_id
-        ticket.approved_at = get_utc_now()
+        if not ticket.approval:
+            ticket.approval = TicketApproval()
+        ticket.approval.status = ApprovalStatus.APPROVED.value
+        ticket.approval.approved_by_id = worker_id
+        ticket.approval.approved_at = get_utc_now()
         ticket.updated_at = get_utc_now()
         db.session.add(Comment(
             ticket_id=ticket.id,
@@ -714,9 +713,11 @@ class TicketService:
         """Reject a ticket with a reason."""
         ticket = _get_ticket_or_raise(ticket_id)
 
-        ticket.approval_status = ApprovalStatus.REJECTED.value
-        ticket.rejected_by_id = worker_id
-        ticket.reject_reason = reason
+        if not ticket.approval:
+            ticket.approval = TicketApproval()
+        ticket.approval.status = ApprovalStatus.REJECTED.value
+        ticket.approval.rejected_by_id = worker_id
+        ticket.approval.reject_reason = reason
         ticket.status = TicketStatus.OFFEN.value
         ticket.updated_at = get_utc_now()
         db.session.add(Comment(
@@ -903,7 +904,7 @@ class TicketService:
         priority: Optional[int],
         author_name: str,
         author_id: Optional[int],
-        due_date: Optional[datetime] = None,
+        due_date: Optional[date] = None,
         order_reference: Optional[str] = None,
         reminder_date: Optional[datetime] = None,
         tags: Optional[List[str]] = None,
@@ -926,20 +927,23 @@ class TicketService:
         ticket.reminder_date = reminder_date
         ticket.updated_at = get_utc_now()
 
-        old_rule = ticket.recurrence_rule
+        old_rule = ticket.recurrence.rule if ticket.recurrence else None
         new_rule = recurrence_rule or None
         if old_rule != new_rule:
             old_label = (old_rule or "Einmalig").capitalize()
             new_label = (new_rule or "Einmalig").capitalize()
             changes.append(f"Serie: {old_label} -> {new_label}")
-            ticket.recurrence_rule = new_rule
             if new_rule:
                 increment = _RECURRENCE_INCREMENTS.get(
                     new_rule.lower(), relativedelta(months=1)
                 )
-                ticket.next_recurrence_date = get_utc_now() + increment
+                if not ticket.recurrence:
+                    ticket.recurrence = TicketRecurrence(rule=new_rule)
+                else:
+                    ticket.recurrence.rule = new_rule
+                ticket.recurrence.next_date = get_utc_now() + increment
             else:
-                ticket.next_recurrence_date = None
+                ticket.recurrence = None
 
         if tags is not None:
             tag_changes = _sync_tags(ticket, tags)
@@ -1172,7 +1176,7 @@ def _build_ticket(
     assigned_team_id: Optional[int],
     is_confidential: bool,
     recurrence_rule: Optional[str],
-    due_date: Optional[datetime],
+    due_date: Optional[date],
     order_reference: Optional[str],
     reminder_date: Optional[datetime],
     contact_name: Optional[str],
@@ -1182,14 +1186,7 @@ def _build_ticket(
     callback_requested: bool,
     callback_due: Optional[datetime],
 ) -> Ticket:
-    """Construct a Ticket ORM object with associated TicketContact."""
-    next_recurrence_date = None
-    if recurrence_rule:
-        increment = _RECURRENCE_INCREMENTS.get(
-            recurrence_rule.lower(), relativedelta(months=1)
-        )
-        next_recurrence_date = get_utc_now() + increment
-
+    """Construct a Ticket ORM object with satellite records."""
     ticket = Ticket(
         title=title,
         description=description,
@@ -1198,8 +1195,6 @@ def _build_ticket(
         assigned_to_id=assigned_to_id,
         assigned_team_id=assigned_team_id,
         is_confidential=is_confidential,
-        recurrence_rule=recurrence_rule,
-        next_recurrence_date=next_recurrence_date,
         due_date=due_date,
         order_reference=order_reference,
         reminder_date=reminder_date,
@@ -1212,6 +1207,14 @@ def _build_ticket(
         callback_requested=bool(callback_requested),
         callback_due=callback_due,
     )
+    if recurrence_rule:
+        increment = _RECURRENCE_INCREMENTS.get(
+            recurrence_rule.lower(), relativedelta(months=1)
+        )
+        ticket.recurrence = TicketRecurrence(
+            rule=recurrence_rule,
+            next_date=get_utc_now() + increment,
+        )
     return ticket
 
 
