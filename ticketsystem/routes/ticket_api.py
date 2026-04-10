@@ -351,6 +351,7 @@ def _request_approval_api(ticket_id: int) -> tuple[Response, int] | Response:
     return api_ok()
 
 
+@worker_required
 @admin_required
 @limiter.limit("20 per minute")
 @api_endpoint
@@ -362,6 +363,7 @@ def _approve_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
     return api_ok()
 
 
+@worker_required
 @admin_required
 @limiter.limit("20 per minute")
 @api_endpoint
