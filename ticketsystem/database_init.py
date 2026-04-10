@@ -125,7 +125,7 @@ def _repair_ticket_table(
     columns = _get_column_names(inspector, "ticket")
     repairs = [
         ("is_deleted", "ALTER TABLE ticket ADD COLUMN is_deleted BOOLEAN DEFAULT 0"),
-        ("due_date", "ALTER TABLE ticket ADD COLUMN due_date DATETIME"),
+        ("due_date", "ALTER TABLE ticket ADD COLUMN due_date DATE"),
     ]
     for col_name, ddl in repairs:
         _add_column_if_missing(conn, columns, col_name, ddl, logger)

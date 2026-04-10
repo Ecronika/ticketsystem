@@ -525,7 +525,7 @@ def _count_urgent_tickets(worker_id: int, now: datetime) -> int:
     """Count tickets due today or overdue assigned to *worker_id*."""
     from models import ChecklistItem, Team, Ticket
 
-    limit_dt = now.replace(hour=23, minute=59, second=59)
+    today = now.date()
     team_ids = Team.team_ids_for_worker(worker_id)
 
     team_clauses: list[Any] = []
@@ -544,7 +544,7 @@ def _count_urgent_tickets(worker_id: int, now: datetime) -> int:
         Ticket.is_deleted.is_(False),
         Ticket.status != TicketStatus.ERLEDIGT.value,
         Ticket.due_date.isnot(None),
-        Ticket.due_date <= limit_dt,
+        Ticket.due_date <= today,
         db.or_(
             Ticket.assigned_to_id == worker_id,
             Ticket.checklists.any(
@@ -562,9 +562,10 @@ def _count_pending_approvals() -> int:
     """Count tickets awaiting management approval."""
     from models import Ticket
 
-    return Ticket.query.filter_by(
-        is_deleted=False,
-        approval_status=ApprovalStatus.PENDING.value,
+    from models import TicketApproval
+    return Ticket.query.filter(
+        Ticket.is_deleted.is_(False),
+        Ticket.approval.has(TicketApproval.status == ApprovalStatus.PENDING.value),
     ).count()
 
 

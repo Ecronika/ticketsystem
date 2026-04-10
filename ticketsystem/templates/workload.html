@@ -56,7 +56,7 @@
       {% if entry.critical_tickets %}
       <ul class="list-group list-group-flush" aria-label="Kritische Tickets von {{ entry.worker.name }}">
         {% for ticket in entry.critical_tickets %}
-        {% set is_overdue = ticket.due_date and ticket.due_date.date() < today.date() %}
+        {% set is_overdue = ticket.due_date and ticket.due_date < today %}
         <li class="list-group-item border-0 border-bottom py-3 px-4 {{ 'bg-danger-subtle' if is_overdue else '' }}">
           {% include 'components/_workload_ticket_row.html' %}
         </li>
@@ -133,7 +133,7 @@
     <div class="card-body p-0">
       <ul class="list-group list-group-flush" aria-label="Tickets von {{ entry.worker.name }}">
         {% for ticket in entry.tickets %}
-        {% set is_overdue = ticket.due_date and ticket.due_date.date() < today.date() %}
+        {% set is_overdue = ticket.due_date and ticket.due_date < today %}
         <li class="list-group-item border-0 border-bottom py-3 px-4 {{ 'bg-danger-subtle' if is_overdue else '' }}">
           {% include 'components/_workload_ticket_row.html' %}
         </li>

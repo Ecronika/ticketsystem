@@ -38,7 +38,7 @@
                     <div class="bg-surface-subtle rounded-3 px-2 py-1" id="staticDueWrapper">
                         <small class="text-muted x-small text-uppercase d-block" style="font-size: 0.6rem; line-height: 1;">Fällig</small>
                         {% if ticket.due_date %}
-                        <span class="fw-semibold small">{{ ticket.due_date|local_time|datetime('%d.%m.%Y') }}</span>
+                        <span class="fw-semibold small">{{ ticket.due_date|datetime('%d.%m.%Y') }}</span>
                         {% else %}
                         <span class="small text-muted">Keine Deadline</span>
                         {% endif %}
@@ -66,10 +66,10 @@
                             {% endif %}
                         </span>
                     </div>
-                    {% if ticket.recurrence_rule %}
+                    {% if ticket.recurrence %}
                     <div class="bg-surface-subtle rounded-3 px-2 py-1">
                         <small class="text-muted x-small text-uppercase d-block" style="font-size: 0.6rem; line-height: 1;"><i class="bi bi-arrow-repeat me-1"></i>Serie</small>
-                        <span class="fw-semibold small">{{ ticket.recurrence_rule|capitalize }}</span>
+                        <span class="fw-semibold small">{{ ticket.recurrence.rule|capitalize }}</span>
                     </div>
                     {% endif %}
                 </div>
@@ -120,11 +120,12 @@
                     </div>
                     <div class="col-md-4">
                         <label class="form-label small fw-bold">Serienticket</label>
+                        {% set rec_rule = ticket.recurrence.rule if ticket.recurrence else '' %}
                         <select id="editRecurrenceRule" class="form-select form-select-sm">
-                            <option value="" {{ 'selected' if not ticket.recurrence_rule }}>Einmalig (keine Serie)</option>
-                            <option value="monthly" {{ 'selected' if ticket.recurrence_rule == 'monthly' }}>Monatlich</option>
-                            <option value="quarterly" {{ 'selected' if ticket.recurrence_rule == 'quarterly' }}>Quartalsweise</option>
-                            <option value="yearly" {{ 'selected' if ticket.recurrence_rule == 'yearly' }}>Jährlich</option>
+                            <option value="" {{ 'selected' if not rec_rule }}>Einmalig (keine Serie)</option>
+                            <option value="monthly" {{ 'selected' if rec_rule == 'monthly' }}>Monatlich</option>
+                            <option value="quarterly" {{ 'selected' if rec_rule == 'quarterly' }}>Quartalsweise</option>
+                            <option value="yearly" {{ 'selected' if rec_rule == 'yearly' }}>Jährlich</option>
                         </select>
                     </div>
                 </div>

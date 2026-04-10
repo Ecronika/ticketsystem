@@ -59,8 +59,8 @@
         </div>
 
         <div class="mb-4" id="approvalSection">
-
-            {% if ticket.approval_status == ApprovalStatus.PENDING.value %}
+            {% set a = ticket.approval %}
+            {% if a and a.status == ApprovalStatus.PENDING.value %}
                 <div class="border-start border-3 border-warning ps-3 py-2 mb-2 small">
                     <strong>Wartet auf Freigabe</strong><br>
                     <span class="text-muted">Ticket ist für Bearbeitungen gesperrt.</span>
@@ -77,16 +77,16 @@
                 </div>
                 {% endif %}
 
-            {% elif ticket.approval_status == ApprovalStatus.APPROVED.value %}
+            {% elif a and a.status == ApprovalStatus.APPROVED.value %}
                 <div class="border-start border-3 border-success ps-3 py-2 mb-2 small">
                     <strong class="text-success">Freigegeben</strong>
-                    <span class="text-muted d-block" style="font-size: 0.75rem;">Am {{ ticket.approved_at|local_time|datetime('%d.%m.%Y') }}</span>
+                    <span class="text-muted d-block" style="font-size: 0.75rem;">Am {{ a.approved_at|local_time|datetime('%d.%m.%Y') }}</span>
                 </div>
 
-            {% elif ticket.approval_status == ApprovalStatus.REJECTED.value %}
+            {% elif a and a.status == ApprovalStatus.REJECTED.value %}
                 <div class="border-start border-3 border-danger ps-3 py-2 mb-2 small">
                     <strong class="text-danger">Freigabe abgelehnt</strong>
-                    <div class="text-muted mt-1" style="font-size: 0.75rem;">{{ ticket.reject_reason }}</div>
+                    <div class="text-muted mt-1" style="font-size: 0.75rem;">{{ a.reject_reason }}</div>
                 </div>
                 {% if session.get('role') != WorkerRole.VIEWER.value %}
                 <button class="btn btn-sm btn-outline-secondary w-100 mt-2 request-approval-btn" data-ticket-id="{{ ticket.id }}">Erneut Freigabe anfordern</button>
