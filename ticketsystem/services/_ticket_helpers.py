@@ -175,7 +175,7 @@ def _confidential_filter(
             Comment.event_type == "TICKET_CREATED",
             Comment.author_id == worker_id,
         )
-        .subquery()
+        .scalar_subquery()
     )
     clauses = [
         Ticket.is_confidential.is_(False),
