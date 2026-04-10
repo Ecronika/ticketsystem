@@ -259,6 +259,7 @@ def _setup_view() -> str | WerkzeugResponse:
     session["worker_id"] = admin.id
     session["worker_name"] = admin.name
     session["is_admin"] = True
+    session["role"] = admin.role or WorkerRole.ADMIN.value
 
     flash("Setup abgeschlossen! Willkommen im System.", "success")
     return redirect_to("main.index")
@@ -366,6 +367,7 @@ def _recover_pin_view() -> str | WerkzeugResponse:
     session["worker_id"] = admin.id
     session["worker_name"] = admin.name
     session["is_admin"] = True
+    session["role"] = admin.role or WorkerRole.ADMIN.value
     session.permanent = True
 
     admin.needs_pin_change = True
