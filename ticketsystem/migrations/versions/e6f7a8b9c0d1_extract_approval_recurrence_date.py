@@ -100,10 +100,14 @@ def upgrade():
             batch_op.drop_column('recurrence_rule')
             batch_op.drop_column('next_recurrence_date')
 
-    # --- due_date: DateTime -> Date (SQLite treats these identically,
-    #     but the column affinity changes for documentation) ---
-    # SQLite does not enforce column types, so no actual ALTER needed.
-    # New rows written via the ORM will use date objects.
+    # --- due_date: DateTime -> Date ---
+    # The model now declares due_date as db.Date.  SQLAlchemy's Date result
+    # processor expects ISO-date strings ('YYYY-MM-DD'), but existing rows
+    # store datetime strings ('YYYY-MM-DD HH:MM:SS.ffffff').  Truncate them.
+    op.execute("""
+        UPDATE ticket SET due_date = substr(due_date, 1, 10)
+        WHERE due_date IS NOT NULL AND length(due_date) > 10
+    """)
 
 
 def downgrade():

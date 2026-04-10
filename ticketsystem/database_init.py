@@ -130,6 +130,14 @@ def _repair_ticket_table(
     for col_name, ddl in repairs:
         _add_column_if_missing(conn, columns, col_name, ddl, logger)
 
+    # due_date changed from DateTime to Date.  Truncate leftover datetime
+    # strings so SQLAlchemy's Date processor can parse them.
+    if "due_date" in columns:
+        conn.execute(db.text(
+            "UPDATE ticket SET due_date = substr(due_date, 1, 10)"
+            " WHERE due_date IS NOT NULL AND length(due_date) > 10"
+        ))
+
 
 def _repair_comment_table(
     conn: object,
