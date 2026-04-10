@@ -20,6 +20,7 @@ from ._helpers import (
     _PRIO_LABELS,
     _parse_date,
     _safe_int,
+    is_approval_locked,
 )
 
 
@@ -68,7 +69,7 @@ def _execute_bulk_action(
         elif action == "reassign":
             updated += _bulk_reassign(ticket, data, author, worker_id)
         elif action == "soft_delete":
-            if ticket.approval and ticket.approval.status == ApprovalStatus.PENDING.value:
+            if is_approval_locked(ticket):
                 ticket.approval.status = ApprovalStatus.REJECTED.value
                 db.session.add(Comment(
                     ticket_id=ticket.id,

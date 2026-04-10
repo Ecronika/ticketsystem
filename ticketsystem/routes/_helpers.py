@@ -32,6 +32,15 @@ def _check_ticket_access(
     return ticket
 
 
+def is_approval_locked(ticket: Ticket | None) -> bool:
+    """Return ``True`` if the ticket is locked by a pending approval."""
+    return bool(
+        ticket
+        and ticket.approval
+        and ticket.approval.status == ApprovalStatus.PENDING.value
+    )
+
+
 def check_approval_lock(
     ticket_id: int | None = None,
     item_id: int | None = None,
@@ -46,7 +55,7 @@ def check_approval_lock(
     elif ticket_id:
         ticket = db.session.get(Ticket, ticket_id)
 
-    if ticket and ticket.approval and ticket.approval.status == ApprovalStatus.PENDING.value:
+    if is_approval_locked(ticket):
         return api_error("Ticket ist für die Freigabe gesperrt.", 403)
     return None
 

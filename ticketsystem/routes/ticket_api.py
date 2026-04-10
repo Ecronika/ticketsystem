@@ -17,7 +17,7 @@ from flask import (
     session,
 )
 
-from enums import ApprovalStatus, TicketPriority, TicketStatus
+from enums import TicketPriority, TicketStatus
 from extensions import Config, db, limiter
 from models import Attachment
 from routes.auth import (
@@ -38,6 +38,7 @@ from ._helpers import (
     _parse_date,
     _safe_int,
     check_approval_lock,
+    is_approval_locked,
 )
 
 
@@ -57,7 +58,7 @@ def _add_comment_view(ticket_id: int) -> Response:
         flash("Ticket nicht gefunden.", "error")
         return redirect_to("main.index")
 
-    if ticket.approval and ticket.approval.status == ApprovalStatus.PENDING.value:
+    if is_approval_locked(ticket):
         flash(
             "Ticket ist für die Freigabe gesperrt. "
             "Kommentare sind während der Prüfung nicht erlaubt.",
@@ -158,7 +159,7 @@ def _assign_to_me_view(ticket_id: int) -> str | Response:
     if not ticket:
         return "", 404
 
-    if ticket.approval and ticket.approval.status == ApprovalStatus.PENDING.value:
+    if is_approval_locked(ticket):
         flash("Ticket ist für die Freigabe gesperrt.", "error")
         return redirect_to("main.ticket_detail", ticket_id=ticket_id)
 

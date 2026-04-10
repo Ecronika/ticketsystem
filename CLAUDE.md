@@ -277,6 +277,38 @@ aber View-Routen (HTML) ungeschützt lassen.
 - View-Routen: Flask `@app.errorhandler(DomainError)` → HTML-Fehlerseite oder
   JSON-Antwort je nach Content-Negotiation (AJAX vs. Browser-Request)
 
+### 15. Schema-Migrationen: Alle Zugriffsmuster systematisch aktualisieren
+
+**Verboten:** Bei einer Schema-Extraktion (Spalte → Satellitentabelle) nur die
+offensichtlichen Stellen aktualisieren und dabei View-Routen oder selten
+ausgeführte Code-Pfade übersehen.
+
+**Konkretes Beispiel:** `ticket.approval_status` (flache Spalte) wurde zu
+`ticket.approval.status` (Satellitentabelle) migriert. API-Endpunkte wurden
+aktualisiert, aber zwei HTML-View-Funktionen (`_add_comment_view`,
+`_assign_to_me_view`) behielten den alten Zugriff → `AttributeError` 500 in
+Produktion.
+
+**Regeln:**
+
+1. **Nach jeder Schema-Extraktion** per grep alle alten Zugriffsmuster finden:
+   ```bash
+   grep -rn 'ticket\.approval_status' routes/ services/ templates/
+   ```
+
+2. **Zugriffsmuster in Helper/Prädikate kapseln**, damit die Logik nur an einer
+   Stelle lebt:
+   ```python
+   # FALSCH — Inline-Check, anfällig für veraltete Zugriffsmuster
+   if ticket.approval and ticket.approval.status == ApprovalStatus.PENDING.value:
+
+   # RICHTIG — Prädikat in _helpers.py, eine einzige Quelle der Wahrheit
+   if is_approval_locked(ticket):
+   ```
+
+3. **Alle Schichten prüfen**: API-Endpunkte, HTML-Views, Templates, Services,
+   Scheduler, Tests. Nicht nur den Codepfad, der gerade getestet wird.
+
 ---
 
 ## Architektur-Übersicht
