@@ -42,6 +42,7 @@ from werkzeug.wrappers import Response as WerkzeugResponse
 
 from database_init import init_database
 from enums import ELEVATED_ROLES, ApprovalStatus, TicketPriority, TicketStatus, WorkerRole
+from exceptions import DomainError
 from extensions import Config, csrf, db, limiter, scheduler
 from metrics import (
     ACTIVE_SESSIONS,
@@ -796,6 +797,17 @@ def priority_label_filter(priority: int) -> str:
 # ---------------------------------------------------------------------------
 # Error handlers
 # ---------------------------------------------------------------------------
+
+@app.errorhandler(DomainError)
+def handle_domain_error(exc: DomainError) -> tuple[Response | str, int]:
+    """Map domain exceptions to the appropriate HTTP response."""
+    code = exc.status_code
+    if request.path.startswith("/api/"):
+        return jsonify({"success": False, "error": str(exc)}), code
+    if code == 404:
+        return render_template("404.html"), 404
+    return render_template("400.html", error=str(exc)), code
+
 
 @app.errorhandler(400)
 def bad_request(exc: HTTPException) -> tuple[Response | str, int]:

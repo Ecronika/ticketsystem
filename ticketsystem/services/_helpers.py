@@ -8,6 +8,7 @@ import time
 from flask import current_app, jsonify
 from sqlalchemy.exc import SQLAlchemyError
 
+from exceptions import DomainError
 from extensions import db
 
 
@@ -45,16 +46,17 @@ def api_error(msg: str, status: int = 500):
 
 
 def api_endpoint(func):
-    """Decorator: catch ValueError (400) and SQLAlchemyError (500).
+    """Decorator: catch domain / validation / DB errors for API routes.
 
-    Translates ``ValueError`` into a 400 JSON response and any
-    ``SQLAlchemyError`` into a 500 JSON response while logging the
-    full traceback.
+    Maps ``DomainError`` to its ``status_code``, ``ValueError`` to 400,
+    and ``SQLAlchemyError`` to 500.
     """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
+        except DomainError as exc:
+            return api_error(str(exc), exc.status_code)
         except ValueError as exc:
             return api_error(str(exc), 400)
         except SQLAlchemyError:

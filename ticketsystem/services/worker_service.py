@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.security import generate_password_hash
 
 from enums import WorkerRole
+from exceptions import InvalidPinError, LastAdminError, WorkerNotFoundError
 from extensions import db
 from models import Worker
 
@@ -21,21 +22,21 @@ _WEAK_PINS: frozenset = frozenset({
 
 
 def _validate_pin(pin: str) -> None:
-    """Raise ValueError if the PIN is too simple."""
+    """Raise ``InvalidPinError`` if the PIN is too simple."""
     if not pin or len(pin) < 4:
-        raise ValueError("Die PIN muss mindestens 4 Zeichen lang sein.")
+        raise InvalidPinError("Die PIN muss mindestens 4 Zeichen lang sein.")
     if pin in _WEAK_PINS:
-        raise ValueError(
+        raise InvalidPinError(
             "Diese PIN ist zu einfach (z. B. 0000, 1234). "
             "Bitte wählen Sie eine sicherere PIN."
         )
 
 
 def _get_worker_or_raise(worker_id: int) -> Worker:
-    """Load a worker by ID or raise ``ValueError``."""
+    """Load a worker by ID or raise ``WorkerNotFoundError``."""
     worker = db.session.get(Worker, worker_id)
     if not worker:
-        raise ValueError("Mitarbeiter nicht gefunden.")
+        raise WorkerNotFoundError()
     return worker
 
 
@@ -103,9 +104,7 @@ class WorkerService:
         worker = _get_worker_or_raise(worker_id)
 
         if _is_last_active_admin(worker) and worker.is_active:
-            raise ValueError(
-                "Der letzte aktive Administrator kann nicht deaktiviert werden."
-            )
+            raise LastAdminError()
 
         worker.is_active = not worker.is_active
         _commit_or_raise("Datenbankfehler beim Ändern des Status")
@@ -133,11 +132,7 @@ class WorkerService:
             )
 
         if _is_last_active_admin(worker) and role != WorkerRole.ADMIN.value:
-            raise ValueError(
-                "Der letzte aktive Administrator kann nicht zum normalen "
-                "Mitarbeiter degradiert werden. Aktivieren Sie erst einen "
-                "anderen Administrator."
-            )
+            raise LastAdminError()
 
         worker.name = name
         worker.is_admin = is_admin
