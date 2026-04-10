@@ -2,12 +2,10 @@
 
 from flask import Blueprint, Response, current_app, jsonify, request, session
 
-from extensions import db, limiter
+from extensions import db
 from models import Notification, Worker
 from routes.auth import worker_required
 from services._helpers import api_endpoint, api_error, api_ok
-
-from ._helpers import _session_worker_id
 
 
 # ------------------------------------------------------------------
@@ -17,7 +15,7 @@ from ._helpers import _session_worker_id
 @worker_required
 def _api_get_notifications() -> Response:
     """Fetch recent notifications for the dropdown."""
-    worker_id = _session_worker_id()
+    worker_id = session.get("worker_id")
     notifs = (
         Notification.query
         .filter_by(user_id=worker_id)
@@ -42,7 +40,7 @@ def _api_get_notifications() -> Response:
 @worker_required
 def _api_read_notification(notif_id: int) -> tuple[Response, int] | Response:
     """Mark a single notification as read."""
-    worker_id = _session_worker_id()
+    worker_id = session.get("worker_id")
     notif = db.session.get(Notification, notif_id)
     if notif and notif.user_id == worker_id:
         notif.is_read = True
@@ -54,7 +52,7 @@ def _api_read_notification(notif_id: int) -> tuple[Response, int] | Response:
 @worker_required
 def _api_read_all_notifications() -> Response:
     """Mark all notifications for the current worker as read."""
-    worker_id = _session_worker_id()
+    worker_id = session.get("worker_id")
     Notification.query.filter_by(
         user_id=worker_id, is_read=False,
     ).update({"is_read": True})
@@ -116,7 +114,7 @@ def _push_subscribe_api() -> Response:
     if not endpoint or not p256dh or not auth:
         return jsonify({"success": False, "error": "Unvollständige Subscription-Daten."}), 400
 
-    worker_id = _session_worker_id()
+    worker_id = session.get("worker_id")
     if not worker_id:
         return jsonify({"success": False, "error": "Nicht authentifiziert."}), 401
 

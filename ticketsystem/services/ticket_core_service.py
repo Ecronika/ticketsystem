@@ -9,7 +9,7 @@ import os
 import re
 import uuid
 from datetime import date, datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 from dateutil.relativedelta import relativedelta
 from flask import current_app
@@ -24,6 +24,7 @@ from models import (
     Tag,
     Ticket,
     TicketContact,
+    TicketRecurrence,
     Worker,
 )
 from utils import get_utc_now
@@ -32,7 +33,6 @@ from ._helpers import db_transaction
 from ._ticket_helpers import (
     ContactInfo,
     _ALLOWED_EXTENSIONS,
-    _OPEN_STATUSES,
     _RECURRENCE_INCREMENTS,
     _format_date,
     _get_ticket_or_none,
@@ -616,4 +616,96 @@ class TicketCoreService:
             # Notify assigned worker and watchers about changes
             _notify_meta_change(ticket, author_name, author_id, changes)
 
+        return ticket
+
+    # ------------------------------------------------------------------
+    # Duplicate
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    @db_transaction
+    def duplicate_ticket(ticket_id: int) -> Ticket:
+        """Create a copy of a ticket including all satellite tables.
+
+        Copies: contact, recurrence, tags, open checklist items,
+        due_date, reminder_date, and scalar metadata.
+        Does NOT copy: approval (new ticket has no approval state),
+        comments/history, or attachments.
+        """
+        source = _get_ticket_or_raise(ticket_id)
+
+        new_ticket = Ticket(
+            title=f"Kopie von: {source.title}",
+            description=source.description,
+            priority=source.priority,
+            status=TicketStatus.OFFEN.value,
+            order_reference=source.order_reference,
+            is_confidential=source.is_confidential,
+            assigned_to_id=source.assigned_to_id,
+            assigned_team_id=source.assigned_team_id,
+            due_date=source.due_date,
+            reminder_date=source.reminder_date,
+        )
+
+        # Copy contact (only if source has one)
+        if source.contact:
+            src = source.contact
+            new_ticket.contact = TicketContact(
+                name=src.name,
+                phone=src.phone,
+                email=src.email,
+                channel=src.channel,
+                callback_requested=src.callback_requested,
+                callback_due=src.callback_due,
+            )
+
+        # Copy recurrence
+        if source.recurrence:
+            new_ticket.recurrence = TicketRecurrence(
+                rule=source.recurrence.rule,
+                next_date=source.recurrence.next_date,
+            )
+
+        # Copy tags
+        for tag in source.tags:
+            new_ticket.tags.append(tag)
+
+        db.session.add(new_ticket)
+        db.session.flush()
+
+        # Copy uncompleted checklist items
+        for item in source.checklists:
+            if not item.is_completed:
+                db.session.add(ChecklistItem(
+                    ticket_id=new_ticket.id,
+                    title=item.title,
+                    is_completed=False,
+                    assigned_to_id=item.assigned_to_id,
+                    assigned_team_id=item.assigned_team_id,
+                ))
+
+        db.session.commit()
+        return new_ticket
+
+    # ------------------------------------------------------------------
+    # Contact update
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    @db_transaction
+    def update_contact(
+        ticket_id: int,
+        contact: ContactInfo,
+    ) -> Ticket:
+        """Update customer contact fields on a ticket."""
+        ticket = _get_ticket_or_raise(ticket_id)
+        c = ticket.ensure_contact()
+        c.name = contact.name
+        c.phone = contact.phone
+        c.email = contact.email
+        c.channel = contact.channel
+        c.callback_requested = contact.callback_requested
+        c.callback_due = contact.callback_due
+        ticket.updated_at = get_utc_now()
+        db.session.commit()
         return ticket

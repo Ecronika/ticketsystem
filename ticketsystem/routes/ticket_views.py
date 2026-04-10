@@ -23,17 +23,18 @@ from enums import ELEVATED_ROLES, TicketPriority, TicketStatus
 from extensions import db, limiter
 from models import ChecklistItem, ChecklistTemplate, Team, Ticket, Worker
 from routes.auth import admin_or_management_required, redirect_to, worker_required
-from services import TicketService
-from services.ticket_service import ContactInfo, TicketFilterSpec
+from services._ticket_helpers import ContactInfo, TicketFilterSpec, _urgency_score
+from services.dashboard_service import DashboardService
+from services.ticket_approval_service import TicketApprovalService
+from services.ticket_core_service import TicketCoreService
 from utils import get_utc_now
 
 from ._helpers import (
+    _check_ticket_access,
     _parse_assignment_ids,
     _parse_callback_due,
     _parse_date,
     _safe_int,
-    _session_author,
-    _session_worker_id,
 )
 
 
@@ -44,7 +45,7 @@ from ._helpers import (
 @worker_required
 def _dashboard_view() -> str | Response:
     """Main dashboard view."""
-    worker_id = _session_worker_id()
+    worker_id = session.get("worker_id")
     search = request.args.get("q", "").strip()
     status_filter = request.args.get("status", "")
     page = request.args.get("page", 1, type=int)
@@ -77,7 +78,7 @@ def _dashboard_view() -> str | Response:
         status_filter = status_filter or "wartet"
 
     team_ids = Team.team_ids_for_worker(worker_id) if worker_id else []
-    tickets_data = TicketService.get_dashboard_tickets(TicketFilterSpec(
+    tickets_data = DashboardService.get_dashboard_tickets(TicketFilterSpec(
         worker_id=worker_id,
         search=search,
         status_filter=status_filter,
@@ -132,9 +133,9 @@ def _archive_view() -> str:
     if end_date:
         end_date = end_date + timedelta(days=1)
 
-    wid = _session_worker_id()
+    wid = session.get("worker_id")
     team_ids = Team.team_ids_for_worker(wid) if wid else []
-    tickets_data = TicketService.get_dashboard_tickets(TicketFilterSpec(
+    tickets_data = DashboardService.get_dashboard_tickets(TicketFilterSpec(
         worker_id=wid,
         search=search,
         status_filter=TicketStatus.ERLEDIGT.value,
@@ -163,7 +164,7 @@ def _archive_view() -> str:
 def _approvals_view() -> str:
     """Pending-approvals dashboard for management."""
     page = request.args.get("page", 1, type=int)
-    pagination = TicketService.get_pending_approvals(page=page)
+    pagination = TicketApprovalService.get_pending_approvals(page=page)
     return render_template(
         "approvals.html", pagination=pagination, tickets=pagination.items,
     )
@@ -172,7 +173,7 @@ def _approvals_view() -> str:
 @worker_required
 def _projects_view() -> str:
     """Project / Baustellen overview."""
-    projects = TicketService.get_projects_summary()
+    projects = DashboardService.get_projects_summary()
     return render_template("projects.html", projects=projects)
 
 
@@ -210,14 +211,16 @@ def _handle_ticket_creation() -> str | Response:
     tags_raw = request.form.get("tags", "")
     tags = [t.strip() for t in tags_raw.split(",") if t.strip()]
 
+    worker_id = session.get("worker_id")
     is_confidential = (
         request.form.get("is_confidential") in ("True", "on")
-        and bool(_session_worker_id())
+        and bool(worker_id)
     )
 
     assigned_to_id, assigned_team_id = _parse_assignment_ids(
         request.form.get("assigned_to_id"),
         request.form.get("assigned_team_id"),
+        fallback_worker_id=worker_id,
     )
 
     template_id = _safe_int(request.form.get("template_id"))
@@ -229,12 +232,12 @@ def _handle_ticket_creation() -> str | Response:
 
     try:
         priority = TicketPriority(int(priority_val))
-        ticket = TicketService.create_ticket(
+        ticket = TicketCoreService.create_ticket(
             title=title,
             description=description,
             priority=priority,
             author_name=author_name,
-            author_id=_session_worker_id(),
+            author_id=worker_id,
             attachments=attachments,
             due_date=due_date,
             assigned_to_id=assigned_to_id,
@@ -257,7 +260,7 @@ def _handle_ticket_creation() -> str | Response:
     except (ValueError, SQLAlchemyError):
         current_app.logger.exception(
             "Fehler beim Erstellen des Tickets (worker=%s)",
-            _session_worker_id(),
+            worker_id,
         )
         flash("Fehler beim Erstellen des Tickets.", "error")
         return render_template("ticket_new.html")
@@ -273,7 +276,7 @@ def _after_ticket_created(ticket: Ticket) -> Response:
         f"Ticket #{ticket.id} ansehen \u2192</a>"
     )
 
-    if not _session_worker_id():
+    if not session.get("worker_id"):
         return redirect_to("main.ticket_new", created=ticket.id)
 
     flash(Markup(f"Ticket {link_html} erfolgreich erstellt!"), "success")
@@ -287,10 +290,11 @@ def _after_ticket_created(ticket: Ticket) -> Response:
 @worker_required
 def _ticket_detail_view(ticket_id: int) -> str | Response:
     """Ticket detail view."""
-    from ._helpers import _check_ticket_access
+    worker_id = session.get("worker_id")
+    role = session.get("role")
 
     db.session.expire_all()
-    ticket = _check_ticket_access(ticket_id)
+    ticket = _check_ticket_access(ticket_id, worker_id, role)
     if not ticket:
         flash("Ticket nicht gefunden.", "error")
         return redirect_to("main.index")
@@ -325,14 +329,14 @@ def _public_ticket_view(ticket_id: int) -> tuple[str, int] | str:
 @worker_required
 def _my_queue_view() -> str:
     """Personal task queue grouped by urgency."""
-    worker_id = _session_worker_id()
+    worker_id = session.get("worker_id")
     days_horizon = request.args.get("days", 7, type=int)
     now = get_utc_now()
 
     worker_role = session.get("role")
     team_ids = Team.team_ids_for_worker(worker_id)
     tickets_list = _build_queue_query(worker_id, team_ids, worker_role).all()
-    tickets_list.sort(key=lambda t: TicketService._urgency_score(t, now))
+    tickets_list.sort(key=lambda t: _urgency_score(t, now))
 
     groups = _group_by_urgency(tickets_list, now, days_horizon)
     urgent_count = len(groups["overdue"]) + len(groups["today"])
@@ -382,7 +386,7 @@ def _build_queue_query(
     )
 
     if worker_role not in ELEVATED_ROLES:
-        from services.ticket_service import _confidential_filter
+        from services._ticket_helpers import _confidential_filter
         query = query.filter(db.or_(*_confidential_filter(worker_id, team_ids)))
 
     return query
@@ -454,7 +458,7 @@ def _group_by_urgency(
 @admin_or_management_required
 def _workload_view() -> str:
     """Admin/Management workload overview per worker."""
-    absent_entries, present_entries = TicketService.get_workload_overview()
+    absent_entries, present_entries = DashboardService.get_workload_overview()
     active_workers = (
         Worker.query.filter_by(is_active=True).order_by(Worker.name).all()
     )
@@ -474,7 +478,7 @@ def _workload_view() -> str:
 @worker_required
 def _dashboard_rows_api() -> Response:
     """Return rendered HTML of the dashboard table rows for silent polling refresh."""
-    worker_id = _session_worker_id()
+    worker_id = session.get("worker_id")
     search = request.args.get("q", "").strip()
     status_filter = request.args.get("status", "")
     page = request.args.get("page", 1, type=int)
@@ -497,7 +501,7 @@ def _dashboard_rows_api() -> Response:
         status_filter = status_filter or "wartet"
 
     team_ids = Team.team_ids_for_worker(worker_id) if worker_id else []
-    tickets_data = TicketService.get_dashboard_tickets(TicketFilterSpec(
+    tickets_data = DashboardService.get_dashboard_tickets(TicketFilterSpec(
         worker_id=worker_id,
         search=search,
         status_filter=status_filter,

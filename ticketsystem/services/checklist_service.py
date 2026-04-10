@@ -117,6 +117,16 @@ class ChecklistService:
         return True
 
     @staticmethod
+    @db_transaction
+    def reorder_items(ticket_id: int, item_order: list[int]) -> None:
+        """Set the sort_order of checklist items for a ticket."""
+        for idx, item_id in enumerate(item_order):
+            item = db.session.get(ChecklistItem, item_id)
+            if item and item.ticket_id == ticket_id:
+                item.sort_order = idx
+        db.session.commit()
+
+    @staticmethod
     def apply_checklist_template(
         ticket_id: int, template_id: int, commit: bool = True
     ) -> bool:

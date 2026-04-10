@@ -1,13 +1,14 @@
 import pytest
 from models import Worker, Ticket, Comment
-from services.ticket_service import TicketService
+from services.ticket_assignment_service import TicketAssignmentService
+from services.ticket_core_service import TicketCoreService
 from enums import TicketStatus, TicketPriority
 from werkzeug.security import generate_password_hash
 
 def test_create_ticket(test_app, db):
     """Test creating a ticket via TicketService."""
     with test_app.app_context():
-        ticket = TicketService.create_ticket(
+        ticket = TicketCoreService.create_ticket(
             title="Defektes Rohr",
             description="Leckt im Keller",
             priority=TicketPriority.HOCH,
@@ -27,8 +28,8 @@ def test_create_ticket(test_app, db):
 def test_update_status(test_app, db):
     """Test updating ticket status."""
     with test_app.app_context():
-        ticket = TicketService.create_ticket(title="Test Ticket")
-        updated_ticket = TicketService.update_status(
+        ticket = TicketCoreService.create_ticket(title="Test Ticket")
+        updated_ticket = TicketCoreService.update_status(
             ticket.id, 
             TicketStatus.IN_BEARBEITUNG, 
             author_name="Meister"
@@ -115,10 +116,10 @@ def test_assign_ticket(test_app, db):
         db.session.add(worker)
         db.session.commit()
         
-        ticket = TicketService.create_ticket("Assign Test", "Test")
+        ticket = TicketCoreService.create_ticket("Assign Test", "Test")
         
         # Assign
-        TicketService.assign_ticket(ticket.id, worker.id, "System")
+        TicketAssignmentService.assign_ticket(ticket.id, worker.id, "System")
         assert ticket.assigned_to_id == worker.id
         
         # Verify comment
@@ -126,8 +127,8 @@ def test_assign_ticket(test_app, db):
         assert "Zuständigkeit geändert" in comment.text
         
         # Self assign (unassign first to trigger a change)
-        TicketService.assign_ticket(ticket.id, None, "System")
-        TicketService.assign_ticket(ticket.id, worker.id, worker.name)
+        TicketAssignmentService.assign_ticket(ticket.id, None, "System")
+        TicketAssignmentService.assign_ticket(ticket.id, worker.id, worker.name)
         comment = Comment.query.filter_by(ticket_id=ticket.id).order_by(Comment.id.desc()).first()
         assert "hat sich das Ticket selbst zugewiesen" in comment.text
 
@@ -142,7 +143,7 @@ def test_confidential_ticket_access(client, db, test_app):
     db.session.commit()
     
     with test_app.app_context():
-        ticket = TicketService.create_ticket(
+        ticket = TicketCoreService.create_ticket(
             title="Geheim", 
             description="Lohnabrechnung", 
             author_name="Worker 1",
@@ -182,7 +183,7 @@ def test_confidential_ticket_access(client, db, test_app):
     
     # Test Worker 2 after Assignment (Access)
     with test_app.app_context():
-        TicketService.assign_ticket(ticket_id, worker2.id, "Admin", admin.id)
+        TicketAssignmentService.assign_ticket(ticket_id, worker2.id, "Admin", admin.id)
     with client.session_transaction() as sess:
         sess['worker_id'] = worker2.id
         sess['worker_name'] = worker2.name

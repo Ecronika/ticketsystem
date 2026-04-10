@@ -97,6 +97,10 @@ ticket.ensure_approval().status = "pending"
 **Regel:** Für `uselist=False`-Beziehungen einen `ensure_*()` Accessor auf dem
 Model definieren. Nirgendwo sonst direkt instanziieren.
 
+**Achtung:** `ensure_*()` Accessors **nur in Write-Kontexten** aufrufen (Erstellung,
+Update). In Read-Kontexten stattdessen `ticket.contact` direkt prüfen (`if ticket.contact:`),
+um keine leeren Datensätze versehentlich zu erzeugen.
+
 ### 4. Sicherheits-Decorator punktuell statt systematisch prüfen
 
 **Verboten:** Einen fehlenden Decorator nur an der bemängelten Stelle fixen,
@@ -206,24 +210,108 @@ def _parse_date(raw):
 
 **Regel:** Ungenutzten Code vollständig entfernen. Git ist die History.
 
+### 11. Fassaden mit `staticmethod`-Zuweisungen
+
+**Verboten:** Fassaden-Klassen die nur `staticmethod`-Zuweisungen enthalten:
+
+```python
+# FALSCH — bricht IDE Type-Hinting, Go-To-Definition, Autocomplete
+class TicketService:
+    create_ticket = staticmethod(TicketCoreService.create_ticket)
+    assign_ticket = staticmethod(TicketAssignmentService.assign_ticket)
+```
+
+```python
+# RICHTIG — fokussierte Services direkt importieren
+from services.ticket_core_service import TicketCoreService
+from services.ticket_assignment_service import TicketAssignmentService
+```
+
+**Regel:** Keine Fassaden-Klassen als Backward-Compatibility-Shim. Aufrufer
+importieren die fokussierten Service-Module direkt. Wenn Utilities
+(`ContactInfo`, `TicketFilterSpec`) in mehreren Modulen gebraucht werden,
+werden sie aus ihrem Definitionsort (`_ticket_helpers.py`) importiert, nicht
+über Re-Exports.
+
+### 12. Duplizierte Query-Logik
+
+**Verboten:** Identische Datenbankabfragen in mehreren Dateien kopieren.
+
+```python
+# FALSCH — gleiche Volltext-Suchlogik in dashboard_service.py UND ticket_export.py
+for token in tokens:
+    query = query.filter(
+        Ticket.title.ilike(pattern) | Ticket.contact.has(...)
+    )
+
+# RICHTIG — eine zentrale Funktion in _ticket_helpers.py
+from services._ticket_helpers import apply_search_filter
+query = apply_search_filter(query, search_term)
+```
+
+**Regel:** Query-Logik die an mehr als einer Stelle gebraucht wird gehört in
+`services/_ticket_helpers.py` als benannte Funktion.
+
+### 13. Unvollständige Objekt-Kopien (Satelliten-Tabellen)
+
+**Verboten:** Beim Duplizieren/Klonen von Tickets nur einen Teil der
+Satelliten-Tabellen kopieren.
+
+**Regel:** Wenn Ticket-Duplikation implementiert wird, ALLE relevanten
+1-to-1-Beziehungen prüfen und explizit kopieren:
+- `TicketContact` — Kontaktdaten
+- `TicketRecurrence` — Serien-Regeln
+- Tags (many-to-many)
+- Checklists (1-to-many, nur offene Items)
+- `due_date`, `reminder_date` — Scalar-Felder
+
+`TicketApproval` wird bewusst NICHT kopiert (neues Ticket = kein Freigabe-Status).
+
+### 14. Exception-Handling: Alle Schichten abdecken
+
+**Verboten:** Error-Handling nur für API-Endpunkte (`@api_endpoint`) implementieren,
+aber View-Routen (HTML) ungeschützt lassen.
+
+**Regel:** `DomainError`-Exceptions müssen in ALLEN Schichten gefangen werden:
+- API-Endpunkte: `@api_endpoint` Decorator → JSON-Fehlerantwort
+- View-Routen: Flask `@app.errorhandler(DomainError)` → HTML-Fehlerseite oder
+  JSON-Antwort je nach Content-Negotiation (AJAX vs. Browser-Request)
+
 ---
 
 ## Architektur-Übersicht
 
 ### Satelliten-Tabellen (1-to-1 auf Ticket)
 
-| Tabelle | Accessor | Zweck |
-|---------|----------|-------|
+| Tabelle | Accessor (nur Write) | Zweck |
+|---------|---------------------|-------|
 | `ticket_contact` | `ticket.ensure_contact()` | Kundenkontaktdaten |
 | `ticket_approval` | `ticket.ensure_approval()` | Freigabe-Workflow |
 | `ticket_recurrence` | `ticket.ensure_recurrence(rule, next_date)` | Wiederholungsregeln |
 
-### Service-DTOs
+### Service-Architektur
 
-| Dataclass | Verwendet in |
-|-----------|-------------|
-| `TicketFilterSpec` | `get_dashboard_tickets()` |
-| `ContactInfo` | `create_ticket()` |
+Fokussierte Service-Module (kein Fassaden-Pattern):
+
+| Modul | Klasse | Verantwortung |
+|-------|--------|---------------|
+| `ticket_core_service.py` | `TicketCoreService` | CRUD, Kommentare, Status, Duplikation |
+| `ticket_assignment_service.py` | `TicketAssignmentService` | Zuweisung, OOO-Delegation |
+| `ticket_approval_service.py` | `TicketApprovalService` | Freigabe-Workflow |
+| `checklist_service.py` | `ChecklistService` | Checklisten-Operationen |
+| `dashboard_service.py` | `DashboardService` | Dashboard-Queries, Projekte, Workload |
+
+Aufrufer importieren die fokussierten Services direkt — keine Fassaden-Klasse.
+
+### Service-DTOs und Shared Helpers (in `_ticket_helpers.py`)
+
+| Export | Typ | Verwendet in |
+|--------|-----|-------------|
+| `TicketFilterSpec` | Dataclass | `DashboardService.get_dashboard_tickets()` |
+| `ContactInfo` | Dataclass | `TicketCoreService.create_ticket()` |
+| `apply_search_filter` | Funktion | `DashboardService`, `ticket_export.py` |
+| `_confidential_filter` | Funktion | `dashboard.py`, `ticket_export.py` |
+| `_urgency_score` | Funktion | `ticket_views.py`, `scheduler_service.py` |
 
 ### Decorator-Stack für API-Endpunkte
 
@@ -232,12 +320,15 @@ Reihenfolge auf der Funktionsdefinition (von oben nach unten):
 @worker_required      # Auth-Check: Benutzer eingeloggt?
 @write_required       # Berechtigung: Darf schreiben?
 @limiter.limit(...)   # Rate-Limiting (optional)
-@api_endpoint         # Error-Handling: ValueError→400, SQLAlchemyError→500
+@api_endpoint         # Error-Handling: DomainError→status_code, ValueError→400, SQLAlchemyError→500
 def _my_api(...):
 ```
 
 Ausnahme: `_new_ticket_view` hat bewusst KEINEN `@worker_required` —
 anonyme Ticket-Erstellung ist gewollt.
+
+Zusätzlich: Flask-Error-Handler `@app.errorhandler(DomainError)` für
+View-Routen (HTML) und AJAX-Requests.
 # Project Rules
 
 ## Dockerfile Sync (Home Assistant Addon)
@@ -266,7 +357,9 @@ change needed -- those directories are copied entirely.
 
 - Services use `@staticmethod` + `@db_transaction` decorators
 - Domain exceptions live in `exceptions.py` (not inline `ValueError`)
-- `ticket_service.py` is a thin facade delegating to focused service modules
-- `routes/tickets.py` is a thin coordinator delegating to route sub-modules
+- Focused service modules imported directly (no facade class)
 - Single `main_bp` Blueprint; each route sub-module exports `register_routes(bp)`
+- Route registration in `routes/__init__.py` — flat structure, no coordinator files
+- Shared query/filter helpers live in `services/_ticket_helpers.py`
 - German-language UI text in all user-facing messages and audit comments
+- `db.session.commit()` belongs in service methods with `@db_transaction`, not in routes

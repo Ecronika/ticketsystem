@@ -15,7 +15,9 @@ from enums import TicketPriority, TicketStatus
 from extensions import db
 from models import Comment, Ticket, TicketRecurrence, Worker
 from services.email_service import EmailService
-from services.ticket_service import TicketService, _OPEN_STATUSES, _RECURRENCE_INCREMENTS
+from services._ticket_helpers import _OPEN_STATUSES, _RECURRENCE_INCREMENTS
+from services.checklist_service import ChecklistService
+from services.ticket_core_service import TicketCoreService
 from utils import get_utc_now
 
 _logger = logging.getLogger(__name__)
@@ -60,7 +62,7 @@ def _create_recurring_copies(tickets: List[Ticket], now: object) -> int:
     count = 0
     for ticket in tickets:
         new_due_date = _compute_new_due_date(ticket, now)
-        new_ticket = TicketService.create_ticket(
+        new_ticket = TicketCoreService.create_ticket(
             title=ticket.title,
             description=ticket.description,
             priority=ticket.priority,
@@ -90,10 +92,10 @@ def _clone_checklists(source: Ticket, target: Ticket) -> None:
     """Copy checklist items from *source* (or its template) to *target*."""
     if source.checklist_template_id and source.checklist_template:
         for item in source.checklist_template.items:
-            TicketService.add_checklist_item(target.id, item.title)
+            ChecklistService.add_checklist_item(target.id, item.title)
     else:
         for item in source.checklists:
-            TicketService.add_checklist_item(
+            ChecklistService.add_checklist_item(
                 target.id, item.title, item.assigned_to_id
             )
 
@@ -250,7 +252,7 @@ def _create_escalation_notification(
     """Create an in-app notification for the ticket assignee (no email)."""
     if not ticket.assigned_to_id:
         return
-    TicketService.create_notification(
+    TicketCoreService.create_notification(
         user_id=ticket.assigned_to_id,
         message=(
             f"SLA-Eskalation: Ticket #{ticket.id} ist seit "
@@ -269,7 +271,7 @@ def _create_admin_notifications_for_high_prio(
     admins = Worker.query.filter_by(role="admin", is_active=True).all()
     for admin in admins:
         if admin.id != ticket.assigned_to_id:
-            TicketService.create_notification(
+            TicketCoreService.create_notification(
                 user_id=admin.id,
                 message=(
                     f"SLA-Eskalation (Prio HOCH): Ticket #{ticket.id} "
@@ -356,7 +358,7 @@ def _notify_reminder_tickets(tickets: List[Ticket], now: object) -> int:
     notified = 0
     for ticket in tickets:
         if ticket.assigned_to_id:
-            TicketService.create_notification(
+            TicketCoreService.create_notification(
                 user_id=ticket.assigned_to_id,
                 message=(
                     f"Wiedervorlage: Ticket #{ticket.id} "

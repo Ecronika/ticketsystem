@@ -24,7 +24,7 @@ from enums import ELEVATED_ROLES, TicketStatus
 from extensions import Config, db
 from models import Team, Ticket
 from routes.auth import worker_required
-from services.ticket_service import _confidential_filter
+from services._ticket_helpers import _confidential_filter
 from utils import get_utc_now
 
 _dash_start_time: float = time.time()
