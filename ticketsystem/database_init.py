@@ -138,6 +138,15 @@ def _repair_ticket_table(
             " WHERE due_date IS NOT NULL AND length(due_date) > 10"
         ))
 
+    # Same for checklist_item.due_date
+    if "checklist_item" in tables:
+        ci_columns = _get_column_names(inspector, "checklist_item")
+        if "due_date" in ci_columns:
+            conn.execute(db.text(
+                "UPDATE checklist_item SET due_date = substr(due_date, 1, 10)"
+                " WHERE due_date IS NOT NULL AND length(due_date) > 10"
+            ))
+
 
 def _repair_comment_table(
     conn: object,

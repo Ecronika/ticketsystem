@@ -108,6 +108,10 @@ def upgrade():
         UPDATE ticket SET due_date = substr(due_date, 1, 10)
         WHERE due_date IS NOT NULL AND length(due_date) > 10
     """)
+    op.execute("""
+        UPDATE checklist_item SET due_date = substr(due_date, 1, 10)
+        WHERE due_date IS NOT NULL AND length(due_date) > 10
+    """)
 
 
 def downgrade():
