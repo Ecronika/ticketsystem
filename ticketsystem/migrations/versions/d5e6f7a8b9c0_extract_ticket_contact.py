@@ -62,6 +62,10 @@ def upgrade():
             FROM ticket
         """)
 
+        # Clean up orphaned temp table from a prior interrupted migration
+        if _table_exists('_alembic_tmp_ticket'):
+            op.execute("DROP TABLE _alembic_tmp_ticket")
+
         # Drop the old columns (batch mode for SQLite compat)
         with op.batch_alter_table('ticket', schema=None) as batch_op:
             batch_op.drop_column('contact_name')
