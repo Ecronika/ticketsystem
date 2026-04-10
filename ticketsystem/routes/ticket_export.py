@@ -43,7 +43,6 @@ def _bulk_action_api() -> tuple[Response, int] | Response:
     worker_id = session.get("worker_id")
     author = session.get("worker_name", "System")
     updated = _execute_bulk_action(ticket_ids, action, data, worker_id, author)
-    db.session.commit()
     return api_ok(updated=updated)
 
 
@@ -88,6 +87,7 @@ def _execute_bulk_action(
             updated += _bulk_set_due_date(ticket, data)
         elif action == "set_priority":
             updated += _bulk_set_priority(ticket, data)
+    db.session.commit()
     return updated
 
 

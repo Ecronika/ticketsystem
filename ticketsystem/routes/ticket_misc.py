@@ -79,10 +79,8 @@ def _save_theme_api() -> Response:
     if theme not in ("light", "dark", "hc", "auto"):
         return api_error("Ungültiges Theme.", 400)
 
-    worker = db.session.get(Worker, worker_id)
-    if worker:
-        worker.ui_theme = theme
-        db.session.commit()
+    from services.worker_service import WorkerService
+    WorkerService.update_theme(worker_id, theme)
     return api_ok()
 
 
