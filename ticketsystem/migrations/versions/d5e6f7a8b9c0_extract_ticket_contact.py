@@ -16,44 +16,64 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
-    # 1. Create the new ticket_contact table
-    op.create_table(
-        'ticket_contact',
-        sa.Column('ticket_id', sa.Integer(),
-                  sa.ForeignKey('ticket.id', ondelete='CASCADE'),
-                  primary_key=True),
-        sa.Column('name', sa.String(length=100), nullable=True),
-        sa.Column('phone', sa.String(length=50), nullable=True),
-        sa.Column('email', sa.String(length=150), nullable=True),
-        sa.Column('channel', sa.String(length=20), nullable=True),
-        sa.Column('callback_requested', sa.Boolean(),
-                  server_default='0', nullable=False),
-        sa.Column('callback_due', sa.DateTime(), nullable=True),
+def _table_exists(name):
+    """Check if a table exists (SQLite-compatible)."""
+    bind = op.get_bind()
+    result = bind.execute(
+        sa.text("SELECT name FROM sqlite_master WHERE type='table' AND name=:n"),
+        {"n": name},
     )
+    return result.fetchone() is not None
 
-    # 2. Copy existing data from ticket to ticket_contact (one row per ticket)
-    op.execute("""
-        INSERT INTO ticket_contact
-            (ticket_id, name, phone, email, channel,
-             callback_requested, callback_due)
-        SELECT id, contact_name, contact_phone, contact_email,
-               contact_channel, callback_requested, callback_due
-        FROM ticket
-    """)
 
-    # 3. Drop the old columns from ticket (batch mode for SQLite compat)
-    with op.batch_alter_table('ticket', schema=None) as batch_op:
-        batch_op.drop_column('contact_name')
-        batch_op.drop_column('contact_phone')
-        batch_op.drop_column('contact_email')
-        batch_op.drop_column('contact_channel')
-        batch_op.drop_column('callback_requested')
-        batch_op.drop_column('callback_due')
+def _column_exists(table_name, column_name):
+    """Check if a column exists (SQLite-compatible)."""
+    bind = op.get_bind()
+    result = bind.execute(sa.text(f"PRAGMA table_info({table_name})"))
+    return column_name in [row[1] for row in result]
+
+
+def upgrade():
+    # Guard: db.create_all() may have already created ticket_contact
+    if not _table_exists('ticket_contact'):
+        op.create_table(
+            'ticket_contact',
+            sa.Column('ticket_id', sa.Integer(),
+                      sa.ForeignKey('ticket.id', ondelete='CASCADE'),
+                      primary_key=True),
+            sa.Column('name', sa.String(length=100), nullable=True),
+            sa.Column('phone', sa.String(length=50), nullable=True),
+            sa.Column('email', sa.String(length=150), nullable=True),
+            sa.Column('channel', sa.String(length=20), nullable=True),
+            sa.Column('callback_requested', sa.Boolean(),
+                      server_default='0', nullable=False),
+            sa.Column('callback_due', sa.DateTime(), nullable=True),
+        )
+
+    # Copy data only if old columns still exist on ticket
+    if _column_exists('ticket', 'contact_name'):
+        # Populate ticket_contact for tickets that don't have a row yet
+        op.execute("""
+            INSERT OR IGNORE INTO ticket_contact
+                (ticket_id, name, phone, email, channel,
+                 callback_requested, callback_due)
+            SELECT id, contact_name, contact_phone, contact_email,
+                   contact_channel, callback_requested, callback_due
+            FROM ticket
+        """)
+
+        # Drop the old columns (batch mode for SQLite compat)
+        with op.batch_alter_table('ticket', schema=None) as batch_op:
+            batch_op.drop_column('contact_name')
+            batch_op.drop_column('contact_phone')
+            batch_op.drop_column('contact_email')
+            batch_op.drop_column('contact_channel')
+            batch_op.drop_column('callback_requested')
+            batch_op.drop_column('callback_due')
 
 
 def downgrade():
-    # 1. Re-add columns to ticket
+    # Re-add columns to ticket
     with op.batch_alter_table('ticket', schema=None) as batch_op:
         batch_op.add_column(
             sa.Column('contact_name', sa.String(length=100), nullable=True))
@@ -69,7 +89,7 @@ def downgrade():
         batch_op.add_column(
             sa.Column('callback_due', sa.DateTime(), nullable=True))
 
-    # 2. Copy data back
+    # Copy data back
     op.execute("""
         UPDATE ticket SET
             contact_name = (
@@ -92,5 +112,5 @@ def downgrade():
                 WHERE ticket_contact.ticket_id = ticket.id)
     """)
 
-    # 3. Drop ticket_contact table
+    # Drop ticket_contact table
     op.drop_table('ticket_contact')
