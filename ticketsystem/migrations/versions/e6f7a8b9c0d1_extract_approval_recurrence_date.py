@@ -51,60 +51,54 @@ def upgrade():
             sa.Column('reject_reason', sa.Text(), nullable=True),
         )
 
-    # Disable FK enforcement for all batch_alter_table operations below.
-    # SQLite batch mode drops+recreates the ticket table; FK references
-    # from comment, checklist_item, ticket_contact etc. would block that.
-    op.execute("PRAGMA foreign_keys=OFF")
-    try:
-        if _column_exists('ticket', 'approval_status'):
-            op.execute("""
-                INSERT OR IGNORE INTO ticket_approval
-                    (ticket_id, status, approved_by_id, approved_at,
-                     rejected_by_id, reject_reason)
-                SELECT id, approval_status, approved_by_id, approved_at,
-                       rejected_by_id, reject_reason
-                FROM ticket
-                WHERE approval_status != 'none'
-            """)
+    # FK enforcement is disabled globally in env.py for the migration run.
+    if _column_exists('ticket', 'approval_status'):
+        op.execute("""
+            INSERT OR IGNORE INTO ticket_approval
+                (ticket_id, status, approved_by_id, approved_at,
+                 rejected_by_id, reject_reason)
+            SELECT id, approval_status, approved_by_id, approved_at,
+                   rejected_by_id, reject_reason
+            FROM ticket
+            WHERE approval_status != 'none'
+        """)
 
-            if _table_exists('_alembic_tmp_ticket'):
-                op.execute("DROP TABLE _alembic_tmp_ticket")
+        if _table_exists('_alembic_tmp_ticket'):
+            op.execute("DROP TABLE _alembic_tmp_ticket")
 
-            with op.batch_alter_table('ticket', schema=None) as batch_op:
-                batch_op.drop_column('approval_status')
-                batch_op.drop_column('approved_by_id')
-                batch_op.drop_column('approved_at')
-                batch_op.drop_column('rejected_by_id')
-                batch_op.drop_column('reject_reason')
+        with op.batch_alter_table('ticket', schema=None) as batch_op:
+            batch_op.drop_column('approval_status')
+            batch_op.drop_column('approved_by_id')
+            batch_op.drop_column('approved_at')
+            batch_op.drop_column('rejected_by_id')
+            batch_op.drop_column('reject_reason')
 
-        # --- ticket_recurrence ---
-        if not _table_exists('ticket_recurrence'):
-            op.create_table(
-                'ticket_recurrence',
-                sa.Column('ticket_id', sa.Integer(),
-                          sa.ForeignKey('ticket.id', ondelete='CASCADE'),
-                          primary_key=True),
-                sa.Column('rule', sa.String(length=50), nullable=False),
-                sa.Column('next_date', sa.DateTime(), nullable=True),
-            )
+    # --- ticket_recurrence ---
+    if not _table_exists('ticket_recurrence'):
+        op.create_table(
+            'ticket_recurrence',
+            sa.Column('ticket_id', sa.Integer(),
+                      sa.ForeignKey('ticket.id', ondelete='CASCADE'),
+                      primary_key=True),
+            sa.Column('rule', sa.String(length=50), nullable=False),
+            sa.Column('next_date', sa.DateTime(), nullable=True),
+        )
 
-        if _column_exists('ticket', 'recurrence_rule'):
-            op.execute("""
-                INSERT OR IGNORE INTO ticket_recurrence
-                    (ticket_id, rule, next_date)
-                SELECT id, recurrence_rule, next_recurrence_date
-                FROM ticket
-                WHERE recurrence_rule IS NOT NULL
-            """)
+    if _column_exists('ticket', 'recurrence_rule'):
+        op.execute("""
+            INSERT OR IGNORE INTO ticket_recurrence
+                (ticket_id, rule, next_date)
+            SELECT id, recurrence_rule, next_recurrence_date
+            FROM ticket
+            WHERE recurrence_rule IS NOT NULL
+        """)
 
-            if _table_exists('_alembic_tmp_ticket'):
-                op.execute("DROP TABLE _alembic_tmp_ticket")
+        if _table_exists('_alembic_tmp_ticket'):
+            op.execute("DROP TABLE _alembic_tmp_ticket")
 
-            with op.batch_alter_table('ticket', schema=None) as batch_op:
-                batch_op.drop_column('recurrence_rule')
-                batch_op.drop_column('next_recurrence_date')
-    finally:
-        op.execute("PRAGMA foreign_keys=ON")
+        with op.batch_alter_table('ticket', schema=None) as batch_op:
+            batch_op.drop_column('recurrence_rule')
+            batch_op.drop_column('next_recurrence_date')
 
     # --- due_date: DateTime -> Date (SQLite treats these identically,
     #     but the column affinity changes for documentation) ---

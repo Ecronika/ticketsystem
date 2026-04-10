@@ -66,20 +66,15 @@ def upgrade():
         if _table_exists('_alembic_tmp_ticket'):
             op.execute("DROP TABLE _alembic_tmp_ticket")
 
-        # Disable FK enforcement so batch_alter_table can drop+recreate
-        # the ticket table without FK violations from referencing tables.
-        op.execute("PRAGMA foreign_keys=OFF")
-        try:
-            # Drop the old columns (batch mode for SQLite compat)
-            with op.batch_alter_table('ticket', schema=None) as batch_op:
-                batch_op.drop_column('contact_name')
-                batch_op.drop_column('contact_phone')
-                batch_op.drop_column('contact_email')
-                batch_op.drop_column('contact_channel')
-                batch_op.drop_column('callback_requested')
-                batch_op.drop_column('callback_due')
-        finally:
-            op.execute("PRAGMA foreign_keys=ON")
+        # FK enforcement is disabled globally in env.py for the migration
+        # run, so batch_alter_table can safely drop+recreate the ticket table.
+        with op.batch_alter_table('ticket', schema=None) as batch_op:
+            batch_op.drop_column('contact_name')
+            batch_op.drop_column('contact_phone')
+            batch_op.drop_column('contact_email')
+            batch_op.drop_column('contact_channel')
+            batch_op.drop_column('callback_requested')
+            batch_op.drop_column('callback_due')
 
 
 def downgrade():

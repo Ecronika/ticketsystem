@@ -98,6 +98,16 @@ def run_migrations_online():
     connectable = get_engine()
 
     with connectable.connect() as connection:
+        # SQLite: disable FK enforcement for the entire migration run so that
+        # batch_alter_table (drop + recreate) doesn't fail when other tables
+        # hold FK references to the table being rebuilt.
+        is_sqlite = connection.dialect.name == "sqlite"
+        if is_sqlite:
+            connection.execute(sa.text("PRAGMA foreign_keys=OFF"))
+
+        if is_sqlite:
+            conf_args.setdefault("render_as_batch", True)
+
         context.configure(
             connection=connection,
             target_metadata=get_metadata(),
@@ -106,6 +116,13 @@ def run_migrations_online():
 
         with context.begin_transaction():
             context.run_migrations()
+
+        # SQLite DDL is transactional, but Alembic assumes "non-transactional
+        # DDL" and skips COMMIT.  SQLAlchemy's auto-begin opens an implicit
+        # transaction, so we must commit explicitly or changes are lost.
+        if is_sqlite:
+            connection.commit()
+            connection.execute(sa.text("PRAGMA foreign_keys=ON"))
 
 
 if context.is_offline_mode():
