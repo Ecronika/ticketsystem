@@ -134,10 +134,10 @@ def test_assign_ticket(test_app, db):
 
 def test_confidential_ticket_access(client, db, test_app):
     """Test that confidential tickets are protected against unauthorized access."""
-    # Create users
-    admin = Worker(name="Admin", pin_hash="hash", is_admin=True, role='admin')
-    worker1 = Worker(name="Worker 1", pin_hash="hash", role='worker')
-    worker2 = Worker(name="Worker 2", pin_hash="hash", role='worker')
+    # Create users (needs_pin_change=False so session validation doesn't redirect)
+    admin = Worker(name="Admin", pin_hash="hash", is_admin=True, role='admin', needs_pin_change=False)
+    worker1 = Worker(name="Worker 1", pin_hash="hash", role='worker', needs_pin_change=False)
+    worker2 = Worker(name="Worker 2", pin_hash="hash", role='worker', needs_pin_change=False)
     db.session.add_all([admin, worker1, worker2])
     db.session.commit()
     
@@ -158,7 +158,7 @@ def test_confidential_ticket_access(client, db, test_app):
         sess['role'] = 'worker'
         sess['is_admin'] = False
     response = client.get(f'/ticket/{ticket_id}', follow_redirects=True)
-    assert b'Keine Berechtigung' in response.data
+    assert b'Ticket nicht gefunden' in response.data
     
     # Test Admin (Access)
     with client.session_transaction() as sess:
