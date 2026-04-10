@@ -7,8 +7,6 @@ Requires ``pywebpush`` (added to requirements.txt).
 import logging
 from typing import Optional
 
-from flask import current_app
-
 from extensions import db
 from models import PushSubscription, SystemSettings, Worker
 
@@ -106,13 +104,10 @@ def _do_send(
 ) -> None:
     import json
     try:
-        from webpush import WebPusher
+        from pywebpush import webpush
     except ImportError:
-        try:
-            from pywebpush import webpush, WebPushException
-        except ImportError:
-            _logger.warning("pywebpush not installed — WebPush disabled.")
-            return
+        _logger.warning("pywebpush not installed — WebPush disabled.")
+        return
 
     vapid_claims = {"sub": "mailto:admin@ticketsystem.local"}
     payload = json.dumps({"title": title, "body": body, "url": url})

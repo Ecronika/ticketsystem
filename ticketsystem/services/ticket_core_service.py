@@ -458,6 +458,28 @@ class TicketCoreService:
         db.session.commit()
         return True
 
+    @staticmethod
+    @db_transaction
+    def delete_attachment(
+        attachment_id: int, worker_id: int, worker_role: str
+    ) -> None:
+        """Delete an attachment if the worker is authorized."""
+        from exceptions import AccessDeniedError, TicketNotFoundError
+
+        attachment = db.session.get(Attachment, attachment_id)
+        if not attachment:
+            raise TicketNotFoundError("Anhang nicht gefunden.")
+
+        ticket = attachment.ticket
+        if not ticket:
+            raise TicketNotFoundError("Ticket nicht gefunden.")
+
+        if not ticket._worker_is_author(worker_id) and worker_role != "admin":
+            raise AccessDeniedError("Keine Berechtigung.")
+
+        db.session.delete(attachment)
+        db.session.commit()
+
     # ------------------------------------------------------------------
     # Notifications
     # ------------------------------------------------------------------

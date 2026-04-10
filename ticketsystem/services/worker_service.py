@@ -167,6 +167,14 @@ class WorkerService:
         _commit_or_raise("Datenbankfehler beim PIN-Reset")
         return worker
 
+    @staticmethod
+    def update_theme(worker_id: int, theme: str) -> None:
+        """Persist the UI theme preference for *worker_id*."""
+        worker = db.session.get(Worker, worker_id)
+        if worker:
+            worker.ui_theme = theme
+            _commit_or_raise("Datenbankfehler beim Speichern des Themes")
+
 
 # ---------------------------------------------------------------------------
 # Module-private helpers

@@ -8,8 +8,6 @@ import logging
 from datetime import datetime
 from typing import Optional
 
-from flask import current_app
-
 from enums import TicketStatus
 from exceptions import DependencyNotMetError
 from extensions import db
@@ -127,6 +125,7 @@ class ChecklistService:
         db.session.commit()
 
     @staticmethod
+    @db_transaction
     def apply_checklist_template(
         ticket_id: int, template_id: int, commit: bool = True
     ) -> bool:
@@ -134,31 +133,25 @@ class ChecklistService:
         from exceptions import TicketNotFoundError
         from models import ChecklistTemplate
 
-        try:
-            ticket = db.session.get(Ticket, ticket_id)
-            template = db.session.get(ChecklistTemplate, template_id)
-            if not ticket or not template:
-                raise TicketNotFoundError()
+        ticket = db.session.get(Ticket, ticket_id)
+        template = db.session.get(ChecklistTemplate, template_id)
+        if not ticket or not template:
+            raise TicketNotFoundError()
 
-            ticket.checklist_template_id = template_id
-            for t_item in template.items:
-                db.session.add(ChecklistItem(
-                    ticket_id=ticket.id,
-                    title=t_item.title,
-                    is_completed=False,
-                ))
-            db.session.add(Comment(
+        ticket.checklist_template_id = template_id
+        for t_item in template.items:
+            db.session.add(ChecklistItem(
                 ticket_id=ticket.id,
-                author="System",
-                text=f"Checklisten-Vorlage '{template.title}' angewendet.",
-                is_system_event=True,
-                event_type="CHECKLIST_TEMPLATE_APPLIED",
+                title=t_item.title,
+                is_completed=False,
             ))
-            if commit:
-                db.session.commit()
-            return True
-        except Exception as exc:
-            if commit:
-                db.session.rollback()
-            current_app.logger.error("Error applying template: %s", exc)
-            raise
+        db.session.add(Comment(
+            ticket_id=ticket.id,
+            author="System",
+            text=f"Checklisten-Vorlage '{template.title}' angewendet.",
+            is_system_event=True,
+            event_type="CHECKLIST_TEMPLATE_APPLIED",
+        ))
+        if commit:
+            db.session.commit()
+        return True

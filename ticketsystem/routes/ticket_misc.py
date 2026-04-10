@@ -38,6 +38,7 @@ def _api_get_notifications() -> Response:
 
 
 @worker_required
+@api_endpoint
 def _api_read_notification(notif_id: int) -> tuple[Response, int] | Response:
     """Mark a single notification as read."""
     worker_id = session.get("worker_id")
@@ -50,6 +51,7 @@ def _api_read_notification(notif_id: int) -> tuple[Response, int] | Response:
 
 
 @worker_required
+@api_endpoint
 def _api_read_all_notifications() -> Response:
     """Mark all notifications for the current worker as read."""
     worker_id = session.get("worker_id")
@@ -77,10 +79,8 @@ def _save_theme_api() -> Response:
     if theme not in ("light", "dark", "hc", "auto"):
         return api_error("Ungültiges Theme.", 400)
 
-    worker = db.session.get(Worker, worker_id)
-    if worker:
-        worker.ui_theme = theme
-        db.session.commit()
+    from services.worker_service import WorkerService
+    WorkerService.update_theme(worker_id, theme)
     return api_ok()
 
 

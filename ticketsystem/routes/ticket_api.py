@@ -316,22 +316,9 @@ def _serve_attachment(attachment_id: int) -> Response | tuple[str, int]:
 @api_endpoint
 def _delete_attachment_api(attachment_id: int) -> tuple[Response, int] | Response:
     """Delete an attachment from a ticket."""
-    attachment = db.session.get(Attachment, attachment_id)
-    if not attachment:
-        return api_error("Anhang nicht gefunden.", 404)
-
-    ticket = attachment.ticket
-    if not ticket:
-        return api_error("Ticket nicht gefunden.", 404)
-
-    # Only ticket author or admin can delete
-    wid = session.get("worker_id")
-    role = session.get("role")
-    if not ticket._worker_is_author(wid) and role != "admin":
-        return api_error("Keine Berechtigung.", 403)
-
-    db.session.delete(attachment)
-    db.session.commit()
+    worker_id = session.get("worker_id")
+    role = session.get("role", "")
+    TicketCoreService.delete_attachment(attachment_id, worker_id, role)
     return api_ok()
 
 
@@ -351,6 +338,7 @@ def _request_approval_api(ticket_id: int) -> tuple[Response, int] | Response:
     return api_ok()
 
 
+@worker_required
 @admin_required
 @limiter.limit("20 per minute")
 @api_endpoint
@@ -362,6 +350,7 @@ def _approve_ticket_api(ticket_id: int) -> tuple[Response, int] | Response:
     return api_ok()
 
 
+@worker_required
 @admin_required
 @limiter.limit("20 per minute")
 @api_endpoint

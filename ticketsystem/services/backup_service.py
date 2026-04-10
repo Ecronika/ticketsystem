@@ -9,8 +9,8 @@ import shutil
 import threading
 import time
 import zipfile
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from typing import Any, Dict, List
 
 from flask import Flask, current_app
 from flask_migrate import upgrade

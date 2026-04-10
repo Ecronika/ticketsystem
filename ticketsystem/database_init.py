@@ -10,6 +10,8 @@ import traceback
 from typing import List, Optional
 
 from flask import Flask
+from sqlalchemy.engine import Connection
+from sqlalchemy.engine.reflection import Inspector
 from flask_migrate import upgrade as flask_upgrade
 from werkzeug.security import generate_password_hash
 
@@ -71,13 +73,13 @@ def _ensure_critical_columns(logger: logging.Logger) -> None:
         )
 
 
-def _get_column_names(inspector: object, table: str) -> List[str]:
+def _get_column_names(inspector: Inspector, table: str) -> List[str]:
     """Return column names for the given table."""
     return [c["name"] for c in inspector.get_columns(table)]
 
 
 def _add_column_if_missing(
-    conn: object,
+    conn: Connection,
     columns: List[str],
     column_name: str,
     ddl: str,
@@ -90,8 +92,8 @@ def _add_column_if_missing(
 
 
 def _repair_worker_table(
-    conn: object,
-    inspector: object,
+    conn: Connection,
+    inspector: Inspector,
     tables: List[str],
     logger: logging.Logger,
 ) -> None:
@@ -114,8 +116,8 @@ def _repair_worker_table(
 
 
 def _repair_ticket_table(
-    conn: object,
-    inspector: object,
+    conn: Connection,
+    inspector: Inspector,
     tables: List[str],
     logger: logging.Logger,
 ) -> None:
@@ -149,8 +151,8 @@ def _repair_ticket_table(
 
 
 def _repair_comment_table(
-    conn: object,
-    inspector: object,
+    conn: Connection,
+    inspector: Inspector,
     tables: List[str],
     logger: logging.Logger,
 ) -> None:

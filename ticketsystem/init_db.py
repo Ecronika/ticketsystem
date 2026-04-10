@@ -17,7 +17,6 @@ os.environ["RUN_SCHEDULER"] = "0"
 
 from app import app  # noqa: E402 — must come after sys.path / env setup
 from database_init import init_database  # noqa: E402
-from extensions import db  # noqa: E402
 from models import Worker  # noqa: E402
 
 logging.basicConfig(

@@ -259,6 +259,7 @@ def _setup_view() -> str | WerkzeugResponse:
     session["worker_id"] = admin.id
     session["worker_name"] = admin.name
     session["is_admin"] = True
+    session["role"] = admin.role or WorkerRole.ADMIN.value
 
     flash("Setup abgeschlossen! Willkommen im System.", "success")
     return redirect_to("main.index")
@@ -311,10 +312,6 @@ def _login_view() -> str | WerkzeugResponse:
 
 def _logout_view() -> WerkzeugResponse:
     """Handle worker logout with thorough session clearing."""
-    # BUG-002: GET /logout redirects to login instead of 405
-    if request.method == "GET":
-        return redirect_to("main.login")
-
     session.clear()
     session.modified = True
     flash("Erfolgreich ausgeloggt.", "info")
@@ -366,6 +363,7 @@ def _recover_pin_view() -> str | WerkzeugResponse:
     session["worker_id"] = admin.id
     session["worker_name"] = admin.name
     session["is_admin"] = True
+    session["role"] = admin.role or WorkerRole.ADMIN.value
     session.permanent = True
 
     admin.needs_pin_change = True
@@ -644,7 +642,7 @@ def register_routes(bp: Blueprint) -> None:
         "/login", "login", view_func=_login_view, methods=["GET", "POST"],
     )
     bp.add_url_rule(
-        "/logout", "logout", view_func=_logout_view, methods=["GET", "POST"],
+        "/logout", "logout", view_func=_logout_view, methods=["POST"],
     )
     bp.add_url_rule(
         "/setup", "setup", view_func=_setup_view, methods=["GET", "POST"],
