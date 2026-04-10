@@ -57,7 +57,7 @@ def _add_comment_view(ticket_id: int) -> Response:
         flash("Ticket nicht gefunden.", "error")
         return redirect_to("main.index")
 
-    if ticket.approval_status == ApprovalStatus.PENDING.value:
+    if ticket.approval and ticket.approval.status == ApprovalStatus.PENDING.value:
         flash(
             "Ticket ist für die Freigabe gesperrt. "
             "Kommentare sind während der Prüfung nicht erlaubt.",
@@ -158,7 +158,7 @@ def _assign_to_me_view(ticket_id: int) -> str | Response:
     if not ticket:
         return "", 404
 
-    if ticket.approval_status == ApprovalStatus.PENDING.value:
+    if ticket.approval and ticket.approval.status == ApprovalStatus.PENDING.value:
         flash("Ticket ist für die Freigabe gesperrt.", "error")
         return redirect_to("main.ticket_detail", ticket_id=ticket_id)
 
