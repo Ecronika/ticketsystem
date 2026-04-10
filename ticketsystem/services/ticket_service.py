@@ -29,7 +29,6 @@ from models import (
     Ticket,
     TicketApproval,
     TicketContact,
-    TicketRecurrence,
     Worker,
 )
 from utils import get_utc_now
@@ -72,6 +71,18 @@ class TicketFilterSpec:
     sort_by: Optional[str] = None
     sort_dir: str = "asc"
     due_within_days: int = 0
+
+
+@dataclass
+class ContactInfo:
+    """Customer contact details passed into ticket creation/update."""
+
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    channel: Optional[str] = None
+    callback_requested: bool = False
+    callback_due: Optional[datetime] = None
 
 
 # ---------------------------------------------------------------------------
@@ -312,12 +323,7 @@ class TicketService:
         is_confidential: bool = False,
         recurrence_rule: Optional[str] = None,
         checklist_template_id: Optional[int] = None,
-        contact_name: Optional[str] = None,
-        contact_phone: Optional[str] = None,
-        contact_email: Optional[str] = None,
-        contact_channel: Optional[str] = None,
-        callback_requested: bool = False,
-        callback_due: Optional[datetime] = None,
+        contact: Optional["ContactInfo"] = None,
         commit: bool = True,
     ) -> Ticket:
         """Create a new ticket with an initial audit comment.
@@ -335,9 +341,7 @@ class TicketService:
         ticket = _build_ticket(
             title, description, priority, assigned_to_id,
             assigned_team_id, is_confidential, recurrence_rule,
-            due_date, order_reference, reminder_date,
-            contact_name, contact_phone, contact_email, contact_channel,
-            callback_requested, callback_due,
+            due_date, order_reference, reminder_date, contact,
         )
         _attach_tags(ticket, tags)
         db.session.add(ticket)
@@ -661,9 +665,7 @@ class TicketService:
         if ticket.approval and ticket.approval.status == ApprovalStatus.PENDING.value:
             return False, "Freigabe bereits angefragt."
 
-        if not ticket.approval:
-            ticket.approval = TicketApproval()
-        ticket.approval.status = ApprovalStatus.PENDING.value
+        ticket.ensure_approval().status = ApprovalStatus.PENDING.value
         ticket.updated_at = get_utc_now()
         db.session.add(Comment(
             ticket_id=ticket.id,
@@ -687,11 +689,10 @@ class TicketService:
         if ticket.approval and ticket.approval.status == ApprovalStatus.APPROVED.value:
             return False, "Ticket bereits freigegeben."
 
-        if not ticket.approval:
-            ticket.approval = TicketApproval()
-        ticket.approval.status = ApprovalStatus.APPROVED.value
-        ticket.approval.approved_by_id = worker_id
-        ticket.approval.approved_at = get_utc_now()
+        approval = ticket.ensure_approval()
+        approval.status = ApprovalStatus.APPROVED.value
+        approval.approved_by_id = worker_id
+        approval.approved_at = get_utc_now()
         ticket.updated_at = get_utc_now()
         db.session.add(Comment(
             ticket_id=ticket.id,
@@ -713,11 +714,10 @@ class TicketService:
         """Reject a ticket with a reason."""
         ticket = _get_ticket_or_raise(ticket_id)
 
-        if not ticket.approval:
-            ticket.approval = TicketApproval()
-        ticket.approval.status = ApprovalStatus.REJECTED.value
-        ticket.approval.rejected_by_id = worker_id
-        ticket.approval.reject_reason = reason
+        approval = ticket.ensure_approval()
+        approval.status = ApprovalStatus.REJECTED.value
+        approval.rejected_by_id = worker_id
+        approval.reject_reason = reason
         ticket.status = TicketStatus.OFFEN.value
         ticket.updated_at = get_utc_now()
         db.session.add(Comment(
@@ -937,11 +937,9 @@ class TicketService:
                 increment = _RECURRENCE_INCREMENTS.get(
                     new_rule.lower(), relativedelta(months=1)
                 )
-                if not ticket.recurrence:
-                    ticket.recurrence = TicketRecurrence(rule=new_rule)
-                else:
-                    ticket.recurrence.rule = new_rule
-                ticket.recurrence.next_date = get_utc_now() + increment
+                rec = ticket.ensure_recurrence(rule=new_rule)
+                rec.rule = new_rule
+                rec.next_date = get_utc_now() + increment
             else:
                 ticket.recurrence = None
 
@@ -1179,12 +1177,7 @@ def _build_ticket(
     due_date: Optional[date],
     order_reference: Optional[str],
     reminder_date: Optional[datetime],
-    contact_name: Optional[str],
-    contact_phone: Optional[str],
-    contact_email: Optional[str],
-    contact_channel: Optional[str],
-    callback_requested: bool,
-    callback_due: Optional[datetime],
+    contact: Optional[ContactInfo] = None,
 ) -> Ticket:
     """Construct a Ticket ORM object with satellite records."""
     ticket = Ticket(
@@ -1199,19 +1192,19 @@ def _build_ticket(
         order_reference=order_reference,
         reminder_date=reminder_date,
     )
-    ticket.contact = TicketContact(
-        name=contact_name,
-        phone=contact_phone,
-        email=contact_email,
-        channel=contact_channel,
-        callback_requested=bool(callback_requested),
-        callback_due=callback_due,
-    )
+    if contact:
+        c = ticket.ensure_contact()
+        c.name = contact.name
+        c.phone = contact.phone
+        c.email = contact.email
+        c.channel = contact.channel
+        c.callback_requested = contact.callback_requested
+        c.callback_due = contact.callback_due
     if recurrence_rule:
         increment = _RECURRENCE_INCREMENTS.get(
             recurrence_rule.lower(), relativedelta(months=1)
         )
-        ticket.recurrence = TicketRecurrence(
+        ticket.ensure_recurrence(
             rule=recurrence_rule,
             next_date=get_utc_now() + increment,
         )
@@ -1517,7 +1510,8 @@ def _apply_assignment_filters(
 
 
 def _apply_search_filter(query: Any, search: str) -> Any:
-    """Apply full-text search across title, description, order ref, comments.
+    """Apply full-text search across title, description, order ref,
+    contact fields (name, email, phone), and comments.
 
     Splits the search string into tokens and requires ALL tokens to match
     (in any of the searchable fields) via AND logic.
@@ -1538,6 +1532,8 @@ def _apply_search_filter(query: Any, search: str) -> Any:
             | Ticket.description.ilike(pattern)
             | Ticket.order_reference.ilike(pattern)
             | Ticket.contact.has(TicketContact.name.ilike(pattern))
+            | Ticket.contact.has(TicketContact.email.ilike(pattern))
+            | Ticket.contact.has(TicketContact.phone.ilike(pattern))
             | Ticket.id.in_(comment_ids)
         )
     return query

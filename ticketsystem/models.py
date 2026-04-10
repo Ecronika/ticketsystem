@@ -371,6 +371,28 @@ class Ticket(db.Model):
         return f"<Ticket {self.title} ({self.status})>"
 
     # ------------------------------------------------------------------
+    # Satellite accessors (guarantee the 1-to-1 object exists)
+    # ------------------------------------------------------------------
+
+    def ensure_contact(self) -> "TicketContact":
+        """Return the contact record, creating it on first access."""
+        if not self.contact:
+            self.contact = TicketContact()
+        return self.contact
+
+    def ensure_approval(self) -> "TicketApproval":
+        """Return the approval record, creating it on first access."""
+        if not self.approval:
+            self.approval = TicketApproval()
+        return self.approval
+
+    def ensure_recurrence(self, rule: str, next_date: object = None) -> "TicketRecurrence":
+        """Return the recurrence record, creating it if absent."""
+        if not self.recurrence:
+            self.recurrence = TicketRecurrence(rule=rule, next_date=next_date)
+        return self.recurrence
+
+    # ------------------------------------------------------------------
     # Access Control
     # ------------------------------------------------------------------
 

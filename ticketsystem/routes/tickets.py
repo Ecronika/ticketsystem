@@ -48,7 +48,7 @@ from routes.auth import (
 )
 from services import TicketService
 from services._helpers import api_endpoint, api_error, api_ok
-from services.ticket_service import TicketFilterSpec
+from services.ticket_service import ContactInfo, TicketFilterSpec
 from utils import get_utc_now
 
 _PRIO_LABELS: dict[int, str] = {1: "Hoch", 2: "Mittel", 3: "Niedrig"}
@@ -375,12 +375,14 @@ def _handle_ticket_creation() -> str | Response:
             order_reference=request.form.get("order_reference"),
             tags=tags,
             checklist_template_id=template_id,
-            contact_name=request.form.get("contact_name") or None,
-            contact_phone=request.form.get("contact_phone") or None,
-            contact_email=request.form.get("contact_email") or None,
-            contact_channel=request.form.get("contact_channel") or None,
-            callback_requested=request.form.get("callback_requested") == "on",
-            callback_due=callback_due,
+            contact=ContactInfo(
+                name=request.form.get("contact_name") or None,
+                phone=request.form.get("contact_phone") or None,
+                email=request.form.get("contact_email") or None,
+                channel=request.form.get("contact_channel") or None,
+                callback_requested=request.form.get("callback_requested") == "on",
+                callback_due=callback_due,
+            ),
         )
         return _after_ticket_created(ticket)
     except (ValueError, SQLAlchemyError):
@@ -653,15 +655,14 @@ def _update_contact_api(ticket_id: int) -> tuple[Response, int] | Response:
 
     data: dict[str, Any] = request.get_json(silent=True) or {}
 
-    if not ticket.contact:
-        ticket.contact = TicketContact(ticket_id=ticket.id)
-    ticket.contact.name = data.get("contact_name") or None
-    ticket.contact.phone = data.get("contact_phone") or None
-    ticket.contact.email = data.get("contact_email") or None
-    ticket.contact.channel = data.get("contact_channel") or None
-    ticket.contact.callback_requested = bool(data.get("callback_requested", False))
+    c = ticket.ensure_contact()
+    c.name = data.get("contact_name") or None
+    c.phone = data.get("contact_phone") or None
+    c.email = data.get("contact_email") or None
+    c.channel = data.get("contact_channel") or None
+    c.callback_requested = bool(data.get("callback_requested", False))
     callback_due_str = data.get("callback_due")
-    ticket.contact.callback_due = _parse_callback_due(callback_due_str) if callback_due_str else None
+    c.callback_due = _parse_callback_due(callback_due_str) if callback_due_str else None
     ticket.updated_at = get_utc_now()
 
     db.session.commit()
@@ -1260,6 +1261,8 @@ def _export_archive_csv() -> Response:
                 | Ticket.description.ilike(pattern)
                 | Ticket.order_reference.ilike(pattern)
                 | Ticket.contact.has(TicketContact.name.ilike(pattern))
+                | Ticket.contact.has(TicketContact.email.ilike(pattern))
+                | Ticket.contact.has(TicketContact.phone.ilike(pattern))
                 | Ticket.id.in_(comment_ids)
             )
 
@@ -1366,13 +1369,13 @@ def _duplicate_ticket_api(ticket_id: int) -> Response:
         assigned_to_id=ticket.assigned_to_id,
         assigned_team_id=ticket.assigned_team_id,
     )
-    new_ticket.contact = TicketContact(
-        name=src.name if src else None,
-        phone=src.phone if src else None,
-        email=src.email if src else None,
-        channel=src.channel if src else None,
-        callback_requested=src.callback_requested if src else False,
-    )
+    c = new_ticket.ensure_contact()
+    if src:
+        c.name = src.name
+        c.phone = src.phone
+        c.email = src.email
+        c.channel = src.channel
+        c.callback_requested = src.callback_requested
     # Copy tags
     for tag in ticket.tags:
         new_ticket.tags.append(tag)
