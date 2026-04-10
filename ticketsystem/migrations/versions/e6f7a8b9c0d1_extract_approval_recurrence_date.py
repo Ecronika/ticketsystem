@@ -63,6 +63,10 @@ def upgrade():
             WHERE approval_status != 'none'
         """)
 
+        # Clean up orphaned temp table from a prior interrupted migration
+        if _table_exists('_alembic_tmp_ticket'):
+            op.execute("DROP TABLE _alembic_tmp_ticket")
+
         with op.batch_alter_table('ticket', schema=None) as batch_op:
             batch_op.drop_column('approval_status')
             batch_op.drop_column('approved_by_id')
@@ -89,6 +93,10 @@ def upgrade():
             FROM ticket
             WHERE recurrence_rule IS NOT NULL
         """)
+
+        # Clean up orphaned temp table from a prior interrupted migration
+        if _table_exists('_alembic_tmp_ticket'):
+            op.execute("DROP TABLE _alembic_tmp_ticket")
 
         with op.batch_alter_table('ticket', schema=None) as batch_op:
             batch_op.drop_column('recurrence_rule')
