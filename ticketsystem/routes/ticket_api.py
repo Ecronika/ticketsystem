@@ -12,6 +12,7 @@ from flask import (
     Response,
     current_app,
     flash,
+    render_template,
     request,
     send_from_directory,
     session,
@@ -322,6 +323,75 @@ def _delete_attachment_api(attachment_id: int) -> tuple[Response, int] | Respons
     return api_ok()
 
 
+@worker_required
+@write_required
+@limiter.limit("20 per minute")
+@api_endpoint
+def _upload_attachments_api(ticket_id: int) -> tuple[Response, int] | Response:
+    """Upload attachments to an existing ticket."""
+    from services._ticket_helpers import (
+        ALLOWED_EXTENSIONS,
+        MAX_UPLOAD_FILES,
+        MAX_UPLOAD_TOTAL_SIZE,
+    )
+
+    worker_id = session.get("worker_id")
+    role = session.get("role")
+    worker_name = session.get("worker_name", "System")
+
+    ticket = _check_ticket_access(ticket_id, worker_id, role)
+    if not ticket:
+        return api_error("Keine Berechtigung", 403)
+
+    lock_err = check_approval_lock(ticket_id=ticket_id)
+    if lock_err:
+        return lock_err
+
+    file_list = [f for f in request.files.getlist("attachments") if f.filename]
+    if not file_list:
+        return api_error("Keine Dateien ausgewählt.", 400)
+    if len(file_list) > MAX_UPLOAD_FILES:
+        return api_error(
+            f"Maximal {MAX_UPLOAD_FILES} Dateien pro Upload.", 400,
+        )
+
+    # Server-side total size check
+    total = 0
+    for f in file_list:
+        f.seek(0, 2)
+        total += f.tell()
+        f.seek(0)
+    if total > MAX_UPLOAD_TOTAL_SIZE:
+        return api_error("Gesamtgröße überschreitet das Limit.", 400)
+
+    result = TicketCoreService.add_attachments(
+        ticket_id, file_list, worker_id, worker_name,
+    )
+
+    if not result.saved:
+        ext_list = ", ".join(sorted(ALLOWED_EXTENSIONS))
+        return api_error(
+            f"Keine gültigen Dateien. Erlaubt: {ext_list}.", 400,
+        )
+
+    can_delete = (
+        role == "admin"
+        or ticket._worker_is_author(worker_id)
+    )
+    html = render_template(
+        "components/_attachment_tiles.html",
+        attachments=result.saved,
+        ticket=ticket,
+        can_delete=can_delete,
+    )
+    return api_ok(
+        html=html,
+        count=len(result.saved),
+        attachment_ids=[a.id for a in result.saved],
+        skipped=result.skipped,
+    )
+
+
 # ------------------------------------------------------------------
 # Approval APIs
 # ------------------------------------------------------------------
@@ -423,6 +493,10 @@ def register_routes(bp: Blueprint) -> None:
     bp.add_url_rule(
         "/api/attachment/<int:attachment_id>", "delete_attachment",
         view_func=_delete_attachment_api, methods=["DELETE"],
+    )
+    bp.add_url_rule(
+        "/api/ticket/<int:ticket_id>/attachments", "upload_attachments",
+        view_func=_upload_attachments_api, methods=["POST"],
     )
     bp.add_url_rule(
         "/api/ticket/<int:ticket_id>/request_approval",

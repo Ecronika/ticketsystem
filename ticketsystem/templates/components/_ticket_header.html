@@ -160,49 +160,14 @@
             {% endif %}
         </div>
 
-        {% if ticket.attachments and has_full_access %}
-        <div class="mt-4">
-            <h4 class="h6 fw-bold mb-3">Anhänge</h4>
-            <div class="row g-2">
-                {% for attachment in ticket.attachments %}
-                <div class="col-6 col-md-4 col-lg-3 position-relative">
-                    {% if attachment.mime_type and attachment.mime_type.startswith('image/') %}
-                    <a href="{{ ingress_path }}{{ url_for('main.serve_attachment', attachment_id=attachment.id) }}"
-                       class="lightbox-trigger" data-full-src="{{ ingress_path }}{{ url_for('main.serve_attachment', attachment_id=attachment.id) }}"
-                       onclick="event.preventDefault(); document.getElementById('lightboxImg').src=this.dataset.fullSrc; document.getElementById('lightboxDialog').showModal();">
-                        <img src="{{ ingress_path }}{{ url_for('main.serve_attachment', attachment_id=attachment.id) }}"
-                             class="img-fluid rounded-3 shadow-sm border"
-                             class="cursor-zoom-in"
-                             alt="Anhang zu Ticket #{{ ticket.id }} (Bild {{ loop.index }})"
-                             loading="lazy">
-                    </a>
-                    {% else %}
-                    <a href="{{ ingress_path }}{{ url_for('main.serve_attachment', attachment_id=attachment.id) }}"
-                       target="_blank" class="d-flex flex-column align-items-center justify-content-center border rounded-3 shadow-sm p-3 text-decoration-none text-center h-100 bg-surface-subtle">
-                        <i class="bi bi-file-earmark-text fs-2 text-primary mb-1"></i>
-                        <span class="small text-truncate w-100 text-body">{{ attachment.filename }}</span>
-                    </a>
-                    {% endif %}
-                    {% if session.get('role') != 'viewer' and (session.get('role') == 'admin' or ticket._worker_is_author(session.get('worker_id'))) %}
-                    <button type="button" class="btn btn-sm btn-danger rounded-circle position-absolute top-0 end-0 m-1 delete-attachment-btn btn-icon-sm"
-                            data-attachment-id="{{ attachment.id }}"
-                            title="Anhang löschen">
-                        <i class="bi bi-x-lg"></i>
-                    </button>
-                    {% endif %}
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
     </div>
 </div>
 
 <!-- Lightbox Dialog for image attachments -->
-<dialog id="lightboxDialog" class="lightbox-dialog" onclick="if(event.target===this)this.close();">
+<dialog id="lightboxDialog" class="lightbox-dialog">
     <div class="position-relative d-inline-block">
         <img id="lightboxImg" src="" alt="Vergrößerte Ansicht" class="lightbox-img">
-        <button type="button" onclick="this.closest('dialog').close();" aria-label="Schließen" class="lightbox-close">
+        <button type="button" aria-label="Schließen" class="lightbox-close" id="lightboxCloseBtn">
             <i class="bi bi-x-lg"></i>
         </button>
     </div>

@@ -692,32 +692,64 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Attachment deletion
-    document.querySelectorAll('.delete-attachment-btn').forEach(btn => {
-        btn.addEventListener('click', async function() {
-            const attachmentId = this.dataset.attachmentId;
-            const confirmed = window.showConfirm
-                ? await window.showConfirm('Anhang löschen?', 'Möchten Sie diesen Anhang wirklich löschen? Dies kann nicht rückgängig gemacht werden.', true)
-                : confirm('Anhang wirklich löschen?');
-            if (!confirmed) return;
-
-            try {
-                const resp = await fetch(`${ingress}/api/attachment/${attachmentId}`, {
-                    method: 'DELETE',
-                    headers: { 'X-CSRFToken': csrfToken }
-                });
-                const data = await resp.json();
-                if (data.success) {
-                    this.closest('.col-6').remove();
-                    if (window.showUiAlert) window.showUiAlert('Anhang gelöscht.', 'success');
-                } else {
-                    if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Löschen fehlgeschlagen'), 'danger');
+    // Attachment grid: event delegation for delete + lightbox
+    const grid = document.getElementById('attachmentGrid');
+    if (grid) {
+        grid.addEventListener('click', async function(e) {
+            // Delete button
+            const deleteBtn = e.target.closest('.delete-attachment-btn');
+            if (deleteBtn) {
+                const attachmentId = deleteBtn.dataset.attachmentId;
+                const confirmed = window.showConfirm
+                    ? await window.showConfirm('Anhang löschen?', 'Möchten Sie diesen Anhang wirklich löschen?', true)
+                    : confirm('Anhang wirklich löschen?');
+                if (!confirmed) return;
+                try {
+                    const resp = await fetch(`${ingress}/api/attachment/${attachmentId}`, {
+                        method: 'DELETE',
+                        headers: { 'X-CSRFToken': csrfToken }
+                    });
+                    const data = await resp.json();
+                    if (data.success) {
+                        const tile = deleteBtn.closest('[id^="attachment-"]');
+                        if (tile) tile.remove();
+                        if (!grid.querySelector('[id^="attachment-"]')) {
+                            const hint = document.getElementById('emptyAttachmentHint');
+                            if (hint) hint.classList.remove('d-none');
+                        }
+                        if (window.showUiAlert) window.showUiAlert('Anhang gelöscht.', 'success');
+                    } else {
+                        if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Löschen fehlgeschlagen'), 'danger');
+                    }
+                } catch (_err) {
+                    if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.', 'danger');
                 }
-            } catch (e) {
-                if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.', 'danger');
+                return;
+            }
+            // Lightbox trigger (CSP-safe)
+            const trigger = e.target.closest('.lightbox-trigger');
+            if (trigger) {
+                e.preventDefault();
+                const img = document.getElementById('lightboxImg');
+                const dialog = document.getElementById('lightboxDialog');
+                if (img && dialog) { img.src = trigger.dataset.fullSrc; dialog.showModal(); }
             }
         });
-    });
+    }
+
+    // Lightbox close handlers (CSP-safe, no inline onclick)
+    const lightboxDialog = document.getElementById('lightboxDialog');
+    if (lightboxDialog) {
+        lightboxDialog.addEventListener('click', function(e) {
+            if (e.target === this) this.close();
+        });
+        const lightboxCloseBtn = document.getElementById('lightboxCloseBtn');
+        if (lightboxCloseBtn) {
+            lightboxCloseBtn.addEventListener('click', function() {
+                lightboxDialog.close();
+            });
+        }
+    }
 
     // Print / PDF button
     const printBtn = document.getElementById('printTicketBtn');
@@ -854,6 +886,139 @@ document.addEventListener('DOMContentLoaded', function() {
                 el.classList.toggle('d-none', !eventsVisible);
             });
             toggleEventsBtn.textContent = eventsVisible ? 'System-Events ausblenden' : 'System-Events anzeigen';
+        });
+    }
+});
+
+// --- Detail page: file upload logic ---
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleBtn = document.getElementById('toggleUploadZone');
+    const uploadZone = document.getElementById('uploadZone');
+    const dropzoneEl = document.getElementById('detailDropzone');
+    const fileInput = document.getElementById('detail-attachment-input');
+    const uploadBtn = document.getElementById('detailUploadBtn');
+    const grid = document.getElementById('attachmentGrid');
+    const emptyHint = document.getElementById('emptyAttachmentHint');
+    const attachSection = document.getElementById('attachmentsSection');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    const ticketId = document.getElementById('ticketDetailWrapper')?.dataset.ticketId;
+    const ingress = document.querySelector('.navbar')?.getAttribute('data-ingress') || '';
+
+    if (!toggleBtn || !uploadZone || !dropzoneEl || !fileInput || !grid) return;
+    if (typeof FileUploadManager === 'undefined') return;
+
+    const manager = new FileUploadManager({
+        dropzone: dropzoneEl,
+        fileInput: fileInput,
+        gallery: document.getElementById('detail-attachment-gallery'),
+        overlayEl: document.getElementById('detail-compress-overlay'),
+        counterEl: document.getElementById('detail-compress-count'),
+        workerUrl: dropzoneEl.dataset.workerUrl,
+        maxFileSize: Number.parseInt(dropzoneEl.dataset.maxFileSize, 10) || 15728640,
+        maxTotalSize: Number.parseInt(dropzoneEl.dataset.maxTotalSize, 10) || 52428800,
+        maxFiles: Number.parseInt(dropzoneEl.dataset.maxFiles, 10) || 10
+    });
+
+    let isUploading = false;
+
+    manager.onFilesChanged = function() {
+        if (uploadBtn) uploadBtn.classList.toggle('d-none', manager.getFileCount() === 0);
+    };
+
+    // Toggle upload zone visibility
+    toggleBtn.addEventListener('click', function() { uploadZone.classList.toggle('d-none'); });
+
+    // D&D on entire attachments section opens upload zone
+    if (attachSection) {
+        let sectionDragCounter = 0;
+        attachSection.addEventListener('dragenter', function(e) {
+            if (e.dataTransfer && e.dataTransfer.types.includes('Files')) {
+                sectionDragCounter++;
+                uploadZone.classList.remove('d-none');
+            }
+        });
+        attachSection.addEventListener('dragleave', function() { sectionDragCounter--; });
+        attachSection.addEventListener('drop', function() { sectionDragCounter = 0; });
+    }
+
+    // Upload button click
+    if (uploadBtn) {
+        uploadBtn.addEventListener('click', function() {
+            if (isUploading || manager.isCompressing) {
+                if (manager.isCompressing && window.showUiAlert)
+                    window.showUiAlert('Bitte warten – Bilder werden noch optimiert.', 'warning');
+                return;
+            }
+            const files = manager.getFiles();
+            if (files.length === 0) return;
+
+            isUploading = true;
+            uploadBtn.disabled = true;
+            const origHTML = uploadBtn.innerHTML;
+            uploadBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Lädt...';
+
+            const progressWrapper = document.getElementById('detail-upload-progress');
+            const progressFill = document.getElementById('detail-progress-fill');
+            const progressPct = document.getElementById('detail-progress-pct');
+            const progressLabel = document.getElementById('detail-progress-label');
+            if (progressWrapper) progressWrapper.classList.remove('d-none');
+
+            const fd = new FormData();
+            files.forEach(function(f) { fd.append('attachments', f); });
+
+            const xhr = new XMLHttpRequest();
+            xhr.upload.addEventListener('progress', function(ev) {
+                if (!ev.lengthComputable) return;
+                var pct = Math.round((ev.loaded / ev.total) * 100);
+                if (progressFill) progressFill.style.width = pct + '%';
+                if (progressPct) progressPct.textContent = pct + '%';
+                if (pct === 100 && progressLabel) progressLabel.textContent = 'Server verarbeitet...';
+            });
+
+            var resetUI = function() {
+                isUploading = false;
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = origHTML;
+                if (progressWrapper) progressWrapper.classList.add('d-none');
+                if (progressFill) progressFill.style.width = '0%';
+                if (progressPct) progressPct.textContent = '0%';
+                if (progressLabel) progressLabel.textContent = 'Wird hochgeladen...';
+            };
+
+            xhr.addEventListener('load', function() {
+                try {
+                    var data = JSON.parse(xhr.responseText);
+                    if (data.success && data.html) {
+                        // Dedup: only insert tiles not already present
+                        var tmp = document.createElement('div');
+                        tmp.innerHTML = data.html;
+                        tmp.querySelectorAll('[id^="attachment-"]').forEach(function(tile) {
+                            if (!document.getElementById(tile.id))
+                                grid.insertAdjacentHTML('beforeend', tile.outerHTML);
+                        });
+                        if (emptyHint) emptyHint.classList.add('d-none');
+                        manager.clearFiles();
+                        uploadZone.classList.add('d-none');
+                        var msg = data.count + ' Anhänge hochgeladen.';
+                        if (data.skipped && data.skipped.length)
+                            msg += ' Übersprungen: ' + data.skipped.map(function(s) { return s.name + ' (' + s.reason + ')'; }).join(', ');
+                        if (window.showUiAlert) window.showUiAlert(msg, 'success');
+                    } else {
+                        if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Upload fehlgeschlagen'), 'danger');
+                    }
+                } catch (_e) {
+                    if (window.showUiAlert) window.showUiAlert('Fehler beim Verarbeiten.', 'danger');
+                }
+                resetUI();
+            });
+            xhr.addEventListener('error', function() {
+                if (window.showUiAlert) window.showUiAlert('Netzwerkfehler beim Hochladen.', 'danger');
+                resetUI();
+            });
+
+            xhr.open('POST', ingress + '/api/ticket/' + ticketId + '/attachments');
+            xhr.setRequestHeader('X-CSRFToken', csrfToken);
+            xhr.send(fd);
         });
     }
 });

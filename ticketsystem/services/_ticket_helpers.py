@@ -24,10 +24,14 @@ _logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-_ALLOWED_EXTENSIONS = frozenset({
+ALLOWED_EXTENSIONS = frozenset({
     "png", "jpg", "jpeg", "gif", "pdf",
     "doc", "docx", "xls", "xlsx", "txt",
 })
+
+MAX_UPLOAD_FILES = 10
+MAX_UPLOAD_FILE_SIZE = 15 * 1024 * 1024    # 15 MB per file
+MAX_UPLOAD_TOTAL_SIZE = 50 * 1024 * 1024   # 50 MB total per request
 
 _OPEN_STATUSES = [
     TicketStatus.OFFEN.value,

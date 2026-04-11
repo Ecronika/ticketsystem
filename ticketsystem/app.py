@@ -637,6 +637,12 @@ def inject_globals() -> Dict[str, Any]:
     """
     from models import SystemSettings
 
+    from services._ticket_helpers import (
+        MAX_UPLOAD_FILE_SIZE,
+        MAX_UPLOAD_FILES,
+        MAX_UPLOAD_TOTAL_SIZE,
+    )
+
     base: Dict[str, Any] = {
         "ingress_path": request.headers.get("X-Ingress-Path", ""),
         "system_settings": SystemSettings,
@@ -648,6 +654,9 @@ def inject_globals() -> Dict[str, Any]:
         "pending_approval_count": 0,
         "unread_notifications_count": 0,
         "absent_entries_with_critical": 0,
+        "MAX_UPLOAD_FILE_SIZE": MAX_UPLOAD_FILE_SIZE,
+        "MAX_UPLOAD_TOTAL_SIZE": MAX_UPLOAD_TOTAL_SIZE,
+        "MAX_UPLOAD_FILES": MAX_UPLOAD_FILES,
     }
 
     endpoint = request.endpoint or ""
