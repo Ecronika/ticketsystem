@@ -80,3 +80,58 @@ def test_get_pending_approvals_uses_enum_value(test_app, client):
         _db.session.delete(approval)
         _db.session.delete(t)
         _db.session.commit()
+
+
+# ---------------------------------------------------------------------------
+# Bug 3: checklist toggle/delete return 404 for missing items
+# ---------------------------------------------------------------------------
+
+def _get_or_create_admin_worker(db_session):
+    """Return an admin Worker, creating one if the DB is empty."""
+    worker = Worker.query.filter_by(is_admin=True).first()
+    if worker is None:
+        worker = Worker(
+            name="ChecklistTestAdmin",
+            pin_hash=generate_password_hash("8264"),
+            is_admin=True,
+            is_active=True,
+            role="admin",
+            needs_pin_change=False,
+        )
+        db_session.add(worker)
+        db_session.commit()
+    elif worker.needs_pin_change:
+        worker.needs_pin_change = False
+        db_session.commit()
+    return worker
+
+
+def _login_as_worker(client, worker):
+    """Inject a worker session into the test client."""
+    with client.session_transaction() as sess:
+        sess["worker_id"] = worker.id
+        sess["worker_name"] = worker.name
+        sess["is_admin"] = worker.is_admin
+        sess["role"] = worker.role or "admin"
+
+
+def test_toggle_checklist_missing_item_returns_404(test_app, client):
+    """Toggling a non-existent checklist item must return 404, not 200."""
+    with test_app.app_context():
+        worker = _get_or_create_admin_worker(_db.session)
+        _login_as_worker(client, worker)
+    rv = client.post("/api/checklist/999999/toggle")
+    assert rv.status_code == 404, (
+        f"Expected 404 for missing item, got {rv.status_code}"
+    )
+
+
+def test_delete_checklist_missing_item_returns_404(test_app, client):
+    """Deleting a non-existent checklist item must return 404, not 200."""
+    with test_app.app_context():
+        worker = _get_or_create_admin_worker(_db.session)
+        _login_as_worker(client, worker)
+    rv = client.delete("/api/checklist/999999")
+    assert rv.status_code == 404, (
+        f"Expected 404 for missing item, got {rv.status_code}"
+    )
