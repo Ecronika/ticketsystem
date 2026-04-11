@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <form method="POST">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                     <div class="mb-3">
-                        <label for="worker_name" class="form-label small fw-bold text-muted">Mitarbeiter wählen oder Name eingeben</label>
+                        <label for="worker_name" class="form-label form-label-bold text-muted">Mitarbeiter wählen oder Name eingeben</label>
                         <input type="text" class="form-control form-control-lg bg-light" id="worker_name" name="worker_name" required autofocus autocomplete="username" placeholder="z.B. Schmidt">
                         <div class="d-flex flex-wrap gap-2 mt-2">
                             {% for worker in workers %}
@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label for="pin" class="form-label small fw-bold text-muted">Persönlicher PIN</label>
+                        <label for="pin" class="form-label form-label-bold text-muted">Persönlicher PIN</label>
                         <div class="input-group">
                             <input type="password" class="form-control form-control-lg bg-light text-center" id="pin" name="pin"
                                 required pattern="[0-9]*" inputmode="numeric" placeholder="****"

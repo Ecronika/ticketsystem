@@ -130,7 +130,7 @@
             {% for ticket in col1_tickets %}
                 {{ kanban_card(ticket, today) }}
             {% else %}
-                <div class="text-muted small text-center p-4 border rounded opacity-50 bg-surface">
+                <div class="kanban-empty">
                     <i class="bi bi-check2-circle fs-4 d-block mb-1"></i>
                     Keine super-dringenden Tickets!
                 </div>
@@ -150,7 +150,7 @@
             {% for ticket in col2_tickets %}
                 {{ kanban_card(ticket, today) }}
             {% else %}
-                <div class="text-muted small text-center p-4 border rounded opacity-50 bg-surface">
+                <div class="kanban-empty">
                     <i class="bi bi-cup-hot fs-4 d-block mb-1"></i>
                     Nichts mehr für heute.
                 </div>
@@ -170,7 +170,7 @@
             {% for ticket in col3_tickets %}
                 {{ kanban_card(ticket, today) }}
             {% else %}
-                <div class="text-muted small text-center p-4 border rounded opacity-50 bg-surface">
+                <div class="kanban-empty">
                     <i class="bi bi-card-checklist fs-4 d-block mb-1"></i>
                     Die Zukunft ist leer.
                 </div>

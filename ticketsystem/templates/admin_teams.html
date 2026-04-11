@@ -13,8 +13,8 @@
 <div class="row g-4">
     <!-- Existing Teams -->
     <div class="col-lg-8">
-        <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
-            <div class="card-header border-0 py-3 px-4 bg-surface-subtle">
+        <div class="card card-std overflow-hidden">
+            <div class="card-header card-header-std">
                 <h3 class="h5 fw-bold mb-0"><i class="bi bi-people-fill text-primary me-2"></i> Aktuelle Teams</h3>
             </div>
             <div class="card-body p-0">
@@ -39,12 +39,12 @@
                                     <input type="hidden" name="team_id" value="{{ team.id }}">
 
                                     <div class="mb-3">
-                                        <label class="form-label small fw-bold">Teamname</label>
+                                        <label class="form-label form-label-bold">Teamname</label>
                                         <input type="text" name="name" class="form-control" value="{{ team.name }}" required>
                                     </div>
 
                                     <div class="mb-3">
-                                        <label class="form-label small fw-bold">Mitglieder</label>
+                                        <label class="form-label form-label-bold">Mitglieder</label>
                                         <div class="d-flex flex-wrap gap-2">
                                             {% for w in active_workers %}
                                             <div class="form-check">
@@ -91,7 +91,7 @@
 
     <!-- Create New Team -->
     <div class="col-lg-4">
-        <div class="card shadow-sm border-0 border-primary-subtle rounded-4 bg-surface-subtle">
+        <div class="card card-std border-primary-subtle bg-surface-subtle">
             <div class="card-body p-4">
                 <h3 class="h5 fw-bold mb-3"><i class="bi bi-plus-square-fill text-primary me-2"></i> Neues Team</h3>
                 <form action="{{ ingress_path }}{{ url_for('admin.teams') }}" method="POST">
@@ -99,12 +99,12 @@
                     <input type="hidden" name="action" value="create">
 
                     <div class="mb-3">
-                        <label class="form-label small fw-bold">Teamname</label>
+                        <label class="form-label form-label-bold">Teamname</label>
                         <input type="text" name="name" class="form-control" placeholder="z.B. Elektro-Team" required>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label small fw-bold">Mitglieder (optional)</label>
+                        <label class="form-label form-label-bold">Mitglieder (optional)</label>
                         <div class="d-flex flex-column gap-1 max-h-250 scroll-y-auto">
                             {% for w in active_workers %}
                             <div class="form-check">

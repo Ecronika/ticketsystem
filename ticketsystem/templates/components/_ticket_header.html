@@ -1,4 +1,4 @@
-<div class="card shadow-sm border-0 rounded-4 mb-4">
+<div class="card card-std mb-4">
     <div class="card-body p-4">
         <div class="d-flex justify-content-between align-items-start mb-3">
             <!-- Static View -->
@@ -25,26 +25,26 @@
                         <small class="text-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} x-small text-uppercase d-block meta-label">Priorität</small>
                         <span class="fw-semibold small text-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }}">{{ ticket.priority|priority_label }}</span>
                     </div>
-                    <div class="bg-surface-subtle rounded-3 px-2 py-1">
-                        <small class="text-muted x-small text-uppercase d-block meta-label">Ticket</small>
+                    <div class="meta-chip">
+                        <small class="meta-chip-label">Ticket</small>
                         <span class="fw-semibold small">#{{ ticket.id }}</span>
                     </div>
                     {% if ticket.order_reference %}
                     <div class="bg-surface-subtle rounded-3 px-2 py-1" id="staticOrderRefWrapper">
-                        <small class="text-muted x-small text-uppercase d-block meta-label">Auftrag</small>
+                        <small class="meta-chip-label">Auftrag</small>
                         <span class="fw-semibold small">{{ ticket.order_reference }}</span>
                     </div>
                     {% endif %}
                     <div class="bg-surface-subtle rounded-3 px-2 py-1" id="staticDueWrapper">
-                        <small class="text-muted x-small text-uppercase d-block meta-label">Fällig</small>
+                        <small class="meta-chip-label">Fällig</small>
                         {% if ticket.due_date %}
                         <span class="fw-semibold small">{{ ticket.due_date|datetime('%d.%m.%Y') }}</span>
                         {% else %}
                         <span class="small text-muted">Keine Deadline</span>
                         {% endif %}
                     </div>
-                    <div class="bg-surface-subtle rounded-3 px-2 py-1">
-                        <small class="text-muted x-small text-uppercase d-block meta-label">Erstellt</small>
+                    <div class="meta-chip">
+                        <small class="meta-chip-label">Erstellt</small>
                         <span class="small">{{ ticket.created_at|local_time|datetime('%d.%m.%Y') }}</span>
                     </div>
                     {% if ticket.status == TicketStatus.WARTET.value and ticket.reminder_date %}
@@ -55,7 +55,7 @@
                     {% endif %}
                     <!-- Read-Only Metadaten aus Sidebar migriert (Vorschlag 6) -->
                     <div class="bg-surface-subtle rounded-3 px-2 py-1" id="headerAssigneeWrapper">
-                        <small class="text-muted x-small text-uppercase d-block meta-label">Zugewiesen</small>
+                        <small class="meta-chip-label">Zugewiesen</small>
                         <span class="fw-semibold small" id="ticketAssigneeBadge">
                             {% if ticket.assigned_to_id %}
                                 {{ (ticket.assigned_to.name if ticket.assigned_to else 'Unbekannt') }}
@@ -67,8 +67,8 @@
                         </span>
                     </div>
                     {% if ticket.recurrence %}
-                    <div class="bg-surface-subtle rounded-3 px-2 py-1">
-                        <small class="text-muted x-small text-uppercase d-block meta-label"><i class="bi bi-arrow-repeat me-1"></i>Serie</small>
+                    <div class="meta-chip">
+                        <small class="meta-chip-label"><i class="bi bi-arrow-repeat me-1"></i>Serie</small>
                         <span class="fw-semibold small">{{ ticket.recurrence.rule|capitalize }}</span>
                     </div>
                     {% endif %}
@@ -92,26 +92,26 @@
             {% if session.get('role') != 'viewer' %}
             <div id="ticketHeaderEdit" class="d-none flex-grow-1">
                 <div class="mb-3">
-                    <label class="form-label small fw-bold">Titel</label>
+                    <label class="form-label form-label-bold">Titel</label>
                     <input type="text" id="editTitleInput" class="form-control fw-bold h4 border-primary" value="{{ ticket.title }}">
                 </div>
                 <div class="row g-2 mb-3">
                     <div class="col-md-4">
-                        <label class="form-label small fw-bold">Auftragsnummer</label>
+                        <label class="form-label form-label-bold">Auftragsnummer</label>
                         <input type="text" id="editOrderRefInput" class="form-control" value="{{ ticket.order_reference or '' }}" placeholder="z.B. A-2024-123">
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label small fw-bold">Zu bearbeiten bis (Deadline)</label>
+                        <label class="form-label form-label-bold">Zu bearbeiten bis (Deadline)</label>
                         <input type="date" id="editDueDateInput" class="form-control" value="{{ ticket.due_date.strftime('%Y-%m-%d') if ticket.due_date else '' }}">
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label small fw-bold">Tags (kommagetrennt)</label>
+                        <label class="form-label form-label-bold">Tags (kommagetrennt)</label>
                         <input type="text" id="editTagsInput" class="form-control" value="{{ ticket.tags|map(attribute='name')|join(', ') }}" placeholder="z.B. Service, Elektro">
                     </div>
                 </div>
                 <div class="row g-2 mb-3">
                     <div class="col-md-4">
-                        <label class="form-label small fw-bold">Priorität</label>
+                        <label class="form-label form-label-bold">Priorität</label>
                         <select id="editPrioritySelect" class="form-select form-select-sm fw-bold">
                             <option value="1" {{ 'selected' if ticket.priority == 1 }}>🔥 HOCH</option>
                             <option value="2" {{ 'selected' if ticket.priority == 2 }}>⚡ MITTEL</option>
@@ -119,7 +119,7 @@
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label small fw-bold">Serienticket</label>
+                        <label class="form-label form-label-bold">Serienticket</label>
                         {% set rec_rule = ticket.recurrence.rule if ticket.recurrence else '' %}
                         <select id="editRecurrenceRule" class="form-select form-select-sm">
                             <option value="" {{ 'selected' if not rec_rule }}>Einmalig (keine Serie)</option>
@@ -130,7 +130,7 @@
                     </div>
                 </div>
                 <div class="mb-3 {{ 'd-none' if ticket.status != TicketStatus.WARTET.value }}" id="reminderDateWrapper">
-                    <label class="form-label small fw-bold text-primary"><i class="bi bi-alarm me-1"></i>Wiedervorlage am</label>
+                    <label class="form-label form-label-bold text-primary"><i class="bi bi-alarm me-1"></i>Wiedervorlage am</label>
                     <input type="date" id="editReminderDateInput" class="form-control border-primary" value="{{ ticket.reminder_date.strftime('%Y-%m-%d') if ticket.reminder_date else '' }}">
                     <p class="x-small text-muted mt-1">Automatische Erinnerung im Dashboard für diesen Tag.</p>
                 </div>

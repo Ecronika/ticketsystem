@@ -1,9 +1,13 @@
-/* WCAG A-06: Verhindere, dass Sticky-Navbar Ankerpunkte überdeckt */
+/* =========================================
+   WCAG A-06: Sticky-Navbar Scroll Offset
+   ========================================= */
 html {
     scroll-padding-top: 70px;
 }
 
-/* Weicherer Hintergrund werden jetzt von CSS Variablen gesteuert */
+/* =========================================
+   GLOBAL BASE STYLES
+   ========================================= */
 body {
     font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
     background-color: var(--bg-body);
@@ -11,22 +15,17 @@ body {
     transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Karten sollen leicht schweben */
 .card {
     transition: background-color 0.3s ease;
 }
 
-
-
-/* Buttons auf dem Handy besser treffbar machen */
+/* Touch-friendly button groups */
 .btn-group .btn {
     padding-left: 1.2rem;
     padding-right: 1.2rem;
 }
 
-/* === WCAG 2.5.8 / Shopfloor-Ergonomie: Touch Targets in Tabellen ===
-   Verhindert Fat-Finger-Fehler (Löschen statt Bearbeiten) in der Werkstatt.
-   Gilt für ALLE Buttons innerhalb von table-Elementen. */
+/* === WCAG 2.5.8 / Shopfloor-Ergonomie: Touch Targets in Tabellen === */
 .table .btn {
     min-width: 44px;
     min-height: 44px;
@@ -37,7 +36,7 @@ body {
 }
 
 .table td .d-flex.gap-1 {
-    gap: 0.5rem !important; /* Mindestabstand 8px zwischen Aktions-Buttons */
+    gap: 0.5rem !important;
 }
 
 /* =========================================
@@ -49,31 +48,20 @@ small,
     font-size: max(0.875rem, 14px) !important;
 }
 
-/* Touch Ergonomics & Form Elements */
 .btn,
 .form-control,
 .form-select {
     min-height: 44px;
-
-    /* Apple Human Interface Guidelines & WCAG 2.5.8 */
 }
 
-/* max-width statt CSS-Level-4-Range-Syntax: iOS < 16.4 ignoriert '(width <= 768px)' komplett,
-   was iOS-Zoom bei Inputs und die Body-Padding-Regel fuer den Sticky Footer bricht. */
 @media (max-width: 768px) {
-
-    /* Prevent iOS text zooming on inputs */
     input,
     select,
     textarea {
         font-size: 16px !important;
     }
-
-    /* Stack sticky footer actions if needed or ensure enough padding */
-    /* REMOVED @media restriction to ensure 400% zoom on desktop also gets padding */
 }
 
-/* Low: Suppress iOS gray tap-flash on canvas signature pads */
 canvas {
     -webkit-tap-highlight-color: transparent;
 }
@@ -671,8 +659,6 @@ textarea:focus-visible {
     justify-content: center;
 }
 
-/* Redundant badge definitions removed - consolidated above */
-
 /* === Typography Utilities === */
 .x-small { font-size: 0.75rem !important; line-height: 1.4; }
 .text-meta { color: var(--text-muted) !important; font-size: 0.8rem; }
@@ -994,7 +980,6 @@ textarea:focus-visible {
 /* =========================================
    ONE-OFF COMPONENT CLASSES
    ========================================= */
-.icon-empty-state { font-size: 3rem; }
 .progress-thin    { height: 8px; }
 .btn-icon-sm {
     width: 28px;
@@ -1031,7 +1016,9 @@ textarea:focus-visible {
 .color-scheme-dark { color-scheme: dark; }
 .navbar-z         { z-index: var(--z-navbar); }
 
-/* Missing class definitions (used in HTML, not yet defined) */
+/* =========================================
+   UTILITY HELPERS
+   ========================================= */
 .hover-elevate {
     transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
@@ -1059,7 +1046,150 @@ textarea:focus-visible {
 .col-w-200      { width: 200px; }
 
 /* =========================================
-   DASHBOARD TABLE (extracted from index.html)
+   SEMANTIC COMPONENT CLASSES
+   De-duplicated patterns from templates.
+   Each class replaces a common multi-utility
+   chain used in 10+ places.
+   ========================================= */
+
+/* --- Card Standard: shadow-sm border-0 rounded-4 --- */
+.card-std {
+    box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075) !important;
+    border: 0 !important;
+    border-radius: var(--radius-lg) !important;
+}
+
+/* --- Card Header Standard: border-0 py-3 px-4 bg-surface-subtle --- */
+.card-header-std {
+    border: 0;
+    padding: 0.75rem 1.5rem;
+    background-color: var(--bg-surface-subtle);
+}
+
+/* --- Modal Content Standard: border-0 rounded-4 shadow --- */
+.modal-content-std {
+    border: 0 !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, .175) !important;
+}
+
+/* --- Modal Header Standard: border-0 pb-0 --- */
+.modal-header-std {
+    border: 0;
+    padding-bottom: 0;
+}
+
+/* --- Modal Footer Standard: border-0 pt-0 --- */
+.modal-footer-std {
+    border: 0;
+    padding-top: 0;
+}
+
+/* --- Form Label Bold: form-label small fw-bold --- */
+.form-label-bold {
+    font-size: max(0.875rem, 14px);
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+/* --- Button Pill Small: btn-sm rounded-pill px-3 --- */
+.btn-pill {
+    border-radius: var(--radius-pill) !important;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+/* --- Empty State Container --- */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-muted);
+}
+.empty-state-icon {
+    font-size: 3rem;
+    opacity: 0.25;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+.empty-state-title {
+    margin-top: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 700;
+    font-size: 1.25rem;
+}
+.empty-state-text {
+    font-size: max(0.875rem, 14px);
+    color: var(--text-muted);
+}
+
+/* --- Metadata Chip: bg-surface-subtle rounded-3 px-2 py-1 --- */
+.meta-chip {
+    background-color: var(--bg-surface-subtle);
+    border-radius: var(--radius-sm);
+    padding: 0.25rem 0.5rem;
+}
+.meta-chip-label {
+    color: var(--text-muted);
+    font-size: 0.6rem;
+    line-height: 1;
+    text-transform: uppercase;
+    display: block;
+}
+/* --- Status Badge Bordered: badge bg-*-subtle text-* border border-*-subtle text-xxs --- */
+.badge-status {
+    font-size: var(--fs-xxs) !important;
+    border: 1px solid;
+    padding: 0.25em 0.5em;
+}
+.badge-status-danger {
+    background-color: rgba(var(--bs-danger-rgb), 0.1);
+    color: var(--bs-danger);
+    border-color: rgba(var(--bs-danger-rgb), 0.25);
+}
+.badge-status-warning {
+    background-color: rgba(var(--bs-warning-rgb), 0.1);
+    color: var(--bs-warning);
+    border-color: rgba(var(--bs-warning-rgb), 0.25);
+}
+.badge-status-success {
+    background-color: rgba(var(--bs-success-rgb), 0.1);
+    color: var(--bs-success);
+    border-color: rgba(var(--bs-success-rgb), 0.25);
+}
+.badge-status-primary {
+    background-color: rgba(var(--bs-primary-rgb), 0.1);
+    color: var(--bs-primary);
+    border-color: rgba(var(--bs-primary-rgb), 0.25);
+}
+.badge-status-secondary {
+    background-color: var(--bg-surface-subtle);
+    color: var(--text-muted);
+    border-color: var(--border-color);
+}
+/* --- Sidebar Approval Block: border-start border-3 ps-3 py-2 mb-2 small --- */
+.approval-indicator {
+    border-left: 3px solid;
+    padding-left: 0.75rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: max(0.875rem, 14px);
+}
+
+/* --- Kanban Empty Column Placeholder --- */
+.kanban-empty {
+    color: var(--text-muted);
+    font-size: max(0.875rem, 14px);
+    text-align: center;
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    opacity: 0.5;
+    background-color: var(--bg-surface);
+}
+
+/* =========================================
+   DASHBOARD TABLE
    ========================================= */
 .dash-table { font-size: 0.85rem; }
 .dash-table th { font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; border-bottom: 2px solid var(--bs-border-color); }
@@ -1101,7 +1231,7 @@ textarea:focus-visible {
 .dash-table tr.prio-high { border-left: 3px solid var(--bs-danger); }
 
 /* =========================================
-   SOFT TOGGLE BUTTONS (extracted from ticket_new.html)
+   SOFT TOGGLE BUTTONS
    ========================================= */
 .btn-soft-danger  { color: var(--bs-danger);  border: 1px solid var(--bs-danger);  background-color: transparent; }
 .btn-check:checked + .btn-soft-danger  { background-color: rgba(var(--bs-danger-rgb), 0.15);  color: var(--bs-danger);  border-color: var(--bs-danger); }

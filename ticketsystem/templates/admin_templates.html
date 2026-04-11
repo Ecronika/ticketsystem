@@ -12,8 +12,8 @@
 
 <div class="row g-4">
     <div class="col-lg-8">
-        <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
-            <div class="card-header border-0 py-3 px-4 bg-surface-subtle">
+        <div class="card card-std overflow-hidden mb-4">
+            <div class="card-header card-header-std">
                 <h3 class="h5 fw-bold mb-0"><i class="bi bi-card-checklist text-primary me-2"></i> Aktuelle Vorlagen</h3>
             </div>
             <div class="card-body p-0">
@@ -77,7 +77,7 @@
     </div>
     
     <div class="col-lg-4">
-        <div class="card shadow-sm border-0 border-primary-subtle rounded-4 bg-surface-subtle">
+        <div class="card card-std border-primary-subtle bg-surface-subtle">
             <div class="card-body p-4">
                 <h3 class="h5 fw-bold mb-3"><i class="bi bi-plus-square-fill text-primary me-2"></i> Neue Vorlage erstellen</h3>
                 <form action="{{ ingress_path }}{{ url_for('admin.templates') }}" method="POST">
@@ -85,17 +85,17 @@
                     <input type="hidden" name="action" value="create">
                     
                     <div class="mb-3">
-                        <label class="form-label small fw-bold">Titel der Vorlage</label>
+                        <label class="form-label form-label-bold">Titel der Vorlage</label>
                         <input type="text" name="title" class="form-control" placeholder="z.B. Wartung BMA" required>
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label small fw-bold">Beschreibung (optional)</label>
+                        <label class="form-label form-label-bold">Beschreibung (optional)</label>
                         <textarea name="description" class="form-control" rows="2" placeholder="Kurze Erläuterung"></textarea>
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label small fw-bold d-flex justify-content-between align-items-center">
+                        <label class="form-label form-label-bold d-flex justify-content-between align-items-center">
                             Checklisten-Punkte
                             <button type="button" class="btn btn-sm btn-link text-decoration-none py-0 px-0" id="add-item-btn">
                                 <i class="bi bi-plus-circle"></i> Weitere Zeile
@@ -119,8 +119,8 @@
 <!-- FEAT-11: Edit Template Modal -->
 <div class="modal fade" id="editTemplateModal" tabindex="-1" aria-labelledby="editTemplateModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0 rounded-4 shadow">
-            <div class="modal-header border-0 pb-0">
+        <div class="modal-content modal-content-std">
+            <div class="modal-header modal-header-std">
                 <h5 class="modal-title fw-bold" id="editTemplateModalLabel"><i class="bi bi-pencil-square text-primary me-2"></i>Vorlage bearbeiten</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -131,17 +131,17 @@
                     <input type="hidden" name="template_id" id="edit_template_id">
                     
                     <div class="mb-3">
-                        <label class="form-label small fw-bold">Titel der Vorlage</label>
+                        <label class="form-label form-label-bold">Titel der Vorlage</label>
                         <input type="text" name="title" id="edit_template_title" class="form-control" required>
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label small fw-bold">Beschreibung (optional)</label>
+                        <label class="form-label form-label-bold">Beschreibung (optional)</label>
                         <textarea name="description" id="edit_template_desc" class="form-control" rows="2"></textarea>
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label small fw-bold d-flex justify-content-between align-items-center">
+                        <label class="form-label form-label-bold d-flex justify-content-between align-items-center">
                             Checklisten-Punkte
                             <button type="button" class="btn btn-sm btn-link text-decoration-none py-0 px-0" id="edit-add-item-btn">
                                 <i class="bi bi-plus-circle"></i> Weitere Zeile
@@ -151,7 +151,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-0 pt-0">
+                <div class="modal-footer modal-footer-std">
                     <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Abbrechen</button>
                     <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold">Änderungen speichern</button>
                 </div>

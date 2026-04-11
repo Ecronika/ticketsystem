@@ -1,4 +1,4 @@
-<div class="card shadow-sm border-0 rounded-4 sticky-top sticky-sidebar">
+<div class="card card-std sticky-top sticky-sidebar">
     <div class="card-body p-4">
         <!-- Segmented Controls für Status -->
         <div class="mb-4" id="statusSection">
@@ -61,7 +61,7 @@
         <div class="mb-4" id="approvalSection">
             {% set a = ticket.approval %}
             {% if a and a.status == ApprovalStatus.PENDING.value %}
-                <div class="border-start border-3 border-warning ps-3 py-2 mb-2 small">
+                <div class="approval-indicator border-warning small">
                     <strong>Wartet auf Freigabe</strong><br>
                     <span class="text-muted">Ticket ist für Bearbeitungen gesperrt.</span>
                 </div>
@@ -78,13 +78,13 @@
                 {% endif %}
 
             {% elif a and a.status == ApprovalStatus.APPROVED.value %}
-                <div class="border-start border-3 border-success ps-3 py-2 mb-2 small">
+                <div class="approval-indicator border-success small">
                     <strong class="text-success">Freigegeben</strong>
                     <span class="text-muted d-block x-small">Am {{ a.approved_at|local_time|datetime('%d.%m.%Y') }}</span>
                 </div>
 
             {% elif a and a.status == ApprovalStatus.REJECTED.value %}
-                <div class="border-start border-3 border-danger ps-3 py-2 mb-2 small">
+                <div class="approval-indicator border-danger small">
                     <strong class="text-danger">Freigabe abgelehnt</strong>
                     <div class="text-muted mt-1 x-small">{{ a.reject_reason }}</div>
                 </div>
@@ -93,7 +93,7 @@
                 {% endif %}
 
             {% else %}
-                <div class="border-start border-3 border-secondary ps-3 py-2 mb-2 small text-muted">
+                <div class="approval-indicator border-secondary small text-muted">
                     Keine Freigabe erforderlich
                 </div>
                 {% if session.get('role') != WorkerRole.VIEWER.value %}
@@ -107,7 +107,7 @@
         <!-- Kundenkontakt -->
         <div class="mb-2 px-1">
             <div class="d-flex align-items-center justify-content-between mb-2">
-                <small class="text-muted x-small text-uppercase ls-wide">Kundenkontakt</small>
+                <small class="meta-chip-label ls-wide">Kundenkontakt</small>
                 {% if session.get('role') != WorkerRole.VIEWER.value %}
                 <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-muted" data-bs-toggle="collapse" data-bs-target="#contactEditForm" aria-expanded="false" id="contactEditToggle">
                     <i class="bi bi-pencil-square text-meta"></i>
@@ -160,7 +160,7 @@
                 <div class="card card-body p-2 border-info border-opacity-25 bg-info-subtle rounded-3">
                     <!-- Vorschlag 9: Kompaktes Dropdown statt Radio-Pills -->
                     <div class="mb-2">
-                        <label class="form-label fw-bold x-small mb-1">Eingangskanal</label>
+                        <label class="form-label form-label-bold mb-1">Eingangskanal</label>
                         <select class="form-select form-select-sm" id="editContactChannel">
                             <option value="" {{ 'selected' if not c or not c.channel }}>Kein Kanal</option>
                             <option value="telefon" {{ 'selected' if c and c.channel == 'telefon' }}>📞 Telefon</option>

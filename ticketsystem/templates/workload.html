@@ -23,8 +23,8 @@
   </div>
 
   {% for entry in absent_entries %}
-  <div class="card border-danger border-2 shadow-sm rounded-4 mb-3" id="worker-{{ entry.worker.id }}">
-    <div class="card-header bg-danger-subtle border-0 py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div class="card card-std border-danger border-2 mb-3" id="worker-{{ entry.worker.id }}">
+    <div class="card-header card-header-std bg-danger-subtle d-flex justify-content-between align-items-center flex-wrap gap-2">
       <div class="d-flex align-items-center gap-3">
         <span class="rounded-circle bg-danger text-white fw-bold avatar-md" aria-hidden="true">
           {{ entry.worker.name[:2]|upper }}
@@ -106,7 +106,7 @@
   </h2>
 
   {% for entry in present_entries %}
-  <div class="card border-0 shadow-sm rounded-4 mb-3" id="worker-{{ entry.worker.id }}">
+  <div class="card card-std mb-3" id="worker-{{ entry.worker.id }}">
     <div class="card-header border-0 bg-surface py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
       <div class="d-flex align-items-center gap-3">
         <span class="rounded-circle bg-primary text-white fw-bold avatar-md" aria-hidden="true">
@@ -143,10 +143,10 @@
 {% endif %}
 
 {% if not absent_entries and not present_entries %}
-<div class="text-center py-5">
-  <i class="bi bi-check2-circle text-success icon-empty-state" aria-hidden="true"></i>
-  <h5 class="mt-3 text-muted">Keine offenen Tickets zugewiesen</h5>
-  <p class="small text-muted">Alle Mitarbeiter sind frei oder es gibt keine aktiven Tickets.</p>
+<div class="empty-state">
+  <i class="bi bi-check2-circle text-success empty-state-icon" aria-hidden="true"></i>
+  <h5 class="empty-state-title">Keine offenen Tickets zugewiesen</h5>
+  <p class="empty-state-text">Alle Mitarbeiter sind frei oder es gibt keine aktiven Tickets.</p>
 </div>
 {% endif %}
 
@@ -155,8 +155,8 @@
    ============================================================ #}
 <div class="modal fade" id="reassignModal" tabindex="-1" aria-labelledby="reassignModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 rounded-4 shadow">
-      <div class="modal-header border-0 pb-0">
+    <div class="modal-content modal-content-std">
+      <div class="modal-header modal-header-std">
         <h5 class="modal-title fw-bold" id="reassignModalLabel">
           <i class="bi bi-arrow-right-circle me-2 text-primary" aria-hidden="true"></i>Ticket zuweisen
         </h5>
@@ -173,7 +173,7 @@
         </select>
         <div id="reassignError" class="alert alert-danger mt-3 d-none small" role="alert"></div>
       </div>
-      <div class="modal-footer border-0 pt-0 gap-2">
+      <div class="modal-footer modal-footer-std gap-2">
         <button type="button" class="btn btn-light btn-sm flex-fill rounded-pill" data-bs-dismiss="modal">Abbrechen</button>
         <button type="button" class="btn btn-primary btn-sm flex-fill rounded-pill fw-bold" id="reassignConfirmBtn">
           <i class="bi bi-check-lg me-1" aria-hidden="true"></i>Jetzt zuweisen

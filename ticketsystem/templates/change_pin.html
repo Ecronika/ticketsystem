@@ -13,7 +13,7 @@
                 <form method="POST">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                     <div class="mb-3">
-                        <label for="new_pin" class="form-label fw-bold small text-muted">Neuer PIN (mind. 4 Ziffern)</label>
+                        <label for="new_pin" class="form-label form-label-bold text-muted">Neuer PIN (mind. 4 Ziffern)</label>
                         <div class="input-group">
                             <input type="password" class="form-control form-control-lg text-center" id="new_pin" name="new_pin"
                                 required pattern="[0-9]*" inputmode="numeric" placeholder="****" minlength="4"
@@ -24,7 +24,7 @@
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label for="new_pin_confirm" class="form-label fw-bold small text-muted">Neuen PIN bestätigen</label>
+                        <label for="new_pin_confirm" class="form-label form-label-bold text-muted">Neuen PIN bestätigen</label>
                         <div class="input-group">
                             <input type="password" class="form-control form-control-lg text-center" id="new_pin_confirm" name="new_pin_confirm"
                                 required pattern="[0-9]*" inputmode="numeric" placeholder="****" minlength="4"

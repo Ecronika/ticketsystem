@@ -13,8 +13,8 @@
 <div class="row g-4">
     <!-- List of Workers (Bento Style) -->
     <div class="col-lg-8">
-        <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
-            <div class="card-header border-0 py-3 px-4">
+        <div class="card card-std overflow-hidden">
+            <div class="card-header card-header-std">
                 <h3 class="h5 fw-bold mb-0"><i class="bi bi-people text-primary me-2"></i> Hinterlegte Mitarbeiter</h3>
             </div>
             <div class="card-body p-0">
@@ -108,8 +108,8 @@
     <!-- Edit Worker Modal -->
     <div class="modal fade" id="editWorkerModal" tabindex="-1" aria-labelledby="editWorkerModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 rounded-4 shadow">
-                <div class="modal-header border-0 pb-0">
+            <div class="modal-content modal-content-std">
+                <div class="modal-header modal-header-std">
                     <h5 class="modal-title fw-bold" id="editWorkerModalLabel">Mitarbeiter bearbeiten</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -120,12 +120,12 @@
                         <input type="hidden" name="worker_id" id="edit_worker_id">
                         
                         <div class="mb-3">
-                            <label class="form-label small fw-bold">Anzeigename</label>
+                            <label class="form-label form-label-bold">Anzeigename</label>
                             <input type="text" name="name" id="edit_name" class="form-control" required>
                         </div>
                         
                         <div class="mb-3">
-                            <label class="form-label small fw-bold">System-Rolle</label>
+                            <label class="form-label form-label-bold">System-Rolle</label>
                             <select name="role" id="edit_role" class="form-select border-1 rounded-pill">
                                 <option value="{{ WorkerRole.WORKER.value }}">Mitarbeiter</option>
                                 <option value="{{ WorkerRole.HR.value }}">HR / Management</option>
@@ -134,12 +134,12 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label small fw-bold">E-Mail-Adresse <span class="text-muted fw-normal">(Benachrichtigungen)</span></label>
+                            <label class="form-label form-label-bold">E-Mail-Adresse <span class="text-muted fw-normal">(Benachrichtigungen)</span></label>
                             <input type="email" name="email" id="edit_email" class="form-control" placeholder="max@firma.de">
                         </div>
                         <p class="text-muted x-small mb-1">Hinweis: PIN-Änderungen erfolgen über den Reset-Button unten.</p>
                     </div>
-                    <div class="modal-footer border-0 pt-0 d-flex justify-content-between">
+                    <div class="modal-footer modal-footer-std d-flex justify-content-between">
                         <div class="reset-pin-section">
                             <button type="button" class="btn btn-outline-warning btn-sm rounded-pill reset-pin-trigger">
                                 <i class="bi bi-key me-1"></i>PIN zurücksetzen
@@ -160,7 +160,7 @@
     <!-- Sidebar: Add Worker & Recovery -->
     <div class="col-lg-4">
         <!-- Add Worker Form (Normalized Style) -->
-        <div class="card shadow-sm border-0 rounded-4 bg-surface-subtle border-primary-subtle overflow-hidden mb-4">
+        <div class="card card-std bg-surface-subtle border-primary-subtle overflow-hidden mb-4">
             <div class="card-body p-4">
                 <h3 class="h5 fw-bold mb-3"><i class="bi bi-person-plus-fill me-2 text-primary"></i> Neuer Mitarbeiter</h3>
                 <form action="{{ ingress_path }}{{ url_for('admin.workers') }}" method="POST">
@@ -168,12 +168,12 @@
                     <input type="hidden" name="action" value="create">
                     
                     <div class="mb-3">
-                        <label class="form-label small fw-bold">Anzeigename</label>
+                        <label class="form-label form-label-bold">Anzeigename</label>
                         <input type="text" name="name" class="form-control border-1" placeholder="z.B. Max Mustermann" required>
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label small fw-bold">PIN (4-stellig, optional)</label>
+                        <label class="form-label form-label-bold">PIN (4-stellig, optional)</label>
                         <div class="input-group">
                             <input type="password" name="pin" id="new_worker_pin" class="form-control border-1" placeholder="****" 
                                     pattern="\d{4,16}" inputmode="numeric">
@@ -185,7 +185,7 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label small fw-bold">System-Rolle</label>
+                        <label class="form-label form-label-bold">System-Rolle</label>
                         <select name="role" class="form-select border-1 rounded-pill">
                             <option value="{{ WorkerRole.WORKER.value }}">Mitarbeiter (Standard)</option>
                             <option value="{{ WorkerRole.HR.value }}">HR / Management (Erweitert)</option>
@@ -195,7 +195,7 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label small fw-bold">E-Mail-Adresse <span class="text-muted fw-normal">(für Benachrichtigungen)</span></label>
+                        <label class="form-label form-label-bold">E-Mail-Adresse <span class="text-muted fw-normal">(für Benachrichtigungen)</span></label>
                         <input type="email" name="email" class="form-control border-1" placeholder="max@firma.de">
                     </div>
 
