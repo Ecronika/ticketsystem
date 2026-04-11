@@ -1,5 +1,26 @@
 /* ticket_detail.js - Externalized Logic for v1.2.0 */
+
+/** Central UI refresh after attachment count changes (upload/delete). */
+function refreshAttachmentsUi() {
+    const badge = document.getElementById('attachmentCountBadge');
+    const grid = document.getElementById('attachmentGrid');
+    const hint = document.getElementById('emptyAttachmentHint');
+    if (!grid) return;
+    const count = grid.querySelectorAll('.attachment-tile').length;
+    if (badge) badge.textContent = count;
+    if (hint) hint.classList.toggle('d-none', count > 0);
+}
+
+/** Expand attachments collapse if currently closed (after successful upload). */
+function expandAttachmentsIfNeeded() {
+    var collapseEl = document.getElementById('attachmentsCollapseBody');
+    if (collapseEl && !collapseEl.classList.contains('show')) {
+        bootstrap.Collapse.getOrCreateInstance(collapseEl).show();
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    let lastDocTrigger = null;
     const statusSelect = document.getElementById('statusSelect');
     const assignSelect = document.getElementById('assignSelect');
     const ticketWrapper = document.getElementById('ticketDetailWrapper');
@@ -704,6 +725,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     ? await window.showConfirm('Anhang löschen?', 'Möchten Sie diesen Anhang wirklich löschen?', true)
                     : confirm('Anhang wirklich löschen?');
                 if (!confirmed) return;
+                const originalContent = deleteBtn.innerHTML;
+                deleteBtn.disabled = true;
+                deleteBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
                 try {
                     const resp = await fetch(`${ingress}/api/attachment/${attachmentId}`, {
                         method: 'DELETE',
@@ -711,18 +735,33 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                     const data = await resp.json();
                     if (data.success) {
-                        const tile = deleteBtn.closest('[id^="attachment-"]');
+                        const tile = deleteBtn.closest('.attachment-tile');
                         if (tile) tile.remove();
-                        if (!grid.querySelector('[id^="attachment-"]')) {
-                            const hint = document.getElementById('emptyAttachmentHint');
-                            if (hint) hint.classList.remove('d-none');
-                        }
+                        refreshAttachmentsUi();
                         if (window.showUiAlert) window.showUiAlert('Anhang gelöscht.', 'success');
                     } else {
-                        if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Löschen fehlgeschlagen'), 'danger');
+                        throw new Error(data.error || 'Löschen fehlgeschlagen');
                     }
-                } catch (_err) {
-                    if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.', 'danger');
+                } catch (err) {
+                    deleteBtn.disabled = false;
+                    deleteBtn.innerHTML = originalContent;
+                    if (window.showUiAlert) window.showUiAlert('Fehler: ' + err.message, 'danger');
+                }
+                return;
+            }
+            // PDF preview trigger
+            const docTrigger = e.target.closest('.doc-preview-trigger');
+            if (docTrigger) {
+                e.preventDefault();
+                lastDocTrigger = docTrigger;
+                const dialog = document.getElementById('docPreviewDialog');
+                const frame = document.getElementById('docPreviewFrame');
+                if (dialog && frame) {
+                    document.getElementById('docPreviewTitle').textContent = docTrigger.dataset.docName;
+                    document.getElementById('docPreviewDownload').href = docTrigger.dataset.docUrl;
+                    frame.title = docTrigger.dataset.docName;
+                    frame.src = docTrigger.dataset.docUrl;
+                    dialog.showModal();
                 }
                 return;
             }
@@ -737,18 +776,29 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Shared dialog close helper
+    function initDialogClose(dialog, closeBtn) {
+        dialog.addEventListener('click', function(e) {
+            if (e.target === dialog) dialog.close();
+        });
+        if (closeBtn) closeBtn.addEventListener('click', function() { dialog.close(); });
+    }
+
     // Lightbox close handlers (CSP-safe, no inline onclick)
     const lightboxDialog = document.getElementById('lightboxDialog');
     if (lightboxDialog) {
-        lightboxDialog.addEventListener('click', function(e) {
-            if (e.target === this) this.close();
+        initDialogClose(lightboxDialog, document.getElementById('lightboxCloseBtn'));
+    }
+
+    // PDF preview dialog close + cleanup
+    const docPreviewDialog = document.getElementById('docPreviewDialog');
+    if (docPreviewDialog) {
+        initDialogClose(docPreviewDialog, document.getElementById('docPreviewCloseBtn'));
+        docPreviewDialog.addEventListener('close', function() {
+            const frame = document.getElementById('docPreviewFrame');
+            if (frame) frame.removeAttribute('src');
+            if (lastDocTrigger) { lastDocTrigger.focus(); lastDocTrigger = null; }
         });
-        const lightboxCloseBtn = document.getElementById('lightboxCloseBtn');
-        if (lightboxCloseBtn) {
-            lightboxCloseBtn.addEventListener('click', function() {
-                lightboxDialog.close();
-            });
-        }
     }
 
     // Print / PDF button
@@ -996,7 +1046,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             if (!document.getElementById(tile.id))
                                 grid.insertAdjacentHTML('beforeend', tile.outerHTML);
                         });
-                        if (emptyHint) emptyHint.classList.add('d-none');
+                        refreshAttachmentsUi();
+                        expandAttachmentsIfNeeded();
                         manager.clearFiles();
                         uploadZone.classList.add('d-none');
                         var msg = data.count + ' Anhänge hochgeladen.';

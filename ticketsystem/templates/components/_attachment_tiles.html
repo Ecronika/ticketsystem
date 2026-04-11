@@ -1,5 +1,5 @@
 {% for attachment in attachments %}
-<div class="col-6 col-md-4 col-lg-3 position-relative" id="attachment-{{ attachment.id }}">
+<div class="col-6 col-md-4 col-lg-3 attachment-tile" id="attachment-{{ attachment.id }}">
     {% if attachment.mime_type and attachment.mime_type.startswith('image/') %}
     <a href="{{ ingress_path }}{{ url_for('main.serve_attachment', attachment_id=attachment.id) }}"
        class="lightbox-trigger" data-full-src="{{ ingress_path }}{{ url_for('main.serve_attachment', attachment_id=attachment.id) }}">
@@ -9,17 +9,29 @@
              loading="lazy" decoding="async">
     </a>
     {% else %}
+    {% set is_pdf = (attachment.mime_type == 'application/pdf') or
+                    (attachment.filename and attachment.filename.lower().endswith('.pdf')) %}
+    {% if is_pdf %}
     <a href="{{ ingress_path }}{{ url_for('main.serve_attachment', attachment_id=attachment.id) }}"
-       target="_blank" class="d-flex flex-column align-items-center justify-content-center border rounded-3 shadow-sm p-3 text-decoration-none text-center h-100 bg-surface-subtle">
+       class="doc-preview-trigger d-flex flex-column align-items-center justify-content-center border rounded-3 shadow-sm p-3 pb-4 text-decoration-none text-center h-100 bg-surface-subtle"
+       data-doc-url="{{ ingress_path }}{{ url_for('main.serve_attachment', attachment_id=attachment.id) }}"
+       data-doc-name="{{ attachment.filename }}">
+        <i class="bi bi-file-earmark-pdf fs-2 text-primary mb-1"></i>
+        <span class="small text-truncate w-100 text-body">{{ attachment.filename }}</span>
+    </a>
+    {% else %}
+    <a href="{{ ingress_path }}{{ url_for('main.serve_attachment', attachment_id=attachment.id) }}"
+       target="_blank" class="d-flex flex-column align-items-center justify-content-center border rounded-3 shadow-sm p-3 pb-4 text-decoration-none text-center h-100 bg-surface-subtle">
         <i class="bi bi-file-earmark-text fs-2 text-primary mb-1"></i>
         <span class="small text-truncate w-100 text-body">{{ attachment.filename }}</span>
     </a>
     {% endif %}
+    {% endif %}
     {% if can_delete %}
-    <button type="button" class="btn btn-sm btn-danger rounded-circle position-absolute top-0 end-0 m-1 delete-attachment-btn btn-icon-sm"
+    <button type="button" class="btn btn-sm btn-danger rounded-circle position-absolute bottom-0 end-0 m-1 delete-attachment-btn btn-icon-sm attachment-delete-btn"
             data-attachment-id="{{ attachment.id }}"
-            title="Anhang löschen">
-        <i class="bi bi-x-lg"></i>
+            title="Anhang löschen" aria-label="Anhang löschen">
+        <i class="bi bi-trash"></i>
     </button>
     {% endif %}
 </div>

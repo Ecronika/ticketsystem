@@ -172,3 +172,29 @@
         </button>
     </div>
 </dialog>
+
+<!-- PDF Preview Dialog -->
+<dialog id="docPreviewDialog" class="doc-preview-dialog">
+    <div class="doc-preview-container">
+        <div class="doc-preview-header">
+            <span class="doc-preview-title" id="docPreviewTitle"></span>
+            <div class="d-flex align-items-center gap-2">
+                <a id="docPreviewDownload"
+                   class="btn btn-sm btn-outline-primary rounded-pill"
+                   download title="Herunterladen">
+                    <i class="bi bi-download me-1"></i>Download
+                </a>
+                <button type="button" aria-label="Schließen"
+                        class="lightbox-close" id="docPreviewCloseBtn">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        </div>
+        <iframe id="docPreviewFrame" class="doc-preview-frame"
+                title="PDF-Vorschau"></iframe>
+        <p class="text-muted small text-center mt-2 mb-0 px-3"
+           id="docPreviewHint">
+            Falls die Vorschau nicht geladen wird, bitte herunterladen.
+        </p>
+    </div>
+</dialog>
