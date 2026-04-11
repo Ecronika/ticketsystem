@@ -57,6 +57,7 @@
 
         <!-- Attachment grid -->
         <div class="row g-2" id="attachmentGrid">
+            {% set attachments = ticket.attachments %}
             {% set can_delete = (session.get('role') != 'viewer' and (session.get('role') == 'admin' or ticket._worker_is_author(session.get('worker_id')))) %}
             {% include 'components/_attachment_tiles.html' with context %}
         </div>
