@@ -20,13 +20,13 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     
                     <div class="mb-3">
-                        <label for="name" class="form-label fw-bold small">Administrator Name <span class="text-danger" aria-hidden="true">*</span></label>
+                        <label for="name" class="form-label form-label-bold">Administrator Name <span class="text-danger" aria-hidden="true">*</span></label>
                         <input type="text" class="form-control form-control-lg bg-light" id="name" name="name" 
                                placeholder="z.B. Herr Meyer" required autofocus>
                     </div>
 
                     <div class="mb-3">
-                        <label for="pin" class="form-label fw-bold small">Persönlicher PIN (mind. 4-stellig) <span class="text-danger" aria-hidden="true">*</span></label>
+                        <label for="pin" class="form-label form-label-bold">Persönlicher PIN (mind. 4-stellig) <span class="text-danger" aria-hidden="true">*</span></label>
                         <div class="input-group">
                             <input type="password" class="form-control form-control-lg bg-light text-center" id="pin" name="pin" 
                                    inputmode="numeric" pattern="[0-9]{4,16}" maxlength="16" placeholder="mind. 4 Ziffern" required>
@@ -38,7 +38,7 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="pin_confirm" class="form-label fw-bold small">PIN bestätigen <span class="text-danger" aria-hidden="true">*</span></label>
+                        <label for="pin_confirm" class="form-label form-label-bold">PIN bestätigen <span class="text-danger" aria-hidden="true">*</span></label>
                         <div class="input-group">
                             <input type="password" class="form-control form-control-lg bg-light text-center" id="pin_confirm" name="pin_confirm" 
                                    inputmode="numeric" pattern="[0-9]{4,16}" maxlength="16" placeholder="****" required>

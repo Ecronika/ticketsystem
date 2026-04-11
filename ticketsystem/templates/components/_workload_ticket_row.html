@@ -14,17 +14,17 @@
     <div class="d-flex flex-wrap gap-1 mt-1">
       {# Status #}
       {% if ticket.status == 'offen' %}
-      <span class="badge bg-danger-subtle text-danger border border-danger-subtle text-xxs">Offen</span>
+      <span class="badge badge-status badge-status-danger text-xxs">Offen</span>
       {% elif ticket.status == 'in_bearbeitung' %}
-      <span class="badge bg-warning-subtle text-warning border border-warning-subtle text-xxs">In Bearbeitung</span>
+      <span class="badge badge-status badge-status-warning text-xxs">In Bearbeitung</span>
       {% elif ticket.status == 'wartet' %}
-      <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle text-xxs">Wartet</span>
+      <span class="badge badge-status badge-status-secondary text-xxs">Wartet</span>
       {% endif %}
       {# Priorität #}
       {% if ticket.priority == 1 %}
-      <span class="badge bg-danger-subtle text-danger border border-danger-subtle text-xxs">Hoch</span>
+      <span class="badge badge-status badge-status-danger text-xxs">Hoch</span>
       {% elif ticket.priority == 2 %}
-      <span class="badge bg-primary-subtle text-primary border border-primary-subtle text-xxs">Mittel</span>
+      <span class="badge badge-status badge-status-primary text-xxs">Mittel</span>
       {% endif %}
       {# Fälligkeitsdatum #}
       {% if ticket.due_date %}

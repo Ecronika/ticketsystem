@@ -12,7 +12,7 @@
                 <form method="POST">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                     <div class="mb-3">
-                        <label for="worker_id" class="form-label small fw-bold">Mitarbeiter</label>
+                        <label for="worker_id" class="form-label form-label-bold">Mitarbeiter</label>
                         <select name="worker_id" id="worker_id" class="form-select" required>
                             <option value="" disabled selected>-- Bitte wählen --</option>
                             {% for w in workers %}
