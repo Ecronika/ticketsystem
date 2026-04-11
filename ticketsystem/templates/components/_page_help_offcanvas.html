@@ -3,10 +3,9 @@
    Öffnet sich über den ?-Button in der Navbar.
 #}
 {% if page_help %}
-<div class="offcanvas offcanvas-end" tabindex="-1" id="pageHelpOffcanvas"
+<div class="offcanvas offcanvas-end offcanvas-help" tabindex="-1" id="pageHelpOffcanvas"
      data-page-key="{{ help_page_key | default('') }}"
-     aria-labelledby="pageHelpOffcanvasLabel"
-     style="width: min(420px, 92vw);">
+     aria-labelledby="pageHelpOffcanvasLabel">
   <div class="offcanvas-header border-bottom">
     <div>
       <h5 class="offcanvas-title fw-bold mb-0" id="pageHelpOffcanvasLabel">

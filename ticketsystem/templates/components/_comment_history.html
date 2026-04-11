@@ -1,24 +1,24 @@
 <div class="d-flex justify-content-between align-items-center mb-2 px-2">
     <h3 class="h5 fw-bold mb-0">Verlauf</h3>
-    <button type="button" class="btn btn-link btn-sm text-muted text-decoration-none p-0" id="toggleSystemEvents" style="font-size: 0.75rem;">
+    <button type="button" class="btn btn-link btn-sm text-muted text-decoration-none p-0 x-small" id="toggleSystemEvents">
         System-Events anzeigen
     </button>
 </div>
-<div class="comment-history mb-4 px-2" id="ticketCommentHistory" style="max-height: 50vh; overflow-y: auto;">
+<div class="comment-history mb-4 px-2 max-h-50vh scroll-y-auto" id="ticketCommentHistory">
     {% for comment in ticket.comments|sort(attribute='created_at', reverse=True) %}
     {% if comment.is_system_event %}
     <div class="d-flex align-items-center gap-2 py-1 px-1 text-muted x-small system-event">
-        <i class="bi bi-arrow-right opacity-50" style="font-size: 0.55rem;" aria-hidden="true"></i>
+        <i class="bi bi-arrow-right opacity-50 text-xxxs" aria-hidden="true"></i>
         <span class="flex-grow-1 fst-italic">{{ comment.text }}</span>
         <span class="text-meta ms-auto text-nowrap">{{ comment.created_at|local_time|datetime('%d.%m. %H:%M') }}</span>
     </div>
     {% else %}
     <div class="border-bottom border-light-subtle py-1">
         <div class="d-flex align-items-baseline gap-2">
-            <span class="fw-semibold" style="font-size: 0.8rem;">{{ comment.author }}</span>
-            <span class="text-muted" style="font-size: 0.65rem;">{{ comment.created_at|local_time|datetime('%d.%m. %H:%M') }}</span>
+            <span class="fw-semibold text-meta">{{ comment.author }}</span>
+            <span class="text-muted text-xxs">{{ comment.created_at|local_time|datetime('%d.%m. %H:%M') }}</span>
         </div>
-        <div class="small text-secondary-emphasis" style="white-space: pre-wrap; line-height: 1.4;">{% if has_full_access %}{{ comment.text }}{% else %}<em class="text-muted"><i class="bi bi-lock-fill me-1"></i>Inhalt ausgeblendet</em>{% endif %}</div>
+        <div class="small text-secondary-emphasis text-pre-wrap">{% if has_full_access %}{{ comment.text }}{% else %}<em class="text-muted"><i class="bi bi-lock-fill me-1"></i>Inhalt ausgeblendet</em>{% endif %}</div>
     </div>
     {% endif %}
     {% else %}

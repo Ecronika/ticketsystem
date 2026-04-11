@@ -30,7 +30,7 @@
                         </div>
                     </div>
 
-                    <div class="mb-4" id="delegation-wrapper" {% if not worker.is_out_of_office %}style="display:none; opacity:0; transition: opacity 0.2s;"{% else %}style="opacity:1; transition: opacity 0.2s;"{% endif %}>
+                    <div class="mb-4 fade-toggle{{ ' hidden' if not worker.is_out_of_office }}" id="delegation-wrapper">
                         <label class="form-label small fw-bold">Meine Standard-Vertretung</label>
                         <select class="form-select form-select-sm border-1" name="delegate_to_id">
                             <option value="">Kein Vertreter (Fallback: Unzugewiesen)</option>
@@ -147,13 +147,13 @@
                     <h3 class="h5 fw-bold mb-0">
                         <a class="text-decoration-none" data-bs-toggle="collapse" href="#notificationCollapse" role="button" aria-expanded="true" aria-controls="notificationCollapse">
                             <i class="bi bi-bell text-primary me-2"></i> Benachrichtigungen
-                            {% if notifications %}<span class="badge bg-primary rounded-pill ms-1" style="font-size:0.7rem;">{{ notifications|length }}</span>{% endif %}
+                            {% if notifications %}<span class="badge bg-primary rounded-pill ms-1 text-xs">{{ notifications|length }}</span>{% endif %}
                             <i class="bi bi-chevron-down ms-1 small" id="notifCollapseIcon"></i>
                         </a>
                     </h3>
                 </div>
                 {% if notifications %}
-                <button type="button" class="btn btn-sm btn-link text-decoration-none p-0 text-primary fw-bold" style="font-size:0.8rem;" id="markAllReadProfileBtn">
+                <button type="button" class="btn btn-sm btn-link text-decoration-none p-0 text-primary fw-bold text-meta" id="markAllReadProfileBtn">
                     Alle als gelesen markieren
                 </button>
                 {% endif %}
@@ -166,17 +166,17 @@
                         <p class="small mb-0">Keine Benachrichtigungen vorhanden.</p>
                     </div>
                     {% else %}
-                    <ul class="list-group list-group-flush" style="max-height: 400px; overflow-y: auto;">
+                    <ul class="list-group list-group-flush max-h-400 scroll-y-auto">
                         {% for n in notifications %}
                         <li class="list-group-item px-4 py-3 {% if not n.is_read %}bg-primary-subtle border-start border-4 border-primary{% endif %}">
                             <div class="d-flex align-items-start gap-3">
                                 <i class="bi bi-info-circle-fill {% if n.is_read %}text-muted{% else %}text-primary{% endif %} mt-1"></i>
                                 <div class="flex-grow-1">
                                     <p class="mb-1 small {% if not n.is_read %}fw-semibold{% endif %}">{{ n.message }}</p>
-                                    <small class="text-muted" style="font-size:0.7rem;">{{ n.created_at|local_time|datetime('%d.%m.%Y %H:%M') }}</small>
+                                    <small class="text-muted text-xs">{{ n.created_at|local_time|datetime('%d.%m.%Y %H:%M') }}</small>
                                 </div>
                                 {% if n.link and n.link != '#' %}
-                                <a href="{{ ingress_path }}{{ n.link }}" class="btn btn-sm btn-outline-primary rounded-pill py-0 px-2 flex-shrink-0" style="font-size:0.75rem;">
+                                <a href="{{ ingress_path }}{{ n.link }}" class="btn btn-sm btn-outline-primary rounded-pill py-0 px-2 flex-shrink-0 x-small">
                                     Ansehen <i class="bi bi-arrow-right ms-1"></i>
                                 </a>
                                 {% endif %}
@@ -200,12 +200,12 @@
         if(oooToggle && delegationWrapper) {
             oooToggle.addEventListener('change', function() {
                 if(this.checked) {
-                    delegationWrapper.style.display = 'block';
+                    delegationWrapper.classList.remove('hidden');
                     // simple fade-in effect
                     setTimeout(() => { delegationWrapper.style.opacity = '1'; }, 10);
                 } else {
                     delegationWrapper.style.opacity = '0';
-                    setTimeout(() => { delegationWrapper.style.display = 'none'; }, 200);
+                    setTimeout(() => { delegationWrapper.classList.add('hidden'); }, 200);
                 }
             });
         }

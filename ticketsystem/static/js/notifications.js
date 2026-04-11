@@ -93,8 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // SEC-07: Use textContent (never innerHTML) to prevent XSS from DB-stored messages
             const anchor = document.createElement('a');
-            anchor.className = `dropdown-item border-bottom px-3 py-2 ${isReadClass}`;
-            anchor.style.whiteSpace = 'normal';
+            anchor.className = `dropdown-item border-bottom px-3 py-2 text-wrap ${isReadClass}`;
             anchor.href = 'javascript:void(0)';
             anchor.dataset.id = n.id;
             anchor.dataset.link = `${ingressPath}${n.link}`;
@@ -106,15 +105,13 @@ document.addEventListener('DOMContentLoaded', () => {
             titleSmall.innerHTML = '<i class="bi bi-info-circle-fill me-1"></i>';
             titleSmall.appendChild(document.createTextNode('System'));
             const timeSmall = document.createElement('small');
-            timeSmall.className = 'text-muted';
-            timeSmall.style.fontSize = '0.65rem';
+            timeSmall.className = 'text-muted text-xxs';
             timeSmall.textContent = timeStr;
             headerRow.appendChild(titleSmall);
             headerRow.appendChild(timeSmall);
 
             const msgP = document.createElement('p');
-            msgP.className = 'mb-0 small';
-            msgP.style.lineHeight = '1.3';
+            msgP.className = 'mb-0 small lh-sm';
             msgP.textContent = n.message; // textContent prevents XSS
 
             anchor.appendChild(headerRow);

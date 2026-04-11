@@ -16,10 +16,10 @@
         {% if ticket.recurrence %}<i class="bi bi-arrow-repeat text-primary ms-1" title="Serienticket"></i>{% endif %}
         {% if ticket.approval and ticket.approval.status == 'pending' %}<span class="badge badge-subtle-warning rounded-pill x-small ms-1">FREIGABE</span>{% endif %}
         {% for tag in ticket.tags %}
-        <span class="badge bg-secondary-subtle text-secondary rounded-pill fw-normal ms-1" style="font-size: 0.65rem;"><i class="bi bi-tag"></i> {{ tag.name }}</span>
+        <span class="badge bg-secondary-subtle text-secondary rounded-pill fw-normal ms-1 text-xxs"><i class="bi bi-tag"></i> {{ tag.name }}</span>
         {% endfor %}
     </td>
-    <td class="small text-muted text-truncate" style="max-width: 160px;">
+    <td class="small text-muted text-truncate max-w-160">
         {% if ticket.order_reference %}
             <span title="{{ ticket.order_reference }}">{{ ticket.order_reference }}</span>
         {% elif ticket.contact and ticket.contact.name %}
@@ -48,11 +48,10 @@
             </select>
             {% if not ticket.assigned_to_id and not ticket.assigned_team_id %}
             <button type="button"
-                    class="btn btn-link btn-sm p-0 text-primary assign-me-btn flex-shrink-0"
+                    class="btn btn-link btn-sm p-0 text-primary assign-me-btn flex-shrink-0 x-small text-nowrap"
                     data-ticket-id="{{ ticket.id }}"
                     data-worker-id="{{ session.get('worker_id') }}"
-                    title="Mir zuweisen"
-                    style="font-size:0.75rem; white-space:nowrap;">
+                    title="Mir zuweisen">
                 <i class="bi bi-person-check"></i>
             </button>
             {% endif %}

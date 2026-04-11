@@ -11,12 +11,12 @@
     <div class="d-flex align-items-center justify-content-between min-h-44">
         <label class="form-check-label d-flex align-items-center gap-3 flex-grow-1 py-3 px-2 cursor-pointer m-0 {{ 'text-muted opacity-75' if locked else '' }}" for="check_{{ item.id }}">
             <!-- Vorschlag 12: Schloss-Overlay auf Checkbox -->
-            <div class="position-relative d-flex align-items-center justify-content-center" style="width: 24px; height: 24px;">
-                <input class="form-check-input checklist-toggle m-0 border-secondary {{ 'opacity-25' if locked else '' }}" style="width: 1.5rem; height: 1.5rem;" type="checkbox" value="" id="check_{{ item.id }}"
+            <div class="position-relative d-flex align-items-center justify-content-center checkbox-wrapper">
+                <input class="form-check-input checklist-toggle m-0 border-secondary checklist-check {{ 'opacity-25' if locked else '' }}" type="checkbox" value="" id="check_{{ item.id }}"
                     {% if item.is_completed %}checked{% endif %}
                     {% if session.get('role') == 'viewer' or locked %}disabled{% endif %}>
                 {% if locked %}
-                <i class="bi bi-lock-fill position-absolute text-warning" style="font-size: 0.7rem;" title="Abhängig von: {{ parent.title }}"></i>
+                <i class="bi bi-lock-fill position-absolute text-warning text-xs" title="Abhängig von: {{ parent.title }}"></i>
                 {% endif %}
                 <div class="spinner-border spinner-border-sm text-primary position-absolute d-none loading-indicator" role="status"></div>
             </div>
@@ -30,17 +30,15 @@
                 {% if not item.is_completed and (item.assigned_to_id or item.assigned_team_id or item.due_date) %}
                 <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
                     {% if item.assigned_to_id %}
-                    <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center fw-bold"
-                         style="width: 20px; height: 20px; font-size: 0.55rem;"
+                    <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center fw-bold avatar-xs"
                          title="{{ item.assigned_to.name }}">{{ item.assigned_to.name[0]|upper }}</div>
                     {% endif %}
                     {% if item.assigned_team_id %}
-                    <div class="rounded-circle bg-info-subtle text-info d-flex align-items-center justify-content-center fw-bold"
-                         style="width: 20px; height: 20px; font-size: 0.55rem;"
+                    <div class="rounded-circle bg-info-subtle text-info d-flex align-items-center justify-content-center fw-bold avatar-xs"
                          title="Team: {{ item.assigned_team.name }}">T</div>
                     {% endif %}
                     {% if item.due_date %}
-                    <span class="text-muted" style="font-size: 0.7rem;" title="Fällig am {{ item.due_date|local_time|datetime('%d.%m.%Y') }}">{{ item.due_date|local_time|datetime('%d.%m.%Y') }}</span>
+                    <span class="text-muted text-xs" title="Fällig am {{ item.due_date|local_time|datetime('%d.%m.%Y') }}">{{ item.due_date|local_time|datetime('%d.%m.%Y') }}</span>
                     {% endif %}
                 </div>
                 {% endif %}
@@ -49,7 +47,7 @@
 
         {% if session.get('role') != 'viewer' %}
         <div class="px-2">
-            <button type="button" class="btn btn-outline-danger border-0 rounded-circle checklist-delete d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;" aria-label="Löschen">
+            <button type="button" class="btn btn-outline-danger border-0 rounded-circle checklist-delete d-flex align-items-center justify-content-center min-h-44" aria-label="Löschen">
                 <i class="bi bi-trash fs-5"></i>
             </button>
         </div>
@@ -71,7 +69,7 @@
                     <!-- Vorschlag 13: ⌘K Badge im Input -->
                     <div class="position-relative">
                         <input type="text" class="form-control form-control-sm pe-5" id="new-checklist-title" placeholder="Neue Aufgabe...">
-                        <kbd class="position-absolute end-0 top-50 translate-middle-y me-2 bg-surface-subtle text-muted border rounded px-1" style="font-size: 0.6rem; pointer-events: none; line-height: 1.4;">⌘K</kbd>
+                        <kbd class="position-absolute end-0 top-50 translate-middle-y me-2 bg-surface-subtle text-muted border rounded px-1 kbd-hint">⌘K</kbd>
                     </div>
                 </div>
                 <div class="col-auto">

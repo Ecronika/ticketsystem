@@ -21,7 +21,7 @@
   <a href="#main-content" class="visually-hidden-focusable">Zum Hauptinhalt springen</a>
   <script src="{{ ingress_path }}{{ url_for('static', filename='js/theme_init.js') }}?v={{ config.VERSION }}"></script>
 
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm" style="z-index: 1035;" data-ingress="{{ ingress_path }}">
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm navbar-z" data-ingress="{{ ingress_path }}">
     <div class="container">
       <a class="navbar-brand fw-bold" href="{{ ingress_path }}{{ url_for('main.index') }}">
         <i class="bi bi-ticket-perforated" aria-hidden="true"></i> TicketSystem
@@ -38,7 +38,7 @@
                href="{{ ingress_path }}{{ url_for('main.my_queue') }}">
               <i class="bi bi-list-check me-1" aria-hidden="true"></i>Meine Aufgaben
               {% if urgent_count > 0 %}
-              <span class="badge bg-danger rounded-pill ms-1 animate-pulse" style="font-size:0.65rem">
+              <span class="badge bg-danger rounded-pill ms-1 animate-pulse text-xxs">
                 {{ urgent_count }}
               </span>
               {% endif %}
@@ -56,7 +56,7 @@
                href="{{ ingress_path }}{{ url_for('main.workload') }}">
               <i class="bi bi-bar-chart-steps me-1" aria-hidden="true"></i>Auslastung
               {% if absent_entries_with_critical > 0 %}
-              <span class="badge bg-danger rounded-pill ms-1 animate-pulse" style="font-size:0.65rem;" aria-label="{{ absent_entries_with_critical }} abwesende Mitarbeiter mit kritischen Tickets">
+              <span class="badge bg-danger rounded-pill ms-1 animate-pulse text-xxs" aria-label="{{ absent_entries_with_critical }} abwesende Mitarbeiter mit kritischen Tickets">
                 {{ absent_entries_with_critical }}
               </span>
               {% endif %}
@@ -88,7 +88,7 @@
                href="{{ ingress_path }}{{ url_for('main.approvals') }}">
               <i class="bi bi-shield-check me-1" aria-hidden="true"></i>Freigaben
               {% if pending_approval_count > 0 %}
-              <span class="badge bg-danger rounded-pill ms-1 animate-pulse" style="font-size:0.65rem">
+              <span class="badge bg-danger rounded-pill ms-1 animate-pulse text-xxs">
                 {{ pending_approval_count }}
               </span>
               {% endif %}
@@ -153,12 +153,12 @@
           <li class="nav-item dropdown ms-lg-2 mt-2 mt-lg-0" id="notificationDropdownContainer">
             <a class="nav-link btn btn-outline-light btn-sm d-flex align-items-center gap-1 position-relative px-2 dropdown-toggle" href="#" id="navbarDropdownNotifications" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Benachrichtigungen">
               <i class="bi bi-bell-fill" aria-hidden="true"></i>
-              <span id="navNotificationBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light {{ 'd-none' if unread_notifications_count == 0 else 'animate-pulse' }}" style="font-size: 0.65rem;">
+              <span id="navNotificationBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light text-xxs {{ 'd-none' if unread_notifications_count == 0 else 'animate-pulse' }}">
                 {{ unread_notifications_count }}
                 <span class="visually-hidden">ungelesene Nachrichten</span>
               </span>
             </a>
-            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-0 mt-2" aria-labelledby="navbarDropdownNotifications" style="width: 320px; max-width: 100vw; max-height: 400px; overflow-y: auto;" id="notificationList">
+            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-4 p-0 mt-2 notification-dropdown" aria-labelledby="navbarDropdownNotifications" id="notificationList">
                 <li><h6 class="dropdown-header fw-bold bg-light py-2 border-bottom text-dark">Lade Benachrichtigungen...</h6></li>
             </ul>
           </li>
@@ -167,12 +167,11 @@
           {% set initials = session.get('worker_name', 'U')[:2]|upper %}
           <li class="nav-item dropdown ms-lg-2 mt-2 mt-lg-0">
             <a class="nav-link dropdown-toggle d-flex align-items-center gap-2 p-0" href="#" id="userMenuDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Benutzermenü">
-              <span class="d-flex align-items-center justify-content-center rounded-circle bg-primary text-white fw-bold" 
-                    style="width: 32px; height: 32px; font-size: 0.7rem; flex-shrink:0;">
+              <span class="rounded-circle bg-primary text-white fw-bold avatar-sm">
                 {{ initials }}
               </span>
             </a>
-            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end border-0 shadow-lg mt-2 rounded-3" aria-labelledby="userMenuDropdown" style="min-width: 190px;">
+            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end border-0 shadow-lg mt-2 rounded-3 min-w-190" aria-labelledby="userMenuDropdown">
               <li><h6 class="dropdown-header small text-muted pb-1">{{ session.get('worker_name') }}</h6></li>
               <li><a class="dropdown-item small {{ 'active' if request.endpoint == 'main.profile' else '' }}" href="{{ ingress_path }}{{ url_for('main.profile') }}">
                 <i class="bi bi-person-badge me-2"></i>Mein Profil

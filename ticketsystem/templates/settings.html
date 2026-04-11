@@ -137,7 +137,7 @@
       <div class="card-body px-4 pb-4">
         <ul class="list-unstyled small mb-0">
           <li class="d-flex align-items-center gap-2 py-1 border-bottom">
-            <span class="text-muted" style="min-width:130px">SMTP Host</span>
+            <span class="text-muted min-w-130">SMTP Host</span>
             {% if smtp.smtp_host %}
             <span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle me-1"></i>{{ smtp.smtp_host }}</span>
             {% else %}
@@ -145,19 +145,19 @@
             {% endif %}
           </li>
           <li class="d-flex align-items-center gap-2 py-1 border-bottom">
-            <span class="text-muted" style="min-width:130px">Port</span>
+            <span class="text-muted min-w-130">Port</span>
             <span>{{ smtp.smtp_port or '587 (Standard)' }}</span>
           </li>
           <li class="d-flex align-items-center gap-2 py-1 border-bottom">
-            <span class="text-muted" style="min-width:130px">TLS-Modus</span>
+            <span class="text-muted min-w-130">TLS-Modus</span>
             <span>{{ smtp.smtp_tls or 'starttls (Standard)' }}</span>
           </li>
           <li class="d-flex align-items-center gap-2 py-1 border-bottom">
-            <span class="text-muted" style="min-width:130px">Benutzername</span>
+            <span class="text-muted min-w-130">Benutzername</span>
             <span>{{ smtp.smtp_user or '—' }}</span>
           </li>
           <li class="d-flex align-items-center gap-2 py-1 border-bottom">
-            <span class="text-muted" style="min-width:130px">Passwort</span>
+            <span class="text-muted min-w-130">Passwort</span>
             {% if smtp.smtp_password %}
             <span class="badge bg-success-subtle text-success"><i class="bi bi-lock-fill me-1"></i>gespeichert</span>
             {% else %}
@@ -165,11 +165,11 @@
             {% endif %}
           </li>
           <li class="d-flex align-items-center gap-2 py-1 border-bottom">
-            <span class="text-muted" style="min-width:130px">Absender</span>
+            <span class="text-muted min-w-130">Absender</span>
             <span>{{ smtp.smtp_from or smtp.smtp_user or '—' }}</span>
           </li>
           <li class="d-flex align-items-center gap-2 py-1">
-            <span class="text-muted" style="min-width:130px">Basis-URL</span>
+            <span class="text-muted min-w-130">Basis-URL</span>
             <span class="text-truncate">{{ smtp.smtp_base_url or '—' }}</span>
           </li>
         </ul>

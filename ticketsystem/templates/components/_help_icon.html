@@ -14,7 +14,7 @@
         data-bs-title="{{ field_help.title | e }}"
         data-bs-content="{{ field_help.text | e }}"
         aria-label="Hilfe: {{ field_help.title }}">
-  <i class="bi bi-question-circle{{ '-fill' if size == 'lg' else '' }}" aria-hidden="true" style="font-size: 0.85rem;"></i>
+  <i class="bi bi-question-circle{{ '-fill' if size == 'lg' else '' }}" aria-hidden="true"></i>
 </button>
 {% endif %}
 {% endmacro %}

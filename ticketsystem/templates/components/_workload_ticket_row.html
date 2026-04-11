@@ -2,8 +2,7 @@
    Erwartet: ticket, is_overdue (Boolean), entry.worker #}
 <div class="d-flex align-items-center gap-3">
   {# Prioritäts-Balken #}
-  <span class="flex-shrink-0 rounded" aria-hidden="true"
-        style="width: 4px; height: 38px; background: {{ '#dc3545' if ticket.priority == 1 else '#ffc107' if ticket.priority == 2 else '#198754' }};"></span>
+  <span class="prio-bar rounded {{ 'prio-bar--high' if ticket.priority == 1 else 'prio-bar--medium' if ticket.priority == 2 else 'prio-bar--low' }}" aria-hidden="true"></span>
 
   {# Ticket-Info #}
   <div class="flex-grow-1 min-width-0">
@@ -15,28 +14,28 @@
     <div class="d-flex flex-wrap gap-1 mt-1">
       {# Status #}
       {% if ticket.status == 'offen' %}
-      <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size:0.65rem;">Offen</span>
+      <span class="badge bg-danger-subtle text-danger border border-danger-subtle text-xxs">Offen</span>
       {% elif ticket.status == 'in_bearbeitung' %}
-      <span class="badge bg-warning-subtle text-warning border border-warning-subtle" style="font-size:0.65rem;">In Bearbeitung</span>
+      <span class="badge bg-warning-subtle text-warning border border-warning-subtle text-xxs">In Bearbeitung</span>
       {% elif ticket.status == 'wartet' %}
-      <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle" style="font-size:0.65rem;">Wartet</span>
+      <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle text-xxs">Wartet</span>
       {% endif %}
       {# Priorität #}
       {% if ticket.priority == 1 %}
-      <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size:0.65rem;">Hoch</span>
+      <span class="badge bg-danger-subtle text-danger border border-danger-subtle text-xxs">Hoch</span>
       {% elif ticket.priority == 2 %}
-      <span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size:0.65rem;">Mittel</span>
+      <span class="badge bg-primary-subtle text-primary border border-primary-subtle text-xxs">Mittel</span>
       {% endif %}
       {# Fälligkeitsdatum #}
       {% if ticket.due_date %}
-        <span class="badge {{ 'bg-danger text-white fw-bold' if is_overdue else 'bg-secondary-subtle text-secondary border border-secondary-subtle' }}" style="font-size:0.65rem;">
+        <span class="badge text-xxs {{ 'bg-danger text-white fw-bold' if is_overdue else 'bg-secondary-subtle text-secondary border border-secondary-subtle' }}">
           <i class="bi bi-calendar-event me-1" aria-hidden="true"></i>{{ ticket.due_date.strftime('%d.%m.%Y') }}
           {% if is_overdue %}<span class="ms-1">(überfällig)</span>{% endif %}
         </span>
       {% endif %}
       {# Auftragsnummer #}
       {% if ticket.order_reference %}
-      <span class="badge bg-light text-dark border" style="font-size:0.65rem;">
+      <span class="badge bg-light text-dark border text-xxs">
         <i class="bi bi-hash" aria-hidden="true"></i>{{ ticket.order_reference }}
       </span>
       {% endif %}
