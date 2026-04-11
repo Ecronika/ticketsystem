@@ -15,7 +15,7 @@
     </div>
     <form method="GET" class="d-flex align-items-center gap-2 bg-surface border p-2 rounded-pill shadow-sm flex-shrink-0">
         <label class="small text-muted ms-2 d-none d-md-inline">Fällig in:</label>
-        <select name="days" class="form-select form-select-sm border-0 bg-transparent fw-bold auto-submit" style="width: auto;">
+        <select name="days" class="form-select form-select-sm border-0 bg-transparent fw-bold auto-submit w-auto">
             <option value="7"  {{ 'selected' if days_horizon == 7  }}>nächsten 7 Tage</option>
             <option value="14" {{ 'selected' if days_horizon == 14 }}>nächsten 14 Tage</option>
             <option value="30" {{ 'selected' if days_horizon == 30 }}>nächsten 30 Tage</option>
@@ -83,7 +83,7 @@
                 <span class="badge badge-subtle-danger border-0" title="Freigabe abgelehnt"><i class="bi bi-x-circle-fill"></i></span>
                 {% endif %}
                 {% if ticket.assigned_to_id and ticket.assigned_to.is_out_of_office %}
-                <span class="badge bg-warning-subtle text-warning-emphasis border-0 position-relative z-1" style="font-size: 0.55rem;" title="Mitarbeiter abwesend">OOO</span>
+                <span class="badge bg-warning-subtle text-warning-emphasis border-0 position-relative z-1 text-xxxs" title="Mitarbeiter abwesend">OOO</span>
                 {% endif %}
             </div>
             <div class="x-small position-relative z-1 {{ 'text-primary fw-bold' if is_reminder_due else 'text-danger fw-bold' if days_overdue > 0 else 'text-muted' }}">
@@ -120,12 +120,11 @@
 
     <!-- COL 1: Sofort Handeln (Rot) -->
     <div class="col-11 col-md-6 col-lg-4">
-        <div class="column-header rounded-top p-2 mb-2 d-flex justify-content-between align-items-center" 
-             style="background-color: var(--bg-danger-subtle); color: var(--text-danger-override, var(--color-danger)); border-bottom: 2px solid var(--color-danger);">
+        <div class="column-header rounded-top p-2 mb-2 d-flex justify-content-between align-items-center kanban-header--danger">
              <h2 class="h6 fw-bold mb-0 text-uppercase tracking-wide">
                 <i class="bi bi-exclamation-triangle-fill me-2"></i>Sofort Handeln
              </h2>
-             <span class="badge rounded-pill" style="background-color: var(--color-danger); color: white;">{{ col1_tickets|length }}</span>
+             <span class="badge rounded-pill badge-kanban--danger">{{ col1_tickets|length }}</span>
         </div>
         <div class="d-flex flex-column h-100 pb-3">
             {% for ticket in col1_tickets %}
@@ -141,12 +140,11 @@
 
     <!-- COL 2: Heute Erledigen (Blau) -->
     <div class="col-11 col-md-6 col-lg-4">
-        <div class="column-header rounded-top p-2 mb-2 d-flex justify-content-between align-items-center" 
-             style="background-color: rgba(37, 99, 235, 0.12); color: var(--color-primary); border-bottom: 2px solid var(--color-primary);">
+        <div class="column-header rounded-top p-2 mb-2 d-flex justify-content-between align-items-center kanban-header--primary">
              <h2 class="h6 fw-bold mb-0 text-uppercase tracking-wide">
                 <i class="bi bi-star-fill me-2"></i>Heute Erledigen
              </h2>
-             <span class="badge rounded-pill" style="background-color: var(--color-primary); color: white;">{{ col2_tickets|length }}</span>
+             <span class="badge rounded-pill badge-kanban--primary">{{ col2_tickets|length }}</span>
         </div>
         <div class="d-flex flex-column h-100 pb-3">
             {% for ticket in col2_tickets %}
@@ -162,8 +160,7 @@
 
     <!-- COL 3: Woche & Zukunft (Grau) -->
     <div class="col-11 col-md-6 col-lg-4">
-        <div class="column-header rounded-top p-2 mb-2 d-flex justify-content-between align-items-center" 
-             style="background-color: var(--bg-surface-subtle); color: var(--text-muted); border-bottom: 2px solid var(--border-color);">
+        <div class="column-header rounded-top p-2 mb-2 d-flex justify-content-between align-items-center kanban-header--neutral">
              <h2 class="h6 fw-bold mb-0 text-uppercase tracking-wide">
                 <i class="bi bi-calendar-week me-2"></i>Woche & Zukunft
              </h2>

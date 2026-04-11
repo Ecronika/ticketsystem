@@ -2,19 +2,7 @@
 {% from 'components/_help_icon.html' import help_icon %}
 {% block title %}Neues Ticket{% endblock %}
 
-{% block styles %}
-<style nonce="{{ g.csp_nonce }}">
-    /* Custom Soft Buttons & Dropzone */
-    .btn-soft-danger { color: var(--bs-danger); border: 1px solid var(--bs-danger); background-color: transparent; }
-    .btn-check:checked + .btn-soft-danger { background-color: rgba(var(--bs-danger-rgb), 0.15); color: var(--bs-danger); border-color: var(--bs-danger); }
-    .btn-soft-primary { color: var(--bs-primary); border: 1px solid var(--bs-primary); background-color: transparent; }
-    .btn-check:checked + .btn-soft-primary { background-color: rgba(var(--bs-primary-rgb), 0.15); color: var(--bs-primary); border-color: var(--bs-primary); }
-    .btn-soft-success { color: var(--bs-success); border: 1px solid var(--bs-success); background-color: transparent; }
-    .btn-check:checked + .btn-soft-success { background-color: rgba(var(--bs-success-rgb), 0.15); color: var(--bs-success); border-color: var(--bs-success); }
-    .border-dashed { border-style: dashed !important; }
-    .cursor-pointer { cursor: pointer; }
-</style>
-{% endblock %}
+{% block styles %}{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center mt-4">
@@ -495,7 +483,7 @@ document.addEventListener('DOMContentLoaded', function() {
           '<small class="fw-bold text-primary" id="xhr-progress-label">Wird hochgeladen...</small>' +
           '<small class="text-muted" id="xhr-progress-pct">0%</small>' +
         '</div>' +
-        '<div class="progress" style="height:8px;">' +
+        '<div class="progress progress-thin">' +
           '<div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" id="xhr-progress-fill" role="progressbar" style="width:0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>' +
         '</div>';
     submitBtn.parentNode.insertBefore(uploadProgressBar, submitBtn);

@@ -276,7 +276,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         priorityStatic.className = `rounded-3 px-2 py-1 bg-${c}-subtle`;
                         const label = priorityStatic.querySelector('small');
                         const val = priorityStatic.querySelector('span');
-                        if (label) { label.className = `text-${c} x-small text-uppercase d-block`; label.style.cssText = 'font-size: 0.6rem; line-height: 1;'; }
+                        if (label) { label.className = `text-${c} x-small text-uppercase d-block meta-label`; }
                         if (val) { val.className = `fw-semibold small text-${c}`; val.textContent = prioMap[newPrio]; }
                     }
 
@@ -287,8 +287,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         orderWrapper.textContent = '';
                         if (newOrderRef) {
                             const label = document.createElement('small');
-                            label.className = 'text-muted x-small text-uppercase d-block';
-                            label.style.cssText = 'font-size: 0.6rem; line-height: 1;';
+                            label.className = 'text-muted x-small text-uppercase d-block meta-label';
                             label.textContent = 'Auftrag';
                             orderWrapper.appendChild(label);
                             const val = document.createElement('span');
@@ -303,8 +302,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (dueWrapper) {
                         dueWrapper.textContent = '';
                         const label = document.createElement('small');
-                        label.className = 'text-muted x-small text-uppercase d-block';
-                        label.style.cssText = 'font-size: 0.6rem; line-height: 1;';
+                        label.className = 'text-muted x-small text-uppercase d-block meta-label';
                         label.textContent = 'Fällig';
                         dueWrapper.appendChild(label);
                         if (newDue) {
@@ -330,8 +328,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         tagsWrapper.innerHTML = '';
                         tagsList.forEach(tag => {
                             const span = document.createElement('span');
-                            span.className = 'badge bg-secondary-subtle text-secondary rounded-pill fw-normal';
-                            span.style.fontSize = '0.7rem';
+                            span.className = 'badge bg-secondary-subtle text-secondary rounded-pill fw-normal text-xs';
                             span.appendChild(document.createTextNode(tag));
                             tagsWrapper.appendChild(span);
                         });
@@ -558,8 +555,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             // Recreate lock icon if missing
                             if (!lockIcon && cbWrapper) {
                                 const icon = document.createElement('i');
-                                icon.className = 'bi bi-lock-fill position-absolute text-warning';
-                                icon.style.fontSize = '0.7rem';
+                                icon.className = 'bi bi-lock-fill position-absolute text-warning text-xs';
                                 icon.title = 'Abhängigkeit nicht abgeschlossen';
                                 cbWrapper.appendChild(icon);
                             }

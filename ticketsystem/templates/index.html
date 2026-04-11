@@ -1,48 +1,6 @@
 {% extends "base.html" %}
 
-{% block styles %}
-<style nonce="{{ g.csp_nonce }}">
-/* Dashboard table compact styles */
-.dash-table { font-size: 0.85rem; }
-.dash-table th { font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; border-bottom: 2px solid var(--bs-border-color); }
-.dash-table th:hover { color: var(--bs-primary); }
-.dash-table th .sort-icon { font-size: 0.7rem; opacity: 0.4; }
-.dash-table th.sorted .sort-icon { opacity: 1; color: var(--bs-primary); }
-.dash-table td { vertical-align: middle; padding-top: 0.5rem; padding-bottom: 0.5rem; }
-.dash-table tr { transition: background 0.1s; }
-.dash-table tbody tr:hover { background: var(--bg-surface-subtle); }
-.dash-table .title-link { color: var(--text-main); text-decoration: none; font-weight: 600; }
-.dash-table .title-link:hover { color: var(--bs-primary); text-decoration: underline; }
-
-/* Priority & status dots */
-.prio-dot, .status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
-.prio-dot.high { background: var(--bs-danger); }
-.prio-dot.medium { background: var(--bs-primary); }
-.prio-dot.low { background: var(--bs-success); }
-.status-dot.offen { background: var(--bs-danger); }
-.status-dot.in_bearbeitung { background: var(--bs-warning); }
-.status-dot.wartet { background: var(--bs-secondary); }
-.status-dot.erledigt { background: var(--bs-success); }
-
-/* Inline select styling */
-.inline-select { border: none; background: transparent; padding: 2px 4px; font-size: 0.82rem; cursor: pointer; border-radius: 6px; max-width: 140px; color: var(--text-main); }
-.inline-select:hover, .inline-select:focus { background: var(--bg-surface-subtle); outline: none; box-shadow: 0 0 0 2px rgba(var(--bs-primary-rgb), 0.25); }
-
-/* Tab nav active */
-.dash-tab { border: none; background: transparent; padding: 0.6rem 1.2rem; font-weight: 600; font-size: 0.9rem; color: var(--text-muted); border-bottom: 3px solid transparent; transition: all 0.15s; cursor: pointer; }
-.dash-tab:hover { color: var(--text-main); }
-.dash-tab.active { color: var(--bs-primary); border-bottom-color: var(--bs-primary); }
-.dash-tab .tab-count { font-size: 0.75rem; padding: 0.15em 0.55em; border-radius: 10px; font-weight: 700; margin-left: 0.4rem; }
-
-/* Bulk mode checkboxes */
-.bulk-col { display: none; width: 40px; }
-.bulk-mode .bulk-col { display: table-cell; }
-.bulk-mode .bulk-col-header { display: table-cell; }
-
-/* Row high-priority highlight */
-.dash-table tr.prio-high { border-left: 3px solid var(--bs-danger); }
-</style>
-{% endblock %}
+{% block styles %}{% endblock %}
 
 {% block scripts %}
 <script nonce="{{ g.csp_nonce }}">
@@ -437,7 +395,7 @@ document.addEventListener('DOMContentLoaded', function() {
             {% if sort_by %}<input type="hidden" name="sort" value="{{ sort_by }}">{% endif %}
             {% if sort_dir != 'asc' %}<input type="hidden" name="dir" value="{{ sort_dir }}">{% endif %}
             <label class="small text-muted me-1 d-none d-md-inline">Fällig in:</label>
-            <select name="days" class="form-select form-select-sm border-0 bg-transparent fw-bold auto-submit" style="width: auto;">
+            <select name="days" class="form-select form-select-sm border-0 bg-transparent fw-bold auto-submit w-auto">
                 <option value="0"  {{ 'selected' if days_horizon == 0  }}>Alle Tickets</option>
                 <option value="7"  {{ 'selected' if days_horizon == 7  }}>7 Tage</option>
                 <option value="14" {{ 'selected' if days_horizon == 14 }}>14 Tage</option>
@@ -449,11 +407,11 @@ document.addEventListener('DOMContentLoaded', function() {
             <input type="hidden" name="tab" value="{{ active_tab }}">
             {% if sort_by %}<input type="hidden" name="sort" value="{{ sort_by }}">{% endif %}
             {% if sort_dir != 'asc' %}<input type="hidden" name="dir" value="{{ sort_dir }}">{% endif %}
-            <div class="input-group" style="max-width: 280px;">
+            <div class="input-group max-w-280">
                 <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search text-muted"></i></span>
                 <input type="text" name="q" id="dashSearch" class="form-control border-start-0 shadow-none" placeholder="Suche (#ID, Titel, Kunde)..." value="{{ query }}" autocomplete="off">
                 {% if query %}
-                <button type="button" class="input-group-text bg-transparent border-start-0 text-muted border-0" title="Suche zurücksetzen" id="searchClearBtn" style="cursor: pointer;"><i class="bi bi-x-lg"></i></button>
+                <button type="button" class="input-group-text bg-transparent border-start-0 text-muted border-0 cursor-pointer" title="Suche zurücksetzen" id="searchClearBtn"><i class="bi bi-x-lg"></i></button>
                 {% endif %}
             </div>
         </form>
@@ -514,13 +472,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         <th class="bulk-col bulk-col-header ps-3">
                             <input type="checkbox" class="form-check-input" id="bulkSelectAll" title="Alle auf dieser Seite auswählen">
                         </th>
-                        <th class="ps-3 {{ 'sorted' if sort_by == 'id' }}" style="width: 70px;">{{ sort_link('id', '#') }}</th>
+                        <th class="ps-3 col-w-70 {{ 'sorted' if sort_by == 'id' }}">{{ sort_link('id', '#') }}</th>
                         <th class="{{ 'sorted' if sort_by == 'title' }}">{{ sort_link('title', 'Betreff') }}</th>
-                        <th style="width: 160px;">{{ sort_link('order_reference', 'Baustelle/Kunde') }}</th>
-                        <th style="width: 160px;">Zuständig</th>
-                        <th class="text-center {{ 'sorted' if sort_by == 'priority' }}" style="width: 60px;">{{ sort_link('priority', 'Prio') }}</th>
-                        <th class="text-center {{ 'sorted' if sort_by == 'status' }}" style="width: 130px;">{{ sort_link('status', 'Status') }}</th>
-                        <th class="text-end pe-3 {{ 'sorted' if sort_by == 'due_date' }}" style="width: 80px;">{{ sort_link('due_date', 'Fällig') }}</th>
+                        <th class="col-w-160">{{ sort_link('order_reference', 'Baustelle/Kunde') }}</th>
+                        <th class="col-w-160">Zuständig</th>
+                        <th class="text-center col-w-60 {{ 'sorted' if sort_by == 'priority' }}">{{ sort_link('priority', 'Prio') }}</th>
+                        <th class="text-center col-w-130 {{ 'sorted' if sort_by == 'status' }}">{{ sort_link('status', 'Status') }}</th>
+                        <th class="text-end pe-3 col-w-80 {{ 'sorted' if sort_by == 'due_date' }}">{{ sort_link('due_date', 'Fällig') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -561,10 +519,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- Floating Bulk Action Bar (hidden until checkboxes selected) -->
 {% if session.get('role') != 'viewer' %}
-<div id="bulkActionBar" class="d-none position-fixed bottom-0 start-50 translate-middle-x mb-4 bg-dark text-white rounded-4 shadow-lg px-4 py-3 align-items-center gap-2 flex-wrap" style="z-index: 1050; max-width: 95vw;">
+<div id="bulkActionBar" class="d-none position-fixed bottom-0 start-50 translate-middle-x mb-4 bg-dark text-white rounded-4 shadow-lg px-4 py-3 align-items-center gap-2 flex-wrap bulk-action-bar">
     <span id="bulkCount" class="fw-bold small me-1">0 ausgewählt</span>
     <div class="vr bg-secondary opacity-50 mx-1"></div>
-    <select id="bulkStatusSelect" class="form-select form-select-sm bg-dark text-white border-secondary rounded-pill" style="width: auto; min-height: 34px;">
+    <select id="bulkStatusSelect" class="form-select form-select-sm bg-dark text-white border-secondary rounded-pill toast-btn">
         <option value="" disabled selected>Status...</option>
         <option value="offen">Offen</option>
         <option value="in_bearbeitung">In Bearbeitung</option>
@@ -575,7 +533,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <i class="bi bi-check-lg me-1"></i>Status
     </button>
     <div class="vr bg-secondary opacity-50 mx-1"></div>
-    <select id="bulkAssignSelect" class="form-select form-select-sm bg-dark text-white border-secondary rounded-pill" style="width: auto; min-height: 34px;">
+    <select id="bulkAssignSelect" class="form-select form-select-sm bg-dark text-white border-secondary rounded-pill toast-btn">
         <option value="" disabled selected>Zuweisen...</option>
         <option value="none">— Keine —</option>
         {% for w in workers %}
@@ -593,7 +551,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <i class="bi bi-person-check me-1"></i>Zuweisen
     </button>
     <div class="vr bg-secondary opacity-50 mx-1"></div>
-    <select id="bulkPrioritySelect" class="form-select form-select-sm bg-dark text-white border-secondary rounded-pill" style="width: auto; min-height: 34px;">
+    <select id="bulkPrioritySelect" class="form-select form-select-sm bg-dark text-white border-secondary rounded-pill toast-btn">
         <option value="" disabled selected>Priorität...</option>
         <option value="1">Hoch</option>
         <option value="2">Mittel</option>
@@ -603,7 +561,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <i class="bi bi-flag me-1"></i>Priorität
     </button>
     <div class="vr bg-secondary opacity-50 mx-1"></div>
-    <input type="date" id="bulkDueDateInput" class="form-control form-control-sm bg-dark text-white border-secondary rounded-pill" style="width: auto; min-height: 34px; color-scheme: dark;" title="Fälligkeitsdatum setzen">
+    <input type="date" id="bulkDueDateInput" class="form-control form-control-sm bg-dark text-white border-secondary rounded-pill toast-btn color-scheme-dark" title="Fälligkeitsdatum setzen">
     <button type="button" id="bulkSetDueDateBtn" class="btn btn-outline-info btn-sm rounded-pill px-3 fw-bold">
         <i class="bi bi-calendar-check me-1"></i>Fälligkeit
     </button>

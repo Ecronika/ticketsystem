@@ -22,21 +22,21 @@
                 <!-- Metadata Grid -->
                 <div class="d-flex flex-wrap gap-2 mb-2" id="metadataGrid">
                     <div id="priorityStatic" class="rounded-3 px-2 py-1 bg-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }}-subtle">
-                        <small class="text-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} x-small text-uppercase d-block" style="font-size: 0.6rem; line-height: 1;">Priorität</small>
+                        <small class="text-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} x-small text-uppercase d-block meta-label">Priorität</small>
                         <span class="fw-semibold small text-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }}">{{ ticket.priority|priority_label }}</span>
                     </div>
                     <div class="bg-surface-subtle rounded-3 px-2 py-1">
-                        <small class="text-muted x-small text-uppercase d-block" style="font-size: 0.6rem; line-height: 1;">Ticket</small>
+                        <small class="text-muted x-small text-uppercase d-block meta-label">Ticket</small>
                         <span class="fw-semibold small">#{{ ticket.id }}</span>
                     </div>
                     {% if ticket.order_reference %}
                     <div class="bg-surface-subtle rounded-3 px-2 py-1" id="staticOrderRefWrapper">
-                        <small class="text-muted x-small text-uppercase d-block" style="font-size: 0.6rem; line-height: 1;">Auftrag</small>
+                        <small class="text-muted x-small text-uppercase d-block meta-label">Auftrag</small>
                         <span class="fw-semibold small">{{ ticket.order_reference }}</span>
                     </div>
                     {% endif %}
                     <div class="bg-surface-subtle rounded-3 px-2 py-1" id="staticDueWrapper">
-                        <small class="text-muted x-small text-uppercase d-block" style="font-size: 0.6rem; line-height: 1;">Fällig</small>
+                        <small class="text-muted x-small text-uppercase d-block meta-label">Fällig</small>
                         {% if ticket.due_date %}
                         <span class="fw-semibold small">{{ ticket.due_date|datetime('%d.%m.%Y') }}</span>
                         {% else %}
@@ -44,18 +44,18 @@
                         {% endif %}
                     </div>
                     <div class="bg-surface-subtle rounded-3 px-2 py-1">
-                        <small class="text-muted x-small text-uppercase d-block" style="font-size: 0.6rem; line-height: 1;">Erstellt</small>
+                        <small class="text-muted x-small text-uppercase d-block meta-label">Erstellt</small>
                         <span class="small">{{ ticket.created_at|local_time|datetime('%d.%m.%Y') }}</span>
                     </div>
                     {% if ticket.status == TicketStatus.WARTET.value and ticket.reminder_date %}
                     <div class="rounded-3 px-2 py-1 border-start border-3 border-primary bg-primary-subtle" id="staticReminderWrapper">
-                        <small class="text-primary x-small text-uppercase d-block" style="font-size: 0.6rem; line-height: 1;"><i class="bi bi-alarm me-1"></i>Wiedervorlage</small>
+                        <small class="text-primary x-small text-uppercase d-block meta-label"><i class="bi bi-alarm me-1"></i>Wiedervorlage</small>
                         <span class="fw-semibold small text-primary">{{ ticket.reminder_date|local_time|datetime('%d.%m.%Y') }}</span>
                     </div>
                     {% endif %}
                     <!-- Read-Only Metadaten aus Sidebar migriert (Vorschlag 6) -->
                     <div class="bg-surface-subtle rounded-3 px-2 py-1" id="headerAssigneeWrapper">
-                        <small class="text-muted x-small text-uppercase d-block" style="font-size: 0.6rem; line-height: 1;">Zugewiesen</small>
+                        <small class="text-muted x-small text-uppercase d-block meta-label">Zugewiesen</small>
                         <span class="fw-semibold small" id="ticketAssigneeBadge">
                             {% if ticket.assigned_to_id %}
                                 {{ (ticket.assigned_to.name if ticket.assigned_to else 'Unbekannt') }}
@@ -68,7 +68,7 @@
                     </div>
                     {% if ticket.recurrence %}
                     <div class="bg-surface-subtle rounded-3 px-2 py-1">
-                        <small class="text-muted x-small text-uppercase d-block" style="font-size: 0.6rem; line-height: 1;"><i class="bi bi-arrow-repeat me-1"></i>Serie</small>
+                        <small class="text-muted x-small text-uppercase d-block meta-label"><i class="bi bi-arrow-repeat me-1"></i>Serie</small>
                         <span class="fw-semibold small">{{ ticket.recurrence.rule|capitalize }}</span>
                     </div>
                     {% endif %}
@@ -76,12 +76,12 @@
                 <!-- Tags Display -->
                 <div id="staticTagsWrapper" class="d-flex flex-wrap gap-1">
                     {% if ticket.is_confidential %}
-                    <span class="badge bg-warning-subtle text-warning border border-warning rounded-pill fw-normal" style="font-size: 0.7rem;">
+                    <span class="badge bg-warning-subtle text-warning border border-warning rounded-pill fw-normal text-xs">
                         <i class="bi bi-lock-fill me-1"></i>Vertraulich
                     </span>
                     {% endif %}
                     {% for tag in ticket.tags %}
-                    <span class="badge bg-secondary-subtle text-secondary rounded-pill fw-normal" style="font-size: 0.7rem;">
+                    <span class="badge bg-secondary-subtle text-secondary rounded-pill fw-normal text-xs">
                         {{ tag.name }}
                     </span>
                     {% endfor %}
@@ -144,11 +144,11 @@
 
         <div class="bg-surface-subtle p-3 rounded-4 mb-2 border border-light-subtle">
             {% if has_full_access %}
-            <div id="descriptionWrapper" style="max-height: 120px; overflow: hidden; position: relative; transition: max-height 0.3s ease;">
-                <p class="mb-0 text-secondary-emphasis" id="descriptionText" style="white-space: pre-wrap; line-height: 1.6;">{{ ticket.description or 'Keine Beschreibung.' }}</p>
-                <div id="descriptionGradient" class="d-none" style="position: absolute; bottom: 0; left: 0; right: 0; height: 40px; background: linear-gradient(transparent, var(--bg-surface-subtle, #f8f9fa)); pointer-events: none;"></div>
+            <div id="descriptionWrapper" class="desc-wrapper">
+                <p class="mb-0 text-secondary-emphasis text-pre-wrap lh-relaxed" id="descriptionText">{{ ticket.description or 'Keine Beschreibung.' }}</p>
+                <div id="descriptionGradient" class="d-none desc-gradient"></div>
             </div>
-            <button type="button" id="descriptionToggle" class="btn btn-link btn-sm text-decoration-none p-0 mt-1 d-none" style="font-size: 0.8rem;">Mehr lesen</button>
+            <button type="button" id="descriptionToggle" class="btn btn-link btn-sm text-decoration-none p-0 mt-1 d-none text-meta">Mehr lesen</button>
             {% else %}
             <div class="alert alert-warning mb-0 p-3 rounded-3 d-flex align-items-center">
                 <i class="bi bi-shield-lock-fill fs-4 me-3"></i>
@@ -172,7 +172,7 @@
                        onclick="event.preventDefault(); document.getElementById('lightboxImg').src=this.dataset.fullSrc; document.getElementById('lightboxDialog').showModal();">
                         <img src="{{ ingress_path }}{{ url_for('main.serve_attachment', attachment_id=attachment.id) }}"
                              class="img-fluid rounded-3 shadow-sm border"
-                             style="cursor: zoom-in;"
+                             class="cursor-zoom-in"
                              alt="Anhang zu Ticket #{{ ticket.id }} (Bild {{ loop.index }})"
                              loading="lazy">
                     </a>
@@ -184,8 +184,8 @@
                     </a>
                     {% endif %}
                     {% if session.get('role') != 'viewer' and (session.get('role') == 'admin' or ticket._worker_is_author(session.get('worker_id'))) %}
-                    <button type="button" class="btn btn-sm btn-danger rounded-circle position-absolute top-0 end-0 m-1 delete-attachment-btn"
-                            data-attachment-id="{{ attachment.id }}" style="width: 28px; height: 28px; padding: 0; line-height: 28px; font-size: 0.7rem;"
+                    <button type="button" class="btn btn-sm btn-danger rounded-circle position-absolute top-0 end-0 m-1 delete-attachment-btn btn-icon-sm"
+                            data-attachment-id="{{ attachment.id }}"
                             title="Anhang löschen">
                         <i class="bi bi-x-lg"></i>
                     </button>
@@ -199,11 +199,10 @@
 </div>
 
 <!-- Lightbox Dialog for image attachments -->
-<dialog id="lightboxDialog" style="border:none; background:transparent; padding:0; max-width:90vw; max-height:90vh; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);" onclick="if(event.target===this)this.close();">
-    <div style="position:relative; display:inline-block;">
-        <img id="lightboxImg" src="" alt="Vergrößerte Ansicht" style="max-width:90vw; max-height:85vh; border-radius:0.75rem; display:block;">
-        <button type="button" onclick="this.closest('dialog').close();" aria-label="Schließen"
-                style="position:absolute; top:-12px; right:-12px; width:36px; height:36px; border-radius:50%; border:none; background:#fff; color:#333; font-size:1.2rem; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center;">
+<dialog id="lightboxDialog" class="lightbox-dialog" onclick="if(event.target===this)this.close();">
+    <div class="position-relative d-inline-block">
+        <img id="lightboxImg" src="" alt="Vergrößerte Ansicht" class="lightbox-img">
+        <button type="button" onclick="this.closest('dialog').close();" aria-label="Schließen" class="lightbox-close">
             <i class="bi bi-x-lg"></i>
         </button>
     </div>

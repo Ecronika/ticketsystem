@@ -20,7 +20,7 @@
 <div class="row g-4">
     {% if not projects %}
     <div class="col-12 text-center py-5">
-        <i class="bi bi-building text-muted" style="font-size: 3rem;"></i>
+        <i class="bi bi-building text-muted icon-empty-state"></i>
         <h5 class="mt-3 text-muted">Keine Bauvorhaben/Projekte gefunden</h5>
         <p class="small text-muted">Tickets, die mit einer Auftragsnummer (`order_reference`) versehen sind, werden hier automatisch als Projekt gruppiert.</p>
     </div>
@@ -55,22 +55,22 @@
                         <!-- Status Distribution (Bento) -->
                         <div class="d-flex gap-2 mb-4 small flex-wrap">
                             {% if p.status_counts.offen > 0 %}
-                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" style="font-size: 0.70rem;">
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 text-xs">
                                 {{ p.status_counts.offen }} Offen
                             </span>
                             {% endif %}
                             {% if p.status_counts.in_bearbeitung > 0 %}
-                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1" style="font-size: 0.70rem;">
+                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1 text-xs">
                                 {{ p.status_counts.in_bearbeitung }} In Bearbeitung
                             </span>
                             {% endif %}
                             {% if p.status_counts.wartet > 0 %}
-                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="font-size: 0.70rem;">
+                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 text-xs">
                                 {{ p.status_counts.wartet }} Wartet
                             </span>
                             {% endif %}
                             {% if p.completed_tickets > 0 %}
-                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 0.70rem;">
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 text-xs">
                                 {{ p.completed_tickets }} Erledigt
                             </span>
                             {% endif %}
@@ -82,7 +82,7 @@
                                 <span class="small fw-semibold text-muted">Gesamtfortschritt</span>
                                 <span class="small fw-bold {{ 'text-success' if p.is_completed else 'text-primary' }}">{{ p.progress }}%</span>
                             </div>
-                            <div class="progress" style="height: 8px;">
+                            <div class="progress progress-thin">
                                 <div class="progress-bar {{ 'bg-success' if p.is_completed else 'bg-primary progress-bar-striped progress-bar-animated' }}" 
                                      role="progressbar" 
                                      style="width: {{ p.progress }}%;" 

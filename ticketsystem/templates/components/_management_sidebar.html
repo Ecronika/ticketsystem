@@ -1,4 +1,4 @@
-<div class="card shadow-sm border-0 rounded-4 sticky-top" style="top: 4.5rem; max-width: 360px;">
+<div class="card shadow-sm border-0 rounded-4 sticky-top sticky-sidebar">
     <div class="card-body p-4">
         <!-- Segmented Controls für Status -->
         <div class="mb-4" id="statusSection">
@@ -52,7 +52,7 @@
                     </optgroup>
                     {% endif %}
                 </select>
-                <div class="position-absolute top-50 end-0 translate-middle-y pe-4 d-none select-spinner" style="pointer-events: none;">
+                <div class="position-absolute top-50 end-0 translate-middle-y pe-4 d-none select-spinner pe-none">
                     <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
                 </div>
             </div>
@@ -80,13 +80,13 @@
             {% elif a and a.status == ApprovalStatus.APPROVED.value %}
                 <div class="border-start border-3 border-success ps-3 py-2 mb-2 small">
                     <strong class="text-success">Freigegeben</strong>
-                    <span class="text-muted d-block" style="font-size: 0.75rem;">Am {{ a.approved_at|local_time|datetime('%d.%m.%Y') }}</span>
+                    <span class="text-muted d-block x-small">Am {{ a.approved_at|local_time|datetime('%d.%m.%Y') }}</span>
                 </div>
 
             {% elif a and a.status == ApprovalStatus.REJECTED.value %}
                 <div class="border-start border-3 border-danger ps-3 py-2 mb-2 small">
                     <strong class="text-danger">Freigabe abgelehnt</strong>
-                    <div class="text-muted mt-1" style="font-size: 0.75rem;">{{ a.reject_reason }}</div>
+                    <div class="text-muted mt-1 x-small">{{ a.reject_reason }}</div>
                 </div>
                 {% if session.get('role') != WorkerRole.VIEWER.value %}
                 <button class="btn btn-sm btn-outline-secondary w-100 mt-2 request-approval-btn" data-ticket-id="{{ ticket.id }}">Erneut Freigabe anfordern</button>
@@ -110,7 +110,7 @@
                 <small class="text-muted x-small text-uppercase ls-wide">Kundenkontakt</small>
                 {% if session.get('role') != WorkerRole.VIEWER.value %}
                 <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-muted" data-bs-toggle="collapse" data-bs-target="#contactEditForm" aria-expanded="false" id="contactEditToggle">
-                    <i class="bi bi-pencil-square" style="font-size:0.8rem;"></i>
+                    <i class="bi bi-pencil-square text-meta"></i>
                 </button>
                 {% endif %}
             </div>
