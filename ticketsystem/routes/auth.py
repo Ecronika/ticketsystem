@@ -249,9 +249,7 @@ def _setup_view() -> str | WerkzeugResponse:
         pin, method="pbkdf2:sha256", salt_length=16,
     )
 
-    setting = SystemSettings.query.filter_by(key="onboarding_complete").first()
-    if setting:
-        setting.value = "true"
+    SystemSettings.set_setting("onboarding_complete", "true")
 
     db.session.commit()
 
