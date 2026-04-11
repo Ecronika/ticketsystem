@@ -48,6 +48,8 @@ ticketsystem/signatures/*
 !ticketsystem/signatures/.gitkeep
 ticketsystem/backups/*
 !ticketsystem/backups/.gitkeep
+ticketsystem/attachments/*
+!ticketsystem/attachments/.gitkeep
 ticketsystem/secret.key
 
 
