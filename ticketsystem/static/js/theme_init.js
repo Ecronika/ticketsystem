@@ -66,11 +66,12 @@
     if (serverTheme) localStorage.setItem('ui_theme', serverTheme);
     window.applyTheme(savedTheme);
 
-    // H-5 Fix: Wire up both toggle buttons (navbar + avatar dropdown) after DOM ready
-    document.addEventListener('DOMContentLoaded', function() {
-        ['themeToggle', 'themeToggleDropdown'].forEach(function(id) {
-            const btn = document.getElementById(id);
-            if (btn) btn.addEventListener('click', toggleTheme);
-        });
+    // Wire up toggle buttons via event delegation (robust against late DOM ready)
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('#themeToggle, #themeToggleDropdown');
+        if (btn) {
+            e.preventDefault();
+            toggleTheme();
+        }
     });
 })();
