@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', function() {
 {% block content %}
 <div class="row justify-content-center mt-5">
     <div class="col-md-6 col-lg-4">
-        <div class="card shadow">
+        <div class="card card-std shadow">
             <div class="card-header bg-dark text-white">
                 <h4 class="mb-0"><i class="bi bi-person-badge" aria-hidden="true"></i> Mitarbeiter Login</h4>
             </div>
@@ -33,15 +33,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     <h5 class="h6 fw-bold mb-1"><i class="bi bi-info-circle-fill me-1"></i> TicketSystem Shopfloor</h5>
                     <p class="small mb-0 opacity-75">Störungen melden & Status in Echtzeit verfolgen.</p>
                 </div>
-                
+
                 <form method="POST">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                     <div class="mb-3">
                         <label for="worker_name" class="form-label form-label-bold text-muted">Mitarbeiter wählen oder Name eingeben</label>
-                        <input type="text" class="form-control form-control-lg bg-light" id="worker_name" name="worker_name" required autofocus autocomplete="username" placeholder="z.B. Schmidt">
+                        <input type="text" class="form-control form-control-lg" id="worker_name" name="worker_name" required autofocus autocomplete="username" placeholder="z.B. Schmidt">
                         <div class="d-flex flex-wrap gap-2 mt-2">
                             {% for worker in workers %}
-                            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill py-1 px-3 bg-white shadow-sm worker-chip"
+                            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill py-1 px-3 shadow-sm worker-chip"
                                     data-name="{{ worker.name }}">
                                 <i class="bi bi-person me-1"></i>{{ worker.name }}
                             </button>
@@ -51,10 +51,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="mb-3">
                         <label for="pin" class="form-label form-label-bold text-muted">Persönlicher PIN</label>
                         <div class="input-group">
-                            <input type="password" class="form-control form-control-lg bg-light text-center" id="pin" name="pin"
+                            <input type="password" class="form-control form-control-lg text-center" id="pin" name="pin"
                                 required pattern="[0-9]*" inputmode="numeric" placeholder="****"
                                 autocomplete="current-password">
-                            <button type="button" class="btn btn-light border px-3 pin-toggle" data-target="pin"
+                            <button type="button" class="btn btn-outline-secondary px-3 pin-toggle" data-target="pin"
                                     aria-label="PIN anzeigen/verbergen">
                                 <i class="bi bi-eye"></i>
                             </button>
@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </form>
                 <div class="mt-4 pt-2">
                     <div class="text-center mb-3">
-                        <span class="px-2 bg-white text-muted x-small">ODER OHNE LOGIN</span>
+                        <span class="px-2 text-muted x-small">ODER OHNE LOGIN</span>
                     </div>
                     <a href="{{ ingress_path }}{{ url_for('main.ticket_new') }}"
                        class="btn btn-success btn-lg w-100 rounded-pill shadow-sm py-3 fw-bold">
