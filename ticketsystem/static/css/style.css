@@ -982,12 +982,46 @@ textarea:focus-visible {
    ========================================= */
 .progress-thin    { height: 8px; }
 .btn-icon-sm {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
+    min-height: 32px;
     padding: 0;
-    line-height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     font-size: var(--fs-xs);
+    line-height: 1;
 }
+
+/* Attachments collapse chevron (CSS-only via aria-expanded) */
+#attachmentsCollapseToggle .collapse-chevron {
+    transition: transform 0.2s ease;
+    font-size: 0.75em;
+}
+#attachmentsCollapseToggle[aria-expanded="true"] .collapse-chevron {
+    transform: rotate(90deg);
+}
+
+/* Attachment tiles & delete button */
+.attachment-tile {
+    position: relative;
+}
+.attachment-delete-btn {
+    opacity: 0.85;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(2px);
+    transition: opacity 0.15s ease, box-shadow 0.15s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+    .attachment-tile:hover .attachment-delete-btn {
+        opacity: 1;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    }
+}
+[data-theme="dark"] .attachment-delete-btn {
+    background: rgba(0, 0, 0, 0.6);
+}
+
 .kbd-hint {
     font-size: 0.6rem;
     pointer-events: none;
@@ -1240,18 +1274,81 @@ textarea:focus-visible {
 .btn-soft-success { color: var(--bs-success); border: 1px solid var(--bs-success); background-color: transparent; }
 .btn-check:checked + .btn-soft-success { background-color: rgba(var(--bs-success-rgb), 0.15); color: var(--bs-success); border-color: var(--bs-success); }
 
+/* ===== PDF Preview Dialog ===== */
+.doc-preview-dialog {
+    border: none;
+    border-radius: var(--radius-lg);
+    background: var(--bg-surface);
+    padding: 0;
+    width: 90vw;
+    max-width: 900px;
+    height: 85vh;
+    max-height: 85vh;
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+.doc-preview-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.7);
+}
+[data-theme="dark"] .doc-preview-dialog {
+    background: var(--bg-surface);
+}
+.doc-preview-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+.doc-preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-surface-subtle);
+    flex-shrink: 0;
+}
+.doc-preview-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    min-width: 0;
+    flex: 1;
+    margin-right: 1rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.doc-preview-frame {
+    flex: 1;
+    border: none;
+    width: 100%;
+}
+
 /* ===== Print Styles ===== */
 @media print {
     /* Hide non-essential UI elements */
     .navbar, footer, .breadcrumb, #bulkActionBar,
-    .btn, button, .modal, .collapse, #commentForm,
+    .btn, button, .modal, #commentForm,
     .form-control, .form-select, select, .toast-container,
     #reloadHint, .select-feedback-wrapper .select-spinner,
-    #lightboxDialog, .no-print, .checklist-delete,
+    #lightboxDialog, #docPreviewDialog, .no-print, .checklist-delete,
     #advancedChecklistOptions, #apply-template-btn,
     #apply-template-select, .reset-pin-section,
     #contactEditToggle, #contactEditForm {
         display: none !important;
+    }
+    /* Attachments: show collapsed content, hide interactive elements */
+    #attachmentsCollapseBody.collapse {
+        display: block !important;
+        height: auto !important;
+    }
+    #uploadZone,
+    .attachment-delete-btn,
+    #toggleUploadZone,
+    #attachmentsCollapseToggle .collapse-chevron {
+        display: none !important;
+    }
+    #attachmentsCollapseToggle {
+        display: flex !important;
     }
     /* Reset background and ensure readable text */
     body {
