@@ -8,8 +8,9 @@ import logging
 import os
 import re
 import uuid
+from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from dateutil.relativedelta import relativedelta
 from flask import current_app
@@ -31,8 +32,9 @@ from utils import get_utc_now
 
 from ._helpers import db_transaction
 from ._ticket_helpers import (
+    ALLOWED_EXTENSIONS,
+    MAX_UPLOAD_FILE_SIZE,
     ContactInfo,
-    _ALLOWED_EXTENSIONS,
     _RECURRENCE_INCREMENTS,
     _format_date,
     _get_ticket_or_none,
@@ -41,6 +43,18 @@ from ._ticket_helpers import (
 from .email_service import EmailService
 
 _logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Dataclasses
+# ---------------------------------------------------------------------------
+
+@dataclass
+class SaveResult:
+    """Structured result from attachment save operations."""
+
+    saved: list = field(default_factory=list)
+    skipped: list = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -107,8 +121,12 @@ def _attach_tags(ticket: Ticket, tags: Optional[List[str]]) -> None:
 def _save_attachments(
     ticket_id: int,
     attachments: list,
-) -> None:
-    """Save uploaded files and create ``Attachment`` records."""
+) -> SaveResult:
+    """Save uploaded files and create ``Attachment`` records.
+
+    Returns a ``SaveResult`` with lists of saved attachments and
+    skipped files (with reasons).
+    """
     from extensions import Config
 
     data_dir = current_app.config.get("DATA_DIR", Config.get_data_dir())
@@ -118,6 +136,9 @@ def _save_attachments(
     if "pending_files" not in db.session.info:
         db.session.info["pending_files"] = []
 
+    saved: list = []
+    skipped: List[Dict[str, str]] = []
+
     for file_obj in attachments:
         if not file_obj.filename:
             continue
@@ -126,12 +147,24 @@ def _save_attachments(
             if "." in file_obj.filename
             else ""
         )
-        if ext not in _ALLOWED_EXTENSIONS:
-            current_app.logger.warning(
-                "Upload blocked: Illegal extension '%s' for file %s",
-                ext, file_obj.filename,
-            )
+        if ext not in ALLOWED_EXTENSIONS:
+            skipped.append({
+                "name": file_obj.filename,
+                "reason": "Dateityp nicht erlaubt",
+            })
             continue
+
+        # Server-side individual file size check
+        file_obj.seek(0, 2)
+        size = file_obj.tell()
+        file_obj.seek(0)
+        if size > MAX_UPLOAD_FILE_SIZE:
+            skipped.append({
+                "name": file_obj.filename,
+                "reason": "Datei zu groß",
+            })
+            continue
+
         try:
             mime_type = file_obj.mimetype or "application/octet-stream"
             new_filename = f"ticket_{ticket_id}_{uuid.uuid4().hex[:8]}.{ext}"
@@ -145,13 +178,17 @@ def _save_attachments(
                 mime_type=mime_type,
             )
             db.session.add(attachment)
-            current_app.logger.info(
-                "Saved attachment %s for ticket %s", new_filename, ticket_id
-            )
+            saved.append(attachment)
         except OSError as err:
+            skipped.append({
+                "name": file_obj.filename,
+                "reason": "Speicherfehler",
+            })
             current_app.logger.error(
-                "Error saving attachment %s: %s", file_obj.filename, err
+                "Error saving attachment %s: %s", file_obj.filename, err,
             )
+
+    return SaveResult(saved=saved, skipped=skipped)
 
 
 def _add_creation_comment(
@@ -479,6 +516,77 @@ class TicketCoreService:
 
         db.session.delete(attachment)
         db.session.commit()
+
+    # ------------------------------------------------------------------
+    # Add attachments to existing ticket
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    @db_transaction
+    def add_attachments(
+        ticket_id: int,
+        attachments: list,
+        worker_id: int,
+        worker_name: str,
+    ) -> SaveResult:
+        """Upload attachments to an existing ticket with audit trail."""
+        from enums import TicketStatus
+        from exceptions import AccessDeniedError, DomainError
+
+        ticket = _get_ticket_or_raise(ticket_id)
+
+        if ticket.is_deleted:
+            raise AccessDeniedError(
+                "Gelöschtes Ticket kann nicht bearbeitet werden."
+            )
+        if ticket.status == TicketStatus.ERLEDIGT.value:
+            raise DomainError(
+                "Erledigtes Ticket kann nicht bearbeitet werden."
+            )
+
+        result = _save_attachments(ticket_id, attachments)
+        if not result.saved:
+            return result
+
+        db.session.flush()
+
+        # Audit comment
+        names = [a.filename[:30] for a in result.saved[:3]]
+        suffix = (
+            f" +{len(result.saved) - 3} weitere"
+            if len(result.saved) > 3
+            else ""
+        )
+        text = (
+            f"{len(result.saved)} Anhänge hinzugefügt: "
+            f"{', '.join(names)}{suffix}"
+        )
+        db.session.add(Comment(
+            ticket_id=ticket_id,
+            author=worker_name,
+            author_id=worker_id,
+            text=text,
+            is_system_event=True,
+            event_type="ATTACHMENTS_ADDED",
+        ))
+
+        # Notify assigned worker (with OOO delegation)
+        notify_id = ticket.assigned_to_id
+        if notify_id and notify_id != worker_id:
+            assigned = db.session.get(Worker, notify_id)
+            if assigned and assigned.is_out_of_office and assigned.delegate_to_id:
+                notify_id = assigned.delegate_to_id
+            if notify_id != worker_id:
+                TicketCoreService.create_notification(
+                    notify_id,
+                    f"{worker_name} hat {len(result.saved)} Anhänge "
+                    f"zu Ticket #{ticket_id} hinzugefügt.",
+                    f"/ticket/{ticket_id}",
+                )
+
+        ticket.updated_at = get_utc_now()
+        db.session.commit()
+        return result
 
     # ------------------------------------------------------------------
     # Notifications
