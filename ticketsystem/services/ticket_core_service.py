@@ -293,15 +293,16 @@ def _notify_meta_change(
 
     change_text = ", ".join(changes)
     for wid in recipients:
+        db.session.add(Notification(
+            user_id=wid,
+            message=(
+                f"{author_name} hat Ticket #{ticket.id} bearbeitet: "
+                f"{change_text[:200]}"
+            ),
+            link=f"/ticket/{ticket.id}",
+        ))
+    if recipients:
         try:
-            db.session.add(Notification(
-                user_id=wid,
-                message=(
-                    f"{author_name} hat Ticket #{ticket.id} bearbeitet: "
-                    f"{change_text[:200]}"
-                ),
-                link=f"/ticket/{ticket.id}",
-            ))
             db.session.commit()
         except Exception:
             db.session.rollback()

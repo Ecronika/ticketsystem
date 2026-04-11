@@ -79,7 +79,7 @@ class TicketApprovalService:
         return (
             Ticket.query.filter(
                 Ticket.is_deleted.is_(False),
-                Ticket.approval.has(TicketApproval.status == "pending"),
+                Ticket.approval.has(TicketApproval.status == ApprovalStatus.PENDING.value),
             )
             .options(
                 joinedload(Ticket.assigned_to), selectinload(Ticket.tags)
