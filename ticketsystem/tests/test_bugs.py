@@ -135,3 +135,55 @@ def test_delete_checklist_missing_item_returns_404(test_app, client):
     assert rv.status_code == 404, (
         f"Expected 404 for missing item, got {rv.status_code}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Bug 4: _notify_meta_change batches notifications into one commit
+# ---------------------------------------------------------------------------
+
+def test_notify_meta_change_creates_notification(test_app, client):
+    """update_ticket_meta must persist a notification for the assigned worker."""
+    from models import Notification
+    from services.ticket_core_service import TicketCoreService
+
+    with test_app.app_context():
+        # Create a worker to be assigned
+        assignee = Worker(
+            name="Assignee-Notify-Test",
+            pin_hash="x",
+            is_active=True,
+            role="worker",
+        )
+        _db.session.add(assignee)
+        _db.session.flush()
+
+        ticket = Ticket(
+            title="Notify-Meta-Test",
+            priority=2,
+            status="offen",
+            assigned_to_id=assignee.id,
+        )
+        _db.session.add(ticket)
+        _db.session.commit()
+
+        before = Notification.query.filter_by(user_id=assignee.id).count()
+
+        # Call update_ticket_meta as a different author so notification fires
+        TicketCoreService.update_ticket_meta(
+            ticket.id,
+            title="Notify-Meta-Test (updated)",
+            priority=2,
+            author_name="OtherWorker",
+            author_id=None,
+        )
+
+        after = Notification.query.filter_by(user_id=assignee.id).count()
+        assert after == before + 1, (
+            f"Expected one new notification, got {after - before}"
+        )
+
+        # Cleanup
+        Notification.query.filter_by(user_id=assignee.id).delete()
+        _db.session.delete(ticket)
+        _db.session.delete(assignee)
+        _db.session.commit()
