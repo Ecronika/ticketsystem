@@ -50,3 +50,26 @@ def test_mobile_new_ticket_cta_is_unambiguous(client):
     # 'Melden' alone is ambiguous; the short mobile label should be 'Neu'.
     # The full desktop label stays 'Neues Ticket'.
     assert b'>Melden<' not in resp.data
+
+
+def test_dashboard_does_not_show_separate_wartet_tab(client, db):
+    """Regression: the separate 'Wartet' tab was merged into 'Alle Offenen'."""
+    worker = Worker(
+        name="TabTest",
+        pin_hash="x",
+        role="admin",
+        is_admin=True,
+        needs_pin_change=False,
+    )
+    db.session.add(worker)
+    db.session.commit()
+
+    with client.session_transaction() as sess:
+        sess["worker_id"] = worker.id
+        sess["worker_name"] = worker.name
+        sess["role"] = "admin"
+        sess["is_admin"] = True
+
+    resp = client.get("/")
+    # The 'Wartet' tab anchor (distinct from "Alle Offenen") must be gone.
+    assert b"tab=wartet" not in resp.data

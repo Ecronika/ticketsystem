@@ -436,10 +436,6 @@ document.addEventListener('DOMContentLoaded', function() {
         <i class="bi bi-telephone-forward me-1 text-warning"></i>Rückruf
         <span class="tab-count {{ 'bg-warning text-dark' if summary_counts.callback_pending > 0 else 'bg-surface-subtle text-muted' }}">{{ summary_counts.callback_pending }}</span>
     </a>
-    <a href="{{ ingress_path }}{{ url_for('main.index', tab='wartet', q=query) }}" class="dash-tab text-decoration-none {{ 'active' if active_tab == 'wartet' }}">
-        <i class="bi bi-hourglass-split me-1 text-secondary"></i>Wartet
-        <span class="tab-count bg-surface-subtle text-muted">{{ summary_counts.wartet }}</span>
-    </a>
 </div>
 
 <!-- Mobile Select All (visible only on small screens where thead is hidden) -->
