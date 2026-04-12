@@ -8,6 +8,7 @@ import logging
 from datetime import date, timedelta
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+from cachetools import TTLCache
 from sqlalchemy import Float, case, cast, func
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -27,6 +28,12 @@ from ._ticket_helpers import (
 )
 
 _logger = logging.getLogger(__name__)
+
+# Modul-level TTL-Caches für teure Aggregationen.
+# Da beide Funktionen keine benutzer-spezifischen Parameter haben,
+# genügt maxsize=1 (ein gecachter Wert pro Cache).
+_projects_cache: TTLCache = TTLCache(maxsize=1, ttl=120)   # 2 Minuten
+_workload_cache: TTLCache = TTLCache(maxsize=1, ttl=300)   # 5 Minuten
 
 
 # ---------------------------------------------------------------------------
@@ -309,8 +316,11 @@ class DashboardService:
         """Fetch projects grouped by order_reference with progress.
 
         Uses a single SQL query with GROUP BY instead of loading full ORM
-        objects, avoiding N+1 on checklists.
+        objects, avoiding N+1 on checklists. Result is cached for 2 minutes.
         """
+        cached = _projects_cache.get("v")
+        if cached is not None:
+            return cached
         # Checklist done/total per ticket as subquery
         ci = (
             db.session.query(
@@ -380,11 +390,19 @@ class DashboardService:
             ):
                 p["last_updated"] = row.last_upd
 
-        return _finalize_projects(projects)
+        result = _finalize_projects(projects)
+        _projects_cache["v"] = result
+        return result
 
     @staticmethod
     def get_workload_overview() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        """Return workload entries split into absent and present workers."""
+        """Return workload entries split into absent and present workers.
+
+        Result is cached for 5 minutes.
+        """
+        cached = _workload_cache.get("v")
+        if cached is not None:
+            return cached
         now = get_utc_now()
         today = now.date()
         week_start = today - timedelta(days=today.weekday())
@@ -431,4 +449,6 @@ class DashboardService:
             key=lambda x: (-x["critical_count"], -x["open_count"])
         )
         present.sort(key=lambda x: -x["open_count"])
-        return absent, present
+        result = (absent, present)
+        _workload_cache["v"] = result
+        return result
