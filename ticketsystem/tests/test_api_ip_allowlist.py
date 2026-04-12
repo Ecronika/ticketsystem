@@ -46,3 +46,32 @@ def test_blocked_ip_returns_403(client, allowlisted):
     )
     assert r.status_code == 403
     assert r.get_json() == {"error": "forbidden"}
+
+
+def test_forwarded_header_ignored_for_non_loopback_peer(app, allowlisted):
+    """Direct (non-proxied) clients cannot spoof IP via CF-Connecting-IP.
+
+    Even if the direct peer is on the "blocked" side of the allowlist,
+    setting CF-Connecting-IP to an allowed value must NOT unlock the key —
+    the header is only honored when request.remote_addr is loopback.
+    """
+    # Build a request with a non-loopback remote_addr AND a spoofed CF header
+    # pointing at an allowlisted range. The app must see the peer, not the header.
+    with app.test_client() as c:
+        r = c.post(
+            "/api/v1/webhook/calls",
+            json={"webhook_id": "w", "data": {"id": "ip_spoof", "duration": 1,
+                                              "topic": "t", "summary": "s",
+                                              "messages": []}},
+            headers={
+                "Authorization": f"Bearer {allowlisted}",
+                # Attacker attempts to spoof the CF-Connecting-IP to bypass allowlist.
+                "CF-Connecting-IP": "203.0.113.42",
+            },
+            environ_overrides={"REMOTE_ADDR": "198.51.100.9"},  # non-loopback peer
+        )
+    assert r.status_code == 403, (
+        "Forwarded-IP header from a non-loopback peer must be ignored to "
+        "prevent IP-allowlist bypass."
+    )
+    assert r.get_json() == {"error": "forbidden"}

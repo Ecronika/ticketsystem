@@ -133,3 +133,28 @@ def test_audit_log_external_ref_set(client, db_session, petra_token):
     assert entry.external_ref == "call_audit"
     assert entry.outcome == "success"
     assert entry.assignment_method == "default"
+
+
+def test_webhook_without_content_length_returns_411(client, petra_token):
+    """Chunked-transfer-encoding (no Content-Length) must be rejected.
+
+    Otherwise a 128 KB guard that only fires when content_length is set
+    can be bypassed by sending a chunked body — the request would then
+    fall through to the 16 MB global MAX_CONTENT_LENGTH, enabling DoS
+    via oversized pydantic-parsed payloads.
+    """
+    # Build an EnvironBuilder directly to omit Content-Length.
+    from werkzeug.test import EnvironBuilder
+    builder = EnvironBuilder(
+        path="/api/v1/webhook/calls",
+        method="POST",
+        data=json.dumps(_payload("cl_absent")),
+        content_type="application/json",
+        headers={"Authorization": f"Bearer {petra_token}"},
+    )
+    env = builder.get_environ()
+    env.pop("CONTENT_LENGTH", None)  # force no Content-Length
+    env["HTTP_TRANSFER_ENCODING"] = "chunked"
+    r = client.open(environ_overrides=env)
+    assert r.status_code == 411
+    assert r.get_json() == {"error": "length_required"}

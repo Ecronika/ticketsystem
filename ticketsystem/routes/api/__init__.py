@@ -34,15 +34,11 @@ def _write_audit_log(response):
     latency_ms = int((time.perf_counter() - start) * 1000) if start else 0
     try:
         from services.api_key_service import ApiKeyService
+        from routes.api._decorators import _client_ip
         ApiKeyService.log_audit(
             api_key=getattr(g, "api_key", None),
             key_prefix=getattr(g, "api_key_prefix", None),
-            source_ip=(
-                request.headers.get("CF-Connecting-IP")
-                or request.headers.get("X-Real-IP")
-                or request.remote_addr
-                or ""
-            ),
+            source_ip=_client_ip(),
             method=request.method,
             path=request.path,
             status_code=response.status_code,

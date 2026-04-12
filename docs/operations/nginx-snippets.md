@@ -29,10 +29,22 @@ location /api/v1/ {
     proxy_read_timeout 8s;
     proxy_connect_timeout 2s;
     proxy_set_header Host $host;
+
+    # WICHTIG: X-Real-IP und CF-Connecting-IP hier IMMER explizit setzen,
+    # damit evtl. vom Client mitgesendete Header überschrieben werden.
+    # Sonst könnte ein Angreifer, der direkt an NGINX anfragt, die IP-Allowlist
+    # umgehen. Die App vertraut diesen Headern nur wenn der direkte Peer
+    # Loopback ist (Defense-in-Depth), aber der erste Schutzwall steht hier.
     proxy_set_header X-Real-IP $http_cf_connecting_ip;
+    proxy_set_header CF-Connecting-IP $http_cf_connecting_ip;
+
     proxy_set_header X-Forwarded-Proto https;
     proxy_set_header Cookie "";  # keine Session-Cookies in die API
 }
+
+# Optional: NGINX-Rate-Limit als erste Schicht (vor dem Pre-Auth-Limit der App).
+# http { limit_req_zone $binary_remote_addr zone=api_pub:10m rate=30r/m; }
+# server { location /api/v1/ { limit_req zone=api_pub burst=20 nodelay; ... } }
 ```
 
 ## Cloudflare-Tunnel Ingress-Regeln
