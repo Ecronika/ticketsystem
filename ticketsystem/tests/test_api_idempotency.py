@@ -2,20 +2,7 @@
 
 import threading
 
-import pytest
-
 from models import Ticket
-from services.api_key_service import ApiKeyService
-
-
-@pytest.fixture
-def petra_token(app, db_session, admin_fixture, worker_fixture):
-    _, plaintext = ApiKeyService.create_key(
-        name="HP", scopes=["write:tickets"],
-        default_assignee_id=worker_fixture.id,
-        rate_limit_per_minute=1000, created_by_worker_id=admin_fixture.id,
-    )
-    return plaintext
 
 
 def test_parallel_duplicate_creates_one_ticket(app, client, db_session, petra_token):

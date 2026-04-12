@@ -88,22 +88,6 @@ def db_session(test_app, db):
     return db.session
 
 
-# ---------------------------------------------------------------------------
-# Short-name aliases for plan/spec test files
-# ---------------------------------------------------------------------------
-
-@pytest.fixture
-def admin_fixture(admin_worker):
-    """Alias for admin_worker (used in plan-generated tests)."""
-    return admin_worker
-
-
-@pytest.fixture
-def worker_fixture(default_assignee):
-    """Alias for default_assignee (used in plan-generated tests)."""
-    return default_assignee
-
-
 @pytest.fixture
 def admin_worker(app, db_session):
     """Admin worker (is_admin=True)."""
@@ -134,6 +118,32 @@ def default_assignee(app, db_session):
     db_session.add(w)
     db_session.commit()
     return w
+
+
+@pytest.fixture
+def petra_key(admin_worker, default_assignee):
+    from services.api_key_service import ApiKeyService
+    key, _ = ApiKeyService.create_key(
+        name="HalloPetra Test",
+        scopes=["write:tickets"],
+        default_assignee_id=default_assignee.id,
+        rate_limit_per_minute=1000,
+        created_by_worker_id=admin_worker.id,
+    )
+    return key
+
+
+@pytest.fixture
+def petra_token(admin_worker, default_assignee):
+    from services.api_key_service import ApiKeyService
+    _, plaintext = ApiKeyService.create_key(
+        name="HalloPetra Test Token",
+        scopes=["write:tickets"],
+        default_assignee_id=default_assignee.id,
+        rate_limit_per_minute=1000,
+        created_by_worker_id=admin_worker.id,
+    )
+    return plaintext
 
 
 @pytest.fixture(autouse=True)

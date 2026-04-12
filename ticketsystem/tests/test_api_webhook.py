@@ -2,8 +2,6 @@
 
 import json
 
-import pytest
-
 from models import ApiAuditLog, Ticket
 from services.api_key_service import ApiKeyService
 
@@ -25,16 +23,6 @@ def _payload(call_id="call_001"):
             "email_send_to": "info@beispiel.de",
         },
     }
-
-
-@pytest.fixture
-def petra_token(app, db_session, admin_fixture, worker_fixture):
-    _, plaintext = ApiKeyService.create_key(
-        name="HP", scopes=["write:tickets"],
-        default_assignee_id=worker_fixture.id,
-        rate_limit_per_minute=60, created_by_worker_id=admin_fixture.id,
-    )
-    return plaintext
 
 
 def test_webhook_creates_ticket_201(client, db_session, petra_token):
@@ -103,11 +91,11 @@ def test_webhook_too_large_returns_413(client, petra_token):
     assert r.status_code == 413
 
 
-def test_webhook_missing_scope_returns_403(client, db_session, admin_fixture, worker_fixture):
+def test_webhook_missing_scope_returns_403(client, db_session, admin_worker, default_assignee):
     _, plaintext = ApiKeyService.create_key(
         name="K", scopes=["read:tickets"],  # fehlendes write:tickets
-        default_assignee_id=worker_fixture.id,
-        rate_limit_per_minute=60, created_by_worker_id=admin_fixture.id,
+        default_assignee_id=default_assignee.id,
+        rate_limit_per_minute=60, created_by_worker_id=admin_worker.id,
     )
     r = client.post(
         "/api/v1/webhook/calls",
@@ -118,12 +106,12 @@ def test_webhook_missing_scope_returns_403(client, db_session, admin_fixture, wo
 
 
 def test_webhook_expected_webhook_id_mismatch_rejects(
-    client, db_session, admin_fixture, worker_fixture,
+    client, db_session, admin_worker, default_assignee,
 ):
     _, plaintext = ApiKeyService.create_key(
         name="K", scopes=["write:tickets"],
-        default_assignee_id=worker_fixture.id,
-        rate_limit_per_minute=60, created_by_worker_id=admin_fixture.id,
+        default_assignee_id=default_assignee.id,
+        rate_limit_per_minute=60, created_by_worker_id=admin_worker.id,
         expected_webhook_id="wh_expected",
     )
     r = client.post(

@@ -24,8 +24,13 @@ _CONTACT_NAME_MAX = 100
 _CONTACT_PHONE_MAX = 50
 _CONTACT_EMAIL_MAX = 150
 
-# Ticket title max length
+# Ticket title max length (DB column cap)
 _TICKET_TITLE_MAX = 100
+
+# Soft-wrap for summary-derived titles — intentionally shorter than the DB
+# cap so long summaries become readable titles. Summary text is still stored
+# in full in ticket.description.
+_TITLE_SUMMARY_CAP = 80
 
 
 class ApiTicketFactory:
@@ -102,7 +107,7 @@ def _derive_title(data: HalloPetraCallData) -> str:
     if data.topic:
         return data.topic[:_TICKET_TITLE_MAX]
     if data.summary:
-        return data.summary[:80]
+        return data.summary[:_TITLE_SUMMARY_CAP]
     return f"Anruf {data.id}"[:_TICKET_TITLE_MAX]
 
 
@@ -124,7 +129,13 @@ def _pick_name(data: HalloPetraCallData) -> Optional[str]:
 
 
 def _pick_phone(data: HalloPetraCallData) -> Optional[str]:
-    """Return phone: contact_data.phone > collected_data.contact_phone > data.phone."""
+    """Pick the best phone number.
+
+    Priority: contact_data.phone (structured) > collected_data.contact_phone
+    (AI-extracted) > data.phone (call-level number, always present).
+    The 3rd tier is unique to phone because the call itself has an inherent
+    caller number — no equivalent for name or email.
+    """
     if data.contact_data and data.contact_data.phone:
         return data.contact_data.phone
     return data.collected_data.get("contact_phone") or data.phone

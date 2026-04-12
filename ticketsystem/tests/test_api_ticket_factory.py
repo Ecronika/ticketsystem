@@ -1,22 +1,11 @@
 """Tests for services/api_ticket_factory.py."""
 
-import pytest
 from werkzeug.security import generate_password_hash
 
 from models import Worker
 from services.api_key_service import ApiKeyService
 from services.api_ticket_factory import ApiTicketFactory
 from routes.api._schemas import HalloPetraWebhookPayload
-
-
-@pytest.fixture
-def petra_key(app, db_session, admin_fixture, worker_fixture):
-    key, _ = ApiKeyService.create_key(
-        name="HP", scopes=["write:tickets"],
-        default_assignee_id=worker_fixture.id,
-        rate_limit_per_minute=60, created_by_worker_id=admin_fixture.id,
-    )
-    return key
 
 
 def _sample_payload(call_id: str = "call_abc123") -> dict:
@@ -76,7 +65,7 @@ def test_create_ticket_metadata_contains_address(app, db_session, petra_key):
     assert "forwarded_to" in meta
 
 
-def test_assignment_email_match(app, db_session, admin_fixture):
+def test_assignment_email_match(app, db_session, admin_worker):
     matched = Worker(name="InfoUser", is_active=True, role="WORKER",
                      email="info@beispiel.de",
                      pin_hash=generate_password_hash("9173"))
@@ -85,7 +74,7 @@ def test_assignment_email_match(app, db_session, admin_fixture):
     key, _ = ApiKeyService.create_key(
         name="K", scopes=["write:tickets"],
         default_assignee_id=matched.id,  # auch default, aber Match soll greifen
-        rate_limit_per_minute=60, created_by_worker_id=admin_fixture.id,
+        rate_limit_per_minute=60, created_by_worker_id=admin_worker.id,
     )
     payload = HalloPetraWebhookPayload(**_sample_payload())
     ticket, method = ApiTicketFactory.create_from_payload(key, payload)
@@ -93,16 +82,16 @@ def test_assignment_email_match(app, db_session, admin_fixture):
     assert method == "email_match"
 
 
-def test_assignment_fallback_to_default(app, db_session, petra_key, worker_fixture):
+def test_assignment_fallback_to_default(app, db_session, petra_key, default_assignee):
     payload_dict = _sample_payload()
     payload_dict["data"]["email_send_to"] = "unbekannt@nirgendwo.xx"
     payload = HalloPetraWebhookPayload(**payload_dict)
     ticket, method = ApiTicketFactory.create_from_payload(petra_key, payload)
-    assert ticket.assigned_to_id == worker_fixture.id
+    assert ticket.assigned_to_id == default_assignee.id
     assert method == "default"
 
 
-def test_assignment_inactive_worker_fallback(app, db_session, admin_fixture, worker_fixture):
+def test_assignment_inactive_worker_fallback(app, db_session, admin_worker, default_assignee):
     inactive = Worker(name="Inactive", is_active=False, role="WORKER",
                       email="info@beispiel.de",
                       pin_hash=generate_password_hash("6482"))
@@ -110,12 +99,12 @@ def test_assignment_inactive_worker_fallback(app, db_session, admin_fixture, wor
     db_session.commit()
     key, _ = ApiKeyService.create_key(
         name="K", scopes=["write:tickets"],
-        default_assignee_id=worker_fixture.id,
-        rate_limit_per_minute=60, created_by_worker_id=admin_fixture.id,
+        default_assignee_id=default_assignee.id,
+        rate_limit_per_minute=60, created_by_worker_id=admin_worker.id,
     )
     payload = HalloPetraWebhookPayload(**_sample_payload())
     ticket, method = ApiTicketFactory.create_from_payload(key, payload)
-    assert ticket.assigned_to_id == worker_fixture.id
+    assert ticket.assigned_to_id == default_assignee.id
     assert method == "inactive_worker_fallback"
 
 

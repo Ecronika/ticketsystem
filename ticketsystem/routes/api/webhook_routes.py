@@ -36,28 +36,42 @@ def register_routes(bp: Blueprint) -> None:
             raw = request.get_json(force=False, silent=False)
         except Exception:
             g.api_outcome = "validation_failed"
+            g.api_error_detail = "invalid JSON"
             return jsonify({"error": "validation_failed", "detail": "invalid JSON"}), 400
 
         if raw is None:
             g.api_outcome = "validation_failed"
+            g.api_error_detail = "invalid JSON"
             return jsonify({"error": "validation_failed", "detail": "invalid JSON"}), 400
+
+        if not isinstance(raw, dict):
+            g.api_outcome = "validation_failed"
+            g.api_error_detail = "payload must be a JSON object"
+            return jsonify({
+                "error": "validation_failed",
+                "detail": "payload must be a JSON object",
+            }), 400
 
         try:
             payload = HalloPetraWebhookPayload(**raw)
-        except (ValidationError, TypeError) as exc:
+        except ValidationError as exc:
             g.api_outcome = "validation_failed"
+            detail = str(exc)[:500]
+            g.api_error_detail = detail
             return jsonify({
                 "error": "validation_failed",
-                "detail": str(exc)[:500],
+                "detail": detail,
             }), 400
 
         # Optional per-key webhook_id check
         if g.api_key.expected_webhook_id:
             if payload.webhook_id != g.api_key.expected_webhook_id:
                 g.api_outcome = "validation_failed"
+                detail = "webhook_id mismatch"
+                g.api_error_detail = detail
                 return jsonify({
                     "error": "validation_failed",
-                    "detail": "webhook_id mismatch",
+                    "detail": detail,
                 }), 400
 
         # Idempotency: check for existing ticket with same external_call_id

@@ -6,15 +6,15 @@ from services.api_key_service import ApiKeyService
 
 
 @pytest.fixture
-def allowlisted(app, db_session, admin_fixture, worker_fixture):
+def allowlisted(admin_worker, default_assignee):
     key, plaintext = ApiKeyService.create_key(
         name="HP", scopes=["write:tickets"],
-        default_assignee_id=worker_fixture.id,
-        rate_limit_per_minute=1000, created_by_worker_id=admin_fixture.id,
+        default_assignee_id=default_assignee.id,
+        rate_limit_per_minute=1000, created_by_worker_id=admin_worker.id,
     )
     ApiKeyService.add_ip_range(
         key.id, "203.0.113.0/24", note="test",
-        created_by_worker_id=admin_fixture.id,
+        created_by_worker_id=admin_worker.id,
     )
     return plaintext
 

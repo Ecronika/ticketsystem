@@ -8,6 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class HalloPetraMessage(BaseModel):
+    # 'forbid' here: messages are tightly typed (role/content only); unknown
+    # fields indicate a schema mismatch that should fail loudly.
     model_config = ConfigDict(extra="forbid")
 
     role: Literal["assistant", "user"]
@@ -25,6 +27,8 @@ class HalloPetraContactData(BaseModel):
 
 
 class HalloPetraCallData(BaseModel):
+    # 'ignore' at vendor-level: tolerate added fields from the provider
+    # without breaking our webhook receiver.
     model_config = ConfigDict(extra="ignore")
 
     id: str = Field(min_length=1, max_length=64)
