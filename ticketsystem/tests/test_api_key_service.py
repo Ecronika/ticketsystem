@@ -164,3 +164,35 @@ def test_log_audit_failed_auth_without_key(app, db_session):
     entry = ApiAuditLog.query.filter_by(request_id="xyz-789").one()
     assert entry.api_key_id is None
     assert entry.outcome == "auth_failed"
+
+
+def test_authenticate_timing_similar_for_wrong_prefix_and_wrong_hash(
+    app, db_session, admin_fixture, worker_fixture,
+):
+    """Timing stability — crude but catches blatant non-constant compares."""
+    import time
+    import statistics
+    key, plaintext = ApiKeyService.create_key(
+        name="K", scopes=["write:tickets"],
+        default_assignee_id=worker_fixture.id,
+        rate_limit_per_minute=60, created_by_worker_id=admin_fixture.id,
+    )
+    wrong_prefix = "tsk_" + "z" * 48
+    wrong_hash_same_prefix = key.key_prefix + "a" * (52 - len(key.key_prefix))
+
+    def measure(token, n=50):
+        times = []
+        for _ in range(n):
+            t0 = time.perf_counter()
+            try:
+                ApiKeyService.authenticate(token)
+            except InvalidApiKey:
+                pass
+            times.append(time.perf_counter() - t0)
+        return statistics.median(times)
+
+    t1 = measure(wrong_prefix)
+    t2 = measure(wrong_hash_same_prefix)
+    ratio = max(t1, t2) / min(t1, t2)
+    # Nicht mehr als Faktor 10 Unterschied — lax, fängt O(n)-Compare
+    assert ratio < 10.0, f"Timing ratio {ratio:.2f} verdächtig"
