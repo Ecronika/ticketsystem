@@ -132,3 +132,35 @@ def test_mark_used_updates_within_60s_throttled(app, db_session, admin_fixture, 
     assert key.last_used_at == first
     # last_used_ip KANN aktualisiert sein oder nicht — konservativ: auch throttled
     assert key.last_used_ip == "203.0.113.1"
+
+
+def test_log_audit_success(app, db_session, admin_fixture, worker_fixture):
+    key, _ = ApiKeyService.create_key(
+        name="K", scopes=["write:tickets"],
+        default_assignee_id=worker_fixture.id,
+        rate_limit_per_minute=60, created_by_worker_id=admin_fixture.id,
+    )
+    ApiKeyService.log_audit(
+        api_key=key, key_prefix=key.key_prefix,
+        source_ip="203.0.113.1", method="POST", path="/api/v1/webhook/calls",
+        status_code=201, latency_ms=42, outcome="success",
+        external_ref="call_abc", assignment_method="default",
+        request_id="abc-123",
+    )
+    from models import ApiAuditLog
+    entry = ApiAuditLog.query.filter_by(request_id="abc-123").one()
+    assert entry.outcome == "success"
+    assert entry.api_key_id == key.id
+
+
+def test_log_audit_failed_auth_without_key(app, db_session):
+    ApiKeyService.log_audit(
+        api_key=None, key_prefix=None,
+        source_ip="45.131.112.9", method="POST", path="/api/v1/webhook/calls",
+        status_code=401, latency_ms=2, outcome="auth_failed",
+        request_id="xyz-789",
+    )
+    from models import ApiAuditLog
+    entry = ApiAuditLog.query.filter_by(request_id="xyz-789").one()
+    assert entry.api_key_id is None
+    assert entry.outcome == "auth_failed"
