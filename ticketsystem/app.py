@@ -114,6 +114,14 @@ app.config.update(
     DATA_DIR=Config.get_data_dir(),
 )
 
+# Security hardening — explicit settings for production use behind Cloudflare.
+# MAX_CONTENT_LENGTH is kept at the existing value (16 MB) for file uploads on
+# main_bp; the public API blueprint enforces its own 128 KB limit per route.
+# SESSION_COOKIE_SECURE/HTTPONLY/SAMESITE are already set above (SSL_ACTIVE-aware).
+app.config.update(
+    PROPAGATE_EXCEPTIONS=False,
+)
+
 if not os.environ.get("DATA_DIR"):
     logging.info("DATA_DIR not set. Using default: %s", Config.get_data_dir())
 
