@@ -120,7 +120,6 @@ canvas {
     --z-navbar: 1035;
 
     /* Typography Scale */
-    --fs-xxxs: 0.55rem;
     --fs-xxs: 0.65rem;
     --fs-xs: 0.7rem;
     --fs-sm: 0.75rem;
@@ -945,7 +944,7 @@ textarea:focus-visible {
 /* =========================================
    TYPOGRAPHY SCALE
    ========================================= */
-.text-xxxs  { font-size: var(--fs-xxxs) !important; }
+.text-xxxs  { font-size: var(--fs-xxs) !important; }
 .text-xxs   { font-size: var(--fs-xxs) !important; }
 .text-xs    { font-size: var(--fs-xs) !important; }
 .meta-label { font-size: 0.6rem; line-height: 1; }
@@ -961,7 +960,7 @@ textarea:focus-visible {
     justify-content: center;
     flex-shrink: 0;
 }
-.avatar-xs { width: var(--avatar-xs); height: var(--avatar-xs); font-size: var(--fs-xxxs); }
+.avatar-xs { width: var(--avatar-xs); height: var(--avatar-xs); font-size: var(--fs-xxs); }
 .avatar-sm { width: var(--avatar-sm); height: var(--avatar-sm); font-size: var(--fs-xs); }
 .avatar-md { width: var(--avatar-md); height: var(--avatar-md); font-size: var(--fs-meta); }
 
