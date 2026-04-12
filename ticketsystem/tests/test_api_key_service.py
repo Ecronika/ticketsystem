@@ -106,3 +106,29 @@ def test_ip_check_invalid_source_raises(app, db_session, admin_fixture, worker_f
     )
     with pytest.raises(IpNotAllowed):
         ApiKeyService.check_ip(key, "not-an-ip")
+
+
+def test_has_scope(app, db_session, admin_fixture, worker_fixture):
+    key, _ = ApiKeyService.create_key(
+        name="K", scopes=["write:tickets", "read:tickets"],
+        default_assignee_id=worker_fixture.id,
+        rate_limit_per_minute=60, created_by_worker_id=admin_fixture.id,
+    )
+    assert key.has_scope("write:tickets")
+    assert key.has_scope("read:tickets")
+    assert not key.has_scope("admin:tickets")
+
+
+def test_mark_used_updates_within_60s_throttled(app, db_session, admin_fixture, worker_fixture):
+    key, _ = ApiKeyService.create_key(
+        name="K", scopes=["write:tickets"],
+        default_assignee_id=worker_fixture.id,
+        rate_limit_per_minute=60, created_by_worker_id=admin_fixture.id,
+    )
+    ApiKeyService.mark_used(key, "203.0.113.1")
+    first = key.last_used_at
+    ApiKeyService.mark_used(key, "203.0.113.2")  # innerhalb 60s
+    # last_used_at sollte nicht aktualisiert worden sein
+    assert key.last_used_at == first
+    # last_used_ip KANN aktualisiert sein oder nicht — konservativ: auch throttled
+    assert key.last_used_ip == "203.0.113.1"
