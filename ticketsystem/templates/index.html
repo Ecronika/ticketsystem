@@ -53,10 +53,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     setInterval(updateDashboard, POLL_INTERVAL);
 
-    document.querySelectorAll('.reload-page-link').forEach(el => {
-        el.addEventListener('click', (e) => { e.preventDefault(); location.reload(); });
-    });
-
     // --- Delegated table events (survive DOM swaps after silent refresh) ---
     const dashTable = document.getElementById('dashTable');
     if (dashTable) {
@@ -424,13 +420,6 @@ document.addEventListener('DOMContentLoaded', function() {
             <i class="bi bi-plus-lg me-1"></i>Neues Ticket
         </a>
     </div>
-</div>
-
-<!-- Reload Hint -->
-<div id="reloadHint" class="d-none alert alert-info alert-dismissible py-2 mb-3 shadow-sm border-0 rounded-3 small" role="alert">
-    <i class="bi bi-arrow-clockwise me-1"></i>
-    Neue Tickets verfügbar — <a href="#" class="alert-link reload-page-link">Jetzt aktualisieren</a>
-    <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert" aria-label="Schließen"></button>
 </div>
 
 <!-- Action-Driven Tabs (KPI) -->
