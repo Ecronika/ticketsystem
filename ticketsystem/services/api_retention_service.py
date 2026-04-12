@@ -45,38 +45,45 @@ class ApiRetentionService:
 # ---------------------------------------------------------------------------
 
 def schedule_api_retention_jobs(app: Flask) -> None:
-    """Register the API retention jobs (daily at 03:15 and 03:30 UTC)."""
+    """Register the API retention jobs (daily at 03:15 and 03:30 UTC).
+
+    Tolerates ImportError (scheduler unavailable outside normal app startup,
+    e.g., during standalone migrations). Other errors — misconfigured
+    triggers, add_job failures — are re-raised so misconfiguration cannot
+    silently produce jobs that never run.
+    """
     try:
         from extensions import scheduler
+    except ImportError:
+        _logger.info("Scheduler not available; skipping API retention jobs.")
+        return
 
-        def _prune_audit() -> None:
-            with app.app_context():
-                deleted = ApiRetentionService.prune_audit_log(90)
-                _logger.info("api_audit_retention: deleted %d rows", deleted)
+    def _prune_audit() -> None:
+        with app.app_context():
+            deleted = ApiRetentionService.prune_audit_log(90)
+            _logger.info("api_audit_retention: deleted %d rows", deleted)
 
-        def _prune_transcripts() -> None:
-            with app.app_context():
-                deleted = ApiRetentionService.prune_transcripts(90)
-                _logger.info("api_transcript_retention: deleted %d rows", deleted)
+    def _prune_transcripts() -> None:
+        with app.app_context():
+            deleted = ApiRetentionService.prune_transcripts(90)
+            _logger.info("api_transcript_retention: deleted %d rows", deleted)
 
-        scheduler.add_job(
-            id="api_audit_retention",
-            func=_prune_audit,
-            trigger="cron",
-            hour=3,
-            minute=15,
-            replace_existing=True,
-        )
-        _logger.info("Scheduled job: api_audit_retention at 03:15")
+    scheduler.add_job(
+        id="api_audit_retention",
+        func=_prune_audit,
+        trigger="cron",
+        hour=3,
+        minute=15,
+        replace_existing=True,
+    )
+    _logger.info("Scheduled job: api_audit_retention at 03:15")
 
-        scheduler.add_job(
-            id="api_transcript_retention",
-            func=_prune_transcripts,
-            trigger="cron",
-            hour=3,
-            minute=30,
-            replace_existing=True,
-        )
-        _logger.info("Scheduled job: api_transcript_retention at 03:30")
-    except Exception as exc:
-        _logger.error("Failed to schedule API retention jobs: %s", exc)
+    scheduler.add_job(
+        id="api_transcript_retention",
+        func=_prune_transcripts,
+        trigger="cron",
+        hour=3,
+        minute=30,
+        replace_existing=True,
+    )
+    _logger.info("Scheduled job: api_transcript_retention at 03:30")
