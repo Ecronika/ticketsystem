@@ -13,6 +13,13 @@ Vor Aktivierung des Cloudflare Tunnels alle Punkte abhaken.
 - [ ] Security-Header via securityheaders.com getestet: Score ≥ A
 - [ ] CSP ohne Browser-Console-Errors (UI durchklicken)
 
+## Secrets
+- [ ] `API_KEY_PEPPER` in HA-Add-on-Secrets gesetzt (≥ 64 Byte Random, rotiert unabhängig vom `SECRET_KEY`).  
+      Fehlt die Variable, fällt der Code auf `SECRET_KEY` zurück — akzeptabel für Start, ABER:  
+      bei späterem Setzen von `API_KEY_PEPPER` müssen **alle bestehenden API-Keys neu erzeugt werden**,  
+      weil sich der Hash-Wert ändert. Daher Pepper am besten **vor dem ersten Prod-Key** setzen.
+- [ ] Generierung: `python -c "import secrets; print(secrets.token_hex(64))"`
+
 ## Flask-Konfiguration
 - [ ] `DEBUG = False` in Produktion
 - [ ] `SECRET_KEY` auf 64-Byte Random rotiert

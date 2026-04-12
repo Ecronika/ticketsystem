@@ -1,11 +1,9 @@
 """Tests for services/api_key_service.py."""
 
-import hashlib
-
 import pytest
 
 from models import ApiAuditLog
-from services.api_key_service import ApiKeyService
+from services.api_key_service import ApiKeyService, _hash_token
 from exceptions import InvalidApiKey, IpNotAllowed
 
 
@@ -20,9 +18,11 @@ def test_create_returns_plaintext_token_once(app, db_session, admin_worker, defa
     assert plaintext.startswith("tsk_")
     assert len(plaintext) == 52  # "tsk_" + 48 chars
     assert key.key_prefix == plaintext[:12]
-    # Hash stimmt
-    expected_hash = hashlib.sha256(plaintext.encode()).hexdigest()
-    assert key.key_hash == expected_hash
+    # Hash matches the HMAC-SHA256 keyed-hash of the plaintext
+    assert key.key_hash == _hash_token(plaintext)
+    # Hash is NOT plain SHA-256 (pepper applied) — defense against DB-leak
+    import hashlib
+    assert key.key_hash != hashlib.sha256(plaintext.encode()).hexdigest()
     # Reload from DB to confirm Klartext not stored anywhere accessible.
     db_session.refresh(key)
     assert key.key_hash != plaintext

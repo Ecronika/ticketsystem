@@ -131,7 +131,7 @@ Alle Änderungen via Alembic-Migration mit Daten-Migration wo nötig
 | `id` | Integer PK | |
 | `name` | String(120), NOT NULL | Menschenlesbar: „HalloPetra Produktion" |
 | `key_prefix` | String(12), NOT NULL, indexed | Erste 12 Zeichen (`tsk_xxxxxxxx`), unverschlüsselt |
-| `key_hash` | String(128), NOT NULL, unique | SHA-256-Hash des vollen Tokens |
+| `key_hash` | String(128), NOT NULL, unique | HMAC-SHA256-Keyed-Hash des vollen Tokens (server-seitiger `API_KEY_PEPPER`) |
 | `scopes` | String(255), NOT NULL | Komma-separiert: `write:tickets`, `read:tickets`, `admin:tickets` |
 | `is_active` | Boolean, NOT NULL, default True | Schnell-Deaktivierung |
 | `rate_limit_per_minute` | Integer, NOT NULL, default 60 | Konfigurierbar ab Phase a |

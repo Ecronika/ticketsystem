@@ -9,6 +9,8 @@ import secrets
 from datetime import datetime, timedelta
 from typing import List, Optional, Tuple
 
+from flask import current_app
+
 from exceptions import InvalidApiKey, IpNotAllowed
 from extensions import db
 from models import ApiKey, ApiKeyIpRange, ApiAuditLog
@@ -46,8 +48,35 @@ def _generate_token() -> str:
     return f"{TOKEN_PREFIX}{body}"
 
 
+def _get_pepper() -> bytes:
+    """Return the server-side pepper for API-token keyed hashing.
+
+    Priority: API_KEY_PEPPER (dedicated secret) → SECRET_KEY (fallback).
+    Raises at first use if neither is set — fail loud, not silently weak.
+    """
+    pepper = current_app.config.get("API_KEY_PEPPER") or current_app.config.get("SECRET_KEY")
+    if not pepper:
+        raise RuntimeError(
+            "API_KEY_PEPPER or SECRET_KEY must be configured for API-token hashing."
+        )
+    return pepper.encode("utf-8") if isinstance(pepper, str) else pepper
+
+
 def _hash_token(token: str) -> str:
-    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+    """Compute a server-side keyed hash (HMAC-SHA256) of an API token.
+
+    API tokens are cryptographically-random 48-char base62 strings (~285 bits
+    of entropy), not user-chosen passwords. Password-hash schemes (bcrypt,
+    argon2) are inappropriate: (a) unnecessary given the entropy, (b) they
+    would add 100+ ms latency to every authenticated API call.
+
+    HMAC with a server-side pepper is the right tool: even if the DB is
+    exfiltrated, an attacker without the pepper cannot verify candidate
+    tokens. This is also why HMAC (not raw SHA-256) is used — CodeQL's
+    weak-hashing heuristic targets password-style hashing; keyed HMAC of
+    random high-entropy tokens is a different (and correct) pattern.
+    """
+    return hmac.new(_get_pepper(), token.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 def _is_valid_format(token: str) -> bool:
