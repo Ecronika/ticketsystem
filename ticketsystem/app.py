@@ -332,6 +332,11 @@ app.register_blueprint(main_bp)
 app.register_blueprint(metrics_bp)
 app.register_blueprint(admin_bp, url_prefix="/admin")
 
+# Public REST API (isolated blueprint)
+from routes.api import register_api, api_bp as _api_bp  # noqa: E402
+register_api(app)
+csrf.exempt(_api_bp)
+
 # CSRF exemptions (protected by rate-limiting + single-use token)
 csrf.exempt("main.recover_pin")
 csrf.exempt("main.reset_pin_email")
