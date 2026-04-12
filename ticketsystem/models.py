@@ -699,3 +699,25 @@ class ApiKey(db.Model):
         if self.expires_at is not None and self.expires_at <= get_utc_now():
             return False
         return True
+
+
+class ApiKeyIpRange(db.Model):
+    """CIDR allowlist entry for an API key."""
+
+    __tablename__ = "api_key_ip_range"
+
+    id = db.Column(db.Integer, primary_key=True)
+    api_key_id = db.Column(
+        db.Integer,
+        db.ForeignKey("api_key.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    cidr = db.Column(db.String(43), nullable=False)
+    note = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=get_utc_now)
+    created_by_worker_id = db.Column(
+        db.Integer, db.ForeignKey("worker.id"), nullable=False
+    )
+
+    api_key = db.relationship("ApiKey", back_populates="ip_ranges")
