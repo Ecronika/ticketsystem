@@ -190,6 +190,31 @@ canvas {
 
     /* WCAG 2.5.8 touch target */
     --touch-target-min: 44px;
+
+    /* =========================================
+       TIER 3 — COMPONENT TOKENS
+       ========================================= */
+
+    /* Button */
+    --btn-padding-y: var(--space-2);
+    --btn-padding-x: var(--space-3);
+    --btn-min-height: var(--touch-target-min);
+    --btn-radius: var(--radius-md);
+
+    /* Input / form control */
+    --input-min-height: var(--touch-target-min);
+    --input-border-width: var(--border-1);
+    --input-radius: var(--radius-sm);
+
+    /* Card */
+    --card-padding: var(--space-4);
+    --card-radius: var(--radius-lg);
+    --card-shadow: var(--shadow-sm);
+
+    /* Badge */
+    --badge-padding-y: var(--space-1);
+    --badge-padding-x: var(--space-2);
+    --badge-radius: var(--radius-pill);
 }
 
 .z-toast {
