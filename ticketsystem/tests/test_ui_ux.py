@@ -29,3 +29,17 @@ def test_dashboard_has_no_dead_reload_hint(client, db):
 
     resp = client.get("/")
     assert b'id="reloadHint"' not in resp.data
+
+
+def test_login_page_has_no_happy_talk(client):
+    resp = client.get("/login")
+    assert b"Shopfloor" not in resp.data
+    assert b"Echtzeit verfolgen" not in resp.data
+    # CTA is shortened
+    assert b"Jetzt Einloggen" not in resp.data
+
+
+def test_new_ticket_has_no_redundant_subheading(client):
+    resp = client.get("/ticket/new")
+    # Subheading duplicated the H2; it must be gone.
+    assert b"Erstellen Sie ein neues Ticket" not in resp.data
