@@ -130,3 +130,38 @@ def _parse_date(raw: str | None, fmt: str = "%Y-%m-%d") -> date | None:
         return datetime.strptime(clean, fmt).date()
     except (ValueError, TypeError, IndexError):
         return None
+
+
+# ---------------------------------------------------------------------------
+# Request-Level-Cache (flask.g) für häufig geladene Stammdaten
+# ---------------------------------------------------------------------------
+
+def get_active_workers():
+    """Active Workers einmal pro Request laden und in g cachen."""
+    from flask import g
+    from models import Worker
+    if not hasattr(g, "_active_workers"):
+        g._active_workers = (
+            Worker.query.filter_by(is_active=True).order_by(Worker.name).all()
+        )
+    return g._active_workers
+
+
+def get_all_teams():
+    """Alle Teams einmal pro Request laden und in g cachen."""
+    from flask import g
+    from models import Team
+    if not hasattr(g, "_all_teams"):
+        g._all_teams = Team.query.order_by(Team.name).all()
+    return g._all_teams
+
+
+def get_team_ids_for_worker(worker_id: int) -> list:
+    """Team-IDs eines Workers einmal pro Request cachen."""
+    from flask import g
+    from models import Team
+    if not hasattr(g, "_team_ids"):
+        g._team_ids = {}
+    if worker_id not in g._team_ids:
+        g._team_ids[worker_id] = Team.team_ids_for_worker(worker_id)
+    return g._team_ids[worker_id]

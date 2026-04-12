@@ -187,3 +187,17 @@ def test_notify_meta_change_creates_notification(test_app, client):
         _db.session.delete(ticket)
         _db.session.delete(assignee)
         _db.session.commit()
+
+
+# ---------------------------------------------------------------------------
+# Task 7: g-Cache helpers
+# ---------------------------------------------------------------------------
+
+def test_get_active_workers_cached_in_g(test_app):
+    """get_active_workers() darf pro Request nur einmal die DB befragen."""
+    from routes._helpers import get_active_workers
+    with test_app.test_request_context("/"):
+        workers_1 = get_active_workers()
+        workers_2 = get_active_workers()
+        # Zweiter Aufruf muss dasselbe Objekt zurückgeben (aus g-Cache)
+        assert workers_1 is workers_2
