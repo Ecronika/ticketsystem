@@ -139,9 +139,9 @@ canvas {
     --kanban-primary-bg: rgba(37, 99, 235, 0.12);
 
     /* Max-Heights für Scroll-Container */
-    --h-exchange-list: 250px;
-    --h-logo-preview: 150px;
-    --h-qr-selector: 200px;
+    --exchange-list-max-h: 250px;
+    --logo-preview-max-h: 150px;
+    --qr-selector-max-h: 200px;
 
     /* =========================================
        TIER 1 — GLOBAL PRIMITIVES (theme-agnostic)
