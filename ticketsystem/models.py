@@ -721,3 +721,28 @@ class ApiKeyIpRange(db.Model):
     )
 
     api_key = db.relationship("ApiKey", back_populates="ip_ranges")
+
+
+class ApiAuditLog(db.Model):
+    """Audit log entry for every API request (auth attempts + successes)."""
+
+    __tablename__ = "api_audit_log"
+
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, nullable=False, default=get_utc_now, index=True)
+    api_key_id = db.Column(
+        db.Integer, db.ForeignKey("api_key.id"), nullable=True
+    )
+    key_prefix = db.Column(db.String(12), nullable=True)
+    source_ip = db.Column(db.String(45), nullable=False)
+    method = db.Column(db.String(8), nullable=False)
+    path = db.Column(db.String(255), nullable=False)
+    status_code = db.Column(db.Integer, nullable=False)
+    latency_ms = db.Column(db.Integer, nullable=False)
+    outcome = db.Column(db.String(32), nullable=False)
+    external_ref = db.Column(db.String(64), nullable=True, index=True)
+    assignment_method = db.Column(db.String(24), nullable=True)
+    request_id = db.Column(db.String(36), nullable=False)
+    error_detail = db.Column(db.Text, nullable=True)
+
+    api_key = db.relationship("ApiKey")
