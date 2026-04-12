@@ -1,0 +1,29 @@
+# This config is NOT bundled in the Docker image. Deploy it on the host
+# alongside the cloudflared daemon (HA Add-on or system service).
+#
+# Cloudflared Tunnel Ingress-Konfiguration für Public API (HalloPetra)
+#
+# Vor Verwendung:
+# 1. Tunnel anlegen: `cloudflared tunnel create ticket-api`
+# 2. Tunnel-UUID und credentials-file unten einsetzen
+# 3. Diese Datei nach config.yml kopieren
+# 4. Cloudflared starten: `cloudflared tunnel run ticket-api`
+
+tunnel: TUNNEL_UUID_HERE
+credentials-file: /etc/cloudflared/TUNNEL_UUID_HERE.json
+
+ingress:
+  # Nur /api/v1/* durchlassen
+  - hostname: ticket-api.euredomain.de
+    path: ^/api/v1/.*$
+    service: http://localhost:8099
+    originRequest:
+      connectTimeout: 5s
+      noTLSVerify: true  # LAN-intern, kein TLS
+
+  # Alles andere auf derselben Subdomain: 404 direkt vom Tunnel
+  - hostname: ticket-api.euredomain.de
+    service: http_status:404
+
+  # Fallback
+  - service: http_status:404

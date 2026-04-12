@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Schlüssel erstellt — {{ key.name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+
+        <div class="alert alert-warning border-warning-subtle rounded-3 mb-4" role="alert">
+            <h4 class="alert-heading fw-bold">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Achtung: Schlüssel nur einmal sichtbar!
+            </h4>
+            <p class="mb-0">
+                Dieser API-Schlüssel wird <strong>nur jetzt einmalig</strong> angezeigt und danach
+                nicht mehr zugänglich sein. Bitte kopieren und sicher hinterlegen Sie ihn sofort.
+            </p>
+        </div>
+
+        <div class="card card-std mb-4">
+            <div class="card-header card-header-std">
+                <h3 class="h5 fw-bold mb-0">
+                    <i class="bi bi-key-fill text-success me-2"></i>
+                    Neuer API-Schlüssel: <span class="text-muted fw-normal">{{ key.name }}</span>
+                </h3>
+            </div>
+            <div class="card-body p-4">
+                <p class="text-muted small mb-2">Plaintext-Token (nur jetzt sichtbar):</p>
+                <div class="position-relative">
+                    <pre id="token-display" class="bg-dark text-success p-4 rounded-3 mb-2 user-select-all"
+                         style="font-size: 1rem; word-break: break-all; white-space: pre-wrap;">{{ plaintext }}</pre>
+                    <button id="copy-btn" type="button"
+                            class="btn btn-outline-light btn-sm rounded-pill px-3 position-absolute top-0 end-0 m-2"
+                            onclick="copyToken()">
+                        <i class="bi bi-clipboard me-1"></i>Kopieren
+                    </button>
+                </div>
+                <p class="text-muted x-small mt-2 mb-0">
+                    <i class="bi bi-shield-lock me-1"></i>
+                    Das Token wird im System nur als Hash gespeichert — eine Wiederherstellung ist nicht möglich.
+                </p>
+            </div>
+        </div>
+
+        <div class="card card-std mb-4 border-secondary-subtle bg-surface-subtle">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3"><i class="bi bi-gear me-2 text-secondary"></i>Schlüssel-Details</h5>
+                <dl class="row small mb-0">
+                    <dt class="col-sm-4 text-muted">Name</dt>
+                    <dd class="col-sm-8">{{ key.name }}</dd>
+                    <dt class="col-sm-4 text-muted">Prefix</dt>
+                    <dd class="col-sm-8"><code>{{ key.key_prefix }}…</code></dd>
+                    <dt class="col-sm-4 text-muted">Scopes</dt>
+                    <dd class="col-sm-8">
+                        {% for scope in key.scope_list() %}
+                        <span class="badge bg-secondary rounded-pill me-1">{{ scope }}</span>
+                        {% endfor %}
+                    </dd>
+                    <dt class="col-sm-4 text-muted">Rate-Limit</dt>
+                    <dd class="col-sm-8">{{ key.rate_limit_per_minute }} Anfragen/Minute</dd>
+                    <dt class="col-sm-4 text-muted">Vertraulich</dt>
+                    <dd class="col-sm-8">{{ 'Ja' if key.create_confidential_tickets else 'Nein' }}</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card card-std border-success-subtle">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3"><i class="bi bi-check-circle-fill text-success me-2"></i>Verwendung</h5>
+                <p class="small text-muted mb-2">Den Schlüssel im HTTP-Header senden:</p>
+                <pre class="bg-light p-3 rounded-2 small">Authorization: Bearer {{ plaintext }}</pre>
+                <p class="small text-muted mt-2 mb-0">
+                    Endpoint: <code>POST /api/v1/tickets</code>
+                    — weitere Details in der
+                    <a href="{{ ingress_path }}{{ url_for('admin._api_docs') }}">API-Dokumentation</a>.
+                </p>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mt-4">
+            <a href="{{ ingress_path }}{{ url_for('admin._api_keys_edit', key_id=key.id) }}"
+               class="btn btn-outline-secondary rounded-pill px-4">
+                <i class="bi bi-sliders me-1"></i>IP-Allowlist & Einstellungen
+            </a>
+            <a href="{{ ingress_path }}{{ url_for('admin._api_keys_list') }}"
+               class="btn btn-primary rounded-pill px-4 fw-bold">
+                <i class="bi bi-check-lg me-2"></i>Ich habe den Schlüssel sicher hinterlegt
+            </a>
+        </div>
+    </div>
+</div>
+
+<script {% if csp_nonce is defined %}nonce="{{ csp_nonce }}"{% endif %}>
+function copyToken() {
+    const text = document.getElementById('token-display').textContent.trim();
+    navigator.clipboard.writeText(text).then(function() {
+        const btn = document.getElementById('copy-btn');
+        btn.innerHTML = '<i class="bi bi-clipboard-check me-1"></i>Kopiert!';
+        btn.classList.remove('btn-outline-light');
+        btn.classList.add('btn-success');
+        setTimeout(function() {
+            btn.innerHTML = '<i class="bi bi-clipboard me-1"></i>Kopieren';
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-light');
+        }, 3000);
+    }).catch(function() {
+        alert('Bitte manuell kopieren: ' + text);
+    });
+}
+</script>
+{% endblock %}

@@ -1,5 +1,6 @@
 """Database Models for the Ticket System."""
 
+import json
 import logging
 import os
 from typing import Any, List, Optional, Set
@@ -339,6 +340,10 @@ class Ticket(db.Model):
     )
     last_escalated_at = db.Column(db.DateTime, nullable=True)
 
+    # External API integration
+    external_call_id = db.Column(db.String(64), nullable=True, unique=True, index=True)
+    external_metadata = db.Column(db.Text, nullable=True)  # JSON-serialisiert
+
     # 1-to-1 satellite relationships
     contact = db.relationship(
         "TicketContact", uselist=False, backref="ticket",
@@ -355,6 +360,12 @@ class Ticket(db.Model):
 
     checklists = db.relationship(
         "ChecklistItem", backref="ticket", cascade="all, delete-orphan"
+    )
+    transcripts = db.relationship(
+        "TicketTranscript",
+        backref="ticket",
+        cascade="all, delete-orphan",
+        order_by="TicketTranscript.position",
     )
     tags = db.relationship(
         "Tag",
@@ -391,6 +402,32 @@ class Ticket(db.Model):
         if not self.recurrence:
             self.recurrence = TicketRecurrence(rule=rule, next_date=next_date)
         return self.recurrence
+
+    def get_external_metadata(self) -> dict:
+        """Parse external_metadata JSON, return empty dict on None/invalid."""
+        if not self.external_metadata:
+            return {}
+        try:
+            return json.loads(self.external_metadata)
+        except ValueError:
+            _logger.warning(
+                "Ticket %s has invalid external_metadata JSON", self.id,
+            )
+            return {}
+
+    def set_external_metadata(self, data: Optional[dict]) -> None:
+        """Serialize *data* as JSON into external_metadata.
+
+        Pass None to clear; pass {} to store an empty JSON object explicitly.
+        """
+        if data is None:
+            self.external_metadata = None
+            return
+        if not isinstance(data, dict):
+            raise TypeError(
+                f"external_metadata must be dict or None, got {type(data).__name__}"
+            )
+        self.external_metadata = json.dumps(data, ensure_ascii=False)
 
     # ------------------------------------------------------------------
     # Access Control
@@ -620,3 +657,136 @@ def process_file_deletions(session: Any) -> None:
 def clear_pending_deletions(session: Any) -> None:
     """Clear the deletion queue when the transaction is rolled back."""
     session.info.pop("pending_deletions", None)
+
+
+# ---------------------------------------------------------------------------
+# API Keys (Public REST API)
+# ---------------------------------------------------------------------------
+
+class ApiKey(db.Model):
+    """API key for the public REST API (Phase a: write:tickets)."""
+
+    __tablename__ = "api_key"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    key_prefix = db.Column(db.String(12), nullable=False, index=True)
+    key_hash = db.Column(db.String(128), nullable=False, unique=True)
+    scopes = db.Column(db.String(255), nullable=False)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    rate_limit_per_minute = db.Column(db.Integer, nullable=False, default=60)
+    expected_webhook_id = db.Column(db.String(128), nullable=True)
+    default_assignee_worker_id = db.Column(
+        db.Integer, db.ForeignKey("worker.id"), nullable=True
+    )
+    create_confidential_tickets = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=get_utc_now)
+    created_by_worker_id = db.Column(
+        db.Integer, db.ForeignKey("worker.id"), nullable=False
+    )
+    last_used_at = db.Column(db.DateTime, nullable=True)
+    last_used_ip = db.Column(db.String(45), nullable=True)
+    revoked_at = db.Column(db.DateTime, nullable=True)
+    revoked_by_worker_id = db.Column(
+        db.Integer, db.ForeignKey("worker.id"), nullable=True
+    )
+    expires_at = db.Column(db.DateTime, nullable=True)
+
+    default_assignee = db.relationship(
+        "Worker", foreign_keys=[default_assignee_worker_id]
+    )
+    ip_ranges = db.relationship(
+        "ApiKeyIpRange",
+        back_populates="api_key",
+        cascade="all, delete-orphan",
+        order_by="ApiKeyIpRange.created_at",
+    )
+
+    def scope_list(self) -> List[str]:
+        """Return scopes as a list."""
+        return [s.strip() for s in (self.scopes or "").split(",") if s.strip()]
+
+    def has_scope(self, scope: str) -> bool:
+        """Return True if this key has the given scope."""
+        return scope in self.scope_list()
+
+    def is_usable(self) -> bool:
+        """True if key is active, not revoked, not expired."""
+        if not self.is_active or self.revoked_at is not None:
+            return False
+        if self.expires_at is not None and self.expires_at <= get_utc_now():
+            return False
+        return True
+
+
+class ApiKeyIpRange(db.Model):
+    """CIDR allowlist entry for an API key."""
+
+    __tablename__ = "api_key_ip_range"
+
+    id = db.Column(db.Integer, primary_key=True)
+    api_key_id = db.Column(
+        db.Integer,
+        db.ForeignKey("api_key.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    cidr = db.Column(db.String(43), nullable=False)
+    note = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=get_utc_now)
+    created_by_worker_id = db.Column(
+        db.Integer, db.ForeignKey("worker.id"), nullable=False
+    )
+
+    api_key = db.relationship("ApiKey", back_populates="ip_ranges")
+
+
+class ApiAuditLog(db.Model):
+    """Audit log entry for every API request (auth attempts + successes)."""
+
+    __tablename__ = "api_audit_log"
+
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, nullable=False, default=get_utc_now, index=True)
+    api_key_id = db.Column(
+        db.Integer, db.ForeignKey("api_key.id"), nullable=True, index=True,
+    )
+    key_prefix = db.Column(db.String(12), nullable=True)
+    source_ip = db.Column(db.String(45), nullable=False)
+    method = db.Column(db.String(8), nullable=False)
+    path = db.Column(db.String(255), nullable=False)
+    status_code = db.Column(db.Integer, nullable=False)
+    latency_ms = db.Column(db.Integer, nullable=False)
+    outcome = db.Column(db.String(32), nullable=False)
+    external_ref = db.Column(db.String(64), nullable=True, index=True)
+    assignment_method = db.Column(db.String(24), nullable=True)
+    request_id = db.Column(db.String(36), nullable=False)
+    error_detail = db.Column(db.Text, nullable=True)
+
+    # api_key_id is nullable so audit entries survive if the key is ever
+    # hard-deleted. Convention: keys are revoked (soft-delete), not deleted.
+    api_key = db.relationship("ApiKey")
+
+
+class TicketTranscript(db.Model):
+    """Conversation transcript entry belonging to a ticket.
+
+    Separate table so retention (90d) can differ from ticket retention.
+    """
+
+    __tablename__ = "ticket_transcript"
+    __table_args__ = (
+        db.UniqueConstraint("ticket_id", "position", name="uq_transcript_ticket_position"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    ticket_id = db.Column(
+        db.Integer,
+        db.ForeignKey("ticket.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    position = db.Column(db.Integer, nullable=False)
+    role = db.Column(db.String(16), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=get_utc_now)
