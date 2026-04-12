@@ -67,6 +67,15 @@ def _clear_dashboard_caches():
     yield
 
 
+# ---------------------------------------------------------------------------
+# Compatibility aliases
+#
+# The original conftest exposes `test_app` and `db`. New tests (starting with
+# the Public-API integration) use shorter names `app` and `db_session` that
+# match the convention in the plan/spec documents. These aliases keep both
+# conventions working without touching the 15+ existing tests.
+# ---------------------------------------------------------------------------
+
 @pytest.fixture
 def app(test_app):
     """Alias for test_app to match newer test files."""
@@ -80,8 +89,8 @@ def db_session(test_app, db):
 
 
 @pytest.fixture
-def admin_fixture(app, db_session):
-    """Admin worker (is_admin=True). Replaces plan's 'admin_worker' fixture."""
+def admin_worker(app, db_session):
+    """Admin worker (is_admin=True)."""
     from werkzeug.security import generate_password_hash
     from models import Worker
     w = Worker(
@@ -96,8 +105,8 @@ def admin_fixture(app, db_session):
 
 
 @pytest.fixture
-def worker_fixture(app, db_session):
-    """Default-assignee worker. Replaces plan's 'default_assignee' fixture."""
+def default_assignee(app, db_session):
+    """Default-assignee worker."""
     from werkzeug.security import generate_password_hash
     from models import Worker
     w = Worker(

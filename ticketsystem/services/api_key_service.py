@@ -23,7 +23,8 @@ _ALPHABET = (
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     "0123456789"
 )
-_KEY_PREFIX_LENGTH = 12  # len("tsk_") + 8
+_KEY_PREFIX_LENGTH = len(TOKEN_PREFIX) + 8  # prefix + 8 random chars for indexed lookup
+_ALPHABET_SET = frozenset(_ALPHABET)
 
 
 def _generate_token() -> str:
@@ -42,7 +43,7 @@ def _is_valid_format(token: str) -> bool:
     if len(token) != expected_len:
         return False
     body = token[len(TOKEN_PREFIX):]
-    return all(c in _ALPHABET for c in body)
+    return all(c in _ALPHABET_SET for c in body)
 
 
 class ApiKeyService:
@@ -171,11 +172,13 @@ class ApiKeyService:
     def remove_ip_range(range_id: int) -> None:
         """Remove a CIDR allowlist entry by ID."""
         entry = db.session.get(ApiKeyIpRange, range_id)
-        if entry:
-            db.session.delete(entry)
-            db.session.commit()
+        if not entry:
+            raise ValueError(f"IP-Range {range_id} nicht gefunden.")
+        db.session.delete(entry)
+        db.session.commit()
 
     @staticmethod
+    @db_transaction
     def mark_used(key: ApiKey, source_ip: str) -> None:
         """Update last_used_at/last_used_ip, throttled to once per 60s."""
         now = get_utc_now()
