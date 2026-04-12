@@ -14,7 +14,7 @@
         </a>
         {% if ticket.is_confidential %}<i class="bi bi-lock-fill text-warning ms-1" title="Vertraulich"></i>{% endif %}
         {% if ticket.recurrence %}<i class="bi bi-arrow-repeat text-primary ms-1" title="Serienticket"></i>{% endif %}
-        {% if ticket.approval and ticket.approval.status == 'pending' %}<span class="badge badge-subtle-warning rounded-pill x-small ms-1">FREIGABE</span>{% endif %}
+        {% if ticket.approval and ticket.approval.status == ApprovalStatus.PENDING.value %}<span class="badge badge-subtle-warning rounded-pill x-small ms-1">FREIGABE</span>{% endif %}
         {% for tag in ticket.tags %}
         <span class="badge bg-secondary-subtle text-secondary rounded-pill fw-normal ms-1 text-xxs"><i class="bi bi-tag"></i> {{ tag.name }}</span>
         {% endfor %}

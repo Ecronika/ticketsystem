@@ -1,0 +1,68 @@
+# Public REST API — Pre-Launch-Checkliste
+
+Vor Aktivierung des Cloudflare Tunnels alle Punkte abhaken.
+
+## Netzwerk
+- [ ] NGINX: `/api/v1/` ist die einzige öffentlich erreichbare Location
+- [ ] NGINX **überschreibt** `CF-Connecting-IP` und `X-Real-IP` auf ankommende Werte
+      vom cloudflared-Upstream (oder setzt sie unabhängig vom Client-Header). Externe
+      Clients dürfen diese Header NICHT vorbelegen können. App-seitig prüft
+      `_client_ip` zusätzlich, dass der direkte Peer Loopback ist — aber Defense-in-Depth
+      ab NGINX.
+- [ ] NGINX / Cloudflare Rate-Limiting WAF-Regeln für `/api/v1/` aktiviert (Schutz
+      vor unauthentifiziertem Volume-Spam vor der App-Schicht). Pre-Auth-Limit in
+      der App ist 120 Requests/Minute je Quell-IP — ergänzend, nicht ersetzend.
+- [ ] Cloudflare Tunnel Ingress-Regel: nur `/api/v1/*`
+- [ ] `curl https://<subdomain>/api/v1/health` → 200
+- [ ] `curl -X POST https://<subdomain>/api/v1/webhook/calls` (ohne Token) → 401
+- [ ] `curl -X POST https://<subdomain>/api/v1/webhook/calls` (ohne Content-Length,
+      Chunked) → 411 Length Required
+- [ ] `curl https://<subdomain>/login` → 403 oder 404
+- [ ] `curl https://<subdomain>/` → 403 oder 404
+- [ ] `curl https://<subdomain>/admin/api-keys/` → 403 oder 404
+- [ ] Security-Header via securityheaders.com getestet: Score ≥ A
+- [ ] CSP ohne Browser-Console-Errors (UI durchklicken)
+
+## Token-Hashing (Argon2id)
+- [ ] `argon2-cffi>=23.1.0` in `requirements.txt` (automatisch via `pip install`).
+- [ ] Token-Hashing nutzt Argon2id mit OWASP-2024-Parametern (m=19 MiB, t=2, p=1).  
+      Per-Hash-Salt wird intern generiert — kein separater Pepper oder `API_KEY_PEPPER` nötig.
+- [ ] **Bei späterer Parameter-Anpassung** (z. B. Memory-Cost auf 46 MiB): bestehende Key-Hashes  
+      bleiben mit den Alt-Parametern gültig (PHC-Format enthält Parameter) — neu erzeugte Keys  
+      nutzen dann die neuen Werte. Automatische Re-Hash-Logik ist nicht aktiviert (unnötig für  
+      Phase a; bei Bedarf via `_hasher.check_needs_rehash()` nachrüstbar).
+
+## Flask-Konfiguration
+- [ ] `DEBUG = False` in Produktion
+- [ ] `SECRET_KEY` auf 64-Byte Random rotiert
+- [ ] `SESSION_COOKIE_SECURE = True`
+- [ ] `SESSION_COOKIE_HTTPONLY = True`
+- [ ] `SESSION_COOKIE_SAMESITE = 'Lax'`
+- [ ] `MAX_CONTENT_LENGTH` explizit gesetzt (128 KB für API)
+
+## Infrastruktur
+- [ ] SQLite-Backup-Cronjob läuft, `/backup/` enthält tägliche Snapshots
+- [ ] Dependency-Audit durchgelaufen, keine HIGH/CRITICAL offen
+- [ ] Alle Secrets in HA-Add-on-Secrets (nicht in .env)
+- [ ] `.env`-Datei nicht in Git (`git ls-files | grep env` leer)
+
+## API-Integration
+- [ ] Admin-UI: Admin-Rolle kann `/admin/api-keys` aufrufen, Nicht-Admin 403
+- [ ] Staging-Key erstellt, Klartext notiert
+- [ ] Staging-Webhook erfolgreich getestet (mind. 5 Szenarien)
+- [ ] Audit-Log-Tabelle wächst bei Tests wie erwartet
+- [ ] Produktions-Key erstellt (erst kurz vor Launch-Moment)
+- [ ] Synthetischer Load-Test: Webhook mit **Maximal-Payload** (128 KB, 500 messages,
+      lange summary) gegen Staging → End-to-End-Latenz < 2 s (HalloPetra-Timeout
+      für „vor dem Anruf" ist nur 2,5 s). Wenn > 2 s: Transkript-Speicherung auf
+      Background-Job umstellen, bevor produktiv.
+- [ ] Smoke-Test nach Go-Live: echter Anruf vom Anbieter → Audit-Log zeigt Quell-IP
+      korrekt, Ticket mit allen Feldern erstellt, Worker-Benachrichtigung raus.
+
+## Dokumentation
+- [ ] Webadmin hat DNS-Anleitung erhalten und umgesetzt
+- [ ] Betriebshandbuch vorhanden (`public-api-handbook.md`)
+- [ ] API-Dokumentation online erreichbar (`/admin/api-docs`)
+
+## Sign-Off
+- [ ] Betreiber: _______________  Datum: _____________

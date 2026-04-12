@@ -112,6 +112,11 @@
                 <i class="bi bi-people me-2"></i> Teams
               </a></li>
               <li><hr class="dropdown-divider opacity-25"></li>
+              <li><h6 class="dropdown-header small text-muted">API</h6></li>
+              <li><a class="dropdown-item small {{ 'active' if request.endpoint in ('admin._api_keys_list', 'admin._api_keys_new', 'admin._api_keys_edit', 'admin._api_keys_created', 'admin._api_audit_log', 'admin._api_docs') else '' }}" href="{{ ingress_path }}{{ url_for('admin._api_keys_list') }}">
+                <i class="bi bi-key me-2"></i> API-Zugriff
+              </a></li>
+              <li><hr class="dropdown-divider opacity-25"></li>
               <li><h6 class="dropdown-header small text-muted">System</h6></li>
               <li><a class="dropdown-item small {{ 'active' if request.endpoint == 'admin.trash' else '' }}" href="{{ ingress_path }}{{ url_for('admin.trash') }}">
                 <i class="bi bi-trash3 me-2 text-danger"></i> Papierkorb

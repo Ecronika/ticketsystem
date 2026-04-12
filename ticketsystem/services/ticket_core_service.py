@@ -14,8 +14,10 @@ from typing import Any, Dict, List, Optional
 
 from dateutil.relativedelta import relativedelta
 from flask import current_app
+from sqlalchemy.orm import joinedload, selectinload
 
 from enums import TicketPriority, TicketStatus
+from exceptions import DomainError
 from extensions import db
 from models import (
     Attachment,
@@ -293,15 +295,16 @@ def _notify_meta_change(
 
     change_text = ", ".join(changes)
     for wid in recipients:
+        db.session.add(Notification(
+            user_id=wid,
+            message=(
+                f"{author_name} hat Ticket #{ticket.id} bearbeitet: "
+                f"{change_text[:200]}"
+            ),
+            link=f"/ticket/{ticket.id}",
+        ))
+    if recipients:
         try:
-            db.session.add(Notification(
-                user_id=wid,
-                message=(
-                    f"{author_name} hat Ticket #{ticket.id} bearbeitet: "
-                    f"{change_text[:200]}"
-                ),
-                link=f"/ticket/{ticket.id}",
-            ))
             db.session.commit()
         except Exception:
             db.session.rollback()
@@ -762,7 +765,18 @@ class TicketCoreService:
         Does NOT copy: approval (new ticket has no approval state),
         comments/history, or attachments.
         """
-        source = _get_ticket_or_raise(ticket_id)
+        source = (
+            Ticket.query.filter_by(id=ticket_id)
+            .options(
+                joinedload(Ticket.contact),
+                joinedload(Ticket.recurrence),
+                selectinload(Ticket.tags),
+                selectinload(Ticket.checklists),
+            )
+            .first()
+        )
+        if not source or source.is_deleted:
+            raise DomainError("Ticket nicht gefunden.")
 
         new_ticket = Ticket(
             title=f"Kopie von: {source.title}",

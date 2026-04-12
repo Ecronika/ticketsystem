@@ -114,6 +114,14 @@ app.config.update(
     DATA_DIR=Config.get_data_dir(),
 )
 
+# Security hardening — explicit settings for production use behind Cloudflare.
+# MAX_CONTENT_LENGTH is kept at the existing value (16 MB) for file uploads on
+# main_bp; the public API blueprint enforces its own 128 KB limit per route.
+# SESSION_COOKIE_SECURE/HTTPONLY/SAMESITE are already set above (SSL_ACTIVE-aware).
+app.config.update(
+    PROPAGATE_EXCEPTIONS=False,
+)
+
 if not os.environ.get("DATA_DIR"):
     logging.info("DATA_DIR not set. Using default: %s", Config.get_data_dir())
 
@@ -257,9 +265,11 @@ if os.environ.get("RUN_SCHEDULER", "1") == "1" and not scheduler.running:
                 schedule_reminder_job,
                 schedule_sla_job,
             )
+            from services.api_retention_service import schedule_api_retention_jobs
             schedule_recurring_job(app)
             schedule_sla_job(app)
             schedule_reminder_job(app)
+            schedule_api_retention_jobs(app)
 
         atexit.register(scheduler.shutdown)
     except RuntimeError as exc:
@@ -327,10 +337,16 @@ else:
 # ---------------------------------------------------------------------------
 
 from routes.admin import admin_bp  # noqa: E402
+import routes.admin_api_keys  # noqa: F401,E402  — side-effect: registers admin_api_keys routes on admin_bp
 
 app.register_blueprint(main_bp)
 app.register_blueprint(metrics_bp)
 app.register_blueprint(admin_bp, url_prefix="/admin")
+
+# Public REST API (isolated blueprint)
+from routes.api import register_api, api_bp as _api_bp  # noqa: E402
+register_api(app)
+csrf.exempt(_api_bp)
 
 # CSRF exemptions (protected by rate-limiting + single-use token)
 csrf.exempt("main.recover_pin")

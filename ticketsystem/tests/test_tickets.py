@@ -192,3 +192,29 @@ def test_confidential_ticket_access(client, db, test_app):
     response = client.get(f'/ticket/{ticket_id}')
     assert response.status_code == 200
     assert b'Geheim' in response.data
+
+
+def test_workload_overview_does_not_raise(test_app):
+    """Workload overview must return without DB errors even with teams assigned."""
+    from services.dashboard_service import DashboardService
+    with test_app.app_context():
+        absent, present = DashboardService.get_workload_overview()
+        # Rückgabe ist immer möglich, auch wenn keine Tickets vorhanden sind
+        assert isinstance(absent, list)
+        assert isinstance(present, list)
+
+
+def test_projects_summary_structure(test_app):
+    """get_projects_summary muss die erwarteten Schlüssel zurückgeben."""
+    from services.dashboard_service import DashboardService
+    with test_app.app_context():
+        result = DashboardService.get_projects_summary()
+        assert isinstance(result, list)
+        for p in result:
+            assert "order_reference" in p
+            assert "total_tickets" in p
+            assert "completed_tickets" in p
+            assert "progress" in p
+            assert "status_counts" in p
+            assert isinstance(p["status_counts"], dict)
+            assert 0 <= p["progress"] <= 100
