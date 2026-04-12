@@ -1,4 +1,5 @@
 """UI/UX regression tests — assert template markers."""
+import pytest
 from models import Worker
 
 
