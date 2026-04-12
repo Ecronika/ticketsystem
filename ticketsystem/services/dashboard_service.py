@@ -8,7 +8,7 @@ import logging
 from datetime import date, timedelta
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from sqlalchemy import func
+from sqlalchemy import Float, case, cast, func
 from sqlalchemy.orm import joinedload, selectinload
 
 from enums import ELEVATED_ROLES, TicketStatus
@@ -311,8 +311,6 @@ class DashboardService:
         Uses a single SQL query with GROUP BY instead of loading full ORM
         objects, avoiding N+1 on checklists.
         """
-        from sqlalchemy import Float, case, cast
-
         # Checklist done/total per ticket as subquery
         ci = (
             db.session.query(
