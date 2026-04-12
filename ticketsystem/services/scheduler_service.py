@@ -156,11 +156,14 @@ def _fetch_overdue_tickets(now: object) -> List[Ticket]:
 
     Tickets due today are not flagged as overdue until the following day.
     """
+    from sqlalchemy.orm import joinedload
     return Ticket.query.filter(
         Ticket.is_deleted.is_(False),
         Ticket.status.in_(_OPEN_STATUSES),
         Ticket.due_date.isnot(None),
         Ticket.due_date < now.date(),
+    ).options(
+        joinedload(Ticket.assigned_to),
     ).all()
 
 

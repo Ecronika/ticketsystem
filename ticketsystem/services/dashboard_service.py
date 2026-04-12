@@ -5,15 +5,17 @@ read-heavy dashboard logic into a dedicated service module.
 """
 
 import logging
+import threading
 from datetime import date, timedelta
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from sqlalchemy import func
+from cachetools import TTLCache
+from sqlalchemy import Float, case, cast, event as _sa_event, func
 from sqlalchemy.orm import joinedload, selectinload
 
 from enums import ELEVATED_ROLES, TicketStatus
 from extensions import db
-from models import ChecklistItem, Comment, Ticket, TicketContact, Worker
+from models import ChecklistItem, Comment, Team, Ticket, TicketContact, Worker
 from utils import get_utc_now
 
 from ._ticket_helpers import (
@@ -27,6 +29,27 @@ from ._ticket_helpers import (
 )
 
 _logger = logging.getLogger(__name__)
+
+# Modul-level TTL-Caches für teure Aggregationen.
+# Da beide Funktionen keine benutzer-spezifischen Parameter haben,
+# genügt maxsize=1 (ein gecachter Wert pro Cache).
+_projects_cache: TTLCache = TTLCache(maxsize=1, ttl=120)   # 2 Minuten
+_workload_cache: TTLCache = TTLCache(maxsize=1, ttl=300)   # 5 Minuten
+_projects_cache_lock = threading.RLock()
+_workload_cache_lock = threading.RLock()
+
+
+def invalidate_dashboard_caches() -> None:
+    """Leert die Dashboard-Aggregations-Caches.
+
+    Aufrufen nach Mutationen, die die Projekt-Übersicht oder
+    Workload-Übersicht beeinflussen (Ticket erstellen/aktualisieren,
+    Status ändern, zuweisen, löschen).
+    """
+    with _projects_cache_lock:
+        _projects_cache.clear()
+    with _workload_cache_lock:
+        _workload_cache.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -135,43 +158,6 @@ def _fetch_summary_counts(
 # ---------------------------------------------------------------------------
 # Project helpers
 # ---------------------------------------------------------------------------
-
-def _new_project_entry(ref: str, ticket: Ticket) -> Dict[str, Any]:
-    """Initialise a project accumulator dict."""
-    return {
-        "order_reference": ref,
-        "total_tickets": 0,
-        "completed_tickets": 0,
-        "last_updated": ticket.updated_at or ticket.created_at,
-        "ticket_progress_sum": 0.0,
-        "status_counts": {s.value: 0 for s in TicketStatus},
-    }
-
-
-def _accumulate_ticket(project: Dict[str, Any], ticket: Ticket) -> None:
-    """Add a ticket's contribution to a project accumulator."""
-    project["total_tickets"] += 1
-    t_time = ticket.updated_at or ticket.created_at
-    if t_time and (
-        not project["last_updated"] or t_time > project["last_updated"]
-    ):
-        project["last_updated"] = t_time
-
-    project["status_counts"].setdefault(ticket.status, 0)
-    project["status_counts"][ticket.status] += 1
-
-    is_done = ticket.status == TicketStatus.ERLEDIGT.value
-    if is_done:
-        project["completed_tickets"] += 1
-
-    if ticket.checklists:
-        done = sum(1 for c in ticket.checklists if c.is_completed)
-        total = len(ticket.checklists)
-        progress = done / total if total > 0 else 0.0
-    else:
-        progress = 1.0 if is_done else 0.0
-    project["ticket_progress_sum"] += progress
-
 
 def _finalize_projects(
     projects: Dict[str, Dict[str, Any]]
@@ -343,30 +329,99 @@ class DashboardService:
 
     @staticmethod
     def get_projects_summary() -> List[Dict[str, Any]]:
-        """Fetch projects grouped by order_reference with progress."""
-        tickets = (
-            Ticket.query.filter(
+        """Fetch projects grouped by order_reference with progress.
+
+        Uses a single SQL query with GROUP BY instead of loading full ORM
+        objects, avoiding N+1 on checklists. Result is cached for 2 minutes.
+        """
+        with _projects_cache_lock:
+            cached = _projects_cache.get("v")
+        if cached is not None:
+            return cached
+        # Checklist done/total per ticket as subquery
+        ci = (
+            db.session.query(
+                ChecklistItem.ticket_id.label("tid"),
+                func.count(ChecklistItem.id).label("total"),
+                func.sum(
+                    case((ChecklistItem.is_completed.is_(True), 1), else_=0)
+                ).label("done"),
+            )
+            .group_by(ChecklistItem.ticket_id)
+            .subquery()
+        )
+
+        rows = (
+            db.session.query(
+                Ticket.order_reference,
+                Ticket.status,
+                func.count(Ticket.id).label("cnt"),
+                func.max(
+                    func.coalesce(Ticket.updated_at, Ticket.created_at)
+                ).label("last_upd"),
+                func.sum(
+                    case(
+                        (
+                            ci.c.total > 0,
+                            cast(ci.c.done, Float) / cast(ci.c.total, Float),
+                        ),
+                        (Ticket.status == TicketStatus.ERLEDIGT.value, 1.0),
+                        else_=0.0,
+                    )
+                ).label("progress_sum"),
+            )
+            .outerjoin(ci, Ticket.id == ci.c.tid)
+            .filter(
                 Ticket.is_deleted.is_(False),
                 Ticket.order_reference.isnot(None),
                 Ticket.order_reference != "",
             )
-            .options(selectinload(Ticket.checklists))
+            .group_by(Ticket.order_reference, Ticket.status)
             .all()
         )
-        projects: Dict[str, Dict[str, Any]] = {}
 
-        for ticket in tickets:
-            ref = ticket.order_reference.strip()
+        projects: Dict[str, Dict[str, Any]] = {}
+        for row in rows:
+            ref = row.order_reference.strip()
             if not ref:
                 continue
-            project = projects.setdefault(ref, _new_project_entry(ref, ticket))
-            _accumulate_ticket(project, ticket)
+            if ref not in projects:
+                projects[ref] = {
+                    "order_reference": ref,
+                    "total_tickets": 0,
+                    "completed_tickets": 0,
+                    "last_updated": None,
+                    "ticket_progress_sum": 0.0,
+                    "status_counts": {s.value: 0 for s in TicketStatus},
+                }
+            p = projects[ref]
+            p["total_tickets"] += row.cnt
+            p["status_counts"][row.status] = (
+                p["status_counts"].get(row.status, 0) + row.cnt
+            )
+            if row.status == TicketStatus.ERLEDIGT.value:
+                p["completed_tickets"] += row.cnt
+            p["ticket_progress_sum"] += row.progress_sum or 0.0
+            if row.last_upd and (
+                not p["last_updated"] or row.last_upd > p["last_updated"]
+            ):
+                p["last_updated"] = row.last_upd
 
-        return _finalize_projects(projects)
+        result = _finalize_projects(projects)
+        with _projects_cache_lock:
+            _projects_cache["v"] = result
+        return result
 
     @staticmethod
     def get_workload_overview() -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        """Return workload entries split into absent and present workers."""
+        """Return workload entries split into absent and present workers.
+
+        Result is cached for 5 minutes.
+        """
+        with _workload_cache_lock:
+            cached = _workload_cache.get("v")
+        if cached is not None:
+            return cached
         now = get_utc_now()
         today = now.date()
         week_start = today - timedelta(days=today.weekday())
@@ -381,6 +436,12 @@ class DashboardService:
                     Ticket.assigned_team_id.isnot(None),
                 ),
             )
+            .options(
+                joinedload(Ticket.assigned_to),
+                selectinload(Ticket.assigned_team).selectinload(Team.members),
+                selectinload(Ticket.checklists),
+            )
+            .limit(1000)
             .all()
         )
 
@@ -407,4 +468,22 @@ class DashboardService:
             key=lambda x: (-x["critical_count"], -x["open_count"])
         )
         present.sort(key=lambda x: -x["open_count"])
-        return absent, present
+        result = (absent, present)
+        with _workload_cache_lock:
+            _workload_cache["v"] = result
+        return result
+
+
+# ---------------------------------------------------------------------------
+# Cache-Invalidierung: SQLAlchemy-Events auf dem Ticket-Modell
+# ---------------------------------------------------------------------------
+
+
+def _invalidate_on_ticket_change(mapper, connection, target):
+    """Event-Listener für after_insert/after_update/after_delete auf Ticket."""
+    invalidate_dashboard_caches()
+
+
+_sa_event.listen(Ticket, "after_insert", _invalidate_on_ticket_change)
+_sa_event.listen(Ticket, "after_update", _invalidate_on_ticket_change)
+_sa_event.listen(Ticket, "after_delete", _invalidate_on_ticket_change)

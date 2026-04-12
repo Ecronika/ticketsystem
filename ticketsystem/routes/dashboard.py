@@ -22,8 +22,9 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from enums import ELEVATED_ROLES, TicketStatus
 from extensions import Config, db
-from models import Team, Ticket
+from models import Ticket
 from routes.auth import worker_required
+from routes._helpers import get_team_ids_for_worker
 from services._ticket_helpers import _confidential_filter
 from utils import get_utc_now
 
@@ -130,30 +131,32 @@ def _compute_summary_counts() -> Tuple[Dict[str, int], str | None]:
     Returns:
         A tuple of ``(counts_dict, last_updated_iso)``.
     """
-    base = db.session.query(Ticket.status, func.count(Ticket.id)).filter(
-        Ticket.is_deleted.is_(False),
+    is_elevated = _is_elevated_role()
+    worker_id = session.get("worker_id") if not is_elevated else None
+    team_ids = get_team_ids_for_worker(worker_id) if worker_id else []
+    confidential = (
+        db.or_(*_confidential_filter(worker_id, team_ids))
+        if not is_elevated and worker_id is not None
+        else None
     )
-    if not _is_elevated_role():
-        worker_id = session.get("worker_id")
-        team_ids = Team.team_ids_for_worker(worker_id) if worker_id else []
-        base = base.filter(
-            db.or_(*_confidential_filter(worker_id, team_ids))
-        )
 
-    results = base.group_by(Ticket.status).all()
+    base_filter = [Ticket.is_deleted.is_(False)]
+    if confidential is not None:
+        base_filter.append(confidential)
+
+    results = (
+        db.session.query(Ticket.status, func.count(Ticket.id))
+        .filter(*base_filter)
+        .group_by(Ticket.status)
+        .all()
+    )
     count_map: Dict[str, int] = dict(results)
 
-    last_q = db.session.query(func.max(Ticket.updated_at)).filter(
-        Ticket.is_deleted.is_(False),
+    last_updated = (
+        db.session.query(func.max(Ticket.updated_at))
+        .filter(*base_filter)
+        .scalar()
     )
-    if not _is_elevated_role():
-        worker_id = session.get("worker_id")
-        team_ids = Team.team_ids_for_worker(worker_id) if worker_id else []
-        last_q = last_q.filter(
-            db.or_(*_confidential_filter(worker_id, team_ids))
-        )
-
-    last_updated = last_q.scalar()
     last_iso: str | None = last_updated.isoformat() if last_updated else None
 
     counts: Dict[str, Any] = {

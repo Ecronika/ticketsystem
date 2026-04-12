@@ -1,16 +1,10 @@
 """Test configuration and fixtures."""
 # pylint: disable=redefined-outer-name
-import os
-import sys
+import pytest
 
-# Add package folder to path before importing local modules
-# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-import pytest  # noqa: E402
-
-from app import app as flask_app  # noqa: E402
-from extensions import db as _db  # noqa: E402
-from models import Ticket, Worker, SystemSettings # noqa: E402
+from app import app as flask_app
+from extensions import db as _db
+from models import Ticket, SystemSettings
 
 
 @pytest.fixture
@@ -62,3 +56,12 @@ def client(test_app):
 def runner(test_app):
     """Create a test CLI runner."""
     return test_app.test_cli_runner()
+
+
+@pytest.fixture(autouse=True)
+def _clear_dashboard_caches():
+    """Verhindert, dass Cache-Einträge zwischen Tests bestehen bleiben."""
+    from services.dashboard_service import _projects_cache, _workload_cache
+    _projects_cache.clear()
+    _workload_cache.clear()
+    yield
