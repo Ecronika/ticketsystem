@@ -1,14 +1,5 @@
 """UI/UX regression tests — assert template markers."""
-import pytest
-
-from app import app as flask_app
-
-
-@pytest.fixture
-def client():
-    flask_app.config["TESTING"] = True
-    with flask_app.test_client() as c:
-        yield c
+from models import Worker
 
 
 def _login(client, worker_name="Schmidt", pin="7391"):
@@ -17,8 +8,24 @@ def _login(client, worker_name="Schmidt", pin="7391"):
                        follow_redirects=False)
 
 
-def test_dashboard_has_no_dead_reload_hint(client):
-    """Dead #reloadHint element must be removed from dashboard."""
-    # Anonymous users are redirected; use the /login page which extends base.html.
-    resp = client.get("/login")
+def test_dashboard_has_no_dead_reload_hint(client, db):
+    """Regression: #reloadHint div was removed from index.html (dashboard)."""
+    # Create a real worker so validate_session() doesn't kill the session.
+    worker = Worker(
+        name="UITestWorker",
+        pin_hash="x",
+        role="admin",
+        is_admin=True,
+        needs_pin_change=False,
+    )
+    db.session.add(worker)
+    db.session.commit()
+
+    with client.session_transaction() as sess:
+        sess["worker_id"] = worker.id
+        sess["worker_name"] = worker.name
+        sess["role"] = "admin"
+        sess["is_admin"] = True
+
+    resp = client.get("/")
     assert b'id="reloadHint"' not in resp.data
