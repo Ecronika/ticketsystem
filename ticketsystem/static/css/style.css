@@ -27,8 +27,8 @@ body {
 
 /* === WCAG 2.5.8 / Shopfloor-Ergonomie: Touch Targets in Tabellen === */
 .table .btn {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -51,7 +51,7 @@ small,
 .btn,
 .form-control,
 .form-select {
-    min-height: 44px;
+    min-height: var(--touch-target-min);
 }
 
 @media (max-width: 768px) {
@@ -855,8 +855,8 @@ textarea:focus-visible {
 }
 /* --- WCAG 2.5.5: Touch Target Size (Pagination) --- */
 .pagination .page-link {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -896,7 +896,7 @@ textarea:focus-visible {
 }
 
 /* --- v1.6.0: WCAG 2.2 AA & Dashboard Scanning Fixes --- */
-.alert .btn-close { min-width: 44px; min-height: 44px; }
+.alert .btn-close { min-width: var(--touch-target-min); min-height: var(--touch-target-min); }
 .border-danger.border-3 { border-left-width: 6px !important; }
 .sticky-top { z-index: 1030; }
 .sticky-top [tabindex], .sticky-top a, .sticky-top select, .sticky-top button { scroll-margin-top: 6rem; }
@@ -1183,7 +1183,7 @@ textarea:focus-visible {
     }
 }
 .transition-all { transition: all 0.2s ease; }
-.min-h-44       { min-height: 44px; }
+.min-h-44       { min-height: var(--touch-target-min); }
 .min-w-130      { min-width: 130px; }
 .fade-toggle     { transition: opacity 0.2s; }
 .fade-toggle.hidden { display: none; opacity: 0; }
