@@ -88,6 +88,22 @@ def db_session(test_app, db):
     return db.session
 
 
+# ---------------------------------------------------------------------------
+# Short-name aliases for plan/spec test files
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def admin_fixture(admin_worker):
+    """Alias for admin_worker (used in plan-generated tests)."""
+    return admin_worker
+
+
+@pytest.fixture
+def worker_fixture(default_assignee):
+    """Alias for default_assignee (used in plan-generated tests)."""
+    return default_assignee
+
+
 @pytest.fixture
 def admin_worker(app, db_session):
     """Admin worker (is_admin=True)."""
