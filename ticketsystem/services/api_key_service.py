@@ -129,6 +129,41 @@ class ApiKeyService:
 
     @staticmethod
     @db_transaction
+    def update_key(
+        key_id: int,
+        *,
+        name: str,
+        rate_limit_per_minute: int,
+        default_assignee_worker_id: Optional[int],
+        expected_webhook_id: Optional[str] = None,
+        create_confidential_tickets: bool = True,
+        expires_at: Optional[datetime] = None,
+    ) -> "ApiKey":
+        """Update mutable fields of an existing, non-revoked API key."""
+        key = db.session.get(ApiKey, key_id)
+        if not key:
+            raise ValueError(f"API-Key {key_id} nicht gefunden.")
+        if key.revoked_at is not None:
+            raise ValueError("Widerrufene Schlüssel können nicht bearbeitet werden.")
+        if not name or not name.strip():
+            raise ValueError("Name darf nicht leer sein.")
+        if rate_limit_per_minute < 1:
+            raise ValueError("Rate-Limit muss mindestens 1 sein.")
+        if key.has_scope("write:tickets") and default_assignee_worker_id is None:
+            raise ValueError(
+                "Für Scope 'write:tickets' ist ein Standard-Zuweisungs-Worker Pflicht."
+            )
+        key.name = name.strip()
+        key.rate_limit_per_minute = rate_limit_per_minute
+        key.default_assignee_worker_id = default_assignee_worker_id
+        key.expected_webhook_id = expected_webhook_id
+        key.create_confidential_tickets = create_confidential_tickets
+        key.expires_at = expires_at
+        db.session.commit()
+        return key
+
+    @staticmethod
+    @db_transaction
     def revoke_key(key_id: int, revoked_by_worker_id: int) -> None:
         """Revoke an API key (soft-delete). Idempotent.
 

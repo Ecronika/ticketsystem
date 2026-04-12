@@ -215,6 +215,48 @@ Retry-After: 15
             </div>
         </div>
 
+        <!-- DNS setup appendix -->
+        <div class="card card-std mb-4">
+            <div class="card-header card-header-std">
+                <h2 class="h5 fw-bold mb-0"><i class="bi bi-diagram-3 text-primary me-2"></i>Anhang: DNS-Einrichtung für den Webadmin</h2>
+            </div>
+            <div class="card-body p-4">
+                <p class="mb-3">
+                    Für die Einrichtung der API-Subdomain ist ein CNAME-Eintrag beim Webadmin notwendig.
+                    Die folgende Anleitung ist als Vorlage gedacht; bitte an den Webadmin weiterleiten:
+                </p>
+
+                <h3 class="h6 fw-bold">Ziel</h3>
+                <p class="small">
+                    Eine neue Subdomain (z. B. <code>ticket-api.eure-domain.de</code>) soll auf den
+                    Cloudflare Tunnel des Ticketsystems zeigen.
+                </p>
+
+                <h3 class="h6 fw-bold">Vorgehen</h3>
+                <ol class="small mb-3">
+                    <li class="mb-2">Im DNS-Management der Domain einen <strong>CNAME-Eintrag</strong> anlegen:
+                        <ul class="mt-1">
+                            <li><strong>Name:</strong> <code>ticket-api</code></li>
+                            <li><strong>Ziel:</strong> <code>&lt;tunnel-id&gt;.cfargotunnel.com</code>
+                                (konkreten Wert nach Tunnel-Einrichtung erfragen)</li>
+                            <li><strong>TTL:</strong> 300 (5 Minuten) zunächst, nach Validierung auf 3600</li>
+                        </ul>
+                    </li>
+                    <li><strong>KEIN A-Record</strong>, <strong>KEIN MX-Record</strong>,
+                        <strong>KEINE Port-Weiterleitung</strong>. Cloudflare terminiert TLS und
+                        stellt das Zertifikat automatisch aus.</li>
+                    <li class="mt-2">Propagation prüfen: <code>dig ticket-api.eure-domain.de CNAME</code></li>
+                </ol>
+
+                <h3 class="h6 fw-bold">Sicherheit</h3>
+                <p class="small mb-0 text-muted">
+                    Die Subdomain ist ausschließlich für die externe Webhook-Integration.
+                    Keine E-Mail-Einträge, keine weiteren Services auf dieser Subdomain.
+                    Bitte diese Subdomain nicht für andere Zwecke verwenden.
+                </p>
+            </div>
+        </div>
+
     </div>
 
     <!-- Sidebar: quick reference -->

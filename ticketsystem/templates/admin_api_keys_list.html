@@ -64,12 +64,12 @@
                         <td>
                             {% if k.revoked_at %}
                             <span class="badge bg-danger rounded-pill">widerrufen</span>
-                            {% elif not k.is_active %}
-                            <span class="badge bg-secondary rounded-pill">inaktiv</span>
-                            {% elif k.expires_at and k.expires_at <= now %}
+                            {% elif not k.is_usable() %}
                             <span class="badge bg-warning rounded-pill">abgelaufen</span>
-                            {% else %}
+                            {% elif k.is_active %}
                             <span class="badge bg-success rounded-pill">aktiv</span>
+                            {% else %}
+                            <span class="badge bg-secondary rounded-pill">inaktiv</span>
                             {% endif %}
                         </td>
                         <td class="pe-4 text-end">

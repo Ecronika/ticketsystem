@@ -69,26 +69,27 @@
             <table class="table table-hover table-sm mb-0 align-middle">
                 <thead class="table-light">
                     <tr>
-                        <th class="ps-3">Zeit</th>
+                        <th class="ps-3" style="width:1.5rem"></th>
+                        <th>Zeit</th>
                         <th>Schlüssel</th>
                         <th>IP</th>
                         <th>Methode / Pfad</th>
                         <th>Status</th>
                         <th>Outcome</th>
-                        <th>Latenz</th>
-                        <th class="pe-3">Request-ID</th>
+                        <th class="pe-3">Latenz</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for entry in pagination.items %}
-                    <tr>
-                        <td class="ps-3 text-nowrap small text-muted">
+                    <tr class="entry-row" onclick="toggleDetail('det-{{ entry.id }}')" style="cursor:pointer">
+                        <td class="ps-3 text-muted small">▸</td>
+                        <td class="text-nowrap small text-muted">
                             {{ entry.timestamp | local_time | datetime }}
                         </td>
                         <td class="small">
                             {% if entry.api_key %}
                             <a href="{{ ingress_path }}{{ url_for('admin._api_keys_edit', key_id=entry.api_key.id) }}"
-                               class="text-decoration-none">{{ entry.api_key.name }}</a>
+                               class="text-decoration-none" onclick="event.stopPropagation()">{{ entry.api_key.name }}</a>
                             {% elif entry.key_prefix %}
                             <code class="text-muted">{{ entry.key_prefix }}…</code>
                             {% else %}
@@ -110,15 +111,44 @@
                                 {{ entry.outcome }}
                             </span>
                         </td>
-                        <td class="small text-muted">{{ entry.latency_ms }} ms</td>
-                        <td class="pe-3">
-                            <code class="x-small text-muted">{{ entry.request_id[:8] }}…</code>
+                        <td class="pe-3 small text-muted">{{ entry.latency_ms }} ms</td>
+                    </tr>
+                    <tr id="det-{{ entry.id }}" class="detail-row" style="display:none">
+                        <td></td>
+                        <td colspan="7" class="bg-light pb-3 pt-2 ps-3">
+                            <dl class="row small mb-0">
+                                <dt class="col-sm-3 col-lg-2 text-muted">Request-ID</dt>
+                                <dd class="col-sm-9 col-lg-10"><code>{{ entry.request_id }}</code></dd>
+                                {% if entry.external_ref %}
+                                <dt class="col-sm-3 col-lg-2 text-muted">External Ref</dt>
+                                <dd class="col-sm-9 col-lg-10"><code>{{ entry.external_ref }}</code></dd>
+                                {% endif %}
+                                {% if entry.assignment_method %}
+                                <dt class="col-sm-3 col-lg-2 text-muted">Assignment</dt>
+                                <dd class="col-sm-9 col-lg-10">{{ entry.assignment_method }}</dd>
+                                {% endif %}
+                                {% if entry.key_prefix %}
+                                <dt class="col-sm-3 col-lg-2 text-muted">Key-Prefix</dt>
+                                <dd class="col-sm-9 col-lg-10"><code>{{ entry.key_prefix }}</code></dd>
+                                {% endif %}
+                                {% if entry.error_detail %}
+                                <dt class="col-sm-3 col-lg-2 text-muted">Fehlerdetail</dt>
+                                <dd class="col-sm-9 col-lg-10"><pre class="mb-0 small">{{ entry.error_detail }}</pre></dd>
+                                {% endif %}
+                            </dl>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+
+        <script>
+        function toggleDetail(id) {
+            var el = document.getElementById(id);
+            if (el) el.style.display = (el.style.display === 'none') ? 'table-row' : 'none';
+        }
+        </script>
         {% else %}
         <div class="p-5 text-center text-muted">
             <i class="bi bi-journal-x fs-1 d-block mb-3 opacity-25"></i>
