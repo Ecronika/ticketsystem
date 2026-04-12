@@ -86,3 +86,25 @@ def test_new_ticket_info_box_not_above_submit(client):
     # (e.g. inside the success alert at the top of the card, which is rendered conditionally).
     if info_pos != -1 and submit_pos != -1:
         assert info_pos > submit_pos or b'id="created-info"' in resp.data
+
+
+@pytest.mark.parametrize("path", ["/archive", "/workload"])
+def test_breadcrumbs_on_inner_pages(client, db, path):
+    """Inner pages must carry a breadcrumb nav back to the dashboard."""
+    worker = Worker(
+        name="BcTest",
+        pin_hash="x",
+        role="admin",
+        is_admin=True,
+        needs_pin_change=False,
+    )
+    db.session.add(worker)
+    db.session.commit()
+    with client.session_transaction() as sess:
+        sess["worker_id"] = worker.id
+        sess["worker_name"] = worker.name
+        sess["role"] = "admin"
+        sess["is_admin"] = True
+    resp = client.get(path)
+    assert b'aria-label="breadcrumb"' in resp.data
+    assert b"Dashboard" in resp.data
