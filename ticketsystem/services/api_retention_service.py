@@ -6,6 +6,7 @@ from datetime import timedelta
 
 from flask import Flask
 
+from extensions import db
 from models import ApiAuditLog, TicketTranscript
 from services._helpers import db_transaction
 from utils import get_utc_now
@@ -24,6 +25,7 @@ class ApiRetentionService:
         count = ApiAuditLog.query.filter(ApiAuditLog.timestamp < cutoff).delete(
             synchronize_session=False
         )
+        db.session.commit()
         return count
 
     @staticmethod
@@ -34,6 +36,7 @@ class ApiRetentionService:
         count = TicketTranscript.query.filter(
             TicketTranscript.created_at < cutoff
         ).delete(synchronize_session=False)
+        db.session.commit()
         return count
 
 
