@@ -1,16 +1,10 @@
 """Test configuration and fixtures."""
 # pylint: disable=redefined-outer-name
-import os
-import sys
+import pytest
 
-# Add package folder to path before importing local modules
-# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-import pytest  # noqa: E402
-
-from app import app as flask_app  # noqa: E402
-from extensions import db as _db  # noqa: E402
-from models import Ticket, Worker, SystemSettings # noqa: E402
+from app import app as flask_app
+from extensions import db as _db
+from models import Ticket, SystemSettings
 
 
 @pytest.fixture

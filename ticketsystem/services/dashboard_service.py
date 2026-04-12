@@ -10,7 +10,7 @@ from datetime import date, timedelta
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from cachetools import TTLCache
-from sqlalchemy import Float, case, cast, func
+from sqlalchemy import Float, case, cast, event as _sa_event, func
 from sqlalchemy.orm import joinedload, selectinload
 
 from enums import ELEVATED_ROLES, TicketStatus
@@ -37,6 +37,19 @@ _projects_cache: TTLCache = TTLCache(maxsize=1, ttl=120)   # 2 Minuten
 _workload_cache: TTLCache = TTLCache(maxsize=1, ttl=300)   # 5 Minuten
 _projects_cache_lock = threading.RLock()
 _workload_cache_lock = threading.RLock()
+
+
+def invalidate_dashboard_caches() -> None:
+    """Leert die Dashboard-Aggregations-Caches.
+
+    Aufrufen nach Mutationen, die die Projekt-Übersicht oder
+    Workload-Übersicht beeinflussen (Ticket erstellen/aktualisieren,
+    Status ändern, zuweisen, löschen).
+    """
+    with _projects_cache_lock:
+        _projects_cache.clear()
+    with _workload_cache_lock:
+        _workload_cache.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -459,3 +472,18 @@ class DashboardService:
         with _workload_cache_lock:
             _workload_cache["v"] = result
         return result
+
+
+# ---------------------------------------------------------------------------
+# Cache-Invalidierung: SQLAlchemy-Events auf dem Ticket-Modell
+# ---------------------------------------------------------------------------
+
+
+def _invalidate_on_ticket_change(mapper, connection, target):
+    """Event-Listener für after_insert/after_update/after_delete auf Ticket."""
+    invalidate_dashboard_caches()
+
+
+_sa_event.listen(Ticket, "after_insert", _invalidate_on_ticket_change)
+_sa_event.listen(Ticket, "after_update", _invalidate_on_ticket_change)
+_sa_event.listen(Ticket, "after_delete", _invalidate_on_ticket_change)

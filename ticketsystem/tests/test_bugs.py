@@ -201,3 +201,31 @@ def test_get_active_workers_cached_in_g(test_app):
         workers_2 = get_active_workers()
         # Zweiter Aufruf muss dasselbe Objekt zurückgeben (aus g-Cache)
         assert workers_1 is workers_2
+
+
+def test_dashboard_cache_invalidated_on_ticket_create(test_app):
+    """Cache muss nach Ticket-Erstellung geleert werden."""
+    from services.dashboard_service import (
+        DashboardService,
+        _projects_cache,
+        _workload_cache,
+    )
+    from services.ticket_core_service import TicketCoreService
+    from enums import TicketPriority
+
+    with test_app.app_context():
+        # Cache befüllen
+        DashboardService.get_projects_summary()
+        DashboardService.get_workload_overview()
+        assert "v" in _projects_cache
+        assert "v" in _workload_cache
+
+        # Ticket erstellen → Caches müssen geleert sein
+        TicketCoreService.create_ticket(
+            title="Cache-Test",
+            description=None,
+            priority=TicketPriority.MITTEL,
+            author_name="Test",
+        )
+        assert "v" not in _projects_cache
+        assert "v" not in _workload_cache
