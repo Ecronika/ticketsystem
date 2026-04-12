@@ -324,7 +324,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     form.addEventListener('submit', function(e) {
         e.preventDefault();
-        // Skip XHR when client-side validation failed (was-validated added by form_validation.js).
+        // Skip XHR when client-side validation failed. This works because form_validation.js
+        // registers its submit listener earlier (via base.html's script order) and sets
+        // `was-validated` synchronously before this listener runs.
         if (form.classList.contains('was-validated') && !form.checkValidity()) {
             return;
         }
