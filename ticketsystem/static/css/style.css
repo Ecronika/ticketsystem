@@ -356,6 +356,47 @@ canvas {
     color: #000;
 }
 
+/* =========================================
+   SYSTEMATIC STATES (audit finding: disabled/invalid missing)
+   ========================================= */
+
+/* Disabled state — buttons */
+.btn:disabled,
+.btn[aria-disabled="true"],
+.btn.disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Disabled state — form controls */
+.form-control:disabled,
+.form-select:disabled,
+.form-check-input:disabled {
+    background-color: var(--bg-surface-subtle);
+    color: var(--text-muted);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* Invalid state — accepts Bootstrap .is-invalid AND aria-invalid */
+.form-control.is-invalid,
+.form-control[aria-invalid="true"],
+.form-select.is-invalid,
+.form-select[aria-invalid="true"] {
+    border-color: var(--color-danger);
+    box-shadow: 0 0 0 0.25rem rgb(220 38 38 / 25%);
+}
+
+/* HC mode: outline instead of coloured shadow */
+[data-theme="hc"] .form-control.is-invalid,
+[data-theme="hc"] .form-control[aria-invalid="true"],
+[data-theme="hc"] .form-select.is-invalid,
+[data-theme="hc"] .form-select[aria-invalid="true"] {
+    outline: var(--border-3) solid var(--color-danger);
+    box-shadow: none;
+}
+
 /* Fix missing focus ring for hidden radio buttons (WCAG 2.2) */
 .btn-check:focus-visible+.btn {
     box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
