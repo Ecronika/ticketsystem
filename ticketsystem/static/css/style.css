@@ -140,6 +140,54 @@ canvas {
     --h-exchange-list: 250px;
     --h-logo-preview: 150px;
     --h-qr-selector: 200px;
+
+    /* =========================================
+       TIER 1 — GLOBAL PRIMITIVES (theme-agnostic)
+       ========================================= */
+
+    /* Spacing scale (4px base, numeric) */
+    --space-0: 0;
+    --space-1: 0.25rem;   /* 4px */
+    --space-2: 0.5rem;    /* 8px */
+    --space-3: 0.75rem;   /* 12px */
+    --space-4: 1rem;      /* 16px */
+    --space-5: 1.25rem;   /* 20px */
+    --space-6: 1.5rem;    /* 24px */
+    --space-8: 2rem;      /* 32px */
+    --space-12: 3rem;     /* 48px */
+    --space-16: 4rem;     /* 64px */
+
+    /* Border widths */
+    --border-1: 1px;
+    --border-2: 2px;
+    --border-3: 3px;
+    --border-4: 4px;
+
+    /* Motion */
+    --duration-fast: 0.15s;
+    --duration-base: 0.2s;
+    --duration-slow: 0.3s;
+    --ease-standard: ease;
+    --transition-colors:
+        background-color var(--duration-base) var(--ease-standard),
+        color var(--duration-base) var(--ease-standard),
+        border-color var(--duration-base) var(--ease-standard),
+        box-shadow var(--duration-base) var(--ease-standard);
+
+    /* Shadows */
+    --shadow-xs: 0 1px 2px rgb(0 0 0 / 6%);
+    --shadow-sm: 0 2px 4px rgb(0 0 0 / 8%);
+    --shadow-md: 0 4px 8px rgb(0 0 0 / 12%);
+    --shadow-lg: 0 8px 24px rgb(0 0 0 / 16%);
+
+    /* Breakpoints (reference only — CSS media queries can't use var()) */
+    --bp-sm: 576px;
+    --bp-md: 768px;
+    --bp-lg: 992px;
+    --bp-xl: 1200px;
+
+    /* WCAG 2.5.8 touch target */
+    --touch-target-min: 44px;
 }
 
 .z-toast {
