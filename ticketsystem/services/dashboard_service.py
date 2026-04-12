@@ -404,6 +404,7 @@ class DashboardService:
                 selectinload(Ticket.assigned_team).selectinload(Team.members),
                 selectinload(Ticket.checklists),
             )
+            .limit(1000)
             .all()
         )
 
