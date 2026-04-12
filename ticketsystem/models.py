@@ -639,3 +639,63 @@ def process_file_deletions(session: Any) -> None:
 def clear_pending_deletions(session: Any) -> None:
     """Clear the deletion queue when the transaction is rolled back."""
     session.info.pop("pending_deletions", None)
+
+
+# ---------------------------------------------------------------------------
+# API Keys (Public REST API)
+# ---------------------------------------------------------------------------
+
+class ApiKey(db.Model):
+    """API key for the public REST API (Phase a: write:tickets)."""
+
+    __tablename__ = "api_key"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    key_prefix = db.Column(db.String(12), nullable=False, index=True)
+    key_hash = db.Column(db.String(128), nullable=False, unique=True)
+    scopes = db.Column(db.String(255), nullable=False)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    rate_limit_per_minute = db.Column(db.Integer, nullable=False, default=60)
+    expected_webhook_id = db.Column(db.String(128), nullable=True)
+    default_assignee_worker_id = db.Column(
+        db.Integer, db.ForeignKey("worker.id"), nullable=True
+    )
+    create_confidential_tickets = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=get_utc_now)
+    created_by_worker_id = db.Column(
+        db.Integer, db.ForeignKey("worker.id"), nullable=False
+    )
+    last_used_at = db.Column(db.DateTime, nullable=True)
+    last_used_ip = db.Column(db.String(45), nullable=True)
+    revoked_at = db.Column(db.DateTime, nullable=True)
+    revoked_by_worker_id = db.Column(
+        db.Integer, db.ForeignKey("worker.id"), nullable=True
+    )
+    expires_at = db.Column(db.DateTime, nullable=True)
+
+    default_assignee = db.relationship(
+        "Worker", foreign_keys=[default_assignee_worker_id]
+    )
+    ip_ranges = db.relationship(
+        "ApiKeyIpRange",
+        back_populates="api_key",
+        cascade="all, delete-orphan",
+        order_by="ApiKeyIpRange.created_at",
+    )
+
+    def scope_list(self) -> List[str]:
+        """Return scopes as a list."""
+        return [s.strip() for s in (self.scopes or "").split(",") if s.strip()]
+
+    def has_scope(self, scope: str) -> bool:
+        """Return True if this key has the given scope."""
+        return scope in self.scope_list()
+
+    def is_usable(self) -> bool:
+        """True if key is active, not revoked, not expired."""
+        if not self.is_active or self.revoked_at is not None:
+            return False
+        if self.expires_at is not None and self.expires_at <= get_utc_now():
+            return False
+        return True
