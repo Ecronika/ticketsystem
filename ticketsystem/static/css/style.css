@@ -1185,7 +1185,7 @@ textarea:focus-visible {
 .min-h-44       { min-height: var(--touch-target-min); }
 .min-w-130      { min-width: 130px; }
 .fade-toggle     { transition: opacity 0.2s; }
-.fade-toggle.hidden { display: none; opacity: 0; }
+.fade-toggle.hidden { opacity: 0; pointer-events: none; }
 .max-w-85p      { max-width: 85%; }
 .lh-relaxed     { line-height: 1.6; }
 .table-compact  { font-size: 0.875rem; }
