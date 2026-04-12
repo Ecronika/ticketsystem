@@ -16,6 +16,20 @@ from services._helpers import db_transaction
 from utils import get_utc_now
 
 
+def _clear_rate_window(key_id: int) -> None:
+    """Remove a revoked key's rate-limit state (no-op if not present).
+
+    Called by revoke_key. Cross-module dependency kept loose via lazy import
+    to avoid circular import with routes.api._decorators.
+    """
+    try:
+        from routes.api._decorators import _rate_windows, _rate_lock
+    except ImportError:
+        return  # api_bp not loaded (e.g., at migration time)
+    with _rate_lock:
+        _rate_windows.pop(key_id, None)
+
+
 TOKEN_PREFIX = "tsk_"
 TOKEN_RANDOM_LENGTH = 48  # characters (not bytes)
 _ALPHABET = (
@@ -116,7 +130,12 @@ class ApiKeyService:
     @staticmethod
     @db_transaction
     def revoke_key(key_id: int, revoked_by_worker_id: int) -> None:
-        """Revoke an API key by ID. Idempotent."""
+        """Revoke an API key (soft-delete). Idempotent.
+
+        Side-effect: clears the key's rate-limit state from in-memory storage
+        so a revoked key doesn't leave stale entries. See
+        routes.api._decorators._rate_windows.
+        """
         key = db.session.get(ApiKey, key_id)
         if not key:
             raise ValueError(f"API-Key {key_id} nicht gefunden.")
@@ -126,6 +145,8 @@ class ApiKeyService:
         key.revoked_by_worker_id = revoked_by_worker_id
         key.is_active = False
         db.session.commit()
+        # Drop any in-memory rate-limit state for the revoked key
+        _clear_rate_window(key.id)
 
     @staticmethod
     def check_ip(key: ApiKey, source_ip: str) -> None:

@@ -17,18 +17,34 @@ from services.api_key_service import ApiKeyService
 _CF_IP_HEADER = "CF-Connecting-IP"
 _REAL_IP_HEADER = "X-Real-IP"
 
+# ---------------------------------------------------------------------------
+# Rate-limit storage (in-memory, per-process)
+#
+# DEPLOYMENT CONSTRAINT: This implementation assumes single-worker Flask
+# (gunicorn --workers=1 or equivalent). With multiple workers each gets its
+# own _rate_windows dict, so the effective limit becomes `limit * workers`.
+# For the HA-Add-on single-worker case this is fine. If multi-worker deploy
+# is ever needed, replace with a Redis-backed sliding window.
+# ---------------------------------------------------------------------------
+
 _rate_windows: dict[int, deque] = defaultdict(deque)
 _rate_lock = Lock()
 
 
 def _client_ip() -> str:
-    """Extract source IP, prefer Cloudflare header over X-Real-IP over remote_addr."""
-    return (
+    """Extract source IP. Prefer Cloudflare header over X-Real-IP over remote_addr.
+
+    Handles proxy-chain headers where the value may be a comma-separated list
+    like "1.2.3.4, 5.6.7.8" — takes the first (left-most, i.e., original client).
+    """
+    raw = (
         request.headers.get(_CF_IP_HEADER)
         or request.headers.get(_REAL_IP_HEADER)
         or request.remote_addr
         or ""
     )
+    # Split on comma for multi-hop headers; take first, strip whitespace
+    return raw.split(",")[0].strip()
 
 
 def _extract_bearer_token() -> str | None:

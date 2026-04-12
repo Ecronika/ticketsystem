@@ -118,3 +118,21 @@ def default_assignee(app, db_session):
     db_session.add(w)
     db_session.commit()
     return w
+
+
+@pytest.fixture(autouse=True)
+def _clear_api_rate_windows():
+    """Prevent _rate_windows state leaking between tests.
+
+    Imported lazily to avoid eager import of routes.api before tests need it.
+    """
+    try:
+        from routes.api._decorators import _rate_windows, _rate_lock
+    except ImportError:
+        yield
+        return
+    with _rate_lock:
+        _rate_windows.clear()
+    yield
+    with _rate_lock:
+        _rate_windows.clear()

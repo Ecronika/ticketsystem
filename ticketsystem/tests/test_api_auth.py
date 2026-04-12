@@ -109,15 +109,12 @@ def test_scope_denied_returns_403(app, client, db_session, admin_worker, default
 
 
 def test_rate_limit_per_key(app, client, db_session, admin_worker, default_assignee):
-    from routes.api._decorators import _rate_windows
     _, plaintext = ApiKeyService.create_key(
         name="K", scopes=["write:tickets"],
         default_assignee_id=default_assignee.id,
         rate_limit_per_minute=3,  # niedrig für Test
         created_by_worker_id=admin_worker.id,
     )
-    # Clear rate windows to avoid state leakage from other tests
-    _rate_windows.clear()
     hdr = {"Authorization": f"Bearer {plaintext}"}
     assert client.get("/test_rl_v1/rl", headers=hdr).status_code == 200
     assert client.get("/test_rl_v1/rl", headers=hdr).status_code == 200

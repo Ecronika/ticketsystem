@@ -20,15 +20,15 @@ api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
 def _isolate_session():
     """Clear any session state — API is stateless."""
     session.clear()
-    g.pop("current_worker", None)
     g.api_request_id = str(uuid.uuid4())
-    g.api_request_start = None  # set by auth decorator for latency
+    g.api_request_start = None  # set by auth decorator for latency measurement
 
 
 @api_bp.after_request
 def _write_audit_log(response):
     """Write audit log entry for every API request (except /health)."""
-    if request.path.endswith("/health"):
+    # Skip audit log for liveness probes (endpoint "api._health")
+    if request.endpoint == "api._health":
         return response
     start = getattr(g, "api_request_start", None)
     latency_ms = int((time.perf_counter() - start) * 1000) if start else 0
