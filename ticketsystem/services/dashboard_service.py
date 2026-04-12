@@ -136,43 +136,6 @@ def _fetch_summary_counts(
 # Project helpers
 # ---------------------------------------------------------------------------
 
-def _new_project_entry(ref: str, ticket: Ticket) -> Dict[str, Any]:
-    """Initialise a project accumulator dict."""
-    return {
-        "order_reference": ref,
-        "total_tickets": 0,
-        "completed_tickets": 0,
-        "last_updated": ticket.updated_at or ticket.created_at,
-        "ticket_progress_sum": 0.0,
-        "status_counts": {s.value: 0 for s in TicketStatus},
-    }
-
-
-def _accumulate_ticket(project: Dict[str, Any], ticket: Ticket) -> None:
-    """Add a ticket's contribution to a project accumulator."""
-    project["total_tickets"] += 1
-    t_time = ticket.updated_at or ticket.created_at
-    if t_time and (
-        not project["last_updated"] or t_time > project["last_updated"]
-    ):
-        project["last_updated"] = t_time
-
-    project["status_counts"].setdefault(ticket.status, 0)
-    project["status_counts"][ticket.status] += 1
-
-    is_done = ticket.status == TicketStatus.ERLEDIGT.value
-    if is_done:
-        project["completed_tickets"] += 1
-
-    if ticket.checklists:
-        done = sum(1 for c in ticket.checklists if c.is_completed)
-        total = len(ticket.checklists)
-        progress = done / total if total > 0 else 0.0
-    else:
-        progress = 1.0 if is_done else 0.0
-    project["ticket_progress_sum"] += progress
-
-
 def _finalize_projects(
     projects: Dict[str, Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
@@ -343,24 +306,81 @@ class DashboardService:
 
     @staticmethod
     def get_projects_summary() -> List[Dict[str, Any]]:
-        """Fetch projects grouped by order_reference with progress."""
-        tickets = (
-            Ticket.query.filter(
+        """Fetch projects grouped by order_reference with progress.
+
+        Uses a single SQL query with GROUP BY instead of loading full ORM
+        objects, avoiding N+1 on checklists.
+        """
+        from sqlalchemy import Float, case, cast
+
+        # Checklist done/total per ticket as subquery
+        ci = (
+            db.session.query(
+                ChecklistItem.ticket_id.label("tid"),
+                func.count(ChecklistItem.id).label("total"),
+                func.sum(
+                    case((ChecklistItem.is_completed.is_(True), 1), else_=0)
+                ).label("done"),
+            )
+            .group_by(ChecklistItem.ticket_id)
+            .subquery()
+        )
+
+        rows = (
+            db.session.query(
+                Ticket.order_reference,
+                Ticket.status,
+                func.count(Ticket.id).label("cnt"),
+                func.max(
+                    func.coalesce(Ticket.updated_at, Ticket.created_at)
+                ).label("last_upd"),
+                func.sum(
+                    case(
+                        (
+                            ci.c.total > 0,
+                            cast(ci.c.done, Float) / cast(ci.c.total, Float),
+                        ),
+                        (Ticket.status == TicketStatus.ERLEDIGT.value, 1.0),
+                        else_=0.0,
+                    )
+                ).label("progress_sum"),
+            )
+            .outerjoin(ci, Ticket.id == ci.c.tid)
+            .filter(
                 Ticket.is_deleted.is_(False),
                 Ticket.order_reference.isnot(None),
                 Ticket.order_reference != "",
             )
-            .options(selectinload(Ticket.checklists))
+            .group_by(Ticket.order_reference, Ticket.status)
             .all()
         )
-        projects: Dict[str, Dict[str, Any]] = {}
 
-        for ticket in tickets:
-            ref = ticket.order_reference.strip()
+        projects: Dict[str, Dict[str, Any]] = {}
+        for row in rows:
+            ref = row.order_reference.strip()
             if not ref:
                 continue
-            project = projects.setdefault(ref, _new_project_entry(ref, ticket))
-            _accumulate_ticket(project, ticket)
+            if ref not in projects:
+                projects[ref] = {
+                    "order_reference": ref,
+                    "total_tickets": 0,
+                    "completed_tickets": 0,
+                    "last_updated": None,
+                    "ticket_progress_sum": 0.0,
+                    "status_counts": {s.value: 0 for s in TicketStatus},
+                }
+            p = projects[ref]
+            p["total_tickets"] += row.cnt
+            p["status_counts"][row.status] = (
+                p["status_counts"].get(row.status, 0) + row.cnt
+            )
+            if row.status == TicketStatus.ERLEDIGT.value:
+                p["completed_tickets"] += row.cnt
+            p["ticket_progress_sum"] += row.progress_sum or 0.0
+            if row.last_upd and (
+                not p["last_updated"] or row.last_upd > p["last_updated"]
+            ):
+                p["last_updated"] = row.last_upd
 
         return _finalize_projects(projects)
 
