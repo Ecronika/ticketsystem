@@ -360,6 +360,12 @@ class Ticket(db.Model):
     checklists = db.relationship(
         "ChecklistItem", backref="ticket", cascade="all, delete-orphan"
     )
+    transcripts = db.relationship(
+        "TicketTranscript",
+        backref="ticket",
+        cascade="all, delete-orphan",
+        order_by="TicketTranscript.position",
+    )
     tags = db.relationship(
         "Tag",
         secondary=ticket_tags,
@@ -746,3 +752,24 @@ class ApiAuditLog(db.Model):
     error_detail = db.Column(db.Text, nullable=True)
 
     api_key = db.relationship("ApiKey")
+
+
+class TicketTranscript(db.Model):
+    """Conversation transcript entry belonging to a ticket.
+
+    Separate table so retention (90d) can differ from ticket retention.
+    """
+
+    __tablename__ = "ticket_transcript"
+
+    id = db.Column(db.Integer, primary_key=True)
+    ticket_id = db.Column(
+        db.Integer,
+        db.ForeignKey("ticket.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    position = db.Column(db.Integer, nullable=False)
+    role = db.Column(db.String(16), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=get_utc_now)
