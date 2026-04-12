@@ -325,7 +325,7 @@ canvas {
 .btn-primary-soft:hover {
     background-color: var(--color-primary);
    color: #fff;
-    box-shadow: 0 4px 8px rgb(13 110 253 / 20%);
+    box-shadow: var(--shadow-md);
 }
 
 /* Pastell / Sky Blue in Dark mode */
@@ -835,7 +835,7 @@ textarea:focus-visible {
 }
 .bg-white-hover:hover {
     background-color: rgba(255, 255, 255, 0.1) !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-sm);
 }
 [data-theme="dark"] .bg-white-hover:hover {
     background-color: rgba(255, 255, 255, 0.05) !important;
@@ -908,7 +908,7 @@ textarea:focus-visible {
 }
 @media (hover: hover) and (pointer: fine) {
     .hover-card:hover {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+        box-shadow: var(--shadow-md) !important;
         transform: translateY(-1px);
     }
 }
@@ -1053,7 +1053,7 @@ textarea:focus-visible {
     color: #333;
     font-size: 1.2rem;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-sm);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1135,7 +1135,7 @@ textarea:focus-visible {
 @media (hover: hover) and (pointer: fine) {
     .attachment-tile:hover .attachment-delete-btn {
         opacity: 1;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+        box-shadow: var(--shadow-xs);
     }
 }
 [data-theme="dark"] .attachment-delete-btn {
@@ -1178,7 +1178,7 @@ textarea:focus-visible {
 }
 @media (hover: hover) and (pointer: fine) {
     .hover-elevate:hover {
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1) !important;
+        box-shadow: var(--shadow-md) !important;
         transform: translateY(-2px);
     }
 }
