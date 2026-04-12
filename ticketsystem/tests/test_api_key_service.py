@@ -65,3 +65,44 @@ def test_lookup_revoked_key_raises_invalid(app, db_session, admin_fixture, worke
     ApiKeyService.revoke_key(key.id, revoked_by_worker_id=admin_fixture.id)
     with pytest.raises(InvalidApiKey):
         ApiKeyService.authenticate(plaintext)
+
+
+def test_ip_check_empty_allowlist_allows_all(app, db_session, admin_fixture, worker_fixture):
+    key, _ = ApiKeyService.create_key(
+        name="K", scopes=["write:tickets"],
+        default_assignee_id=worker_fixture.id,
+        rate_limit_per_minute=60, created_by_worker_id=admin_fixture.id,
+    )
+    # Keine Ranges vorhanden → alles OK
+    ApiKeyService.check_ip(key, "203.0.113.1")
+    ApiKeyService.check_ip(key, "198.51.100.99")
+    ApiKeyService.check_ip(key, "::1")
+
+
+def test_ip_check_with_allowlist_enforces(app, db_session, admin_fixture, worker_fixture):
+    key, _ = ApiKeyService.create_key(
+        name="K", scopes=["write:tickets"],
+        default_assignee_id=worker_fixture.id,
+        rate_limit_per_minute=60, created_by_worker_id=admin_fixture.id,
+    )
+    ApiKeyService.add_ip_range(
+        key.id, "203.0.113.0/24",
+        note="test", created_by_worker_id=admin_fixture.id,
+    )
+    ApiKeyService.check_ip(key, "203.0.113.5")      # okay
+    with pytest.raises(IpNotAllowed):
+        ApiKeyService.check_ip(key, "198.51.100.1")  # draußen
+
+
+def test_ip_check_invalid_source_raises(app, db_session, admin_fixture, worker_fixture):
+    key, _ = ApiKeyService.create_key(
+        name="K", scopes=["write:tickets"],
+        default_assignee_id=worker_fixture.id,
+        rate_limit_per_minute=60, created_by_worker_id=admin_fixture.id,
+    )
+    ApiKeyService.add_ip_range(
+        key.id, "203.0.113.0/24",
+        note="t", created_by_worker_id=admin_fixture.id,
+    )
+    with pytest.raises(IpNotAllowed):
+        ApiKeyService.check_ip(key, "not-an-ip")
