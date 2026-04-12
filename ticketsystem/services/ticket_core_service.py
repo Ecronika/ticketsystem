@@ -14,8 +14,10 @@ from typing import Any, Dict, List, Optional
 
 from dateutil.relativedelta import relativedelta
 from flask import current_app
+from sqlalchemy.orm import joinedload, selectinload
 
 from enums import TicketPriority, TicketStatus
+from exceptions import DomainError
 from extensions import db
 from models import (
     Attachment,
@@ -763,7 +765,18 @@ class TicketCoreService:
         Does NOT copy: approval (new ticket has no approval state),
         comments/history, or attachments.
         """
-        source = _get_ticket_or_raise(ticket_id)
+        source = (
+            Ticket.query.filter_by(id=ticket_id)
+            .options(
+                joinedload(Ticket.contact),
+                joinedload(Ticket.recurrence),
+                selectinload(Ticket.tags),
+                selectinload(Ticket.checklists),
+            )
+            .first()
+        )
+        if not source or source.is_deleted:
+            raise DomainError("Ticket nicht gefunden.")
 
         new_ticket = Ticket(
             title=f"Kopie von: {source.title}",
