@@ -329,6 +329,7 @@ else:
 # ---------------------------------------------------------------------------
 
 from routes.admin import admin_bp  # noqa: E402
+import routes.admin_api_keys  # noqa: F401,E402  — side-effect: registers admin_api_keys routes on admin_bp
 
 app.register_blueprint(main_bp)
 app.register_blueprint(metrics_bp)
