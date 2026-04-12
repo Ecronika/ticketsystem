@@ -65,3 +65,47 @@ def _clear_dashboard_caches():
     _projects_cache.clear()
     _workload_cache.clear()
     yield
+
+
+@pytest.fixture
+def app(test_app):
+    """Alias for test_app to match newer test files."""
+    return test_app
+
+
+@pytest.fixture
+def db_session(test_app, db):
+    """Return the active db.session for direct use in tests."""
+    return db.session
+
+
+@pytest.fixture
+def admin_fixture(app, db_session):
+    """Admin worker (is_admin=True). Replaces plan's 'admin_worker' fixture."""
+    from werkzeug.security import generate_password_hash
+    from models import Worker
+    w = Worker(
+        name="TestAdmin",
+        pin_hash=generate_password_hash("7391"),
+        is_admin=True, is_active=True, role="admin",
+        needs_pin_change=False,
+    )
+    db_session.add(w)
+    db_session.commit()
+    return w
+
+
+@pytest.fixture
+def worker_fixture(app, db_session):
+    """Default-assignee worker. Replaces plan's 'default_assignee' fixture."""
+    from werkzeug.security import generate_password_hash
+    from models import Worker
+    w = Worker(
+        name="Rezeption",
+        pin_hash=generate_password_hash("8264"),
+        is_active=True, role="worker",
+        needs_pin_change=False,
+    )
+    db_session.add(w)
+    db_session.commit()
+    return w
