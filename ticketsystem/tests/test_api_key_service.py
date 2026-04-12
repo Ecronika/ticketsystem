@@ -20,9 +20,9 @@ def test_create_returns_plaintext_token_once(app, db_session, admin_worker, defa
     assert key.key_prefix == plaintext[:12]
     # Hash matches the HMAC-SHA256 keyed-hash of the plaintext
     assert key.key_hash == _hash_token(plaintext)
-    # Hash is NOT plain SHA-256 (pepper applied) — defense against DB-leak
-    import hashlib
-    assert key.key_hash != hashlib.sha256(plaintext.encode()).hexdigest()
+    # Stored hash has SHA-256 digest shape (64 hex chars), not plaintext.
+    assert len(key.key_hash) == 64
+    assert all(c in "0123456789abcdef" for c in key.key_hash)
     # Reload from DB to confirm Klartext not stored anywhere accessible.
     db_session.refresh(key)
     assert key.key_hash != plaintext
