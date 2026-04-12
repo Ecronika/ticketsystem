@@ -131,7 +131,7 @@ Alle Änderungen via Alembic-Migration mit Daten-Migration wo nötig
 | `id` | Integer PK | |
 | `name` | String(120), NOT NULL | Menschenlesbar: „HalloPetra Produktion" |
 | `key_prefix` | String(12), NOT NULL, indexed | Erste 12 Zeichen (`tsk_xxxxxxxx`), unverschlüsselt |
-| `key_hash` | String(128), NOT NULL, unique | BLAKE2b-Keyed-Hash (digest_size=32) des vollen Tokens mit server-seitigem `API_KEY_PEPPER` als Key |
+| `key_hash` | String(128), NOT NULL, unique | Argon2id-Hash im PHC-Format (m=19 MiB, t=2, p=1, salt=16 B, hash=32 B) — OWASP-konform |
 | `scopes` | String(255), NOT NULL | Komma-separiert: `write:tickets`, `read:tickets`, `admin:tickets` |
 | `is_active` | Boolean, NOT NULL, default True | Schnell-Deaktivierung |
 | `rate_limit_per_minute` | Integer, NOT NULL, default 60 | Konfigurierbar ab Phase a |

@@ -3,7 +3,7 @@
 import pytest
 
 from models import ApiAuditLog
-from services.api_key_service import ApiKeyService, _hash_token
+from services.api_key_service import ApiKeyService
 from exceptions import InvalidApiKey, IpNotAllowed
 
 
@@ -18,11 +18,10 @@ def test_create_returns_plaintext_token_once(app, db_session, admin_worker, defa
     assert plaintext.startswith("tsk_")
     assert len(plaintext) == 52  # "tsk_" + 48 chars
     assert key.key_prefix == plaintext[:12]
-    # Hash matches the HMAC-SHA256 keyed-hash of the plaintext
-    assert key.key_hash == _hash_token(plaintext)
-    # Stored hash has SHA-256 digest shape (64 hex chars), not plaintext.
-    assert len(key.key_hash) == 64
-    assert all(c in "0123456789abcdef" for c in key.key_hash)
+    # Stored hash is an Argon2id PHC string (algorithm, params, salt, digest).
+    assert key.key_hash.startswith("$argon2id$")
+    # Verifies successfully against the original plaintext
+    assert ApiKeyService.authenticate(plaintext).id == key.id
     # Reload from DB to confirm Klartext not stored anywhere accessible.
     db_session.refresh(key)
     assert key.key_hash != plaintext

@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import hashlib
-import hmac  # used by authenticate() for hmac.compare_digest (timing-safe)
 import ipaddress
 import secrets
 from datetime import datetime, timedelta
 from typing import List, Optional, Tuple
 
-from flask import current_app
+from argon2 import PasswordHasher
+from argon2.exceptions import InvalidHashError, VerifyMismatchError, VerificationError
 
 from exceptions import InvalidApiKey, IpNotAllowed
 from extensions import db
@@ -48,51 +47,34 @@ def _generate_token() -> str:
     return f"{TOKEN_PREFIX}{body}"
 
 
-def _get_pepper() -> bytes:
-    """Return the server-side pepper for API-token keyed hashing.
-
-    Priority: API_KEY_PEPPER (dedicated secret) → SECRET_KEY (fallback).
-    Raises at first use if neither is set — fail loud, not silently weak.
-
-    BLAKE2b accepts keys up to 64 bytes (hashlib.blake2b.MAX_KEY_SIZE).
-    A typical SECRET_KEY generated via `secrets.token_hex(64)` produces a
-    128-char (128-byte) string — we truncate to 64 bytes, which still gives
-    512 bits of pepper entropy (far more than any realistic attack needs).
-    """
-    pepper = current_app.config.get("API_KEY_PEPPER") or current_app.config.get("SECRET_KEY")
-    if not pepper:
-        raise RuntimeError(
-            "API_KEY_PEPPER or SECRET_KEY must be configured for API-token hashing."
-        )
-    raw = pepper.encode("utf-8") if isinstance(pepper, str) else pepper
-    return raw[:hashlib.blake2b.MAX_KEY_SIZE]
+# Argon2id password hasher configured per OWASP 2024 Password Storage Cheat Sheet
+# recommendation for server-side password/token verification:
+#   memory_cost = 19 MiB, time_cost = 2, parallelism = 1, hash_len = 32
+# The per-hash salt is generated internally (16 bytes, cryptographically random).
+# A single verify takes ~40–80 ms on typical hardware — acceptable within the
+# 2.5 s HalloPetra vendor timeout.
+_hasher = PasswordHasher(
+    time_cost=2,
+    memory_cost=19 * 1024,  # 19 MiB
+    parallelism=1,
+    hash_len=32,
+    salt_len=16,
+)
 
 
 def _hash_token(token: str) -> str:
-    """Compute a server-side keyed hash of an API token via BLAKE2b.
+    """Hash an API token with Argon2id (OWASP-recommended).
 
-    API tokens are cryptographically-random 48-char base62 strings (~285 bits
-    of entropy), not user-chosen passwords. Password-hash schemes (bcrypt,
-    argon2) are inappropriate here because:
-      - Unnecessary given the entropy (brute-force is mathematically infeasible)
-      - Would add 50–100 ms per authenticated call, unacceptable for a
-        rate-limited webhook with a 2.5 s vendor timeout
+    Returns a PHC-formatted string like
+    ``$argon2id$v=19$m=19456,t=2,p=1$<salt>$<hash>`` that encodes algorithm,
+    parameters, salt, and digest in a single value (no separate salt column).
 
-    BLAKE2b-keyed provides the same role as HMAC-SHA256: a server-side pepper
-    that makes DB-leaked hash columns unverifiable without the secret. BLAKE2b
-    is keyed-by-design (no HMAC wrapper needed), cryptographically modern, and
-    a legitimate choice for authentication tags per OWASP and RFC 7693. Output
-    digest_size=32 gives a 64-hex-char string matching the `key_hash`
-    String(128) column and the test-suite's shape assertion.
-
-    Migration note: any pre-existing hashes in the DB (from earlier versions
-    of this module that used HMAC-SHA256) will not validate. For Phase a with
-    no production keys yet, this is a non-issue; for later migrations the
-    remedy is "rotate all keys" (regenerate + re-issue).
+    Migration: any pre-existing hashes (e.g., from the earlier BLAKE2b or
+    HMAC-SHA256 iterations of this module) will not validate. For Phase a
+    without production keys this is a non-issue; the remedy for real
+    migrations is "rotate all keys" (regenerate + re-issue).
     """
-    return hashlib.blake2b(
-        token.encode("utf-8"), key=_get_pepper(), digest_size=32,
-    ).hexdigest()
+    return _hasher.hash(token)
 
 
 def _is_valid_format(token: str) -> bool:
@@ -157,6 +139,12 @@ class ApiKeyService:
         """Look up and validate an API key by its plaintext token.
 
         Raises InvalidApiKey for any authentication failure (generic).
+
+        Strategy: format-check → indexed prefix lookup → Argon2id verify per
+        candidate. In practice the 12-char prefix is effectively unique, so
+        the verify loop runs once. Argon2id.verify is designed to take
+        constant-ish time regardless of match outcome, so auth timing does
+        not leak hash-vs-no-hash information.
         """
         if not token or not isinstance(token, str):
             raise InvalidApiKey()
@@ -164,12 +152,16 @@ class ApiKeyService:
             raise InvalidApiKey()
         prefix = token[:_KEY_PREFIX_LENGTH]
         candidates = ApiKey.query.filter_by(key_prefix=prefix).all()
-        expected_hash = _hash_token(token)
         for candidate in candidates:
-            if hmac.compare_digest(candidate.key_hash, expected_hash):
-                if not candidate.is_usable():
-                    raise InvalidApiKey()
-                return candidate
+            try:
+                _hasher.verify(candidate.key_hash, token)
+            except VerifyMismatchError:
+                continue  # wrong key, try next candidate
+            except (InvalidHashError, VerificationError):
+                continue  # stored hash malformed or unexpected error
+            if not candidate.is_usable():
+                raise InvalidApiKey()
+            return candidate
         raise InvalidApiKey()
 
     @staticmethod

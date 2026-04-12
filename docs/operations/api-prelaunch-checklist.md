@@ -13,12 +13,14 @@ Vor Aktivierung des Cloudflare Tunnels alle Punkte abhaken.
 - [ ] Security-Header via securityheaders.com getestet: Score ≥ A
 - [ ] CSP ohne Browser-Console-Errors (UI durchklicken)
 
-## Secrets
-- [ ] `API_KEY_PEPPER` in HA-Add-on-Secrets gesetzt (≥ 64 Byte Random, rotiert unabhängig vom `SECRET_KEY`).  
-      Fehlt die Variable, fällt der Code auf `SECRET_KEY` zurück — akzeptabel für Start, ABER:  
-      bei späterem Setzen von `API_KEY_PEPPER` müssen **alle bestehenden API-Keys neu erzeugt werden**,  
-      weil sich der Hash-Wert ändert. Daher Pepper am besten **vor dem ersten Prod-Key** setzen.
-- [ ] Generierung: `python -c "import secrets; print(secrets.token_hex(64))"`
+## Token-Hashing (Argon2id)
+- [ ] `argon2-cffi>=23.1.0` in `requirements.txt` (automatisch via `pip install`).
+- [ ] Token-Hashing nutzt Argon2id mit OWASP-2024-Parametern (m=19 MiB, t=2, p=1).  
+      Per-Hash-Salt wird intern generiert — kein separater Pepper oder `API_KEY_PEPPER` nötig.
+- [ ] **Bei späterer Parameter-Anpassung** (z. B. Memory-Cost auf 46 MiB): bestehende Key-Hashes  
+      bleiben mit den Alt-Parametern gültig (PHC-Format enthält Parameter) — neu erzeugte Keys  
+      nutzen dann die neuen Werte. Automatische Re-Hash-Logik ist nicht aktiviert (unnötig für  
+      Phase a; bei Bedarf via `_hasher.check_needs_rehash()` nachrüstbar).
 
 ## Flask-Konfiguration
 - [ ] `DEBUG = False` in Produktion
