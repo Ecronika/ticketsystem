@@ -25,17 +25,25 @@ def register_error_handlers(bp: Blueprint) -> None:
 
     @bp.errorhandler(DomainError)
     def _handle_domain(exc):
+        # Detail goes to the audit log (server-side) only. The response
+        # body stays free of exception text to avoid leaking internals
+        # (CodeQL: py/stack-trace-exposure). Operators correlate via
+        # request_id → api_audit_log.error_detail.
         g.api_outcome = "validation_failed"
-        detail = str(exc)[:500]
-        g.api_error_detail = detail
-        return jsonify({"error": "validation_failed", "detail": detail}), exc.status_code
+        g.api_error_detail = str(exc)[:500]
+        return jsonify({
+            "error": "validation_failed",
+            "request_id": getattr(g, "api_request_id", "unknown"),
+        }), exc.status_code
 
     @bp.errorhandler(ValueError)
     def _handle_value(exc):
         g.api_outcome = "validation_failed"
-        detail = str(exc)[:500]
-        g.api_error_detail = detail
-        return jsonify({"error": "validation_failed", "detail": detail}), 400
+        g.api_error_detail = str(exc)[:500]
+        return jsonify({
+            "error": "validation_failed",
+            "request_id": getattr(g, "api_request_id", "unknown"),
+        }), 400
 
     @bp.errorhandler(SQLAlchemyError)
     def _handle_sql(exc):

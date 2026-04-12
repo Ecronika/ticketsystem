@@ -32,47 +32,39 @@ def register_routes(bp: Blueprint) -> None:
             g.api_outcome = "unsupported_media_type"
             return jsonify({"error": "unsupported_media_type"}), 415
 
+        # Detail strings are stored in g.api_error_detail for audit-log use
+        # only — never returned in the response body. This avoids leaking
+        # exception text / payload fragments to external callers (CodeQL:
+        # py/stack-trace-exposure). Operators correlate incidents via
+        # request_id → api_audit_log.error_detail.
+        def _validation_fail(detail: str, status: int = 400):
+            g.api_outcome = "validation_failed"
+            g.api_error_detail = detail
+            return jsonify({
+                "error": "validation_failed",
+                "request_id": getattr(g, "api_request_id", "unknown"),
+            }), status
+
         try:
             raw = request.get_json(force=False, silent=False)
         except Exception:
-            g.api_outcome = "validation_failed"
-            g.api_error_detail = "invalid JSON"
-            return jsonify({"error": "validation_failed", "detail": "invalid JSON"}), 400
+            return _validation_fail("invalid JSON")
 
         if raw is None:
-            g.api_outcome = "validation_failed"
-            g.api_error_detail = "invalid JSON"
-            return jsonify({"error": "validation_failed", "detail": "invalid JSON"}), 400
+            return _validation_fail("invalid JSON")
 
         if not isinstance(raw, dict):
-            g.api_outcome = "validation_failed"
-            g.api_error_detail = "payload must be a JSON object"
-            return jsonify({
-                "error": "validation_failed",
-                "detail": "payload must be a JSON object",
-            }), 400
+            return _validation_fail("payload must be a JSON object")
 
         try:
             payload = HalloPetraWebhookPayload(**raw)
         except ValidationError as exc:
-            g.api_outcome = "validation_failed"
-            detail = str(exc)[:500]
-            g.api_error_detail = detail
-            return jsonify({
-                "error": "validation_failed",
-                "detail": detail,
-            }), 400
+            return _validation_fail(str(exc)[:500])
 
         # Optional per-key webhook_id check
         if g.api_key.expected_webhook_id:
             if payload.webhook_id != g.api_key.expected_webhook_id:
-                g.api_outcome = "validation_failed"
-                detail = "webhook_id mismatch"
-                g.api_error_detail = detail
-                return jsonify({
-                    "error": "validation_failed",
-                    "detail": detail,
-                }), 400
+                return _validation_fail("webhook_id mismatch")
 
         # Idempotency: check for existing ticket with same external_call_id
         existing = Ticket.query.filter_by(external_call_id=payload.data.id).first()

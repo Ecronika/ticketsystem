@@ -357,7 +357,7 @@ HalloPetra-Timeout, weil Retries mit Idempotenz sauber abfangbar sind.
 |---|---|---|
 | 200 | Idempotent Replay | `{"ticket_id":123,"status":"duplicate"}` |
 | 201 | Neu erzeugt | `{"ticket_id":124,"status":"created"}` |
-| 400 | Schema-Fehler | `{"error":"validation_failed","detail":"..."}` |
+| 400 | Schema-Fehler | `{"error":"validation_failed","request_id":"<uuid>"}` (Detail nur im Audit-Log, via `request_id` korrelierbar — kein Leak von Exception-Text nach außen) |
 | 401 | Auth-Fehler (alle Varianten) | `{"error":"unauthorized"}` |
 | 403 | Scope/IP-Fehler | `{"error":"forbidden"}` |
 | 413 | Payload > 128 KB | `{"error":"payload_too_large"}` |
