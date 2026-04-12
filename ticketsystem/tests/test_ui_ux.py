@@ -74,3 +74,15 @@ def test_dashboard_does_not_show_separate_wartet_tab(client, db):
     resp = client.get("/")
     # The 'Wartet' tab anchor (distinct from "Alle Offenen") must be gone.
     assert b"tab=wartet" not in resp.data
+
+
+def test_new_ticket_info_box_not_above_submit(client):
+    resp = client.get("/ticket/new")
+    body = resp.data.decode("utf-8")
+    submit_pos = body.find('id="submit-btn"')
+    info_pos = body.find("Was passiert nach dem Absenden")
+    # Info box should either be gone from the form or rendered only after creation.
+    # Heuristic: if present, it must appear AFTER the submit button
+    # (e.g. inside the success alert at the top of the card, which is rendered conditionally).
+    if info_pos != -1 and submit_pos != -1:
+        assert info_pos > submit_pos or b'id="created-info"' in resp.data
