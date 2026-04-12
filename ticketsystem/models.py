@@ -339,6 +339,10 @@ class Ticket(db.Model):
     )
     last_escalated_at = db.Column(db.DateTime, nullable=True)
 
+    # External API integration
+    external_call_id = db.Column(db.String(64), nullable=True, unique=True, index=True)
+    external_metadata = db.Column(db.Text, nullable=True)  # JSON-serialisiert
+
     # 1-to-1 satellite relationships
     contact = db.relationship(
         "TicketContact", uselist=False, backref="ticket",
@@ -391,6 +395,21 @@ class Ticket(db.Model):
         if not self.recurrence:
             self.recurrence = TicketRecurrence(rule=rule, next_date=next_date)
         return self.recurrence
+
+    def get_external_metadata(self) -> dict:
+        """Parse external_metadata JSON, return empty dict on None/invalid."""
+        if not self.external_metadata:
+            return {}
+        try:
+            import json
+            return json.loads(self.external_metadata)
+        except (ValueError, TypeError):
+            return {}
+
+    def set_external_metadata(self, data: dict) -> None:
+        """Serialize *data* as JSON into external_metadata."""
+        import json
+        self.external_metadata = json.dumps(data, ensure_ascii=False) if data else None
 
     # ------------------------------------------------------------------
     # Access Control
