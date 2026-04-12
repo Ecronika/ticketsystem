@@ -1053,7 +1053,7 @@ textarea:focus-visible {
     color: #333;
     font-size: 1.2rem;
     cursor: pointer;
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-md);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1135,7 +1135,7 @@ textarea:focus-visible {
 @media (hover: hover) and (pointer: fine) {
     .attachment-tile:hover .attachment-delete-btn {
         opacity: 1;
-        box-shadow: var(--shadow-xs);
+        box-shadow: var(--shadow-sm);
     }
 }
 [data-theme="dark"] .attachment-delete-btn {
@@ -1178,7 +1178,7 @@ textarea:focus-visible {
 }
 @media (hover: hover) and (pointer: fine) {
     .hover-elevate:hover {
-        box-shadow: var(--shadow-md) !important;
+        box-shadow: var(--shadow-lg) !important;
         transform: translateY(-2px);
     }
 }
