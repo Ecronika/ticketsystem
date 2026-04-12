@@ -4,9 +4,19 @@ Vor Aktivierung des Cloudflare Tunnels alle Punkte abhaken.
 
 ## Netzwerk
 - [ ] NGINX: `/api/v1/` ist die einzige öffentlich erreichbare Location
+- [ ] NGINX **überschreibt** `CF-Connecting-IP` und `X-Real-IP` auf ankommende Werte
+      vom cloudflared-Upstream (oder setzt sie unabhängig vom Client-Header). Externe
+      Clients dürfen diese Header NICHT vorbelegen können. App-seitig prüft
+      `_client_ip` zusätzlich, dass der direkte Peer Loopback ist — aber Defense-in-Depth
+      ab NGINX.
+- [ ] NGINX / Cloudflare Rate-Limiting WAF-Regeln für `/api/v1/` aktiviert (Schutz
+      vor unauthentifiziertem Volume-Spam vor der App-Schicht). Pre-Auth-Limit in
+      der App ist 120 Requests/Minute je Quell-IP — ergänzend, nicht ersetzend.
 - [ ] Cloudflare Tunnel Ingress-Regel: nur `/api/v1/*`
 - [ ] `curl https://<subdomain>/api/v1/health` → 200
 - [ ] `curl -X POST https://<subdomain>/api/v1/webhook/calls` (ohne Token) → 401
+- [ ] `curl -X POST https://<subdomain>/api/v1/webhook/calls` (ohne Content-Length,
+      Chunked) → 411 Length Required
 - [ ] `curl https://<subdomain>/login` → 403 oder 404
 - [ ] `curl https://<subdomain>/` → 403 oder 404
 - [ ] `curl https://<subdomain>/admin/api-keys/` → 403 oder 404
