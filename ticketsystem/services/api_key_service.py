@@ -65,18 +65,28 @@ def _get_pepper() -> bytes:
 def _hash_token(token: str) -> str:
     """Compute a server-side keyed hash (HMAC-SHA256) of an API token.
 
-    API tokens are cryptographically-random 48-char base62 strings (~285 bits
-    of entropy), not user-chosen passwords. Password-hash schemes (bcrypt,
-    argon2) are inappropriate: (a) unnecessary given the entropy, (b) they
-    would add 100+ ms latency to every authenticated API call.
+    SECURITY NOTE — CodeQL suppression rationale:
+    CodeQL's py/weak-sensitive-data-hashing heuristic flags any hashlib.sha256
+    use on a "password-like" variable. That heuristic is calibrated for
+    user-chosen passwords (low entropy, offline brute-force is the threat).
+    It does not distinguish that threat model from keyed-HMAC of a random
+    high-entropy API token, which is what we have here:
 
-    HMAC with a server-side pepper is the right tool: even if the DB is
-    exfiltrated, an attacker without the pepper cannot verify candidate
-    tokens. This is also why HMAC (not raw SHA-256) is used — CodeQL's
-    weak-hashing heuristic targets password-style hashing; keyed HMAC of
-    random high-entropy tokens is a different (and correct) pattern.
+      - Token = 48 base62 chars ≈ 285 bits of entropy (cryptographically random)
+      - A bcrypt/argon2 verify adds 50–100 ms per request, which is unacceptable
+        for a rate-limited webhook API with a 2.5 s vendor timeout
+      - HMAC with a server-side pepper protects against DB-leak attacks: an
+        attacker with the hash column but without the pepper cannot verify
+        candidate tokens even given unlimited compute
+
+    This pattern matches industry practice for API-token storage (GitHub,
+    Stripe, AWS). The CodeQL finding is suppressed at the call-site with a
+    one-line justification; do not rewrite to bcrypt/argon2 without a real
+    change in threat model (e.g., if tokens ever become user-chosen).
     """
-    return hmac.new(_get_pepper(), token.encode("utf-8"), hashlib.sha256).hexdigest()
+    return hmac.new(  # lgtm[py/weak-sensitive-data-hashing]
+        _get_pepper(), token.encode("utf-8"), hashlib.sha256,
+    ).hexdigest()
 
 
 def _is_valid_format(token: str) -> bool:
@@ -123,7 +133,7 @@ class ApiKeyService:
         key = ApiKey(
             name=name.strip(),
             key_prefix=token[:_KEY_PREFIX_LENGTH],
-            key_hash=_hash_token(token),
+            key_hash=_hash_token(token),  # lgtm[py/weak-sensitive-data-hashing]
             scopes=",".join(scopes),
             rate_limit_per_minute=rate_limit_per_minute,
             default_assignee_worker_id=default_assignee_id,
@@ -148,7 +158,7 @@ class ApiKeyService:
             raise InvalidApiKey()
         prefix = token[:_KEY_PREFIX_LENGTH]
         candidates = ApiKey.query.filter_by(key_prefix=prefix).all()
-        expected_hash = _hash_token(token)
+        expected_hash = _hash_token(token)  # lgtm[py/weak-sensitive-data-hashing]
         for candidate in candidates:
             if hmac.compare_digest(candidate.key_hash, expected_hash):
                 if not candidate.is_usable():
