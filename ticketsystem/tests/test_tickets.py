@@ -192,3 +192,13 @@ def test_confidential_ticket_access(client, db, test_app):
     response = client.get(f'/ticket/{ticket_id}')
     assert response.status_code == 200
     assert b'Geheim' in response.data
+
+
+def test_workload_overview_does_not_raise(test_app):
+    """Workload overview must return without DB errors even with teams assigned."""
+    from services.dashboard_service import DashboardService
+    with test_app.app_context():
+        absent, present = DashboardService.get_workload_overview()
+        # Rückgabe ist immer möglich, auch wenn keine Tickets vorhanden sind
+        assert isinstance(absent, list)
+        assert isinstance(present, list)

@@ -13,7 +13,7 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from enums import ELEVATED_ROLES, TicketStatus
 from extensions import db
-from models import ChecklistItem, Comment, Ticket, TicketContact, Worker
+from models import ChecklistItem, Comment, Team, Ticket, TicketContact, Worker
 from utils import get_utc_now
 
 from ._ticket_helpers import (
@@ -380,6 +380,11 @@ class DashboardService:
                     Ticket.assigned_to_id.isnot(None),
                     Ticket.assigned_team_id.isnot(None),
                 ),
+            )
+            .options(
+                joinedload(Ticket.assigned_to),
+                selectinload(Ticket.assigned_team).selectinload(Team.members),
+                selectinload(Ticket.checklists),
             )
             .all()
         )
