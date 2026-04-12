@@ -80,7 +80,9 @@ canvas {
     --text-muted: #5c636a;
     --border-color: #dee2e6;
     --input-border: #767676;
-    --focus-ring: 3px solid #0d6efd;
+    --focus-ring-width: var(--border-3);
+    --focus-ring-color: #0d6efd;
+    --focus-ring: var(--focus-ring-width) solid var(--focus-ring-color);
     --btn-transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
     --btn-soft-bg: #eef4ff;
     --btn-soft-color: #1d4ed8;
@@ -203,7 +205,9 @@ canvas {
     --text-muted: #b5bcc7;
     --border-color: #333;
     --input-border: #888888;
-    --focus-ring: 3px solid #3b82f6;
+    --focus-ring-width: var(--border-3);
+    --focus-ring-color: #3b82f6;
+    --focus-ring: var(--focus-ring-width) solid var(--focus-ring-color);
     --btn-soft-bg: rgb(135 206 235 / 15%);
     --btn-soft-color: #87ceeb;
     --btn-soft-border: rgb(135 206 235 / 40%);
@@ -247,7 +251,9 @@ canvas {
     /* Weiches Gelb */
     --text-muted: #cc0;
     --border-color: #e6e600;
-    --focus-ring: 4px solid #0ff;
+    --focus-ring-width: var(--border-4);
+    --focus-ring-color: #0ff;
+    --focus-ring: var(--focus-ring-width) solid var(--focus-ring-color);
 
     /* Cyan für maximale Sichtbarkeit */
     --btn-soft-bg: transparent;
