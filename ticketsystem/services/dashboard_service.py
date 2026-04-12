@@ -5,6 +5,7 @@ read-heavy dashboard logic into a dedicated service module.
 """
 
 import logging
+import threading
 from datetime import date, timedelta
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -34,6 +35,8 @@ _logger = logging.getLogger(__name__)
 # genügt maxsize=1 (ein gecachter Wert pro Cache).
 _projects_cache: TTLCache = TTLCache(maxsize=1, ttl=120)   # 2 Minuten
 _workload_cache: TTLCache = TTLCache(maxsize=1, ttl=300)   # 5 Minuten
+_projects_cache_lock = threading.RLock()
+_workload_cache_lock = threading.RLock()
 
 
 # ---------------------------------------------------------------------------
@@ -318,7 +321,8 @@ class DashboardService:
         Uses a single SQL query with GROUP BY instead of loading full ORM
         objects, avoiding N+1 on checklists. Result is cached for 2 minutes.
         """
-        cached = _projects_cache.get("v")
+        with _projects_cache_lock:
+            cached = _projects_cache.get("v")
         if cached is not None:
             return cached
         # Checklist done/total per ticket as subquery
@@ -391,7 +395,8 @@ class DashboardService:
                 p["last_updated"] = row.last_upd
 
         result = _finalize_projects(projects)
-        _projects_cache["v"] = result
+        with _projects_cache_lock:
+            _projects_cache["v"] = result
         return result
 
     @staticmethod
@@ -400,7 +405,8 @@ class DashboardService:
 
         Result is cached for 5 minutes.
         """
-        cached = _workload_cache.get("v")
+        with _workload_cache_lock:
+            cached = _workload_cache.get("v")
         if cached is not None:
             return cached
         now = get_utc_now()
@@ -450,5 +456,6 @@ class DashboardService:
         )
         present.sort(key=lambda x: -x["open_count"])
         result = (absent, present)
-        _workload_cache["v"] = result
+        with _workload_cache_lock:
+            _workload_cache["v"] = result
         return result

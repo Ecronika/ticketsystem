@@ -62,3 +62,12 @@ def client(test_app):
 def runner(test_app):
     """Create a test CLI runner."""
     return test_app.test_cli_runner()
+
+
+@pytest.fixture(autouse=True)
+def _clear_dashboard_caches():
+    """Verhindert, dass Cache-Einträge zwischen Tests bestehen bleiben."""
+    from services.dashboard_service import _projects_cache, _workload_cache
+    _projects_cache.clear()
+    _workload_cache.clear()
+    yield
