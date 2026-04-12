@@ -108,3 +108,16 @@ def test_breadcrumbs_on_inner_pages(client, db, path):
     resp = client.get(path)
     assert b'aria-label="breadcrumb"' in resp.data
     assert b"Dashboard" in resp.data
+
+
+def test_new_ticket_form_marked_for_dirty_warn(client):
+    resp = client.get("/ticket/new")
+    assert b'data-dirty-warn' in resp.data
+
+
+def test_new_ticket_email_field_has_format_validation(client):
+    resp = client.get("/ticket/new")
+    # Email input carries type=email (browser) AND explicit invalid-feedback
+    # so messages render consistently across browsers.
+    assert b'id="contact_email"' in resp.data
+    assert b'invalid-feedback' in resp.data

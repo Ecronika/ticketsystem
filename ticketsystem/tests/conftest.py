@@ -9,8 +9,16 @@ import sys
 import pytest  # noqa: E402
 
 from app import app as flask_app  # noqa: E402
-from extensions import db as _db  # noqa: E402
+from extensions import db as _db, limiter as _limiter  # noqa: E402
 from models import Ticket, Worker, SystemSettings # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limiter():
+    """Reset rate-limiter counters before each test to avoid cross-test pollution."""
+    with flask_app.app_context():
+        _limiter.reset()
+    yield
 
 
 @pytest.fixture
@@ -20,7 +28,7 @@ def test_app():
     flask_app.config.update({
         "TESTING": True,
         "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
-        "WTF_CSRF_ENABLED": False
+        "WTF_CSRF_ENABLED": False,
     })
 
     with flask_app.app_context():
