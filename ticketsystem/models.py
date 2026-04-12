@@ -1,5 +1,6 @@
 """Database Models for the Ticket System."""
 
+import json
 import logging
 import os
 from typing import Any, List, Optional, Set
@@ -407,15 +408,26 @@ class Ticket(db.Model):
         if not self.external_metadata:
             return {}
         try:
-            import json
             return json.loads(self.external_metadata)
-        except (ValueError, TypeError):
+        except ValueError:
+            _logger.warning(
+                "Ticket %s has invalid external_metadata JSON", self.id,
+            )
             return {}
 
-    def set_external_metadata(self, data: dict) -> None:
-        """Serialize *data* as JSON into external_metadata."""
-        import json
-        self.external_metadata = json.dumps(data, ensure_ascii=False) if data else None
+    def set_external_metadata(self, data: Optional[dict]) -> None:
+        """Serialize *data* as JSON into external_metadata.
+
+        Pass None to clear; pass {} to store an empty JSON object explicitly.
+        """
+        if data is None:
+            self.external_metadata = None
+            return
+        if not isinstance(data, dict):
+            raise TypeError(
+                f"external_metadata must be dict or None, got {type(data).__name__}"
+            )
+        self.external_metadata = json.dumps(data, ensure_ascii=False)
 
     # ------------------------------------------------------------------
     # Access Control
@@ -737,7 +749,7 @@ class ApiAuditLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, nullable=False, default=get_utc_now, index=True)
     api_key_id = db.Column(
-        db.Integer, db.ForeignKey("api_key.id"), nullable=True
+        db.Integer, db.ForeignKey("api_key.id"), nullable=True, index=True,
     )
     key_prefix = db.Column(db.String(12), nullable=True)
     source_ip = db.Column(db.String(45), nullable=False)
@@ -751,6 +763,8 @@ class ApiAuditLog(db.Model):
     request_id = db.Column(db.String(36), nullable=False)
     error_detail = db.Column(db.Text, nullable=True)
 
+    # api_key_id is nullable so audit entries survive if the key is ever
+    # hard-deleted. Convention: keys are revoked (soft-delete), not deleted.
     api_key = db.relationship("ApiKey")
 
 
@@ -761,6 +775,9 @@ class TicketTranscript(db.Model):
     """
 
     __tablename__ = "ticket_transcript"
+    __table_args__ = (
+        db.UniqueConstraint("ticket_id", "position", name="uq_transcript_ticket_position"),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     ticket_id = db.Column(

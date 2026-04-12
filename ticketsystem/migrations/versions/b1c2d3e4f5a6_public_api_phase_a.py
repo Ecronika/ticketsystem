@@ -91,6 +91,7 @@ def upgrade():
     with op.batch_alter_table('api_audit_log', schema=None) as batch_op:
         batch_op.create_index('ix_api_audit_log_timestamp', ['timestamp'], unique=False)
         batch_op.create_index('ix_api_audit_log_external_ref', ['external_ref'], unique=False)
+        batch_op.create_index('ix_api_audit_log_api_key_id', ['api_key_id'], unique=False)
 
     # --- ticket_transcript ---
     op.create_table(
@@ -103,6 +104,7 @@ def upgrade():
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(['ticket_id'], ['ticket.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('ticket_id', 'position', name='uq_transcript_ticket_position'),
     )
     with op.batch_alter_table('ticket_transcript', schema=None) as batch_op:
         batch_op.create_index('ix_ticket_transcript_ticket_id', ['ticket_id'], unique=False)
@@ -114,6 +116,7 @@ def downgrade():
     op.drop_table('ticket_transcript')
 
     with op.batch_alter_table('api_audit_log', schema=None) as batch_op:
+        batch_op.drop_index('ix_api_audit_log_api_key_id')
         batch_op.drop_index('ix_api_audit_log_external_ref')
         batch_op.drop_index('ix_api_audit_log_timestamp')
     op.drop_table('api_audit_log')
