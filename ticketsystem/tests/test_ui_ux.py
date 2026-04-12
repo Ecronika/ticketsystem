@@ -43,3 +43,10 @@ def test_new_ticket_has_no_redundant_subheading(client):
     resp = client.get("/ticket/new")
     # Subheading duplicated the H2; it must be gone.
     assert b"Erstellen Sie ein neues Ticket" not in resp.data
+
+
+def test_mobile_new_ticket_cta_is_unambiguous(client):
+    resp = client.get("/login")
+    # 'Melden' alone is ambiguous; the short mobile label should be 'Neu'.
+    # The full desktop label stays 'Neues Ticket'.
+    assert b'>Melden<' not in resp.data
