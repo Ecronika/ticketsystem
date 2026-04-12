@@ -65,7 +65,8 @@ def _dashboard_view() -> str | Response:
     # Time horizon filter (due within N days, 0 = all)
     days_horizon = request.args.get("days", 0, type=int)
 
-    # Active tab: "all" (default), "unassigned", "callback", "wartet"
+    # Active tab: "all" (default), "unassigned", "callback"
+    # Deep-link alias retained for backward compat: "wartet" (not shown as a tab)
     tab = request.args.get("tab", "all")
 
     if search.startswith("#") and search[1:].isdigit():
@@ -497,6 +498,7 @@ def _dashboard_rows_api() -> Response:
         unassigned_only = True
     elif tab == "callback":
         callback_pending = True
+    # Deep-link alias: "wartet" was formerly a UI tab, now lives as a backward-compat filter only.
     elif tab == "wartet":
         status_filter = status_filter or "wartet"
 

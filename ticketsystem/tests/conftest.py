@@ -3,8 +3,8 @@
 import pytest
 
 from app import app as flask_app
-from extensions import db as _db
-from models import Ticket, SystemSettings
+from extensions import db as _db, limiter as _limiter
+from models import Ticket, Worker, SystemSettings
 
 
 # ---------------------------------------------------------------------------
@@ -56,6 +56,14 @@ def _register_test_blueprints() -> None:
 _register_test_blueprints()
 
 
+@pytest.fixture(autouse=True)
+def reset_rate_limiter():
+    """Reset rate-limiter counters before each test to avoid cross-test pollution."""
+    with flask_app.app_context():
+        _limiter.reset()
+    yield
+
+
 @pytest.fixture
 def test_app():
     """Create a test application instance."""
@@ -63,7 +71,7 @@ def test_app():
     flask_app.config.update({
         "TESTING": True,
         "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
-        "WTF_CSRF_ENABLED": False
+        "WTF_CSRF_ENABLED": False,
     })
 
     with flask_app.app_context():
@@ -141,7 +149,6 @@ def db_session(test_app, db):
 def admin_worker(app, db_session):
     """Admin worker (is_admin=True)."""
     from werkzeug.security import generate_password_hash
-    from models import Worker
     w = Worker(
         name="TestAdmin",
         pin_hash=generate_password_hash("7391"),
@@ -157,7 +164,6 @@ def admin_worker(app, db_session):
 def default_assignee(app, db_session):
     """Default-assignee worker."""
     from werkzeug.security import generate_password_hash
-    from models import Worker
     w = Worker(
         name="Rezeption",
         pin_hash=generate_password_hash("8264"),

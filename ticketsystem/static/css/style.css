@@ -1329,7 +1329,7 @@ textarea:focus-visible {
     .navbar, footer, .breadcrumb, #bulkActionBar,
     .btn, button, .modal, #commentForm,
     .form-control, .form-select, select, .toast-container,
-    #reloadHint, .select-feedback-wrapper .select-spinner,
+    .select-feedback-wrapper .select-spinner,
     #lightboxDialog, #docPreviewDialog, .no-print, .checklist-delete,
     #advancedChecklistOptions, #apply-template-btn,
     #apply-template-select, .reset-pin-section,

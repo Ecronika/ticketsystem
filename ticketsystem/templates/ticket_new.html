@@ -15,16 +15,14 @@
                     </a>
                     <h2 class="h4 fw-bold mb-0">Neues Ticket melden</h2>
                 </div>
-                <p class="text-muted small">Erstellen Sie ein neues Ticket für die Werkstatt oder das Büro.</p>
-                
                 {% set created_id = request.args.get('created') %}
                 {% if created_id %}
-                <div class="alert alert-success border-0 shadow-sm rounded-3 py-3 mb-4 animate__animated animate__pulse">
+                <div class="alert alert-success border-0 shadow-sm rounded-3 py-3 mb-4 animate__animated animate__pulse" id="created-info">
                     <div class="d-flex align-items-center mb-1">
                         <i class="bi bi-check-circle-fill fs-4 me-2"></i>
                         <h4 class="h6 fw-bold mb-0">Ticket erfolgreich erstellt!</h4>
                     </div>
-                    <p class="small mb-2">Ihr Anliegen wurde unter der Nummer <strong>#{{ created_id }}</strong> erfasst.</p>
+                    <p class="small mb-2">Ihr Anliegen wurde unter der Nummer <strong>#{{ created_id }}</strong> erfasst. Zuständige Mitarbeiter werden informiert.</p>
                     <div class="d-flex gap-2">
                         <a href="{{ url_for('main.ticket_public', ticket_id=created_id) }}" class="btn btn-sm btn-primary rounded-pill px-3">
                             <i class="bi bi-eye me-1"></i> Status einsehen
@@ -39,21 +37,23 @@
             </div>
             <div class="card-body px-4 pb-4">
                 <p class="x-small text-muted mb-3"><span class="text-danger">*</span> Pflichtfelder</p>
-                <form method="POST" enctype="multipart/form-data" id="ticket-form">
+                <form method="POST" enctype="multipart/form-data" id="ticket-form" data-validate data-dirty-warn novalidate>
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                     
                     <div class="mb-3">
                         <label for="author_name" class="form-label fw-bold">Ihr Name <span class="text-danger" aria-hidden="true">*</span></label>
-                        <input type="text" class="form-control form-control-lg" id="author_name" name="author_name" 
-                               value="{{ session.get('worker_name', '') }}" 
-                               {% if session.get('worker_id') %}readonly{% endif %} 
+                        <input type="text" class="form-control form-control-lg" id="author_name" name="author_name"
+                               value="{{ session.get('worker_name', '') }}"
+                               {% if session.get('worker_id') %}readonly{% endif %}
                                placeholder="z.B. Schmidt / Azubi Max" required>
+                        <div class="invalid-feedback">Bitte geben Sie Ihren Namen an.</div>
                     </div>
 
                     <div class="mb-3">
                         <label for="title" class="form-label fw-bold">Titel / Betreff <span class="text-danger" aria-hidden="true">*</span></label>
-                        <input type="text" class="form-control form-control-lg" id="title" name="title" 
+                        <input type="text" class="form-control form-control-lg" id="title" name="title"
                                placeholder="Kurze Zusammenfassung" required autofocus>
+                        <div class="invalid-feedback">Bitte geben Sie einen Titel ein.</div>
                     </div>
 
                     <div class="mb-3">
@@ -153,11 +153,14 @@
                                     </div>
                                     <div class="col-md-6">
                                         <label for="contact_phone" class="form-label form-label-bold">Telefonnummer</label>
-                                        <input type="tel" class="form-control form-control-sm" id="contact_phone" name="contact_phone" placeholder="z.B. 0211 123456">
+                                        <input type="tel" class="form-control form-control-sm" id="contact_phone" name="contact_phone"
+                                               placeholder="z.B. 0211 123456" pattern="[0-9+ /()-]{4,}">
+                                        <div class="invalid-feedback">Telefonnummer darf nur Ziffern und + / ( ) - enthalten.</div>
                                     </div>
                                     <div class="col-md-12">
                                         <label for="contact_email" class="form-label form-label-bold">E-Mail-Adresse</label>
                                         <input type="email" class="form-control form-control-sm" id="contact_email" name="contact_email" placeholder="z.B. kunde@beispiel.de">
+                                        <div class="invalid-feedback">Bitte geben Sie eine gültige E-Mail-Adresse ein.</div>
                                     </div>
                                 </div>
 
@@ -258,15 +261,6 @@
                         </div>
                     </div>
 
-                    <div class="bg-info-subtle p-3 rounded-3 mb-4 mt-3">
-                        <h4 class="h6 fw-bold mb-2 text-info-emphasis"><i class="bi bi-info-circle me-1"></i> Was passiert nach dem Absenden?</h4>
-                        <ul class="small text-info-emphasis mb-0 ps-3">
-                            <li>Das Ticket erscheint sofort im <strong>Dashboard</strong>.</li>
-                            <li>Zuständige Mitarbeiter werden über neue Tickets informiert.</li>
-                            <li>Geben Sie Ihre Ticketnummer <strong>#{{ created_id or '...' }}</strong> bei Rückfragen an den Teamleiter an.</li>
-                        </ul>
-                    </div>
-
                     <div class="d-grid gap-2">
                         <button type="submit" id="submit-btn" class="btn btn-primary btn-lg rounded-pill p-3 fw-bold">
                             <i class="bi bi-send-fill me-2"></i>Ticket absenden
@@ -330,6 +324,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     form.addEventListener('submit', function(e) {
         e.preventDefault();
+        // Skip XHR when client-side validation failed. This works because form_validation.js
+        // registers its submit listener earlier (via base.html's script order) and sets
+        // `was-validated` synchronously before this listener runs.
+        if (form.classList.contains('was-validated') && !form.checkValidity()) {
+            return;
+        }
 
         // Guard: reject submit while image compression is still running
         if (manager.isCompressing) {

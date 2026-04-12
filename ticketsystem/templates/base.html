@@ -96,8 +96,9 @@
 
           {% if session.get('is_admin') %}
           <li class="nav-item dropdown ms-lg-2">
-            <a class="nav-link dropdown-toggle d-flex align-items-center gap-1" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <a class="nav-link d-flex align-items-center gap-1" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Admin-Menü">
               <span class="badge-subtle-success px-2 py-1 rounded-pill small fw-bold">Admin</span>
+              <i class="bi bi-caret-down-fill small opacity-75" aria-hidden="true"></i>
             </a>
             <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end border-0 shadow mt-2" aria-labelledby="adminDropdown">
               <li><h6 class="dropdown-header small text-muted">Verwaltung</h6></li>
@@ -146,7 +147,7 @@
                title="Neues Ticket erstellen">
                 <i class="bi bi-plus-lg me-lg-2"></i>
                 <span class="d-none d-lg-inline">Neues Ticket</span>
-                <span class="d-lg-none">Melden</span>
+                <span class="d-lg-none">Neu</span>
             </a>
           </li>
           {% endif %}
@@ -226,6 +227,7 @@
   {% endif %}
 
   <main id="main-content" class="container-fluid px-4 py-4">
+    {% block breadcrumbs %}{% endblock %}
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <div class="position-fixed top-0 end-0 p-3 z-toast" aria-live="polite" aria-atomic="true">
@@ -256,6 +258,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
   <script src="{{ ingress_path }}{{ url_for('static', filename='js/base_ui.js') }}?v={{ config.VERSION }}"></script>
+  <script src="{{ ingress_path }}{{ url_for('static', filename='js/form_validation.js') }}?v={{ config.VERSION }}"></script>
   {% if session.get('worker_id') %}
   <script src="{{ ingress_path }}{{ url_for('static', filename='js/notifications.js') }}?v={{ config.VERSION }}"></script>
   <script src="{{ ingress_path }}{{ url_for('static', filename='js/help.js') }}?v={{ config.VERSION }}"></script>
