@@ -236,7 +236,14 @@ class ApiKeyService:
     @staticmethod
     @db_transaction
     def mark_used(key: ApiKey, source_ip: str) -> None:
-        """Update last_used_at/last_used_ip, throttled to once per 60s."""
+        """Update last_used_at/last_used_ip, throttled to once per 60s.
+
+        Semantic: "authentication accepted", not "request succeeded". This is
+        called right after token validation and before scope/payload checks —
+        so last_used_at advances even for requests that ultimately return 400
+        (validation_failed) or 403 (scope_denied). For end-to-end success
+        tracking, query api_audit_log with outcome='success' instead.
+        """
         now = get_utc_now()
         if key.last_used_at is not None:
             if (now - key.last_used_at) < timedelta(seconds=60):

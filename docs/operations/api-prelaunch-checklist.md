@@ -33,6 +33,12 @@ Vor Aktivierung des Cloudflare Tunnels alle Punkte abhaken.
 - [ ] Staging-Webhook erfolgreich getestet (mind. 5 Szenarien)
 - [ ] Audit-Log-Tabelle wächst bei Tests wie erwartet
 - [ ] Produktions-Key erstellt (erst kurz vor Launch-Moment)
+- [ ] Synthetischer Load-Test: Webhook mit **Maximal-Payload** (128 KB, 500 messages,
+      lange summary) gegen Staging → End-to-End-Latenz < 2 s (HalloPetra-Timeout
+      für „vor dem Anruf" ist nur 2,5 s). Wenn > 2 s: Transkript-Speicherung auf
+      Background-Job umstellen, bevor produktiv.
+- [ ] Smoke-Test nach Go-Live: echter Anruf vom Anbieter → Audit-Log zeigt Quell-IP
+      korrekt, Ticket mit allen Feldern erstellt, Worker-Benachrichtigung raus.
 
 ## Dokumentation
 - [ ] Webadmin hat DNS-Anleitung erhalten und umgesetzt

@@ -93,6 +93,17 @@ Je Schritt:
 - Fehlerquote (non-success outcomes / total)
 - Durchschnittliche Latency (aus `api_audit_log.latency_ms`)
 
+### 4.4 Semantik der Admin-UI-Felder
+
+- **`last_used_at` / `last_used_ip`** auf einem API-Schlüssel bedeutet
+  „Authentifizierung zuletzt akzeptiert", **nicht** „Request zuletzt
+  erfolgreich". Das Feld wird direkt nach Token-Validierung gesetzt, *bevor*
+  Scope-/Payload-Check greifen. Für echte End-to-End-Erfolgsanalyse
+  `api_audit_log` mit `outcome='success'` filtern.
+- **`ApiAuditLog.outcome`** ist die autoritative Quelle für den endgültigen
+  Request-Ausgang (`success`, `validation_failed`, `scope_denied`,
+  `ip_blocked`, `rate_limited`, `idempotent_replay`, `server_error`).
+
 ## 5. Rollback
 
 ### 5.1 Schnell — API komplett offline
