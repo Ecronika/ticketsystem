@@ -1,55 +1,11 @@
-"""Tests for API authentication decorators."""
+"""Tests for API authentication decorators.
 
-import pytest
-from flask import Blueprint, g, jsonify
+Test blueprints used by these tests (test_api_auth, test_scope, test_rl) are
+registered in conftest.py at module scope so they are available before any
+HTTP request triggers Flask's "first request handled" flag.
+"""
 
 from services.api_key_service import ApiKeyService
-
-
-# ---------------------------------------------------------------------------
-# Register all test blueprints BEFORE any request is made.
-# All test routes are registered in this module-level fixture so Flask's
-# "cannot register blueprints after first request" restriction is satisfied.
-# ---------------------------------------------------------------------------
-
-@pytest.fixture(autouse=True, scope="module")
-def _register_test_blueprints():
-    """Register all throwaway test blueprints before any request is made."""
-    from app import app as flask_app
-    from routes.api._decorators import api_key_required, require_scope, api_rate_limit
-    app = flask_app
-
-    # --- auth test routes ---
-    auth_bp = Blueprint("test_api_auth", __name__, url_prefix="/test_api_v1")
-
-    @auth_bp.route("/protected", methods=["GET"])
-    @api_key_required
-    def _protected():
-        return jsonify({"key_id": g.api_key.id}), 200
-
-    app.register_blueprint(auth_bp)
-
-    # --- scope test route ---
-    scope_bp = Blueprint("test_scope", __name__, url_prefix="/test_scope_v1")
-
-    @scope_bp.route("/admin_only", methods=["GET"])
-    @api_key_required
-    @require_scope("admin:tickets")
-    def _only():
-        return jsonify({"ok": True}), 200
-
-    app.register_blueprint(scope_bp)
-
-    # --- rate limit test route ---
-    rl_bp = Blueprint("test_rl", __name__, url_prefix="/test_rl_v1")
-
-    @rl_bp.route("/rl", methods=["GET"])
-    @api_key_required
-    @api_rate_limit
-    def _rl():
-        return jsonify({"ok": True}), 200
-
-    app.register_blueprint(rl_bp)
 
 
 def test_missing_header_returns_401(app, client, db_session):

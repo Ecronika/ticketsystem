@@ -7,6 +7,55 @@ from extensions import db as _db
 from models import Ticket, SystemSettings
 
 
+# ---------------------------------------------------------------------------
+# Register throwaway test blueprints at module import time — BEFORE any test
+# makes an HTTP request and flips Flask's "first request handled" flag.
+# These support decorator isolation tests in test_api_auth.py.
+# ---------------------------------------------------------------------------
+
+def _register_test_blueprints() -> None:
+    """Register all throwaway test blueprints before any request is made."""
+    from flask import Blueprint, g, jsonify
+    from routes.api._decorators import api_key_required, require_scope, api_rate_limit
+
+    already = set(flask_app.blueprints)
+
+    if "test_api_auth" not in already:
+        auth_bp = Blueprint("test_api_auth", __name__, url_prefix="/test_api_v1")
+
+        @auth_bp.route("/protected", methods=["GET"])
+        @api_key_required
+        def _protected():
+            return jsonify({"key_id": g.api_key.id}), 200
+
+        flask_app.register_blueprint(auth_bp)
+
+    if "test_scope" not in already:
+        scope_bp = Blueprint("test_scope", __name__, url_prefix="/test_scope_v1")
+
+        @scope_bp.route("/admin_only", methods=["GET"])
+        @api_key_required
+        @require_scope("admin:tickets")
+        def _only():
+            return jsonify({"ok": True}), 200
+
+        flask_app.register_blueprint(scope_bp)
+
+    if "test_rl" not in already:
+        rl_bp = Blueprint("test_rl", __name__, url_prefix="/test_rl_v1")
+
+        @rl_bp.route("/rl", methods=["GET"])
+        @api_key_required
+        @api_rate_limit
+        def _rl():
+            return jsonify({"ok": True}), 200
+
+        flask_app.register_blueprint(rl_bp)
+
+
+_register_test_blueprints()
+
+
 @pytest.fixture
 def test_app():
     """Create a test application instance."""
