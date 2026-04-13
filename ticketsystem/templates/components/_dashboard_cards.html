@@ -1,0 +1,19 @@
+{# Rendert den Inhalt des Mobile-Card-Containers (`.ticket-cards`). Wird beim
+   Initial-Render aus `index.html` und beim AJAX-Refresh via
+   `/api/dashboard/rows` genutzt. Desktop-Zeile und Mobile-Card teilen sich die
+   Ticket-Daten; die eigentliche Card-Struktur lebt als Makro in
+   `_ticket_item.html`.
+#}
+{% from "components/_ticket_item.html" import render_ticket_card %}
+{% for ticket in focus_tickets %}
+    {{ render_ticket_card(ticket) }}
+{% else %}
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-ticket-perforated display-4 mb-2 opacity-25 d-block"></i>
+        <p class="h6 fw-bold text-secondary mb-1">Keine Tickets gefunden.</p>
+        <p class="small opacity-75 mb-3">Das System ist bereit.</p>
+        <a href="{{ ingress_path }}{{ url_for('main.ticket_new') }}" class="btn btn-primary rounded-pill px-4 shadow-sm btn-sm">
+            <i class="bi bi-plus-circle me-1"></i>Neues Ticket
+        </a>
+    </div>
+{% endfor %}
