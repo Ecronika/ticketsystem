@@ -5,12 +5,15 @@
     // bulk-delete Undo, session-warning, and any other module needing absolute
     // URLs. Falls back to an empty string so tests/dev-mode still work.
     //
-    // SECURITY: the returned string is concatenated into URLs that end up in
-    // window.location.href and fetch() — an attacker-controlled DOM attribute
-    // could otherwise carry a javascript: URL or other non-path payload
-    // (CWE-79, CodeQL js/xss-through-dom). Strict allowlist: absolute URL
-    // paths only, characters limited to those valid in HA ingress routes.
-    // Anything else is rejected to the safe default ''.
+    // SECURITY: the returned value is concatenated into URLs that flow into
+    // window.location.href and fetch(). A compromised reverse-proxy or DOM
+    // tamper could otherwise inject a javascript: URL (CWE-79, CodeQL
+    // js/xss-through-dom). Defense-in-depth:
+    //   1. Source-side allowlist regex rejects anything that isn't an
+    //      absolute URL path.
+    //   2. Dangerous sinks (location.href) additionally wrap via the URL
+    //      API in safeSameOriginPath(), which CodeQL recognises as a
+    //      same-origin sanitiser.
     const SAFE_INGRESS_RE = /^\/[A-Za-z0-9_\-./]*$/;
     window.getIngress = function () {
         const raw = document.querySelector('.navbar')?.getAttribute('data-ingress')
@@ -18,6 +21,22 @@
             || '';
         if (raw === '' || SAFE_INGRESS_RE.test(raw)) return raw;
         return '';
+    };
+
+    // Build a same-origin URL path from the (possibly-tainted) ingress prefix
+    // plus a hardcoded suffix. Returns the literal suffix when the resulting
+    // URL is not same-origin or not http(s) — preventing javascript:/data:
+    // URLs from reaching location.href.
+    window.safeSameOriginPath = function (suffix) {
+        const normalizedSuffix = suffix.startsWith('/') ? suffix : '/' + suffix;
+        try {
+            const u = new URL(window.getIngress() + normalizedSuffix, window.location.origin);
+            if ((u.protocol === 'http:' || u.protocol === 'https:')
+                && u.origin === window.location.origin) {
+                return u.pathname + u.search;
+            }
+        } catch (_) { /* malformed — fall through to safe literal */ }
+        return normalizedSuffix;
     };
 
     // === GLOBAL UI ALERT UTILITY ===
@@ -275,7 +294,11 @@
             clearTimeout(expireTimer);
             warnTimer = setTimeout(showWarning, WARN_AT_MS);
             expireTimer = setTimeout(function() {
-                window.location.href = getIngress() + '/logout';
+                // Route through safeSameOriginPath so CodeQL / js/xss-through-dom
+                // recognises the URL-API-based same-origin sanitiser and any
+                // javascript:/data: payload in data-ingress falls through to the
+                // hardcoded '/logout' literal.
+                window.location.href = window.safeSameOriginPath('/logout');
             }, SESSION_MS);
         }
 
