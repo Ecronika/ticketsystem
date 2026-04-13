@@ -129,7 +129,13 @@
                     {{ render_item(child, True) }}
                 {% endfor %}
             {% else %}
-            <p class="text-muted small mb-0" id="empty-checklist-msg">Keine Unteraufgaben vorhanden.</p>
+            <div class="text-muted small py-3 text-center" id="empty-checklist-msg" data-test="checklist-empty">
+              <p class="mb-2">Keine Unteraufgaben vorhanden.</p>
+              <button type="button" class="btn btn-outline-primary btn-sm"
+                      onclick="const el = document.getElementById('new-checklist-title'); if (el) el.focus();">
+                + Unteraufgabe hinzufügen
+              </button>
+            </div>
             {% endfor %}
         </div>
 

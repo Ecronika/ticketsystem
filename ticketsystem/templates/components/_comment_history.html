@@ -22,6 +22,12 @@
     </div>
     {% endif %}
     {% else %}
-    <p class="text-center text-muted py-4 no-comments-msg">Noch keine Kommentare.</p>
+    <div class="text-muted small py-3 text-center no-comments-msg">
+      <p class="mb-2">Noch keine Kommentare.</p>
+      <button type="button" class="btn btn-outline-primary btn-sm"
+              onclick="const el = document.getElementById('commentTextarea'); if (el) el.focus();">
+        Ersten Kommentar verfassen
+      </button>
+    </div>
     {% endfor %}
 </div>

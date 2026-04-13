@@ -21,8 +21,9 @@
     {% if not projects %}
     <div class="col-12 empty-state">
         <i class="bi bi-building empty-state-icon"></i>
-        <h5 class="empty-state-title">Keine Bauvorhaben/Projekte gefunden</h5>
-        <p class="empty-state-text">Tickets, die mit einer Auftragsnummer (`order_reference`) versehen sind, werden hier automatisch als Projekt gruppiert.</p>
+        <h5 class="empty-state-title">Keine Projekte gefunden</h5>
+        <p class="empty-state-text mb-3">Tickets, die mit einer Auftragsnummer (`order_reference`) versehen sind, werden hier automatisch als Projekt gruppiert.</p>
+        <a href="{{ ingress_path }}{{ url_for('main.ticket_new') }}" class="btn btn-outline-primary btn-sm">+ Neues Ticket anlegen</a>
     </div>
     {% else %}
         {% for p in projects %}
