@@ -36,17 +36,17 @@
                 <select id="assignSelect" class="form-select border-0 bg-surface-subtle fw-bold pe-5"
                         data-original="{{ ticket.assigned_to_id or ('team_' ~ ticket.assigned_team_id if ticket.assigned_team_id else '') }}"
                         {{ 'disabled' if session.get('role') == 'viewer' }}>
-                    <option value="" {% if not ticket.assigned_to_id and not ticket.assigned_team_id %}selected{% endif %}>NICHT ZUGEWIESEN</option>
+                    <option value="" {% if not ticket.assigned_to_id and not ticket.assigned_team_id %}selected{% endif %}>Nicht zugewiesen</option>
                     {% for worker in workers %}
                     <option value="{{ worker.id }}" {% if ticket.assigned_to_id == worker.id %}selected{% endif %}>
-                        {{ worker.name|upper }}
+                        {{ worker.name }}
                     </option>
                     {% endfor %}
                     {% if teams %}
                     <optgroup label="Teams">
                         {% for team in teams %}
                         <option value="team_{{ team.id }}" {% if ticket.assigned_team_id == team.id %}selected{% endif %}>
-                            TEAM: {{ team.name|upper }}
+                            Team: {{ team.name }}
                         </option>
                         {% endfor %}
                     </optgroup>
