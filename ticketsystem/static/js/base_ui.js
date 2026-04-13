@@ -4,10 +4,20 @@
     // Reads the Home Assistant ingress prefix from the page. Used by dashboard
     // bulk-delete Undo, session-warning, and any other module needing absolute
     // URLs. Falls back to an empty string so tests/dev-mode still work.
+    //
+    // SECURITY: the returned string is concatenated into URLs that end up in
+    // window.location.href and fetch() — an attacker-controlled DOM attribute
+    // could otherwise carry a javascript: URL or other non-path payload
+    // (CWE-79, CodeQL js/xss-through-dom). Strict allowlist: absolute URL
+    // paths only, characters limited to those valid in HA ingress routes.
+    // Anything else is rejected to the safe default ''.
+    const SAFE_INGRESS_RE = /^\/[A-Za-z0-9_\-./]*$/;
     window.getIngress = function () {
-        return document.querySelector('.navbar')?.getAttribute('data-ingress')
+        const raw = document.querySelector('.navbar')?.getAttribute('data-ingress')
             || document.querySelector('[data-ingress]')?.dataset.ingress
             || '';
+        if (raw === '' || SAFE_INGRESS_RE.test(raw)) return raw;
+        return '';
     };
 
     // === GLOBAL UI ALERT UTILITY ===
