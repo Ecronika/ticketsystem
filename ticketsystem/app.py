@@ -673,6 +673,7 @@ def inject_globals() -> Dict[str, Any]:
         "MAX_UPLOAD_FILE_SIZE": MAX_UPLOAD_FILE_SIZE,
         "MAX_UPLOAD_TOTAL_SIZE": MAX_UPLOAD_TOTAL_SIZE,
         "MAX_UPLOAD_FILES": MAX_UPLOAD_FILES,
+        "current_year": datetime.utcnow().year,
     }
 
     endpoint = request.endpoint or ""
