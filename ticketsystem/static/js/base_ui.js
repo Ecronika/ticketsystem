@@ -11,7 +11,7 @@
     };
 
     // === GLOBAL UI ALERT UTILITY ===
-    // Signature: showUiAlert(msg, type = 'info', opts = {})
+    // Signature: showUiAlert(msg, type = 'danger', opts = {})
     //   opts.undoUrl       — when set, renders a "Rückgängig" button in the toast.
     //                        Clicking POSTs to the URL with CSRF, reloads on success.
     //   opts.undoLabel     — label for the undo button (default 'Rückgängig').
@@ -19,7 +19,7 @@
     //   opts.onUndoSuccess — optional callback after successful undo (else reload).
     window.showUiAlert = function (msg, type, opts) {
         const safeTypes = ['danger', 'warning', 'success', 'info', 'primary', 'secondary'];
-        const safeType = safeTypes.includes(type) ? type : 'info';
+        const safeType = safeTypes.includes(type) ? type : 'danger';
         const options = opts || {};
         const hasUndo = Boolean(options.undoUrl);
         const timeout = options.timeout || (hasUndo ? 8000 : 6000);
