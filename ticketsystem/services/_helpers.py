@@ -40,9 +40,16 @@ def api_ok(**extra):
     return jsonify({"success": True, **extra})
 
 
-def api_error(msg: str, status: int = 500):
-    """Return a JSON error response with the given *status* code."""
-    return jsonify({"success": False, "error": msg}), status
+def api_error(msg: str, status: int = 500, *, errors: list | None = None):
+    """Return a JSON error response with the given *status* code.
+
+    If *errors* is provided, it is included as an ``errors`` array in the
+    payload to support structured field-level error rendering on the client.
+    """
+    payload: dict = {"success": False, "error": msg}
+    if errors:
+        payload["errors"] = errors
+    return jsonify(payload), status
 
 
 def api_endpoint(func):
@@ -56,7 +63,9 @@ def api_endpoint(func):
         try:
             return func(*args, **kwargs)
         except DomainError as exc:
-            return api_error(str(exc), exc.status_code)
+            field = getattr(exc, 'field', None)
+            errors = [{"field": field, "message": str(exc)}] if field else None
+            return api_error(str(exc), exc.status_code, errors=errors)
         except ValueError as exc:
             return api_error(str(exc), 400)
         except SQLAlchemyError:
