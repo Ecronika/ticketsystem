@@ -70,7 +70,6 @@
                             <label class="form-check-label fw-bold" for="is_confidential">
                                 <i class="bi bi-lock-fill text-warning"></i> Als vertraulich markieren {{ help_icon(HELP['ticket_new']['fields']['is_confidential']) }}
                             </label>
-                            <p class="x-small text-muted mt-1 mb-0 ps-4">Nur zugewiesene Personen und Admins können dies sehen.</p>
                         </div>
                     </div>
                     {% endif %}
@@ -79,14 +78,19 @@
                         <label class="form-label fw-bold">Dringlichkeit {{ help_icon(HELP['ticket_new']['fields']['priority']) }}</label>
                         <div class="d-flex gap-2">
                             <input type="radio" class="btn-check" name="priority" id="prio1" value="1">
-                            <label class="btn btn-soft-danger flex-fill" for="prio1">Hoch</label>
+                            <label class="btn btn-outline-danger flex-fill" for="prio1">Hoch</label>
 
                             <input type="radio" class="btn-check" name="priority" id="prio2" value="2" checked>
-                            <label class="btn btn-soft-primary flex-fill" for="prio2">Mittel</label>
+                            <label class="btn btn-outline-primary flex-fill" for="prio2">Mittel</label>
 
                             <input type="radio" class="btn-check" name="priority" id="prio3" value="3">
-                            <label class="btn btn-soft-success flex-fill" for="prio3">Niedrig</label>
+                            <label class="btn btn-outline-success flex-fill" for="prio3">Niedrig</label>
                         </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="due_date" class="form-label fw-bold">Bis wann benötigt? {{ help_icon(HELP['ticket_new']['fields']['due_date']) }}</label>
+                        <input type="date" class="form-control form-control-lg" id="due_date" name="due_date">
                     </div>
 
                     <div class="mb-4">
@@ -99,7 +103,7 @@
                              data-max-files="{{ MAX_UPLOAD_FILES }}">
                             <i class="bi bi-cloud-arrow-up fs-2 text-primary"></i>
                             <h6 class="mt-2 fw-bold">Dateien hierher ziehen oder klicken</h6>
-                            <span class="text-muted small">Bilder und Dokumente (werden automatisch für Upload optimiert)</span>
+                            <span class="text-muted small">Bilder und Dokumente</span>
                             <input type="file" class="position-absolute top-0 start-0 w-100 h-100 opacity-0 cursor-pointer" id="attachment-input" multiple accept="image/*, application/pdf, .doc, .docx, .xls, .xlsx">
                             <!-- Compression overlay -->
                             <div id="upload-progress-overlay"
@@ -210,10 +214,6 @@
                             <!-- Spalte 2: Planung & Delegation -->
                             <div class="col-md-6 border-md-start">
                                 <h6 class="fw-bold text-muted mb-3 border-bottom pb-2 mt-4 mt-md-0">Planung</h6>
-                                <div class="mb-3">
-                                    <label for="due_date" class="form-label fw-bold">Bis wann benötigt? {{ help_icon(HELP['ticket_new']['fields']['due_date']) }}</label>
-                                    <input type="date" class="form-control form-control-lg" id="due_date" name="due_date">
-                                </div>
 
                                 {% if session.get('worker_id') %}
                                 <div class="mb-3">
