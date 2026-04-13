@@ -263,6 +263,7 @@
 
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <script src="{{ ingress_path }}{{ url_for('static', filename='js/focus_trap.js') }}?v={{ config.VERSION }}"></script>
   <script src="{{ ingress_path }}{{ url_for('static', filename='js/base_ui.js') }}?v={{ config.VERSION }}"></script>
   {% if session.get('worker_id') %}
   <script src="{{ ingress_path }}{{ url_for('static', filename='js/notifications.js') }}?v={{ config.VERSION }}"></script>
@@ -282,7 +283,7 @@
         </div>
         <div class="modal-footer border-top-0 px-2 py-2 gap-2">
           <button type="button" class="btn btn-light btn-sm flex-fill" data-bs-dismiss="modal">Abbrechen</button>
-          <button type="button" class="btn btn-danger btn-sm flex-fill" id="globalConfirmBtn">Bestätigen</button>
+          <button type="button" class="btn btn-danger btn-sm flex-fill" id="globalConfirmBtn" data-focus-first="true">Bestätigen</button>
         </div>
       </div>
     </div>

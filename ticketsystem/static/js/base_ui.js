@@ -94,12 +94,18 @@
             const cleanup = () => {
                 confirmBtn?.removeEventListener('click', handleConfirm);
                 modalEl.removeEventListener('hidden.bs.modal', handleCancel);
+                modalEl.removeEventListener('shown.bs.modal', handleShown);
+                if (typeof window.releaseFocus === 'function') window.releaseFocus();
+            };
+            // Bootstrap manages its own focus on show; run trapFocus after shown
+            // so our keydown-based Tab cycling + data-focus-first priority win.
+            const handleShown = () => {
+                if (typeof window.trapFocus === 'function') window.trapFocus(modalEl);
             };
             confirmBtn?.addEventListener('click', handleConfirm);
             modalEl.addEventListener('hidden.bs.modal', handleCancel);
+            modalEl.addEventListener('shown.bs.modal', handleShown);
             bsModal.show();
-            // P1-4 (v1.6.0): Focus the action button for WCAG 2.4.3
-            setTimeout(() => confirmBtn?.focus(), 150);
         });
     };
 
