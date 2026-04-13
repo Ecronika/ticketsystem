@@ -499,11 +499,17 @@ class TicketCoreService:
     @db_transaction
     def restore_ticket(
         ticket_id: int,
-        *,
-        actor_name: str = "System",
-        actor_id: Optional[int] = None,
+        author_name: str = "System",
+        author_id: Optional[int] = None,
     ) -> Ticket:
-        """Restore a soft-deleted ticket and record an audit comment."""
+        """Restore a soft-deleted ticket and record an audit comment.
+
+        Idempotent: if the ticket is not deleted, returns it unchanged
+        without adding another TICKET_RESTORED comment.
+
+        Raises:
+            TicketNotFoundError: if no ticket exists with the given ID.
+        """
         from exceptions import TicketNotFoundError
 
         ticket = db.session.get(Ticket, ticket_id)
@@ -516,8 +522,8 @@ class TicketCoreService:
         ticket.updated_at = get_utc_now()
         db.session.add(Comment(
             ticket_id=ticket.id,
-            author=actor_name,
-            author_id=actor_id,
+            author=author_name,
+            author_id=author_id,
             text="Ticket wiederhergestellt.",
             is_system_event=True,
             event_type="TICKET_RESTORED",

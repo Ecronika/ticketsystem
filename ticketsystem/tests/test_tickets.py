@@ -204,9 +204,29 @@ def test_restore_ticket(test_app, db):
         )
         tid = ticket.id
         TicketCoreService.delete_ticket(tid, author_name="Admin")
-        restored = TicketCoreService.restore_ticket(tid, actor_name="Admin")
+        restored = TicketCoreService.restore_ticket(tid, author_name="Admin")
         assert restored.is_deleted is False
         assert any(
             c.is_system_event and "wiederhergestellt" in (c.text or "").lower()
             for c in restored.comments
         )
+
+        # Idempotent: calling restore again must NOT add a second TICKET_RESTORED comment
+        restored_count_before = sum(
+            1 for c in restored.comments if c.event_type == "TICKET_RESTORED"
+        )
+        TicketCoreService.restore_ticket(tid, author_name="Admin")
+        restored_count_after = sum(
+            1 for c in restored.comments if c.event_type == "TICKET_RESTORED"
+        )
+        assert restored_count_before == 1
+        assert restored_count_after == 1
+
+
+def test_restore_ticket_not_found(test_app, db):
+    """restore_ticket raises TicketNotFoundError for a non-existent ID."""
+    from exceptions import TicketNotFoundError
+
+    with test_app.app_context():
+        with pytest.raises(TicketNotFoundError):
+            TicketCoreService.restore_ticket(99999)
