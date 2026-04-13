@@ -1392,3 +1392,16 @@ textarea:focus-visible {
 [aria-expanded="true"] .chevron {
     transform: rotate(180deg);
 }
+
+/* ========= Inline field validation ========= */
+.field-error {
+    color: var(--bs-danger, #dc3545);
+    font-size: .875rem;
+    margin-top: .25rem;
+    display: block;
+}
+input[aria-invalid="true"],
+textarea[aria-invalid="true"],
+select[aria-invalid="true"] {
+    border-color: var(--bs-danger, #dc3545);
+}
