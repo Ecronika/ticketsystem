@@ -80,7 +80,7 @@
                             </span>
                         </td>
                         <td data-label="Priorität">
-                            <span class="badge badge-subtle-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} px-2 py-1 x-small rounded">
+                            <span class="badge badge-subtle-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} priority-{{ 'hoch' if ticket.priority == 1 else 'mittel' if ticket.priority == 2 else 'niedrig' }} px-2 py-1 x-small rounded">
                                 {{ ticket.priority|priority_label }}
                             </span>
                         </td>

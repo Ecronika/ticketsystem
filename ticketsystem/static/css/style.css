@@ -1405,3 +1405,34 @@ textarea[aria-invalid="true"],
 select[aria-invalid="true"] {
     border-color: var(--bs-danger, #dc3545);
 }
+
+/* ============= Priority icons (color + form for a11y) =============
+   Grayscale-/Colorblind-User erkennen die Priorität nicht an der Farbe
+   allein. Ein Form-Icon (Pfeil hoch / Balken / Pfeil runter) wird per
+   CSS ::before vor dem Badge-Text eingefügt, damit die Information
+   auch ohne Farbe lesbar bleibt. */
+.priority-hoch::before,
+.priority-mittel::before,
+.priority-niedrig::before {
+    content: "";
+    display: inline-block;
+    width: .85em;
+    height: .85em;
+    margin-right: .35em;
+    vertical-align: -0.1em;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+}
+.priority-hoch::before {
+    /* Arrow up — high */
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23dc3545'><path d='M8 1l5 5h-3v9H6V6H3z'/></svg>");
+}
+.priority-mittel::before {
+    /* Equal bars — mid */
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%230d6efd'><path d='M2 6h12v2H2zM2 10h12v2H2z'/></svg>");
+}
+.priority-niedrig::before {
+    /* Arrow down — low */
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23198754'><path d='M8 15l-5-5h3V1h4v9h3z'/></svg>");
+}
