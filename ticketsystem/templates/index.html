@@ -41,10 +41,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 await refreshTableRows();
                 lastCount = data.counts.summary;
                 lastUpdated = data.last_updated;
+                const rl = document.getElementById('dashRefreshLabel');
+                if (rl) rl.dataset.refreshedAt = new Date().toISOString();
             }
             if (!lastUpdated) lastUpdated = data.last_updated;
         } catch(e) {}
     }
+
+    // --- Relative "last refreshed" label ---
+    (() => {
+        const el = document.getElementById('dashRefreshLabel');
+        if (el) el.dataset.refreshedAt = new Date().toISOString();
+    })();
+    setInterval(() => {
+        const el = document.getElementById('dashRefreshLabel');
+        if (!el || !el.dataset.refreshedAt) return;
+        const ts = new Date(el.dataset.refreshedAt);
+        const diffSec = Math.max(0, Math.round((Date.now() - ts.getTime()) / 1000));
+        if (diffSec < 5) el.textContent = 'Aktualisiert gerade eben';
+        else if (diffSec < 60) el.textContent = `Aktualisiert vor ${diffSec}s`;
+        else el.textContent = `Aktualisiert vor ${Math.floor(diffSec / 60)}min`;
+    }, 1000);
 
     fetch(ingress + '/api/dashboard/summary')
         .then(r => r.json())
@@ -430,7 +447,11 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h1 class="visually-hidden">Dashboard</h1>
-        <h2 class="h4 fw-bold mb-0 display-font">Alle Tickets</h2>
+        <h2 class="h4 fw-bold mb-0 display-font">Alle Tickets
+            <span id="dashRefreshLabel" class="text-muted small ms-2 fw-normal" aria-live="off">
+              Aktualisiert gerade eben
+            </span>
+        </h2>
         <p class="text-secondary small mb-0">Triage & Dispatching</p>
     </div>
     <div class="d-flex align-items-center gap-2 flex-wrap">
