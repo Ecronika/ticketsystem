@@ -1382,3 +1382,13 @@ textarea:focus-visible {
     /* Page setup */
     @page { margin: 1.5cm; size: A4; }
 }
+
+/* Chevron rotation for Bootstrap collapse toggles */
+[data-bs-toggle="collapse"] .chevron,
+[aria-expanded] .chevron {
+    display: inline-block;
+    transition: transform .15s ease;
+}
+[aria-expanded="true"] .chevron {
+    transform: rotate(180deg);
+}
