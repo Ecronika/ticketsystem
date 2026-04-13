@@ -51,3 +51,31 @@ def test_api_endpoint_no_errors_array_without_field():
     data = resp.get_json()
     assert data["error"] == "Allgemeiner Fehler"
     assert "errors" not in data or data["errors"] is None
+
+
+def test_api_endpoint_masks_value_error_message():
+    """ValueError messages must NOT leak to clients (OWASP CWE-209)."""
+    app = Flask(__name__)
+    app.config['TESTING'] = True
+
+    @app.route("/test-value-err")
+    @api_endpoint
+    def _view():
+        raise ValueError("Internal detail: SELECT * FROM users WHERE id=42")
+
+    client = app.test_client()
+    resp = client.get("/test-value-err")
+    assert resp.status_code == 400
+    data = resp.get_json()
+    assert data["error"] == "Ungültige Eingabe."
+    # The raw message must not reach the client under any key.
+    assert "SELECT" not in str(data)
+    assert "Internal detail" not in str(data)
+
+
+def test_domain_error_user_message_property():
+    """user_message property mirrors the curated message arg."""
+    err = DomainError("Formularfehler", field="email")
+    assert err.user_message == "Formularfehler"
+    # Unchanged from str(exc) for the same instance — same source.
+    assert err.user_message == str(err)

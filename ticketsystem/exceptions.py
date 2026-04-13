@@ -11,6 +11,14 @@ from typing import Optional
 class DomainError(Exception):
     """Base class for all domain-specific errors.
 
+    Contract:
+        The first positional argument is a *curated, user-facing* German
+        message. Every subclass must supply a message that is safe to send
+        back to clients (no stack traces, no internal identifiers, no SQL).
+        This is the explicit contract that makes ``user_message`` safe to
+        include in API responses — callers should read ``exc.user_message``
+        rather than ``str(exc)``.
+
     The optional ``field`` attribute identifies the form/input field a
     validation error belongs to, enabling inline error rendering on the
     client side. Approach A (class-level default) is used so that existing
@@ -23,8 +31,18 @@ class DomainError(Exception):
 
     def __init__(self, message: str = "", *, field: Optional[str] = None) -> None:
         super().__init__(message)
+        self._user_message = message
         if field is not None:
             self.field = field
+
+    @property
+    def user_message(self) -> str:
+        """The curated, user-safe German message for this error.
+
+        Prefer this over ``str(self)`` when composing API responses — it
+        documents the trust boundary explicitly.
+        """
+        return self._user_message
 
 
 class NotFoundError(DomainError):
