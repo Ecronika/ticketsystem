@@ -27,8 +27,8 @@ body {
 
 /* === WCAG 2.5.8 / Shopfloor-Ergonomie: Touch Targets in Tabellen === */
 .table .btn {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -36,7 +36,7 @@ body {
 }
 
 .table td .d-flex.gap-1 {
-    gap: 0.5rem !important;
+    gap: var(--space-2) !important;
 }
 
 /* =========================================
@@ -51,7 +51,7 @@ small,
 .btn,
 .form-control,
 .form-select {
-    min-height: 44px;
+    min-height: var(--touch-target-min);
 }
 
 @media (max-width: 768px) {
@@ -80,8 +80,9 @@ canvas {
     --text-muted: #5c636a;
     --border-color: #dee2e6;
     --input-border: #767676;
-    --focus-ring: 3px solid #0d6efd;
-    --btn-transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    --focus-ring-width: var(--border-3);
+    --focus-ring-color: #0d6efd;
+    --focus-ring: var(--focus-ring-width) solid var(--focus-ring-color);
     --btn-soft-bg: #eef4ff;
     --btn-soft-color: #1d4ed8;
     --btn-soft-border: #2563eb;
@@ -118,7 +119,6 @@ canvas {
     --z-navbar: 1035;
 
     /* Typography Scale */
-    --fs-xxxs: 0.55rem;
     --fs-xxs: 0.65rem;
     --fs-xs: 0.7rem;
     --fs-sm: 0.75rem;
@@ -137,9 +137,82 @@ canvas {
     --kanban-primary-bg: rgba(37, 99, 235, 0.12);
 
     /* Max-Heights für Scroll-Container */
-    --h-exchange-list: 250px;
-    --h-logo-preview: 150px;
-    --h-qr-selector: 200px;
+    --exchange-list-max-h: 250px;
+    --logo-preview-max-h: 150px;
+    --qr-selector-max-h: 200px;
+
+    /* =========================================
+       TIER 1 — GLOBAL PRIMITIVES (theme-agnostic)
+       ========================================= */
+
+    /* Spacing scale (4px base, numeric) */
+    --space-0: 0;
+    --space-1: 0.25rem;   /* 4px */
+    --space-2: 0.5rem;    /* 8px */
+    --space-3: 0.75rem;   /* 12px */
+    --space-4: 1rem;      /* 16px */
+    --space-5: 1.25rem;   /* 20px */
+    --space-6: 1.5rem;    /* 24px */
+    --space-8: 2rem;      /* 32px */
+    --space-12: 3rem;     /* 48px */
+    --space-16: 4rem;     /* 64px */
+
+    /* Border widths */
+    --border-1: 1px;
+    --border-2: 2px;
+    --border-3: 3px;
+    --border-4: 4px;
+
+    /* Motion */
+    --duration-fast: 0.15s;
+    --duration-base: 0.2s;
+    --duration-slow: 0.3s;
+    --ease-standard: ease;
+    --transition-colors:
+        background-color var(--duration-base) var(--ease-standard),
+        color var(--duration-base) var(--ease-standard),
+        border-color var(--duration-base) var(--ease-standard),
+        box-shadow var(--duration-base) var(--ease-standard);
+
+    /* Shadows */
+    --shadow-xs: 0 1px 2px rgb(0 0 0 / 6%);
+    --shadow-sm: 0 2px 4px rgb(0 0 0 / 8%);
+    --shadow-md: 0 4px 8px rgb(0 0 0 / 12%);
+    --shadow-lg: 0 8px 24px rgb(0 0 0 / 16%);
+
+    /* Breakpoints (reference only — CSS media queries can't use var()) */
+    --bp-sm: 576px;
+    --bp-md: 768px;
+    --bp-lg: 992px;
+    --bp-xl: 1200px;
+
+    /* WCAG 2.5.8 touch target */
+    --touch-target-min: 44px;
+
+    /* =========================================
+       TIER 3 — COMPONENT TOKENS
+       ========================================= */
+
+    /* Button */
+    --btn-padding-y: var(--space-2);
+    --btn-padding-x: var(--space-3);
+    --btn-min-height: var(--touch-target-min);
+    --btn-radius: var(--radius-md);
+
+    /* Input / form control */
+    --input-min-height: var(--touch-target-min);
+    --input-border-width: var(--border-1);
+    --input-radius: var(--radius-sm);
+
+    /* Card */
+    --card-padding: var(--space-4);
+    --card-radius: var(--radius-lg);
+    --card-shadow: var(--shadow-sm);
+
+    /* Badge */
+    --badge-padding-y: var(--space-1);
+    --badge-padding-x: var(--space-2);
+    --badge-radius: var(--radius-pill);
 }
 
 .z-toast {
@@ -155,7 +228,9 @@ canvas {
     --text-muted: #b5bcc7;
     --border-color: #333;
     --input-border: #888888;
-    --focus-ring: 3px solid #3b82f6;
+    --focus-ring-width: var(--border-3);
+    --focus-ring-color: #3b82f6;
+    --focus-ring: var(--focus-ring-width) solid var(--focus-ring-color);
     --btn-soft-bg: rgb(135 206 235 / 15%);
     --btn-soft-color: #87ceeb;
     --btn-soft-border: rgb(135 206 235 / 40%);
@@ -199,7 +274,9 @@ canvas {
     /* Weiches Gelb */
     --text-muted: #cc0;
     --border-color: #e6e600;
-    --focus-ring: 4px solid #0ff;
+    --focus-ring-width: var(--border-4);
+    --focus-ring-color: #0ff;
+    --focus-ring: var(--focus-ring-width) solid var(--focus-ring-color);
 
     /* Cyan für maximale Sichtbarkeit */
     --btn-soft-bg: transparent;
@@ -238,7 +315,7 @@ canvas {
     color: var(--btn-soft-color);
     border: 2px solid var(--btn-soft-border);
     font-weight: 600;
-    transition: var(--btn-transition);
+    transition: var(--transition-colors);
 }
 
 /* Buttons: iOS-Sticky-Hover-Bug tritt bei <button>/<a> durch natives Tap-Reset nicht auf.
@@ -246,7 +323,7 @@ canvas {
 .btn-primary-soft:hover {
     background-color: var(--color-primary);
    color: #fff;
-    box-shadow: 0 4px 8px rgb(13 110 253 / 20%);
+    box-shadow: var(--shadow-md);
 }
 
 /* Pastell / Sky Blue in Dark mode */
@@ -269,12 +346,53 @@ canvas {
     border: 2px solid var(--color-warning);
     background-color: var(--btn-warning-soft-bg);
     font-weight: 600;
-    transition: var(--btn-transition);
+    transition: var(--transition-colors);
 }
 
 .btn-outline-theme-warning:hover {
     background-color: var(--color-warning);
     color: #000;
+}
+
+/* =========================================
+   SYSTEMATIC STATES (audit finding: disabled/invalid missing)
+   ========================================= */
+
+/* Disabled state — buttons */
+.btn:disabled,
+.btn[aria-disabled="true"],
+.btn.disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Disabled state — form controls */
+.form-control:disabled,
+.form-select:disabled,
+.form-check-input:disabled {
+    background-color: var(--bg-surface-subtle);
+    color: var(--text-muted);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* Invalid state — accepts Bootstrap .is-invalid AND aria-invalid */
+.form-control.is-invalid,
+.form-control[aria-invalid="true"],
+.form-select.is-invalid,
+.form-select[aria-invalid="true"] {
+    border-color: var(--color-danger);
+    box-shadow: 0 0 0 0.25rem rgb(220 38 38 / 25%);
+}
+
+/* HC mode: outline instead of coloured shadow */
+[data-theme="hc"] .form-control.is-invalid,
+[data-theme="hc"] .form-control[aria-invalid="true"],
+[data-theme="hc"] .form-select.is-invalid,
+[data-theme="hc"] .form-select[aria-invalid="true"] {
+    outline: var(--border-3) solid var(--color-danger);
+    box-shadow: none;
 }
 
 /* Fix missing focus ring for hidden radio buttons (WCAG 2.2) */
@@ -538,11 +656,11 @@ canvas {
 
     .table-responsive-cards tbody tr {
         display: block;
-        margin-bottom: 1rem;
+        margin-bottom: var(--space-4);
         border: 1px solid var(--border-color);
         border-radius: var(--radius-md);
         background-color: var(--bg-surface);
-        padding: 0.5rem;
+        padding: var(--space-2);
     }
 
     .table-responsive-cards tbody td {
@@ -551,7 +669,7 @@ canvas {
         align-items: center;
         text-align: right;
         border-bottom: 1px solid var(--border-color);
-        padding: 0.75rem 0.5rem;
+        padding: var(--space-3) var(--space-2);
     }
 
     .table-responsive-cards tbody td:last-child {
@@ -563,7 +681,7 @@ canvas {
         content: attr(data-label);
         font-weight: bold;
         text-align: left;
-        padding-right: 1rem;
+        padding-right: var(--space-4);
         flex-shrink: 0;
         color: var(--text-muted);
         text-transform: uppercase;
@@ -715,7 +833,7 @@ textarea:focus-visible {
 }
 .bg-white-hover:hover {
     background-color: rgba(255, 255, 255, 0.1) !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-sm);
 }
 [data-theme="dark"] .bg-white-hover:hover {
     background-color: rgba(255, 255, 255, 0.05) !important;
@@ -735,8 +853,8 @@ textarea:focus-visible {
 }
 /* --- WCAG 2.5.5: Touch Target Size (Pagination) --- */
 .pagination .page-link {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -776,7 +894,7 @@ textarea:focus-visible {
 }
 
 /* --- v1.6.0: WCAG 2.2 AA & Dashboard Scanning Fixes --- */
-.alert .btn-close { min-width: 44px; min-height: 44px; }
+.alert .btn-close { min-width: var(--touch-target-min); min-height: var(--touch-target-min); }
 .border-danger.border-3 { border-left-width: 6px !important; }
 .sticky-top { z-index: 1030; }
 .sticky-top [tabindex], .sticky-top a, .sticky-top select, .sticky-top button { scroll-margin-top: 6rem; }
@@ -788,7 +906,7 @@ textarea:focus-visible {
 }
 @media (hover: hover) and (pointer: fine) {
     .hover-card:hover {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+        box-shadow: var(--shadow-md) !important;
         transform: translateY(-1px);
     }
 }
@@ -825,7 +943,7 @@ textarea:focus-visible {
 /* =========================================
    TYPOGRAPHY SCALE
    ========================================= */
-.text-xxxs  { font-size: var(--fs-xxxs) !important; }
+.text-xxxs  { font-size: var(--fs-xxs) !important; }
 .text-xxs   { font-size: var(--fs-xxs) !important; }
 .text-xs    { font-size: var(--fs-xs) !important; }
 .meta-label { font-size: 0.6rem; line-height: 1; }
@@ -841,7 +959,7 @@ textarea:focus-visible {
     justify-content: center;
     flex-shrink: 0;
 }
-.avatar-xs { width: var(--avatar-xs); height: var(--avatar-xs); font-size: var(--fs-xxxs); }
+.avatar-xs { width: var(--avatar-xs); height: var(--avatar-xs); font-size: var(--fs-xxs); }
 .avatar-sm { width: var(--avatar-sm); height: var(--avatar-sm); font-size: var(--fs-xs); }
 .avatar-md { width: var(--avatar-md); height: var(--avatar-md); font-size: var(--fs-meta); }
 
@@ -933,7 +1051,7 @@ textarea:focus-visible {
     color: #333;
     font-size: 1.2rem;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-md);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1015,7 +1133,7 @@ textarea:focus-visible {
 @media (hover: hover) and (pointer: fine) {
     .attachment-tile:hover .attachment-delete-btn {
         opacity: 1;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+        box-shadow: var(--shadow-sm);
     }
 }
 [data-theme="dark"] .attachment-delete-btn {
@@ -1058,15 +1176,15 @@ textarea:focus-visible {
 }
 @media (hover: hover) and (pointer: fine) {
     .hover-elevate:hover {
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1) !important;
+        box-shadow: var(--shadow-lg) !important;
         transform: translateY(-2px);
     }
 }
 .transition-all { transition: all 0.2s ease; }
-.min-h-44       { min-height: 44px; }
+.min-h-44       { min-height: var(--touch-target-min); }
 .min-w-130      { min-width: 130px; }
 .fade-toggle     { transition: opacity 0.2s; }
-.fade-toggle.hidden { display: none; opacity: 0; }
+.fade-toggle.hidden { opacity: 0; pointer-events: none; }
 .max-w-85p      { max-width: 85%; }
 .lh-relaxed     { line-height: 1.6; }
 .table-compact  { font-size: 0.875rem; }
@@ -1096,7 +1214,7 @@ textarea:focus-visible {
 /* --- Card Header Standard: border-0 py-3 px-4 bg-surface-subtle --- */
 .card-header-std {
     border: 0;
-    padding: 0.75rem 1.5rem;
+    padding: var(--space-3) var(--space-6);
     background-color: var(--bg-surface-subtle);
 }
 
@@ -1123,30 +1241,30 @@ textarea:focus-visible {
 .form-label-bold {
     font-size: max(0.875rem, 14px);
     font-weight: 700;
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-2);
 }
 
 /* --- Button Pill Small: btn-sm rounded-pill px-3 --- */
 .btn-pill {
     border-radius: var(--radius-pill) !important;
-    padding-left: 1rem;
-    padding-right: 1rem;
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
 }
 
 /* --- Empty State Container --- */
 .empty-state {
     text-align: center;
-    padding: 3rem 1rem;
+    padding: var(--space-12) var(--space-4);
     color: var(--text-muted);
 }
 .empty-state-icon {
     font-size: 3rem;
     opacity: 0.25;
     display: block;
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-2);
 }
 .empty-state-title {
-    margin-top: 0.75rem;
+    margin-top: var(--space-3);
     color: var(--text-muted);
     font-weight: 700;
     font-size: 1.25rem;
@@ -1160,7 +1278,7 @@ textarea:focus-visible {
 .meta-chip {
     background-color: var(--bg-surface-subtle);
     border-radius: var(--radius-sm);
-    padding: 0.25rem 0.5rem;
+    padding: var(--space-1) var(--space-2);
 }
 .meta-chip-label {
     color: var(--text-muted);
@@ -1203,10 +1321,10 @@ textarea:focus-visible {
 /* --- Sidebar Approval Block: border-start border-3 ps-3 py-2 mb-2 small --- */
 .approval-indicator {
     border-left: 3px solid;
-    padding-left: 0.75rem;
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
-    margin-bottom: 0.5rem;
+    padding-left: var(--space-3);
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+    margin-bottom: var(--space-2);
     font-size: max(0.875rem, 14px);
 }
 
@@ -1215,7 +1333,7 @@ textarea:focus-visible {
     color: var(--text-muted);
     font-size: max(0.875rem, 14px);
     text-align: center;
-    padding: 1.5rem;
+    padding: var(--space-6);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     opacity: 0.5;
@@ -1230,7 +1348,7 @@ textarea:focus-visible {
 .dash-table th:hover { color: var(--bs-primary); }
 .dash-table th .sort-icon { font-size: var(--fs-xs); opacity: 0.4; }
 .dash-table th.sorted .sort-icon { opacity: 1; color: var(--bs-primary); }
-.dash-table td { vertical-align: middle; padding-top: 0.5rem; padding-bottom: 0.5rem; }
+.dash-table td { vertical-align: middle; padding-top: var(--space-2); padding-bottom: var(--space-2); }
 .dash-table tr { transition: background 0.1s; }
 .dash-table tbody tr:hover { background: var(--bg-surface-subtle); }
 .dash-table .title-link { color: var(--text-main); text-decoration: none; font-weight: 600; }
@@ -1302,7 +1420,7 @@ textarea:focus-visible {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.75rem 1.25rem;
+    padding: var(--space-3) var(--space-5);
     border-bottom: 1px solid var(--border-color);
     background: var(--bg-surface-subtle);
     flex-shrink: 0;
@@ -1312,7 +1430,7 @@ textarea:focus-visible {
     font-size: 0.9rem;
     min-width: 0;
     flex: 1;
-    margin-right: 1rem;
+    margin-right: var(--space-4);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1361,7 +1479,7 @@ textarea:focus-visible {
         box-shadow: none !important;
         break-inside: avoid;
     }
-    .card-body { padding: 0.5rem !important; }
+    .card-body { padding: var(--space-2) !important; }
     /* Full width layout */
     .container-fluid, .container { max-width: 100% !important; padding: 0 !important; }
     .row { display: block !important; }
