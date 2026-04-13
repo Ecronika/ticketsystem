@@ -28,8 +28,7 @@
       </div>
       <div class="card-body px-4 pb-4">
         <p class="text-secondary small mb-3">
-          Werte aus der Datenbank überschreiben Umgebungsvariablen (<code>SMTP_*</code>).
-          Felder leer lassen, um den Umgebungsvariablenwert beizubehalten.
+          DB-Werte gewinnen über <code>SMTP_*</code>. Leer lassen = nicht ändern.
         </p>
         <form method="post" autocomplete="off" novalidate>
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -217,10 +216,10 @@
     </div>
   </div>
 </div>
+{% endblock %}
 
 {% block scripts %}
-<script>
-  // Toggle password visibility
+<script nonce="{{ g.csp_nonce }}">
   const pwInput = document.getElementById('smtp_password');
   const toggleBtn = document.getElementById('togglePwBtn');
   const toggleIcon = document.getElementById('togglePwIcon');
@@ -232,5 +231,4 @@
     });
   }
 </script>
-{% endblock %}
 {% endblock %}

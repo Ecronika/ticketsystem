@@ -19,7 +19,10 @@
 
 <body class="d-flex flex-column min-vh-100"
       data-shortcuts-writable="{{ 'true' if session.get('role') and session.get('role') != 'viewer' else 'false' }}"
-      data-new-ticket-url="{{ ingress_path }}{{ url_for('main.ticket_new') }}">
+      data-new-ticket-url="{{ ingress_path }}{{ url_for('main.ticket_new') }}"
+      data-goto-dashboard-url="{{ ingress_path }}{{ url_for('main.index') }}"
+      {% if session.get('worker_id') %}data-goto-myqueue-url="{{ ingress_path }}{{ url_for('main.my_queue') }}"{% endif %}
+      {% if session.get('role') == 'admin' %}data-goto-approvals-url="{{ ingress_path }}{{ url_for('main.approvals') }}"{% endif %}>
   <a href="#main-content" class="visually-hidden-focusable">Zum Hauptinhalt springen</a>
   <script src="{{ ingress_path }}{{ url_for('static', filename='js/theme_init.js') }}?v={{ config.VERSION }}"></script>
 
@@ -222,8 +225,8 @@
   {% if worker_is_ooo %}
   <div class="alert alert-warning alert-dismissible rounded-0 border-0 border-bottom border-warning mb-0 py-2 text-center small fw-bold" role="alert" id="ooo-banner">
     <i class="bi bi-airplane-fill me-2" aria-hidden="true"></i>
-    Sie sind als <strong>Abwesend (Out of Office)</strong> markiert — neue Ticket-Zuweisungen werden automatisch umgeleitet.
-    <a href="{{ ingress_path }}{{ url_for('main.profile') }}" class="alert-link ms-2">Status ändern</a>
+    Sie sind <strong>abwesend</strong>. Neue Tickets werden umgeleitet.
+    <a href="{{ ingress_path }}{{ url_for('main.profile') }}" class="alert-link ms-2">Ändern</a>
     <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert" aria-label="Schließen"></button>
   </div>
   {% endif %}
@@ -263,9 +266,7 @@
   <footer class="footer mt-auto py-3 border-top w-100 bg-surface">
     <div class="container text-center">
       <span class="text-muted small font-mono">
-        TicketSystem &copy; 2026 | v{{ config.VERSION }} |
-        <a href="#" class="text-decoration-none text-muted">Impressum</a> |
-        <a href="#" class="text-decoration-none text-muted">Datenschutz</a>
+        TicketSystem &copy; 2026 | v{{ config.VERSION }}
       </span>
     </div>
   </footer>

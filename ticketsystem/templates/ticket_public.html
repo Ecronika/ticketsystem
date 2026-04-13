@@ -14,7 +14,7 @@
                     </div>
                     <div class="d-flex flex-column align-items-end gap-2">
                         <span class="badge-subtle-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} rounded-pill px-3 py-1 small fw-bold">
-                            {{ ticket.status|status_label|upper }}
+                            {{ ticket.status|status_label }}
                         </span>
                     </div>
                 </div>

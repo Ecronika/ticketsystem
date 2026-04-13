@@ -24,10 +24,10 @@
             {% endif %}
             <!-- Hidden select for compatibility -->
             <select id="statusSelect" class="d-none" data-original="{{ ticket.status }}">
-                <option value="{{ TicketStatus.OFFEN.value }}" {{ 'selected' if ticket.status == TicketStatus.OFFEN.value }}>{{ TicketStatus.OFFEN.value|status_label|upper }}</option>
-                <option value="{{ TicketStatus.IN_BEARBEITUNG.value }}" {{ 'selected' if ticket.status == TicketStatus.IN_BEARBEITUNG.value }}>{{ TicketStatus.IN_BEARBEITUNG.value|status_label|upper }}</option>
-                <option value="{{ TicketStatus.WARTET.value }}" {{ 'selected' if ticket.status == TicketStatus.WARTET.value }}>{{ TicketStatus.WARTET.value|status_label|upper }}</option>
-                <option value="{{ TicketStatus.ERLEDIGT.value }}" {{ 'selected' if ticket.status == TicketStatus.ERLEDIGT.value }}>{{ TicketStatus.ERLEDIGT.value|status_label|upper }}</option>
+                <option value="{{ TicketStatus.OFFEN.value }}" {{ 'selected' if ticket.status == TicketStatus.OFFEN.value }}>{{ TicketStatus.OFFEN.value|status_label }}</option>
+                <option value="{{ TicketStatus.IN_BEARBEITUNG.value }}" {{ 'selected' if ticket.status == TicketStatus.IN_BEARBEITUNG.value }}>{{ TicketStatus.IN_BEARBEITUNG.value|status_label }}</option>
+                <option value="{{ TicketStatus.WARTET.value }}" {{ 'selected' if ticket.status == TicketStatus.WARTET.value }}>{{ TicketStatus.WARTET.value|status_label }}</option>
+                <option value="{{ TicketStatus.ERLEDIGT.value }}" {{ 'selected' if ticket.status == TicketStatus.ERLEDIGT.value }}>{{ TicketStatus.ERLEDIGT.value|status_label }}</option>
             </select>
         </div>
 

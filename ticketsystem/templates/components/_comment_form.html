@@ -24,8 +24,9 @@
                         </button>
                         {% endfor %}
                         {% for shortcut in wait_shortcuts %}
-                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill py-1 px-3 shortcut-btn" data-shortcut="{{ shortcut }}">
-                            {{ shortcut|replace('Wartet auf: ', '⏳ ') }}
+                        {% set wait_label = shortcut|replace('Wartet auf: ', '⏳ ') %}
+                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill py-1 px-3 shortcut-btn" data-shortcut="{{ wait_label }}">
+                            {{ wait_label }}
                         </button>
                         {% endfor %}
                     </div>
