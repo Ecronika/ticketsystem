@@ -5,11 +5,26 @@ and the ``@api_endpoint`` decorator translate into the appropriate HTTP
 response.
 """
 
+from typing import Optional
+
 
 class DomainError(Exception):
-    """Base class for all domain-specific errors."""
+    """Base class for all domain-specific errors.
+
+    The optional ``field`` attribute identifies the form/input field a
+    validation error belongs to, enabling inline error rendering on the
+    client side. Approach A (class-level default) is used so that existing
+    subclasses which call ``super().__init__(msg)`` or don't override
+    ``__init__`` at all continue to work without modification.
+    """
 
     status_code: int = 400
+    field: Optional[str] = None
+
+    def __init__(self, message: str = "", *, field: Optional[str] = None) -> None:
+        super().__init__(message)
+        if field is not None:
+            self.field = field
 
 
 class NotFoundError(DomainError):
