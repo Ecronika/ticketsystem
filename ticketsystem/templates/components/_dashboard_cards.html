@@ -4,7 +4,7 @@
    Ticket-Daten; die eigentliche Card-Struktur lebt als Makro in
    `_ticket_item.html`.
 #}
-{% from "components/_ticket_item.html" import render_ticket_card %}
+{% from "components/_ticket_item.html" import render_ticket_card with context %}
 {% for ticket in focus_tickets %}
     {{ render_ticket_card(ticket) }}
 {% else %}

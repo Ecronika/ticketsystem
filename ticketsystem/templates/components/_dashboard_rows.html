@@ -4,7 +4,7 @@
    Makro in `_ticket_item.html`, damit Desktop-Zeile und Mobile-Card dieselbe
    Datenquelle teilen.
 #}
-{% from "components/_ticket_item.html" import render_ticket_row %}
+{% from "components/_ticket_item.html" import render_ticket_row with context %}
 {% for ticket in focus_tickets %}
     {{ render_ticket_row(ticket) }}
 {% else %}
