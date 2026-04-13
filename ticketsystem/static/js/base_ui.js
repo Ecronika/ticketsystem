@@ -2,18 +2,18 @@
 (function() {
     // === SHARED INGRESS HELPER ===
     // Reads the Home Assistant ingress prefix from the page. Used by dashboard
-    // bulk-delete Undo, session-warning, and any other module needing absolute
-    // URLs. Falls back to an empty string so tests/dev-mode still work.
+    // bulk-delete Undo, session keep-alive pings, and any other module needing
+    // absolute URLs for fetch() calls. Falls back to an empty string so
+    // tests/dev-mode still work.
     //
-    // SECURITY: the returned value is concatenated into URLs that flow into
-    // window.location.href and fetch(). A compromised reverse-proxy or DOM
-    // tamper could otherwise inject a javascript: URL (CWE-79, CodeQL
-    // js/xss-through-dom). Defense-in-depth:
-    //   1. Source-side allowlist regex rejects anything that isn't an
-    //      absolute URL path.
-    //   2. Dangerous sinks (location.href) additionally wrap via the URL
-    //      API in safeSameOriginPath(), which CodeQL recognises as a
-    //      same-origin sanitiser.
+    // SECURITY: the returned value is concatenated into fetch() URLs. A
+    // compromised reverse-proxy or DOM tamper could otherwise inject a
+    // non-path payload (CWE-79, CodeQL js/xss-through-dom). Source-side
+    // allowlist regex rejects anything that isn't an absolute URL path.
+    //
+    // For navigation sinks (window.location.href) we deliberately do NOT
+    // concatenate getIngress() — see the session-timeout handler below, which
+    // uses location.reload() so no DOM-derived text ever reaches the URL.
     const SAFE_INGRESS_RE = /^\/[A-Za-z0-9_\-./]*$/;
     window.getIngress = function () {
         const raw = document.querySelector('.navbar')?.getAttribute('data-ingress')
@@ -21,22 +21,6 @@
             || '';
         if (raw === '' || SAFE_INGRESS_RE.test(raw)) return raw;
         return '';
-    };
-
-    // Build a same-origin URL path from the (possibly-tainted) ingress prefix
-    // plus a hardcoded suffix. Returns the literal suffix when the resulting
-    // URL is not same-origin or not http(s) — preventing javascript:/data:
-    // URLs from reaching location.href.
-    window.safeSameOriginPath = function (suffix) {
-        const normalizedSuffix = suffix.startsWith('/') ? suffix : '/' + suffix;
-        try {
-            const u = new URL(window.getIngress() + normalizedSuffix, window.location.origin);
-            if ((u.protocol === 'http:' || u.protocol === 'https:')
-                && u.origin === window.location.origin) {
-                return u.pathname + u.search;
-            }
-        } catch (_) { /* malformed — fall through to safe literal */ }
-        return normalizedSuffix;
     };
 
     // === GLOBAL UI ALERT UTILITY ===
@@ -294,11 +278,12 @@
             clearTimeout(expireTimer);
             warnTimer = setTimeout(showWarning, WARN_AT_MS);
             expireTimer = setTimeout(function() {
-                // Route through safeSameOriginPath so CodeQL / js/xss-through-dom
-                // recognises the URL-API-based same-origin sanitiser and any
-                // javascript:/data: payload in data-ingress falls through to the
-                // hardcoded '/logout' literal.
-                window.location.href = window.safeSameOriginPath('/logout');
+                // At this point (8h of inactivity) the server-side session
+                // cookie has also expired, so reloading the current page
+                // triggers Flask's auth middleware to redirect to the login
+                // page. Reload takes no URL argument — nothing DOM-derived
+                // can flow into navigation here (CodeQL js/xss-through-dom).
+                window.location.reload();
             }, SESSION_MS);
         }
 
