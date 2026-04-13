@@ -364,9 +364,11 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             const data = await resp.json();
             if (data.success) {
-                // Remove the row for immediate visual feedback.
-                const cb = document.querySelector('.bulk-select-checkbox[value="' + ticketId + '"]');
-                cb?.closest('tr')?.remove();
+                // Remove row AND card for immediate visual feedback (both exist in DOM,
+                // only one is visible via CSS media queries — remove both to keep DOM clean).
+                document.querySelectorAll('.bulk-select-checkbox[value="' + ticketId + '"]').forEach(cb => {
+                    cb.closest('tr, .ticket-card')?.remove();
+                });
                 // Hide the bulk bar since nothing is selected anymore.
                 updateBulkBar();
                 btn.disabled = false;
@@ -426,6 +428,7 @@ document.addEventListener('DOMContentLoaded', function() {
 {% endblock %}
 
 {% block content %}
+{% from "components/_ticket_item.html" import render_ticket_card %}
 {# --- Helper macros --- #}
 {% macro sort_link(column, label) %}
 {% set is_active = sort_by == column %}
@@ -534,8 +537,25 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 {% endif %}
 
+<!-- Mobile-Card-Darstellung (< 900 px). Nutzt denselben `focus_tickets`-Kontext
+     wie die Tabelle. Sichtbarkeit wird per CSS-Media-Query geschaltet. -->
+<div class="ticket-cards" role="list" aria-label="Tickets">
+    {% for ticket in focus_tickets %}
+        {{ render_ticket_card(ticket) }}
+    {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-ticket-perforated display-4 mb-2 opacity-25 d-block"></i>
+            <p class="h6 fw-bold text-secondary mb-1">Keine Tickets gefunden.</p>
+            <p class="small opacity-75 mb-3">Das System ist bereit.</p>
+            <a href="{{ ingress_path }}{{ url_for('main.ticket_new') }}" class="btn btn-primary rounded-pill px-4 shadow-sm btn-sm">
+                <i class="bi bi-plus-circle me-1"></i>Neues Ticket
+            </a>
+        </div>
+    {% endfor %}
+</div>
+
 <!-- Compact Data Table -->
-<div class="card card-std overflow-hidden">
+<div class="card card-std overflow-hidden ticket-table-wrapper">
     <div class="card-body p-0">
         <div class="table-responsive">
             <table id="dashTable" class="table table-hover dash-table mb-0 align-middle">
@@ -546,8 +566,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         </th>
                         <th class="ps-3 col-w-70 {{ 'sorted' if sort_by == 'id' }}">{{ sort_link('id', '#') }}</th>
                         <th class="{{ 'sorted' if sort_by == 'title' }}">{{ sort_link('title', 'Betreff') }}</th>
-                        <th class="col-w-160">{{ sort_link('order_reference', 'Baustelle/Kunde') }}</th>
-                        <th class="col-w-160">Zuständig</th>
+                        <th class="col-w-160 hide-on-tablet">{{ sort_link('order_reference', 'Baustelle/Kunde') }}</th>
+                        <th class="col-w-160 hide-on-tablet">Zuständig</th>
                         <th class="text-center col-w-60 {{ 'sorted' if sort_by == 'priority' }}">{{ sort_link('priority', 'Prio') }}</th>
                         <th class="text-center col-w-130 {{ 'sorted' if sort_by == 'status' }}">{{ sort_link('status', 'Status') }}</th>
                         <th class="text-end pe-3 col-w-80 {{ 'sorted' if sort_by == 'due_date' }}">{{ sort_link('due_date', 'Fällig') }}</th>
