@@ -819,6 +819,19 @@ def priority_label_filter(priority: int) -> str:
     return _PRIO_LABELS.get(priority, f"P{priority}")
 
 
+_PRIO_COLORS = {
+    TicketPriority.HOCH.value: "danger",
+    TicketPriority.MITTEL.value: "primary",
+    TicketPriority.NIEDRIG.value: "success",
+}
+
+
+@app.template_filter("priority_color")
+def priority_color_filter(priority: int) -> str:
+    """Return Bootstrap color key (danger/primary/success) for a priority."""
+    return _PRIO_COLORS.get(priority, "secondary")
+
+
 # ---------------------------------------------------------------------------
 # Error handlers
 # ---------------------------------------------------------------------------

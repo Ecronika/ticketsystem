@@ -27,7 +27,8 @@
                 <div class="card-body p-4 d-flex flex-column">
                     <div class="d-flex justify-content-between align-items-start mb-3">
                         <div>
-                            <span class="badge bg-danger-subtle text-danger rounded-pill px-2 py-1 mb-2 fw-bold text-xs">
+                            {% set prio_color = ticket.priority|priority_color %}
+                            <span class="badge bg-{{ prio_color }}-subtle text-{{ prio_color }} rounded-pill px-2 py-1 mb-2 fw-bold text-xs">
                                 {{ ticket.priority|priority_label }}
                             </span>
                             <span class="badge bg-warning-subtle text-warning rounded-pill px-2 py-1 mb-2 fw-bold ms-1 text-xs">
