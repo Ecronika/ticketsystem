@@ -22,7 +22,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from enums import ELEVATED_ROLES, TicketPriority, TicketStatus
 from extensions import db, limiter
-from models import ChecklistItem, ChecklistTemplate, Team, Ticket, Worker
+from models import ChecklistItem, ChecklistTemplate, Team, Ticket
 from routes.auth import admin_or_management_required, redirect_to, worker_required
 from services._ticket_helpers import ContactInfo, TicketFilterSpec, _urgency_score
 from services.dashboard_service import DashboardService
@@ -36,6 +36,8 @@ from ._helpers import (
     _parse_callback_due,
     _parse_date,
     _safe_int,
+    get_active_workers,
+    get_all_teams,
 )
 
 
@@ -64,7 +66,8 @@ def _dashboard_view() -> str | Response:
     # Time horizon filter (due within N days, 0 = all)
     days_horizon = request.args.get("days", 0, type=int)
 
-    # Active tab: "all" (default), "unassigned", "callback", "wartet"
+    # Active tab: "all" (default), "unassigned", "callback"
+    # Deep-link alias retained for backward compat: "wartet" (not shown as a tab)
     tab = request.args.get("tab", "all")
 
     if search.startswith("#") and search[1:].isdigit():
@@ -96,8 +99,8 @@ def _dashboard_view() -> str | Response:
         due_within_days=days_horizon,
     ))
 
-    all_workers = Worker.query.filter_by(is_active=True).order_by(Worker.name).all()
-    all_teams = Team.query.order_by(Team.name).all()
+    all_workers = get_active_workers()
+    all_teams = get_all_teams()
 
     return render_template(
         "index.html",
@@ -187,8 +190,8 @@ def _new_ticket_view() -> str | Response:
     if request.method == "POST":
         return _handle_ticket_creation()
 
-    all_workers = Worker.query.filter_by(is_active=True).all()
-    all_teams = Team.query.all()
+    all_workers = get_active_workers()
+    all_teams = get_all_teams()
     all_templates = ChecklistTemplate.query.all()
     return render_template(
         "ticket_new.html",
@@ -300,8 +303,8 @@ def _ticket_detail_view(ticket_id: int) -> str | Response:
         flash("Ticket nicht gefunden.", "error")
         return redirect_to("main.index")
 
-    all_workers = Worker.query.filter_by(is_active=True).all()
-    all_teams = Team.query.all()
+    all_workers = get_active_workers()
+    all_teams = get_all_teams()
     all_templates = ChecklistTemplate.query.all()
     return render_template(
         "ticket_detail.html",
@@ -460,9 +463,7 @@ def _group_by_urgency(
 def _workload_view() -> str:
     """Admin/Management workload overview per worker."""
     absent_entries, present_entries = DashboardService.get_workload_overview()
-    active_workers = (
-        Worker.query.filter_by(is_active=True).order_by(Worker.name).all()
-    )
+    active_workers = get_active_workers()
     return render_template(
         "workload.html",
         absent_entries=absent_entries,
@@ -503,6 +504,7 @@ def _dashboard_rows_api() -> Response:
         unassigned_only = True
     elif tab == "callback":
         callback_pending = True
+    # Deep-link alias: "wartet" was formerly a UI tab, now lives as a backward-compat filter only.
     elif tab == "wartet":
         status_filter = status_filter or "wartet"
 
@@ -522,8 +524,8 @@ def _dashboard_rows_api() -> Response:
         sort_dir=sort_dir,
     ))
 
-    all_workers = Worker.query.filter_by(is_active=True).order_by(Worker.name).all()
-    all_teams = Team.query.order_by(Team.name).all()
+    all_workers = get_active_workers()
+    all_teams = get_all_teams()
 
     template_ctx = dict(
         focus_tickets=tickets_data["focus_pagination"].items,

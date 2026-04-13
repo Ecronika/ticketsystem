@@ -12,3 +12,6 @@ Flask-APScheduler==1.13.1
 pyOpenSSL==26.0.0
 prometheus-client==0.20.0
 python-dateutil==2.9.0
+cachetools==5.5.2
+pydantic>=2.0,<3.0
+argon2-cffi>=23.1.0

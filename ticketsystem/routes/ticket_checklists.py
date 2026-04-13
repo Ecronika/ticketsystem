@@ -60,10 +60,11 @@ def _toggle_checklist_api(item_id: int) -> tuple[Response, int] | Response:
     role = session.get("role")
 
     item = db.session.get(ChecklistItem, item_id)
-    if item:
-        ticket = _check_ticket_access(item.ticket_id, worker_id, role)
-        if ticket is None:
-            return api_error("Kein Zugriff auf dieses Ticket.", 403)
+    if not item:
+        return api_error("Checklisten-Element nicht gefunden.", 404)
+    ticket = _check_ticket_access(item.ticket_id, worker_id, role)
+    if ticket is None:
+        return api_error("Kein Zugriff auf dieses Ticket.", 403)
 
     lock_err = check_approval_lock(item_id=item_id)
     if lock_err:
@@ -85,10 +86,11 @@ def _delete_checklist_api(item_id: int) -> tuple[Response, int] | Response:
     worker_id = session.get("worker_id")
     role = session.get("role")
     item = db.session.get(ChecklistItem, item_id)
-    if item:
-        ticket = _check_ticket_access(item.ticket_id, worker_id, role)
-        if ticket is None:
-            return api_error("Kein Zugriff auf dieses Ticket.", 403)
+    if not item:
+        return api_error("Checklisten-Element nicht gefunden.", 404)
+    ticket = _check_ticket_access(item.ticket_id, worker_id, role)
+    if ticket is None:
+        return api_error("Kein Zugriff auf dieses Ticket.", 403)
 
     lock_err = check_approval_lock(item_id=item_id)
     if lock_err:

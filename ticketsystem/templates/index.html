@@ -73,10 +73,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     setInterval(updateDashboard, POLL_INTERVAL);
 
-    document.querySelectorAll('.reload-page-link').forEach(el => {
-        el.addEventListener('click', (e) => { e.preventDefault(); location.reload(); });
-    });
-
     // --- Delegated table events (survive DOM swaps after silent refresh) ---
     const dashTable = document.getElementById('dashTable');
     if (dashTable) {
@@ -503,13 +499,6 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 </div>
 
-<!-- Reload Hint -->
-<div id="reloadHint" class="d-none alert alert-info alert-dismissible py-2 mb-3 shadow-sm border-0 rounded-3 small" role="alert">
-    <i class="bi bi-arrow-clockwise me-1"></i>
-    Neue Tickets verfügbar — <a href="#" class="alert-link reload-page-link">Jetzt aktualisieren</a>
-    <button type="button" class="btn-close btn-sm" data-bs-dismiss="alert" aria-label="Schließen"></button>
-</div>
-
 <!-- Action-Driven Tabs (KPI) -->
 <div class="d-flex align-items-end border-bottom mb-3 gap-0 overflow-auto">
     <a href="{{ ingress_path }}{{ url_for('main.index', tab='all', q=query) }}" class="dash-tab text-decoration-none {{ 'active' if active_tab == 'all' }}">
@@ -523,10 +512,6 @@ document.addEventListener('DOMContentLoaded', function() {
     <a href="{{ ingress_path }}{{ url_for('main.index', tab='callback', q=query) }}" class="dash-tab text-decoration-none {{ 'active' if active_tab == 'callback' }}">
         <i class="bi bi-telephone-forward me-1 text-warning"></i>Rückruf
         <span class="tab-count {{ 'bg-warning text-dark' if summary_counts.callback_pending > 0 else 'bg-surface-subtle text-muted' }}">{{ summary_counts.callback_pending }}</span>
-    </a>
-    <a href="{{ ingress_path }}{{ url_for('main.index', tab='wartet', q=query) }}" class="dash-tab text-decoration-none {{ 'active' if active_tab == 'wartet' }}">
-        <i class="bi bi-hourglass-split me-1 text-secondary"></i>Wartet
-        <span class="tab-count bg-surface-subtle text-muted">{{ summary_counts.wartet }}</span>
     </a>
 </div>
 

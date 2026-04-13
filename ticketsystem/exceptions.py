@@ -82,3 +82,34 @@ class LastAdminError(DomainError):
             "Letzter aktiver Admin kann nicht deaktiviert oder "
             "herabgestuft werden."
         )
+
+
+class ApiKeyError(DomainError):
+    """Base class for API-key related errors."""
+    status_code = 401
+
+
+class InvalidApiKey(ApiKeyError):
+    """Generic invalid or missing API key."""
+
+    def __init__(self):
+        super().__init__("unauthorized")
+
+
+class IpNotAllowed(ApiKeyError):
+    """Source IP is not in the key's allowlist."""
+
+    status_code = 403
+
+    def __init__(self):
+        super().__init__("forbidden")
+
+
+class ScopeDenied(ApiKeyError):
+    """Key does not have the required scope."""
+
+    status_code = 403
+
+    def __init__(self, scope: str):
+        self.scope = scope
+        super().__init__("forbidden")

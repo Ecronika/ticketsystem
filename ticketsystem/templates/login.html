@@ -29,11 +29,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 <h4 class="mb-0"><i class="bi bi-person-badge" aria-hidden="true"></i> Mitarbeiter Login</h4>
             </div>
             <div class="card-body">
-                <div class="bg-primary-subtle p-3 rounded-3 mb-4 text-primary text-center">
-                    <h5 class="h6 fw-bold mb-1"><i class="bi bi-info-circle-fill me-1"></i> TicketSystem Shopfloor</h5>
-                    <p class="small mb-0 opacity-75">Störungen melden & Status in Echtzeit verfolgen.</p>
-                </div>
-
                 <form method="POST">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                     <div class="mb-3">
@@ -62,7 +57,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                     <div class="d-grid mt-4">
                         <button type="submit" class="btn btn-primary btn-lg rounded-pill shadow-sm">
-                            <i class="bi bi-box-arrow-in-right me-2" aria-hidden="true"></i> Jetzt Einloggen
+                            <i class="bi bi-box-arrow-in-right me-2" aria-hidden="true"></i> Einloggen
                         </button>
                     </div>
                     <input type="hidden" name="next" value="{{ request.args.get('next', '') }}">
