@@ -332,6 +332,45 @@ document.addEventListener('DOMContentLoaded', function() {
                   this, '<i class="bi bi-calendar-check me-1"></i>Fälligkeit setzen');
     });
 
+    async function softDeleteSingleWithUndo(ticketId, btn, originalHtml) {
+        // Special path for N=1 soft-delete: skip the full-page reload so the
+        // Undo-toast stays visible. Remove the row from the DOM instead; if the
+        // user clicks "Rückgängig", the global undo handler reloads the page to
+        // bring the ticket back into its correct slot.
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>...';
+        try {
+            const resp = await fetch(ingress + '/api/tickets/bulk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ ticket_ids: [ticketId], action: 'soft_delete' })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                // Remove the row for immediate visual feedback.
+                const cb = document.querySelector('.bulk-select-checkbox[value="' + ticketId + '"]');
+                cb?.closest('tr')?.remove();
+                // Hide the bulk bar since nothing is selected anymore.
+                updateBulkBar();
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                // Build restore URL and show Undo-toast.
+                const restoreUrl = ingress + '/api/ticket/' + ticketId + '/restore';
+                if (window.showUiAlert) {
+                    window.showUiAlert('Ticket gelöscht.', 'success', { undoUrl: restoreUrl });
+                }
+            } else {
+                if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Unbekannt'), 'danger');
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        } catch (e) {
+            if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.', 'danger');
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    }
+
     document.getElementById('bulkDeleteBtn')?.addEventListener('click', async function() {
         const ids = getChecked();
         if (!ids.length) return;
@@ -339,8 +378,15 @@ document.addEventListener('DOMContentLoaded', function() {
             ? await window.showConfirm('Tickets löschen', ids.length + ' Ticket(s) wirklich löschen? (wiederherstellbar über Archiv)')
             : confirm(ids.length + ' Ticket(s) löschen?');
         if (!confirmed) return;
-        bulkPost({ ticket_ids: ids, action: 'soft_delete' },
-                  this, '<i class="bi bi-trash me-1"></i>Löschen');
+        const originalHtml = '<i class="bi bi-trash me-1"></i>Löschen';
+        if (ids.length === 1) {
+            // Single ticket: keep Undo-toast alive by avoiding full reload.
+            softDeleteSingleWithUndo(ids[0], this, originalHtml);
+        } else {
+            // Bulk delete: existing reload-based flow (Undo for N>1 is out of
+            // scope for this phase — requires a batch-restore endpoint).
+            bulkPost({ ticket_ids: ids, action: 'soft_delete' }, this, originalHtml);
+        }
     });
 
     // Search clear button (no page reload)
