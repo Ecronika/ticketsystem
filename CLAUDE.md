@@ -12,12 +12,16 @@ Läuft als Home Assistant Add-on hinter NGINX Reverse Proxy.
 ```bash
 cd ticketsystem
 python -c "from app import app"                    # Import-Check
-python -m pytest tests/ -v                          # 7 pass, 8 pre-existing failures
+python -m pytest tests/ -v                          # Test-Suite
 python -m flake8 --max-line-length=120 *.py routes/ services/
 ```
 
-Baseline: **7 passed, 8 failed** (Failures sind bekannte, nicht verwandte Probleme).
-Jede Änderung muss diese Baseline halten — keine neuen Failures einführen.
+**Baseline-Regel:** Vor jeder Änderung die aktuelle Pytest-Baseline (X passed, Y failed)
+erfassen. Nach der Änderung die Baseline vor dem Commit erneut prüfen. Keine neuen
+Failures einführen — der Zustand darf sich nur verbessern oder gleich bleiben.
+
+Keine konkreten Testzahlen in dieser Datei hinterlegen — sie veralten schneller als
+sie aktualisiert werden.
 
 ### Git
 
