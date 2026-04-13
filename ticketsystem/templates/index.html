@@ -21,9 +21,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const params = new URLSearchParams(window.location.search);
             const r = await fetch(ingress + '/api/dashboard/rows?' + params.toString());
             if (!r.ok) return;
-            const html = await r.text();
+            const data = await r.json();
+            if (!data || !data.success) return;
             const tbody = document.querySelector('#dashTable tbody');
-            if (tbody) tbody.innerHTML = html;
+            if (tbody && typeof data.rows_html === 'string') tbody.innerHTML = data.rows_html;
+            const cards = document.querySelector('.ticket-cards');
+            if (cards && typeof data.cards_html === 'string') cards.innerHTML = data.cards_html;
         } catch(e) {}
         finally { refreshing = false; }
     }
@@ -41,10 +44,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 await refreshTableRows();
                 lastCount = data.counts.summary;
                 lastUpdated = data.last_updated;
+                const rl = document.getElementById('dashRefreshLabel');
+                if (rl) rl.dataset.refreshedAt = new Date().toISOString();
             }
             if (!lastUpdated) lastUpdated = data.last_updated;
         } catch(e) {}
     }
+
+    // --- Relative "last refreshed" label ---
+    (() => {
+        const el = document.getElementById('dashRefreshLabel');
+        if (el) el.dataset.refreshedAt = new Date().toISOString();
+    })();
+    setInterval(() => {
+        const el = document.getElementById('dashRefreshLabel');
+        if (!el || !el.dataset.refreshedAt) return;
+        const ts = new Date(el.dataset.refreshedAt);
+        const diffSec = Math.max(0, Math.round((Date.now() - ts.getTime()) / 1000));
+        if (diffSec < 5) el.textContent = 'Aktualisiert gerade eben';
+        else if (diffSec < 60) el.textContent = `Aktualisiert vor ${diffSec}s`;
+        else el.textContent = `Aktualisiert vor ${Math.floor(diffSec / 60)}min`;
+    }, 1000);
 
     fetch(ingress + '/api/dashboard/summary')
         .then(r => r.json())
@@ -328,6 +348,47 @@ document.addEventListener('DOMContentLoaded', function() {
                   this, '<i class="bi bi-calendar-check me-1"></i>Fälligkeit setzen');
     });
 
+    async function softDeleteSingleWithUndo(ticketId, btn, originalHtml) {
+        // Special path for N=1 soft-delete: skip the full-page reload so the
+        // Undo-toast stays visible. Remove the row from the DOM instead; if the
+        // user clicks "Rückgängig", the global undo handler reloads the page to
+        // bring the ticket back into its correct slot.
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>...';
+        try {
+            const resp = await fetch(ingress + '/api/tickets/bulk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ ticket_ids: [ticketId], action: 'soft_delete' })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                // Remove row AND card for immediate visual feedback (both exist in DOM,
+                // only one is visible via CSS media queries — remove both to keep DOM clean).
+                document.querySelectorAll('.bulk-select-checkbox[value="' + ticketId + '"]').forEach(cb => {
+                    cb.closest('tr, .ticket-card')?.remove();
+                });
+                // Hide the bulk bar since nothing is selected anymore.
+                updateBulkBar();
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                // Build restore URL and show Undo-toast.
+                const restoreUrl = ingress + '/api/ticket/' + ticketId + '/restore';
+                if (window.showUiAlert) {
+                    window.showUiAlert('Ticket gelöscht.', 'success', { undoUrl: restoreUrl });
+                }
+            } else {
+                if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Unbekannt'), 'danger');
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        } catch (e) {
+            if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.', 'danger');
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    }
+
     document.getElementById('bulkDeleteBtn')?.addEventListener('click', async function() {
         const ids = getChecked();
         if (!ids.length) return;
@@ -335,8 +396,15 @@ document.addEventListener('DOMContentLoaded', function() {
             ? await window.showConfirm('Tickets löschen', ids.length + ' Ticket(s) wirklich löschen? (wiederherstellbar über Archiv)')
             : confirm(ids.length + ' Ticket(s) löschen?');
         if (!confirmed) return;
-        bulkPost({ ticket_ids: ids, action: 'soft_delete' },
-                  this, '<i class="bi bi-trash me-1"></i>Löschen');
+        const originalHtml = '<i class="bi bi-trash me-1"></i>Löschen';
+        if (ids.length === 1) {
+            // Single ticket: keep Undo-toast alive by avoiding full reload.
+            softDeleteSingleWithUndo(ids[0], this, originalHtml);
+        } else {
+            // Bulk delete: existing reload-based flow (Undo for N>1 is out of
+            // scope for this phase — requires a batch-restore endpoint).
+            bulkPost({ ticket_ids: ids, action: 'soft_delete' }, this, originalHtml);
+        }
     });
 
     // Search clear button (no page reload)
@@ -380,7 +448,11 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h1 class="visually-hidden">Dashboard</h1>
-        <h2 class="h4 fw-bold mb-0 display-font">Alle Tickets</h2>
+        <h2 class="h4 fw-bold mb-0 display-font">Alle Tickets
+            <span id="dashRefreshLabel" class="text-muted small ms-2 fw-normal" aria-live="off">
+              Aktualisiert gerade eben
+            </span>
+        </h2>
         <p class="text-secondary small mb-0">Triage & Dispatching</p>
     </div>
     <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -410,6 +482,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 <button type="button" class="input-group-text bg-transparent border-start-0 text-muted border-0 cursor-pointer" title="Suche zurücksetzen" id="searchClearBtn"><i class="bi bi-x-lg"></i></button>
                 {% endif %}
             </div>
+            <span id="dashSearchCount" class="text-muted small ms-2 align-self-center"
+                  role="status" aria-live="polite" aria-atomic="true">
+              {% if pagination.total == 1 %}1 Ticket{% else %}{{ pagination.total }} Tickets{% endif %}
+              {% if query %}für „{{ query }}"{% endif %}
+            </span>
         </form>
         {% if session.get('role') != 'viewer' %}
         <button id="bulkToggleBtn" class="btn btn-outline-secondary btn-sm rounded-pill px-3" type="button">
@@ -447,8 +524,14 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 {% endif %}
 
+<!-- Mobile-Card-Darstellung (< 900 px). Nutzt denselben `focus_tickets`-Kontext
+     wie die Tabelle. Sichtbarkeit wird per CSS-Media-Query geschaltet. -->
+<div class="ticket-cards" role="list" aria-label="Tickets">
+    {% include "components/_dashboard_cards.html" %}
+</div>
+
 <!-- Compact Data Table -->
-<div class="card card-std overflow-hidden">
+<div class="card card-std overflow-hidden ticket-table-wrapper">
     <div class="card-body p-0">
         <div class="table-responsive">
             <table id="dashTable" class="table table-hover dash-table mb-0 align-middle">
@@ -459,8 +542,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         </th>
                         <th class="ps-3 col-w-70 {{ 'sorted' if sort_by == 'id' }}">{{ sort_link('id', '#') }}</th>
                         <th class="{{ 'sorted' if sort_by == 'title' }}">{{ sort_link('title', 'Betreff') }}</th>
-                        <th class="col-w-160">{{ sort_link('order_reference', 'Baustelle/Kunde') }}</th>
-                        <th class="col-w-160">Zuständig</th>
+                        <th class="col-w-160 hide-on-tablet">{{ sort_link('order_reference', 'Baustelle/Kunde') }}</th>
+                        <th class="col-w-160 hide-on-tablet">Zuständig</th>
                         <th class="text-center col-w-60 {{ 'sorted' if sort_by == 'priority' }}">{{ sort_link('priority', 'Prio') }}</th>
                         <th class="text-center col-w-130 {{ 'sorted' if sort_by == 'status' }}">{{ sort_link('status', 'Status') }}</th>
                         <th class="text-end pe-3 col-w-80 {{ 'sorted' if sort_by == 'due_date' }}">{{ sort_link('due_date', 'Fällig') }}</th>

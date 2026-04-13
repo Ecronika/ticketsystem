@@ -180,7 +180,7 @@ def test_confidential_ticket_access(client, db, test_app):
     response = client.get(f'/ticket/{ticket_id}')
     assert response.status_code == 200
     assert b'Geheim' in response.data
-    
+
     # Test Worker 2 after Assignment (Access)
     with test_app.app_context():
         TicketAssignmentService.assign_ticket(ticket_id, worker2.id, "Admin", admin.id)
@@ -192,6 +192,44 @@ def test_confidential_ticket_access(client, db, test_app):
     response = client.get(f'/ticket/{ticket_id}')
     assert response.status_code == 200
     assert b'Geheim' in response.data
+
+
+def test_restore_ticket(test_app, db):
+    """Soft-deleted ticket can be restored via service method."""
+    with test_app.app_context():
+        ticket = TicketCoreService.create_ticket(
+            title="Wird gelöscht",
+            priority=TicketPriority.MITTEL,
+            author_name="Max",
+        )
+        tid = ticket.id
+        TicketCoreService.delete_ticket(tid, author_name="Admin")
+        restored = TicketCoreService.restore_ticket(tid, author_name="Admin")
+        assert restored.is_deleted is False
+        assert any(
+            c.is_system_event and "wiederhergestellt" in (c.text or "").lower()
+            for c in restored.comments
+        )
+
+        # Idempotent: calling restore again must NOT add a second TICKET_RESTORED comment
+        restored_count_before = sum(
+            1 for c in restored.comments if c.event_type == "TICKET_RESTORED"
+        )
+        TicketCoreService.restore_ticket(tid, author_name="Admin")
+        restored_count_after = sum(
+            1 for c in restored.comments if c.event_type == "TICKET_RESTORED"
+        )
+        assert restored_count_before == 1
+        assert restored_count_after == 1
+
+
+def test_restore_ticket_not_found(test_app, db):
+    """restore_ticket raises TicketNotFoundError for a non-existent ID."""
+    from exceptions import TicketNotFoundError
+
+    with test_app.app_context():
+        with pytest.raises(TicketNotFoundError):
+            TicketCoreService.restore_ticket(99999)
 
 
 def test_workload_overview_does_not_raise(test_app):

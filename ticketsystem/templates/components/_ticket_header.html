@@ -23,7 +23,7 @@
                 <div class="d-flex flex-wrap gap-2 mb-2" id="metadataGrid">
                     <div id="priorityStatic" class="rounded-3 px-2 py-1 bg-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }}-subtle">
                         <small class="text-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} x-small text-uppercase d-block meta-label">Priorität</small>
-                        <span class="fw-semibold small text-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }}">{{ ticket.priority|priority_label }}</span>
+                        <span class="fw-semibold small text-{{ 'danger' if ticket.priority == 1 else 'primary' if ticket.priority == 2 else 'success' }} priority-{{ 'hoch' if ticket.priority == 1 else 'mittel' if ticket.priority == 2 else 'niedrig' }}">{{ ticket.priority|priority_label }}</span>
                     </div>
                     <div class="meta-chip">
                         <small class="meta-chip-label">Ticket</small>

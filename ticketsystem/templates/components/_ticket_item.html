@@ -1,0 +1,174 @@
+{# =============================================================================
+   Ticket-Item Macros — rendern ein Ticket entweder als Tabellenzeile (Desktop/
+   Tablet) oder als Card (Mobile). Beide Varianten werden aus denselben
+   `focus_tickets` gespeist; per CSS-Media-Query wird je nach Viewport eine der
+   beiden Ansichten ausgeblendet.
+
+   Bulk-Select-Checkboxen tragen in BEIDEN Varianten die Klasse
+   `bulk-select-checkbox`, damit das bestehende Bulk-Aktionen-JS (in
+   `index.html`) unverändert funktioniert.
+   ============================================================================= #}
+
+{% macro render_ticket_row(ticket) %}
+<tr class="{{ 'prio-high' if ticket.priority == 1 }}" data-ticket-id="{{ ticket.id }}">
+    <td class="bulk-col ps-3">
+        {% if session.get('role') != 'viewer' %}
+        <input type="checkbox" class="form-check-input bulk-select-checkbox" value="{{ ticket.id }}" onclick="event.stopPropagation();">
+        {% endif %}
+    </td>
+    <td class="ps-3">
+        <span class="text-muted fw-bold small">{{ ticket.id }}</span>
+    </td>
+    <td>
+        <a href="{{ ingress_path }}{{ url_for('main.ticket_detail', ticket_id=ticket.id) }}" class="title-link">
+            {{ ticket.title }}
+        </a>
+        {% if ticket.is_confidential %}<i class="bi bi-lock-fill text-warning ms-1" title="Vertraulich"></i>{% endif %}
+        {% if ticket.recurrence %}<i class="bi bi-arrow-repeat text-primary ms-1" title="Serienticket"></i>{% endif %}
+        {% if ticket.approval and ticket.approval.status == ApprovalStatus.PENDING.value %}<span class="badge badge-subtle-warning rounded-pill x-small ms-1">FREIGABE</span>{% endif %}
+        {% for tag in ticket.tags %}
+        <span class="badge bg-secondary-subtle text-secondary rounded-pill fw-normal ms-1 text-xxs"><i class="bi bi-tag"></i> {{ tag.name }}</span>
+        {% endfor %}
+    </td>
+    <td class="small text-muted text-truncate max-w-160 hide-on-tablet">
+        {% if ticket.order_reference %}
+            <span title="{{ ticket.order_reference }}">{{ ticket.order_reference }}</span>
+        {% elif ticket.contact and ticket.contact.name %}
+            <span title="{{ ticket.contact.name }}">{{ ticket.contact.name }}</span>
+        {% else %}
+            <span class="opacity-25">—</span>
+        {% endif %}
+    </td>
+    <td class="hide-on-tablet">
+        {% if session.get('role') != 'viewer' %}
+        <div class="d-flex align-items-center gap-1">
+            <select class="inline-assign-select inline-select" data-ticket-id="{{ ticket.id }}"
+                    data-original="{{ ('team_' ~ ticket.assigned_team_id) if ticket.assigned_team_id else (ticket.assigned_to_id or '') }}"
+                    onmousedown="event.stopPropagation();">
+                <option value="" {{ 'selected' if not ticket.assigned_to_id and not ticket.assigned_team_id }}>— Keine —</option>
+                {% for w in workers %}
+                <option value="{{ w.id }}" {{ 'selected' if ticket.assigned_to_id == w.id }}>{{ w.name }}</option>
+                {% endfor %}
+                {% if teams %}
+                <optgroup label="Teams">
+                    {% for t in teams %}
+                    <option value="team_{{ t.id }}" {{ 'selected' if ticket.assigned_team_id == t.id }}>{{ t.name }}</option>
+                    {% endfor %}
+                </optgroup>
+                {% endif %}
+            </select>
+            {% if not ticket.assigned_to_id and not ticket.assigned_team_id %}
+            <button type="button"
+                    class="btn btn-link btn-sm p-0 text-primary assign-me-btn flex-shrink-0 x-small text-nowrap"
+                    data-ticket-id="{{ ticket.id }}"
+                    data-worker-id="{{ session.get('worker_id') }}"
+                    title="Mir zuweisen">
+                <i class="bi bi-person-check"></i>
+            </button>
+            {% endif %}
+        </div>
+        {% else %}
+            <span class="small">{{ ticket.assigned_to.name if ticket.assigned_to else (ticket.assigned_team.name if ticket.assigned_team else '—') }}</span>
+        {% endif %}
+    </td>
+    <td class="text-center">
+        <span class="prio-dot {{ 'high' if ticket.priority == 1 else 'medium' if ticket.priority == 2 else 'low' }}"
+              title="{{ ticket.priority|priority_label }}"></span>
+    </td>
+    <td class="text-center">
+        <span class="status-dot {{ ticket.status }} me-1"></span>
+        {% if session.get('role') != 'viewer' %}
+        <select class="inline-status-select inline-select" data-ticket-id="{{ ticket.id }}" data-original="{{ ticket.status }}">
+            <option value="offen" {{ 'selected' if ticket.status == 'offen' }}>Offen</option>
+            <option value="in_bearbeitung" {{ 'selected' if ticket.status == 'in_bearbeitung' }}>In Arbeit</option>
+            <option value="wartet" {{ 'selected' if ticket.status == 'wartet' }}>Wartet</option>
+            <option value="erledigt" {{ 'selected' if ticket.status == 'erledigt' }}>Erledigt</option>
+        </select>
+        {% else %}
+            <span class="small">{{ ticket.status|status_label }}</span>
+        {% endif %}
+    </td>
+    <td class="text-end pe-3 small">
+        {% if ticket.due_date %}
+        <span class="fw-bold {{ 'text-danger' if ticket.due_date < today else 'text-warning' if ticket.due_date == today else 'text-muted' }}">
+            {{ ticket.due_date|datetime('%d.%m.') }}
+        </span>
+        {% else %}
+        <span class="opacity-25">—</span>
+        {% endif %}
+    </td>
+</tr>
+{% endmacro %}
+
+
+{# ---------------------------------------------------------------------------
+   Mobile-Variante: kompakte Card-Darstellung. Verwendet die gleichen
+   `bulk-select-checkbox`- und `data-ticket-id`-Hooks wie die Tabellenzeile.
+   Priorität wird als farbiger linker Rand (via `data-priority`) signalisiert
+   und zusätzlich über das bereits existierende `priority-{hoch|mittel|niedrig}`-
+   Icon (Form-Signal für Farbfehlsichtige).
+   --------------------------------------------------------------------------- #}
+{% macro render_ticket_card(ticket) %}
+{% set prio_name = 'hoch' if ticket.priority == 1 else 'mittel' if ticket.priority == 2 else 'niedrig' %}
+<article class="ticket-card" role="listitem"
+         data-ticket-id="{{ ticket.id }}"
+         data-priority="{{ prio_name }}">
+  <header class="ticket-card-header">
+    {% if session.get('role') != 'viewer' %}
+    <label class="ticket-card-select" title="Ticket {{ ticket.id }} auswählen">
+      <input type="checkbox" class="form-check-input bulk-select-checkbox"
+             value="{{ ticket.id }}"
+             aria-label="Ticket {{ ticket.id }} auswählen"
+             onclick="event.stopPropagation();">
+    </label>
+    {% endif %}
+    <h3 class="ticket-card-title">
+      <a href="{{ ingress_path }}{{ url_for('main.ticket_detail', ticket_id=ticket.id) }}">
+        <span class="text-muted small me-1">#{{ ticket.id }}</span>{{ ticket.title }}
+      </a>
+      {% if ticket.is_confidential %}<i class="bi bi-lock-fill text-warning ms-1" title="Vertraulich"></i>{% endif %}
+      {% if ticket.recurrence %}<i class="bi bi-arrow-repeat text-primary ms-1" title="Serienticket"></i>{% endif %}
+    </h3>
+  </header>
+
+  <div class="ticket-card-badges">
+    <span class="badge status-{{ ticket.status }}">
+      <span class="status-dot {{ ticket.status }} me-1"></span>{{ ticket.status|status_label }}
+    </span>
+    <span class="badge priority-{{ prio_name }}">{{ ticket.priority|priority_label }}</span>
+    {% if ticket.approval and ticket.approval.status == ApprovalStatus.PENDING.value %}
+      <span class="badge badge-subtle-warning rounded-pill">FREIGABE</span>
+    {% endif %}
+    {% if ticket.due_date %}
+      <span class="badge bg-light text-dark {{ 'text-danger' if ticket.due_date < today else 'text-warning' if ticket.due_date == today }}">
+        <i class="bi bi-calendar-event me-1"></i>{{ ticket.due_date|datetime('%d.%m.') }}
+      </span>
+    {% endif %}
+  </div>
+
+  <div class="ticket-card-meta">
+    {% if ticket.assigned_to %}
+      <span><i class="bi bi-person me-1"></i>{{ ticket.assigned_to.name }}</span>
+    {% elif ticket.assigned_team %}
+      <span><i class="bi bi-people me-1"></i>{{ ticket.assigned_team.name }}</span>
+    {% else %}
+      <span class="text-muted"><i class="bi bi-person-x me-1"></i>Nicht zugewiesen</span>
+    {% endif %}
+    {% if ticket.order_reference %}
+      <span class="ticket-card-meta-sep" aria-hidden="true">·</span>
+      <span class="text-truncate">{{ ticket.order_reference }}</span>
+    {% elif ticket.contact and ticket.contact.name %}
+      <span class="ticket-card-meta-sep" aria-hidden="true">·</span>
+      <span class="text-truncate">{{ ticket.contact.name }}</span>
+    {% endif %}
+  </div>
+
+  {% if ticket.tags %}
+  <div class="ticket-card-tags">
+    {% for tag in ticket.tags %}
+    <span class="badge bg-secondary-subtle text-secondary rounded-pill fw-normal text-xxs"><i class="bi bi-tag"></i> {{ tag.name }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+</article>
+{% endmacro %}

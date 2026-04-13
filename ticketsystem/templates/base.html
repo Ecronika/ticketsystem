@@ -17,7 +17,9 @@
   {% block styles %}{% endblock %}
 </head>
 
-<body class="d-flex flex-column min-vh-100">
+<body class="d-flex flex-column min-vh-100"
+      data-shortcuts-writable="{{ 'true' if session.get('role') and session.get('role') != 'viewer' else 'false' }}"
+      data-new-ticket-url="{{ ingress_path }}{{ url_for('main.ticket_new') }}">
   <a href="#main-content" class="visually-hidden-focusable">Zum Hauptinhalt springen</a>
   <script src="{{ ingress_path }}{{ url_for('static', filename='js/theme_init.js') }}?v={{ config.VERSION }}"></script>
 
@@ -133,8 +135,8 @@
             <button type="button"
                     class="btn btn-link nav-link text-muted px-2"
                     data-open-page-help
-                    title="Hilfe für diese Seite"
-                    aria-label="Hilfe öffnen">
+                    title="Hilfe für diese Seite (Shortcut: ?)"
+                    aria-label="Hilfe öffnen (Shortcut: ?)">
               <i class="bi bi-question-circle" aria-hidden="true"></i>
             </button>
           </li>
@@ -231,13 +233,26 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <div class="position-fixed top-0 end-0 p-3 z-toast" aria-live="polite" aria-atomic="true">
-      {% for category, message in messages %}
-      <div
-        class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show shadow auto-dismiss-alert"
-        role="alert">
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      </div>
+      {% for category, payload in messages %}
+        {% if payload is mapping %}
+        <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show shadow auto-dismiss-alert"
+             role="alert"
+             data-timeout="{{ 8000 if payload.get('undo_url') else 6000 }}">
+          <span>{{ payload.message }}</span>
+          {% if payload.get('undo_url') %}
+          <button type="button" class="btn btn-sm btn-link ms-2 undo-action-btn"
+                  data-undo-url="{{ payload.undo_url }}">{{ payload.undo_label or 'Rückgängig' }}</button>
+          {% endif %}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Schließen"></button>
+        </div>
+        {% else %}
+        <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show shadow auto-dismiss-alert"
+             role="alert"
+             data-timeout="{{ 8000 if '<a' in payload|string else 6000 }}">
+          {{ payload }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Schließen"></button>
+        </div>
+        {% endif %}
       {% endfor %}
     </div>
     {% endif %}
@@ -257,8 +272,10 @@
 
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <script src="{{ ingress_path }}{{ url_for('static', filename='js/focus_trap.js') }}?v={{ config.VERSION }}"></script>
   <script src="{{ ingress_path }}{{ url_for('static', filename='js/base_ui.js') }}?v={{ config.VERSION }}"></script>
   <script src="{{ ingress_path }}{{ url_for('static', filename='js/form_validation.js') }}?v={{ config.VERSION }}"></script>
+  <script src="{{ ingress_path }}{{ url_for('static', filename='js/shortcuts.js') }}?v={{ config.VERSION }}"></script>
   {% if session.get('worker_id') %}
   <script src="{{ ingress_path }}{{ url_for('static', filename='js/notifications.js') }}?v={{ config.VERSION }}"></script>
   <script src="{{ ingress_path }}{{ url_for('static', filename='js/help.js') }}?v={{ config.VERSION }}"></script>
@@ -277,13 +294,15 @@
         </div>
         <div class="modal-footer border-top-0 px-2 py-2 gap-2">
           <button type="button" class="btn btn-light btn-sm flex-fill" data-bs-dismiss="modal">Abbrechen</button>
-          <button type="button" class="btn btn-danger btn-sm flex-fill" id="globalConfirmBtn">Bestätigen</button>
+          <button type="button" class="btn btn-danger btn-sm flex-fill" id="globalConfirmBtn" data-focus-first="true">Bestätigen</button>
         </div>
       </div>
     </div>
   </div>
 
   <div id="ajaxStatusAnnouncer" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
+
+  {% include "components/_shortcut_help.html" %}
 
   {% if page_help %}
   {% set _endpoint = request.endpoint or '' %}

@@ -58,7 +58,8 @@
             </div>
         </div>
 
-        <div class="mb-4" id="approvalSection">
+        <section class="mb-4 sidebar-section workflow-section" id="approvalSection" aria-labelledby="workflow-heading">
+            <h6 id="workflow-heading" class="sidebar-section-title">Workflow</h6>
             {% set a = ticket.approval %}
             {% if a and a.status == ApprovalStatus.PENDING.value %}
                 <div class="approval-indicator border-warning small">
@@ -100,7 +101,7 @@
                 <button class="btn btn-sm btn-outline-primary w-100 request-approval-btn" data-ticket-id="{{ ticket.id }}">Freigabe anfordern</button>
                 {% endif %}
             {% endif %}
-        </div>
+        </section>
 
         <hr class="text-muted opacity-25">
 

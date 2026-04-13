@@ -5,7 +5,7 @@ import os
 import shutil
 import time
 
-from flask import current_app, jsonify
+from flask import current_app, flash as _flask_flash, jsonify
 from sqlalchemy.exc import SQLAlchemyError
 
 from exceptions import DomainError
@@ -40,25 +40,47 @@ def api_ok(**extra):
     return jsonify({"success": True, **extra})
 
 
-def api_error(msg: str, status: int = 500):
-    """Return a JSON error response with the given *status* code."""
-    return jsonify({"success": False, "error": msg}), status
+def api_error(msg: str, status: int = 500, *, errors: list | None = None):
+    """Return a JSON error response with the given *status* code.
+
+    If *errors* is provided, it is included as an ``errors`` array in the
+    payload to support structured field-level error rendering on the client.
+    """
+    payload: dict = {"success": False, "error": msg}
+    if errors:
+        payload["errors"] = errors
+    return jsonify(payload), status
 
 
 def api_endpoint(func):
     """Decorator: catch domain / validation / DB errors for API routes.
 
-    Maps ``DomainError`` to its ``status_code``, ``ValueError`` to 400,
-    and ``SQLAlchemyError`` to 500.
+    Maps ``DomainError`` to its ``status_code`` with the curated
+    ``user_message`` in the response, ``ValueError`` to 400 with a generic
+    message (the raw exception string is logged server-side only to avoid
+    leaking internals), and ``SQLAlchemyError`` to 500.
     """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
         except DomainError as exc:
-            return api_error(str(exc), exc.status_code)
-        except ValueError as exc:
-            return api_error(str(exc), 400)
+            # exc.user_message is curated per DomainError's contract (see
+            # exceptions.py) and is safe to return to the client.
+            msg = exc.user_message
+            current_app.logger.info(
+                "Domain error in %s: %s", func.__name__, msg,
+            )
+            field = getattr(exc, 'field', None)
+            errors = [{"field": field, "message": msg}] if field else None
+            return api_error(msg, exc.status_code, errors=errors)
+        except ValueError:
+            # Do not expose the raw ValueError message — it may carry
+            # internal detail. Log server-side, return a generic hint.
+            current_app.logger.info(
+                "Validation error in %s", func.__name__, exc_info=True,
+            )
+            return api_error("Ungültige Eingabe.", 400)
         except SQLAlchemyError:
             current_app.logger.exception(
                 "API error in %s", func.__name__,
@@ -94,3 +116,20 @@ def _remove_with_retry(path: str, retries: int = 3, delay: float = 0.5) -> bool:
             else:
                 raise
     return False
+
+
+# ---------------------------------------------------------------------------
+# Flash helpers
+# ---------------------------------------------------------------------------
+
+def flash_with_undo(message: str, undo_url: str, undo_label: str = "Rückgängig",
+                    category: str = "success") -> None:
+    """Flash a message accompanied by an inline undo-action button.
+
+    The payload is a dict; ``base.html`` detects the mapping shape and renders
+    the undo button with data-attributes that ``base_ui.js`` handles.
+    """
+    _flask_flash(
+        {"message": message, "undo_url": undo_url, "undo_label": undo_label},
+        category,
+    )

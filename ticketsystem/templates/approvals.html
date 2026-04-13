@@ -17,7 +17,8 @@
     <div class="col-12 empty-state">
         <i class="bi bi-shield-check text-success empty-state-icon"></i>
         <h5 class="empty-state-title">Keine ausstehenden Freigaben</h5>
-        <p class="empty-state-text">Alle Vorgänge wurden geprüft.</p>
+        <p class="empty-state-text mb-3">Alle Vorgänge wurden geprüft.</p>
+        <a href="{{ ingress_path }}{{ url_for('main.index') }}" class="btn btn-outline-primary btn-sm">Zum Dashboard</a>
     </div>
     {% else %}
         {% for ticket in tickets %}

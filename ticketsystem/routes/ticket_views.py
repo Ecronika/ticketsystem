@@ -11,6 +11,7 @@ from flask import (
     Response,
     current_app,
     flash,
+    jsonify,
     render_template,
     request,
     session,
@@ -478,7 +479,12 @@ def _workload_view() -> str:
 
 @worker_required
 def _dashboard_rows_api() -> Response:
-    """Return rendered HTML of the dashboard table rows for silent polling refresh."""
+    """Return rendered HTML fragments for silent polling refresh.
+
+    Liefert JSON mit ``rows_html`` (Desktop-Tabelle, ``<tbody>``-Inhalt) und
+    ``cards_html`` (Mobile-Card-Container, ``.ticket-cards``-Inhalt), damit
+    beide Darstellungsvarianten beim Polling synchron bleiben.
+    """
     worker_id = session.get("worker_id")
     search = request.args.get("q", "").strip()
     status_filter = request.args.get("status", "")
@@ -521,14 +527,19 @@ def _dashboard_rows_api() -> Response:
     all_workers = get_active_workers()
     all_teams = get_all_teams()
 
-    html = render_template(
-        "components/_dashboard_rows.html",
+    template_ctx = dict(
         focus_tickets=tickets_data["focus_pagination"].items,
         workers=all_workers,
         teams=all_teams,
         today=date.today(),
     )
-    return Response(html, mimetype="text/html")
+    rows_html = render_template("components/_dashboard_rows.html", **template_ctx)
+    cards_html = render_template("components/_dashboard_cards.html", **template_ctx)
+    return jsonify({
+        "success": True,
+        "rows_html": rows_html,
+        "cards_html": cards_html,
+    })
 
 
 def register_routes(bp: Blueprint) -> None:

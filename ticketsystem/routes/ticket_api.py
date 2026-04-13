@@ -456,6 +456,28 @@ def _duplicate_ticket_api(ticket_id: int) -> Response:
     return api_ok(ticket_id=new_ticket.id)
 
 
+# ------------------------------------------------------------------
+# Restore ticket
+# ------------------------------------------------------------------
+
+@worker_required
+@write_required
+@api_endpoint
+def _restore_ticket_api(ticket_id: int) -> Response:
+    """Restore a soft-deleted ticket."""
+    worker_id = session.get("worker_id")
+    role = session.get("role")
+    ticket = _check_ticket_access(ticket_id, worker_id, role)
+    if ticket is None:
+        return api_error("Ticket nicht gefunden oder keine Berechtigung.", 404)
+
+    actor_name = session.get("worker_name", "Unbekannt")
+    TicketCoreService.restore_ticket(
+        ticket_id, author_name=actor_name, author_id=worker_id,
+    )
+    return api_ok()
+
+
 def register_routes(bp: Blueprint) -> None:
     """Register API routes for ticket operations."""
     bp.add_url_rule(
@@ -514,4 +536,8 @@ def register_routes(bp: Blueprint) -> None:
     bp.add_url_rule(
         "/api/ticket/<int:ticket_id>/duplicate", "duplicate_ticket_api",
         view_func=_duplicate_ticket_api, methods=["POST"],
+    )
+    bp.add_url_rule(
+        "/api/ticket/<int:ticket_id>/restore", "restore_ticket_api",
+        view_func=_restore_ticket_api, methods=["POST"],
     )

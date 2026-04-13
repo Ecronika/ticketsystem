@@ -425,10 +425,25 @@ window.showRejectModal = function(tId) {
         document.getElementById('rejectReasonInput').value = '';
         const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
         modal.show();
+        if (typeof window.trapFocus === 'function') {
+            const onShown = () => {
+                window.trapFocus(modalEl);
+                modalEl.removeEventListener('shown.bs.modal', onShown);
+            };
+            modalEl.addEventListener('shown.bs.modal', onShown);
+        }
     }
 };
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Release focus-trap when reject modal closes (attach once).
+    const rejectModalEl = document.getElementById('rejectApprovalModal');
+    if (rejectModalEl) {
+        rejectModalEl.addEventListener('hidden.bs.modal', function() {
+            if (typeof window.releaseFocus === 'function') window.releaseFocus();
+        });
+    }
+
     const submitRejectBtn = document.getElementById('submitRejectBtn');
     if (submitRejectBtn) {
         submitRejectBtn.addEventListener('click', async function() {
@@ -771,7 +786,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 e.preventDefault();
                 const img = document.getElementById('lightboxImg');
                 const dialog = document.getElementById('lightboxDialog');
-                if (img && dialog) { img.src = trigger.dataset.fullSrc; dialog.showModal(); }
+                if (img && dialog) {
+                    img.src = trigger.dataset.fullSrc;
+                    dialog.showModal();
+                    if (typeof window.trapFocus === 'function') window.trapFocus(dialog);
+                }
             }
         });
     }
@@ -788,6 +807,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const lightboxDialog = document.getElementById('lightboxDialog');
     if (lightboxDialog) {
         initDialogClose(lightboxDialog, document.getElementById('lightboxCloseBtn'));
+        lightboxDialog.addEventListener('close', function() {
+            if (typeof window.releaseFocus === 'function') window.releaseFocus();
+        });
     }
 
     // PDF preview dialog close + cleanup

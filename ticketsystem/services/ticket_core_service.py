@@ -500,6 +500,41 @@ class TicketCoreService:
 
     @staticmethod
     @db_transaction
+    def restore_ticket(
+        ticket_id: int,
+        author_name: str = "System",
+        author_id: Optional[int] = None,
+    ) -> Ticket:
+        """Restore a soft-deleted ticket and record an audit comment.
+
+        Idempotent: if the ticket is not deleted, returns it unchanged
+        without adding another TICKET_RESTORED comment.
+
+        Raises:
+            TicketNotFoundError: if no ticket exists with the given ID.
+        """
+        from exceptions import TicketNotFoundError
+
+        ticket = db.session.get(Ticket, ticket_id)
+        if ticket is None:
+            raise TicketNotFoundError()
+        if not ticket.is_deleted:
+            return ticket  # idempotent
+
+        ticket.is_deleted = False
+        ticket.updated_at = get_utc_now()
+        db.session.add(Comment(
+            ticket_id=ticket.id,
+            author=author_name,
+            author_id=author_id,
+            text="Ticket wiederhergestellt.",
+            is_system_event=True,
+            event_type="TICKET_RESTORED",
+        ))
+        return ticket
+
+    @staticmethod
+    @db_transaction
     def delete_attachment(
         attachment_id: int, worker_id: int, worker_role: str
     ) -> None:

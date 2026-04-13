@@ -22,9 +22,9 @@
       {% endif %}
       {# Priorität #}
       {% if ticket.priority == 1 %}
-      <span class="badge badge-status badge-status-danger text-xxs">Hoch</span>
+      <span class="badge badge-status badge-status-danger priority-hoch text-xxs">Hoch</span>
       {% elif ticket.priority == 2 %}
-      <span class="badge badge-status badge-status-primary text-xxs">Mittel</span>
+      <span class="badge badge-status badge-status-primary priority-mittel text-xxs">Mittel</span>
       {% endif %}
       {# Fälligkeitsdatum #}
       {% if ticket.due_date %}

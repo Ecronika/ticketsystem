@@ -1,9 +1,42 @@
 /* base_ui.js - Global UI Utilities for v1.2.0 Hardening */
 (function() {
+    // === SHARED INGRESS HELPER ===
+    // Reads the Home Assistant ingress prefix from the page. Used by dashboard
+    // bulk-delete Undo, session keep-alive pings, and any other module needing
+    // absolute URLs for fetch() calls. Falls back to an empty string so
+    // tests/dev-mode still work.
+    //
+    // SECURITY: the returned value is concatenated into fetch() URLs. A
+    // compromised reverse-proxy or DOM tamper could otherwise inject a
+    // non-path payload (CWE-79, CodeQL js/xss-through-dom). Source-side
+    // allowlist regex rejects anything that isn't an absolute URL path.
+    //
+    // For navigation sinks (window.location.href) we deliberately do NOT
+    // concatenate getIngress() — see the session-timeout handler below, which
+    // uses location.reload() so no DOM-derived text ever reaches the URL.
+    const SAFE_INGRESS_RE = /^\/[A-Za-z0-9_\-./]*$/;
+    window.getIngress = function () {
+        const raw = document.querySelector('.navbar')?.getAttribute('data-ingress')
+            || document.querySelector('[data-ingress]')?.dataset.ingress
+            || '';
+        if (raw === '' || SAFE_INGRESS_RE.test(raw)) return raw;
+        return '';
+    };
+
     // === GLOBAL UI ALERT UTILITY ===
-    window.showUiAlert = function (msg, type) {
+    // Signature: showUiAlert(msg, type = 'danger', opts = {})
+    //   opts.undoUrl       — when set, renders a "Rückgängig" button in the toast.
+    //                        Clicking POSTs to the URL with CSRF, reloads on success.
+    //   opts.undoLabel     — label for the undo button (default 'Rückgängig').
+    //   opts.timeout       — auto-dismiss ms (default 6000; 8000 when undoUrl set).
+    //   opts.onUndoSuccess — optional callback after successful undo (else reload).
+    window.showUiAlert = function (msg, type, opts) {
         const safeTypes = ['danger', 'warning', 'success', 'info', 'primary', 'secondary'];
         const safeType = safeTypes.includes(type) ? type : 'danger';
+        const options = opts || {};
+        const hasUndo = Boolean(options.undoUrl);
+        const timeout = options.timeout || (hasUndo ? 8000 : 6000);
+
         let container = document.querySelector('.position-fixed.top-0.end-0.p-3.z-toast');
         if (!container) {
             container = document.createElement('div');
@@ -15,29 +48,46 @@
         const id = 'ui-alert-' + Date.now();
         const alertEl = document.createElement('div');
         alertEl.id = id;
-        alertEl.className = `alert alert-${safeType} alert-dismissible fade show shadow`;
+        alertEl.className = `alert alert-${safeType} alert-dismissible fade show shadow auto-dismiss-alert`;
         alertEl.setAttribute('role', 'alert');
         alertEl.setAttribute('aria-atomic', 'true');
+        alertEl.dataset.timeout = String(timeout);
+
         const icon = document.createElement('i');
         icon.className = 'bi bi-exclamation-triangle-fill me-2';
         icon.setAttribute('aria-hidden', 'true');
         const msgNode = document.createTextNode(msg);
+        alertEl.appendChild(icon);
+        alertEl.appendChild(msgNode);
+
+        if (hasUndo) {
+            const undoBtn = document.createElement('button');
+            undoBtn.type = 'button';
+            undoBtn.className = 'btn btn-sm btn-link ms-2 undo-action-btn';
+            undoBtn.dataset.undoUrl = options.undoUrl;
+            if (options.onUndoSuccess) {
+                // Stash callback on the element; the global click handler looks for it.
+                undoBtn.__undoSuccessCallback = options.onUndoSuccess;
+            }
+            undoBtn.textContent = options.undoLabel || 'Rückgängig';
+            alertEl.appendChild(undoBtn);
+        }
+
         const closeBtn = document.createElement('button');
         closeBtn.type = 'button';
         closeBtn.className = 'btn-close';
         closeBtn.setAttribute('data-bs-dismiss', 'alert');
         closeBtn.setAttribute('aria-label', 'Schließen');
-        alertEl.appendChild(icon);
-        alertEl.appendChild(msgNode);
         alertEl.appendChild(closeBtn);
+
         container.appendChild(alertEl);
         const announcer = document.getElementById('ajaxStatusAnnouncer');
         if (announcer) announcer.textContent = msg;
-        const delay = alertEl.querySelector('a') ? 12000 : 8000;
+
         setTimeout(() => {
             const el = document.getElementById(id);
             if (el) { try { bootstrap.Alert.getOrCreateInstance(el).close(); } catch(e) { el.remove(); } }
-        }, delay);
+        }, timeout);
     };
 
     // Promise-based Confirm Function
@@ -57,12 +107,18 @@
             const cleanup = () => {
                 confirmBtn?.removeEventListener('click', handleConfirm);
                 modalEl.removeEventListener('hidden.bs.modal', handleCancel);
+                modalEl.removeEventListener('shown.bs.modal', handleShown);
+                if (typeof window.releaseFocus === 'function') window.releaseFocus();
+            };
+            // Bootstrap manages its own focus on show; run trapFocus after shown
+            // so our keydown-based Tab cycling + data-focus-first priority win.
+            const handleShown = () => {
+                if (typeof window.trapFocus === 'function') window.trapFocus(modalEl);
             };
             confirmBtn?.addEventListener('click', handleConfirm);
             modalEl.addEventListener('hidden.bs.modal', handleCancel);
+            modalEl.addEventListener('shown.bs.modal', handleShown);
             bsModal.show();
-            // P1-4 (v1.6.0): Focus the action button for WCAG 2.4.3
-            setTimeout(() => confirmBtn?.focus(), 150);
         });
     };
 
@@ -95,16 +151,59 @@
     });
 
     document.addEventListener('DOMContentLoaded', () => {
-        // Auto-Dismiss Alerts
+        // Auto-Dismiss Alerts — honor data-timeout (set by base.html flash
+        // rendering and by showUiAlert). Fallback for legacy alerts without
+        // data-timeout: 12000ms if the alert contains a link, else 8000ms.
         const alerts = document.querySelectorAll('.alert-dismissible');
         alerts.forEach(alert => {
-            const delay = alert.querySelector('a') ? 12000 : 8000;
+            let delay;
+            if (alert.dataset.timeout) {
+                delay = parseInt(alert.dataset.timeout, 10) || 6000;
+            } else {
+                delay = alert.querySelector('a') ? 12000 : 8000;
+            }
             setTimeout(() => {
                 if (document.body.contains(alert)) {
                     try { (bootstrap.Alert.getInstance(alert) || new bootstrap.Alert(alert)).close(); } catch(e) { alert.remove(); }
                 }
             }, delay);
         });
+
+        // Global Undo-Button delegated handler. Works for server-flashed toasts
+        // (base.html renders .undo-action-btn when payload.undo_url is set) and
+        // for client-side toasts built by showUiAlert({undoUrl}). Gate against
+        // double-registration because base_ui.js may be included more than once
+        // in rare template overrides.
+        if (!window.__undoHandlerAttached) {
+            window.__undoHandlerAttached = true;
+            document.addEventListener('click', async (ev) => {
+                const btn = ev.target.closest('.undo-action-btn');
+                if (!btn) return;
+                ev.preventDefault();
+                const url = btn.dataset.undoUrl;
+                if (!url) return;
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                btn.disabled = true;
+                try {
+                    const resp = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' },
+                        credentials: 'same-origin',
+                    });
+                    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                    const cb = btn.__undoSuccessCallback;
+                    window.showUiAlert('Aktion rückgängig gemacht.', 'success');
+                    if (typeof cb === 'function') {
+                        try { cb(); } catch (_) { /* ignore */ }
+                    } else {
+                        setTimeout(() => window.location.reload(), 500);
+                    }
+                } catch (err) {
+                    window.showUiAlert('Rückgängig fehlgeschlagen.', 'danger');
+                    btn.disabled = false;
+                }
+            });
+        }
 
         // PIN Toggle Logic (v1.10.3 - CSP Compatible)
         document.addEventListener('click', (e) => {
@@ -138,9 +237,7 @@
         let expireTimer = null;
         let warningToastEl = null;
 
-        function getIngress() {
-            return document.querySelector('[data-ingress]')?.dataset.ingress || '';
-        }
+        const getIngress = window.getIngress;
 
         function getContainer() {
             return document.querySelector('.position-fixed.top-0.end-0.p-3.z-toast') || (function() {
@@ -181,7 +278,12 @@
             clearTimeout(expireTimer);
             warnTimer = setTimeout(showWarning, WARN_AT_MS);
             expireTimer = setTimeout(function() {
-                window.location.href = getIngress() + '/logout';
+                // At this point (8h of inactivity) the server-side session
+                // cookie has also expired, so reloading the current page
+                // triggers Flask's auth middleware to redirect to the login
+                // page. Reload takes no URL argument — nothing DOM-derived
+                // can flow into navigation here (CodeQL js/xss-through-dom).
+                window.location.reload();
             }, SESSION_MS);
         }
 
