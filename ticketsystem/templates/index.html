@@ -460,6 +460,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 <button type="button" class="input-group-text bg-transparent border-start-0 text-muted border-0 cursor-pointer" title="Suche zurücksetzen" id="searchClearBtn"><i class="bi bi-x-lg"></i></button>
                 {% endif %}
             </div>
+            <span id="dashSearchCount" class="text-muted small ms-2 align-self-center"
+                  role="status" aria-live="polite" aria-atomic="true">
+              {% if pagination.total == 1 %}1 Ticket{% else %}{{ pagination.total }} Tickets{% endif %}
+              {% if query %}für „{{ query }}"{% endif %}
+            </span>
         </form>
         {% if session.get('role') != 'viewer' %}
         <button id="bulkToggleBtn" class="btn btn-outline-secondary btn-sm rounded-pill px-3" type="button">
