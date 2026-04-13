@@ -1,5 +1,7 @@
 # Agent
 .agents/
+.claude/
+.worktrees/
 
 # Python
 __pycache__/
