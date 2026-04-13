@@ -5,7 +5,7 @@ import os
 import shutil
 import time
 
-from flask import current_app, jsonify
+from flask import current_app, flash as _flask_flash, jsonify
 from sqlalchemy.exc import SQLAlchemyError
 
 from exceptions import DomainError
@@ -94,3 +94,20 @@ def _remove_with_retry(path: str, retries: int = 3, delay: float = 0.5) -> bool:
             else:
                 raise
     return False
+
+
+# ---------------------------------------------------------------------------
+# Flash helpers
+# ---------------------------------------------------------------------------
+
+def flash_with_undo(message: str, undo_url: str, undo_label: str = "Rückgängig",
+                    category: str = "success") -> None:
+    """Flash a message accompanied by an inline undo-action button.
+
+    The payload is a dict; ``base.html`` detects the mapping shape and renders
+    the undo button with data-attributes that ``base_ui.js`` handles.
+    """
+    _flask_flash(
+        {"message": message, "undo_url": undo_url, "undo_label": undo_label},
+        category,
+    )

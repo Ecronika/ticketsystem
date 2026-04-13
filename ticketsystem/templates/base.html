@@ -224,13 +224,26 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <div class="position-fixed top-0 end-0 p-3 z-toast" aria-live="polite" aria-atomic="true">
-      {% for category, message in messages %}
-      <div
-        class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show shadow auto-dismiss-alert"
-        role="alert">
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      </div>
+      {% for category, payload in messages %}
+        {% if payload is mapping %}
+        <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show shadow auto-dismiss-alert"
+             role="alert"
+             data-timeout="{{ 8000 if payload.get('undo_url') else 6000 }}">
+          <span>{{ payload.message }}</span>
+          {% if payload.get('undo_url') %}
+          <button type="button" class="btn btn-sm btn-link ms-2 undo-action-btn"
+                  data-undo-url="{{ payload.undo_url }}">{{ payload.undo_label or 'Rückgängig' }}</button>
+          {% endif %}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Schließen"></button>
+        </div>
+        {% else %}
+        <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show shadow auto-dismiss-alert"
+             role="alert"
+             data-timeout="{{ 8000 if '<a' in payload|string else 6000 }}">
+          {{ payload }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Schließen"></button>
+        </div>
+        {% endif %}
       {% endfor %}
     </div>
     {% endif %}
