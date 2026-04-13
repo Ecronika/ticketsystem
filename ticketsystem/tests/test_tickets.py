@@ -180,7 +180,7 @@ def test_confidential_ticket_access(client, db, test_app):
     response = client.get(f'/ticket/{ticket_id}')
     assert response.status_code == 200
     assert b'Geheim' in response.data
-    
+
     # Test Worker 2 after Assignment (Access)
     with test_app.app_context():
         TicketAssignmentService.assign_ticket(ticket_id, worker2.id, "Admin", admin.id)
@@ -192,3 +192,21 @@ def test_confidential_ticket_access(client, db, test_app):
     response = client.get(f'/ticket/{ticket_id}')
     assert response.status_code == 200
     assert b'Geheim' in response.data
+
+
+def test_restore_ticket(test_app, db):
+    """Soft-deleted ticket can be restored via service method."""
+    with test_app.app_context():
+        ticket = TicketCoreService.create_ticket(
+            title="Wird gelöscht",
+            priority=TicketPriority.MITTEL,
+            author_name="Max",
+        )
+        tid = ticket.id
+        TicketCoreService.delete_ticket(tid, author_name="Admin")
+        restored = TicketCoreService.restore_ticket(tid, actor_name="Admin")
+        assert restored.is_deleted is False
+        assert any(
+            c.is_system_event and "wiederhergestellt" in (c.text or "").lower()
+            for c in restored.comments
+        )
