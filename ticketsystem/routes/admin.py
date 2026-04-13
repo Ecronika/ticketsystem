@@ -13,6 +13,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    session,
     url_for,
 )
 from sqlalchemy.exc import SQLAlchemyError
@@ -500,25 +501,28 @@ def trash() -> str | WerkzeugResponse:
 
 def _handle_trash_action(action: str, ticket_id: int) -> None:
     """Restore or permanently delete a soft-deleted ticket."""
-    from models import Comment, Ticket
+    from exceptions import TicketNotFoundError
+    from models import Ticket
+    from services.ticket_core_service import TicketCoreService
+
+    if action == "restore":
+        try:
+            TicketCoreService.restore_ticket(
+                ticket_id,
+                author_name=session.get("worker_name", "Admin"),
+                author_id=session.get("worker_id"),
+            )
+            flash(f"Ticket #{ticket_id} wurde wiederhergestellt.", "success")
+        except TicketNotFoundError:
+            flash("Ticket nicht gefunden.", "warning")
+        return
 
     ticket = db.session.get(Ticket, ticket_id)
     if not ticket or not ticket.is_deleted:
         flash("Ticket nicht gefunden.", "warning")
         return
 
-    if action == "restore":
-        ticket.is_deleted = False
-        ticket.updated_at = get_utc_now()
-        db.session.add(Comment(
-            ticket_id=ticket.id,
-            author="System",
-            text="Ticket aus dem Papierkorb wiederhergestellt.",
-            is_system_event=True,
-        ))
-        db.session.commit()
-        flash(f"Ticket #{ticket.id} wurde wiederhergestellt.", "success")
-    elif action == "delete_permanent":
+    if action == "delete_permanent":
         db.session.delete(ticket)
         db.session.commit()
         flash(f"Ticket #{ticket.id} wurde dauerhaft gelöscht.", "warning")
