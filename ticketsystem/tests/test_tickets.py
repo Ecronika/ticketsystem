@@ -12,7 +12,7 @@ def test_create_ticket(test_app, db):
             title="Defektes Rohr",
             description="Leckt im Keller",
             priority=TicketPriority.HOCH,
-            author_name="Azubi Max"
+            author_name="Max Mustermann"
         )
         assert ticket.id is not None
         assert ticket.title == "Defektes Rohr"
@@ -23,7 +23,7 @@ def test_create_ticket(test_app, db):
         comment = Comment.query.filter_by(ticket_id=ticket.id).first()
         assert comment is not None
         assert "Leckt im Keller" in comment.text
-        assert comment.author == "Azubi Max"
+        assert comment.author == "Max Mustermann"
 
 def test_update_status(test_app, db):
     """Test updating ticket status."""

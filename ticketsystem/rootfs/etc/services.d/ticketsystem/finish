@@ -1,13 +1,13 @@
 #!/usr/bin/with-contenv bashio
 # ==============================================================================
-# Home Assistant Add-on: Azubi Werkzeug Tracker
+# Home Assistant Add-on: Ticket System
 # Take down the S6 supervision tree when the app fails
 # ==============================================================================
 
 declare exit_code
 readonly exit_code=${1}
 
-bashio::log.info "Azubi Werkzeug Tracker wurde beendet mit Code ${exit_code}"
+bashio::log.info "Ticket System wurde beendet mit Code ${exit_code}"
 
 if [[ "${exit_code}" -ne 0 ]] && [[ "${exit_code}" -ne 256 ]]; then
     bashio::log.error "Service beendet mit Fehlercode ${exit_code}"

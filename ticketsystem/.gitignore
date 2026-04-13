@@ -51,6 +51,10 @@ ENV/
 data/
 instance/
 static/img/logo.png
-signatures/
-reports/
+signatures/*
+!signatures/.gitkeep
+reports/*
+!reports/.gitkeep
+attachments/*
+!attachments/.gitkeep
 secret.key
