@@ -39,7 +39,7 @@
             </div>
             <div class="card-body px-4 pb-4">
                 <p class="x-small text-muted mb-3"><span class="text-danger">*</span> Pflichtfelder</p>
-                <form method="POST" enctype="multipart/form-data" id="ticket-form">
+                <form method="POST" enctype="multipart/form-data" id="ticket-form" data-validate>
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                     
                     <div class="mb-3">

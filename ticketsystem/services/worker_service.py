@@ -24,11 +24,14 @@ _WEAK_PINS: frozenset = frozenset({
 def _validate_pin(pin: str) -> None:
     """Raise ``InvalidPinError`` if the PIN is too simple."""
     if not pin or len(pin) < 4:
-        raise InvalidPinError("Die PIN muss mindestens 4 Zeichen lang sein.")
+        raise InvalidPinError(
+            "Die PIN muss mindestens 4 Zeichen lang sein.", field="pin"
+        )
     if pin in _WEAK_PINS:
         raise InvalidPinError(
             "Diese PIN ist zu einfach (z. B. 0000, 1234). "
-            "Bitte wählen Sie eine sicherere PIN."
+            "Bitte wählen Sie eine sicherere PIN.",
+            field="pin",
         )
 
 
