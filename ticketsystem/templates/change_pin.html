@@ -24,6 +24,13 @@
                         </div>
                     </div>
                     <div class="mb-3">
+                        <label for="new_pin" class="form-label form-label-bold text-muted">PIN-Stärke</label>
+                        <div class="progress progress-thin" role="progressbar" aria-label="PIN-Stärke">
+                            <div id="pinStrengthBar" class="progress-bar bg-danger" style="width: 0%;"></div>
+                        </div>
+                        <small id="pinStrengthText" class="text-muted">PIN eingeben…</small>
+                    </div>
+                    <div class="mb-3">
                         <label for="new_pin_confirm" class="form-label form-label-bold text-muted">Neuen PIN bestätigen</label>
                         <div class="input-group">
                             <input type="password" class="form-control form-control-lg text-center" id="new_pin_confirm" name="new_pin_confirm"
@@ -44,4 +51,29 @@
         </div>
     </div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ g.csp_nonce }}">
+(function() {
+    const input = document.getElementById('new_pin');
+    const bar = document.getElementById('pinStrengthBar');
+    const txt = document.getElementById('pinStrengthText');
+    if (!input) return;
+    function score(pin) {
+        if (!pin || pin.length < 4) return { pct: 10, label: 'Zu kurz', cls: 'bg-danger' };
+        const weak = ['1234','0000','1111','2222','1212','4321','9999'];
+        if (weak.includes(pin)) return { pct: 20, label: 'Sehr schwach', cls: 'bg-danger' };
+        if (/^(\d)\1+$/.test(pin)) return { pct: 20, label: 'Wiederholung', cls: 'bg-danger' };
+        if (/^(0123|1234|2345|3456|4567|5678|6789)$/.test(pin)) return { pct: 30, label: 'Sequenz', cls: 'bg-warning' };
+        if (pin.length >= 6) return { pct: 90, label: 'Stark', cls: 'bg-success' };
+        return { pct: 60, label: 'Akzeptabel', cls: 'bg-primary' };
+    }
+    input.addEventListener('input', function() {
+        const s = score(input.value);
+        bar.style.width = s.pct + '%';
+        bar.className = 'progress-bar ' + s.cls;
+        txt.textContent = s.label;
+    });
+})();
+</script>
 {% endblock %}

@@ -9,6 +9,14 @@ def _login_as_admin(client, admin_worker):
         s["worker_name"] = admin_worker.name
 
 
+def _login_as_worker(client, worker):
+    with client.session_transaction() as s:
+        s["worker_id"] = worker.id
+        s["is_admin"] = False
+        s["role"] = "worker"
+        s["worker_name"] = worker.name
+
+
 # ---------------------------------------------------------------------------
 # Task 1.1 – Admin-Trash: native confirm() → showConfirm modal
 # ---------------------------------------------------------------------------
@@ -223,3 +231,17 @@ def test_login_failed_pin_shows_remaining_attempts(client, app):
     # Check for either "Noch X Versuche" (still has attempts) or "Account gesperrt"
     assert ("Noch" in html and "Versuche" in html) or "gesperrt" in html.lower(), \
         f"expected 'Noch X Versuche übrig' or 'Account gesperrt' in flash"
+
+
+# ---------------------------------------------------------------------------
+# Task 3.3 – Change PIN: client-side strength meter
+# ---------------------------------------------------------------------------
+
+def test_change_pin_has_strength_meter(client, admin_worker):
+    """PIN change page must render strength meter elements."""
+    _login_as_admin(client, admin_worker)
+    resp = client.get("/change-pin")
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+    assert 'id="pinStrengthBar"' in html
+    assert 'id="pinStrengthText"' in html
