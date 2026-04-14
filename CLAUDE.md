@@ -365,6 +365,16 @@ anonyme Ticket-Erstellung ist gewollt.
 
 Zusätzlich: Flask-Error-Handler `@app.errorhandler(DomainError)` für
 View-Routen (HTML) und AJAX-Requests.
+
+### Breadcrumbs-Konvention
+
+- **Top-Level-Einstiegsseiten** (Dashboard `index`, `my_queue`, `login`,
+  `approvals`): **kein** Breadcrumb. Diese Seiten sind in der Hauptnavigation
+  sichtbar; ein Breadcrumb mit nur „Dashboard › X" wäre redundant.
+- **Drill-Down- und Admin-Seiten** (`ticket_detail`, `workload`, `settings`,
+  `projects`, `profile`): **Breadcrumb verpflichtend**. Muster:
+  `Dashboard › [Sektion] › [Page-Name]`.
+- Implementierung über den Jinja-Block `{% block breadcrumbs %}` in `base.html`.
 # Project Rules
 
 ## Dockerfile Sync (Home Assistant Addon)
