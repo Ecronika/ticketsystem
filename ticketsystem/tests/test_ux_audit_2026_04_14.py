@@ -281,3 +281,29 @@ def test_help_offcanvas_has_search_input(client, admin_worker):
     if "pageHelpOffcanvas" in html:
         assert 'id="helpOffcanvasSearch"' in html, "search input missing"
         assert "help-section" in html, "help sections must carry help-section class for filter"
+
+
+# ---------------------------------------------------------------------------
+# Task 4.2 – Dashboard: breadcrumb back to Projekte when filtered by order_reference
+# ---------------------------------------------------------------------------
+
+def test_dashboard_shows_project_breadcrumb_when_query_matches(client, admin_worker, app):
+    from models import Ticket, db
+    _login_as_admin(client, admin_worker)
+    with app.app_context():
+        t = Ticket(title="ProjTest", order_reference="B-12345")
+        db.session.add(t)
+        db.session.commit()
+    resp = client.get("/?q=B-12345")
+    html = resp.get_data(as_text=True)
+    assert 'aria-label="breadcrumb"' in html
+    assert "Projekte" in html
+    assert "B-12345" in html
+
+
+def test_dashboard_hides_project_breadcrumb_for_nonproject_query(client, admin_worker):
+    _login_as_admin(client, admin_worker)
+    resp = client.get("/?q=nonexistent-ref-xyz")
+    html = resp.get_data(as_text=True)
+    # breadcrumb nav must not appear for a non-matching query
+    assert 'aria-label="breadcrumb"' not in html

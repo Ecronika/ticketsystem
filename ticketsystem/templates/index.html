@@ -1,5 +1,18 @@
 {% extends "base.html" %}
 
+{% block breadcrumbs %}
+{% if query and project_names is defined and query in project_names %}
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb mb-0 small">
+        <li class="breadcrumb-item">
+            <a href="{{ ingress_path }}{{ url_for('main.projects') }}" class="text-decoration-none">Projekte</a>
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">{{ query }}</li>
+    </ol>
+</nav>
+{% endif %}
+{% endblock %}
+
 {% block styles %}{% endblock %}
 
 {% block scripts %}
