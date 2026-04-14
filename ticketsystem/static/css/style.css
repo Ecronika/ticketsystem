@@ -83,6 +83,13 @@ canvas {
     --focus-ring-width: var(--border-3);
     --focus-ring-color: #0d6efd;
     --focus-ring: var(--focus-ring-width) solid var(--focus-ring-color);
+    /* Navbar (independent of body theme) */
+    --navbar-bg: #1a1a1a;
+    --navbar-fg: #fff;
+    --navbar-fg-muted: rgb(255 255 255 / 70%);
+    --navbar-border: rgb(255 255 255 / 10%);
+    --navbar-hover-bg: rgb(255 255 255 / 5%);
+
     --btn-soft-bg: #eef4ff;
     --btn-soft-color: #1d4ed8;
     --btn-soft-border: #2563eb;
@@ -448,23 +455,21 @@ canvas {
     color: var(--color-info) !important;
 }
 
-/* --- NUCLEAR CONTRAST FIXES --- */
-
-/* Force Navbar to be readable (Dark background for navbar-dark) */
+/* --- Navbar — token-based, independent of body theme --- */
 .navbar-dark {
-    background-color: #1a1a1a !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: var(--navbar-bg);
+    border-bottom: 1px solid var(--navbar-border);
 }
 
 .navbar-dark .navbar-brand,
 .navbar-dark .nav-link {
-    color: #fff !important;
+    color: var(--navbar-fg);
     opacity: 0.9;
 }
 
 .navbar-dark .nav-link:hover {
     opacity: 1;
-    color: var(--color-primary, #0d6efd) !important;
+    color: var(--color-primary);
 }
 
 /* Fix Badge Contrast in Light Mode */
