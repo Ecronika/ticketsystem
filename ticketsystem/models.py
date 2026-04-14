@@ -311,6 +311,7 @@ class Ticket(db.Model):
     status = db.Column(
         db.String(20), default=TicketStatus.OFFEN.value, nullable=False
     )
+    wait_reason = db.Column(db.String(20), nullable=True)
     priority = db.Column(db.Integer, default=2, nullable=False)
 
     assigned_to_id = db.Column(
