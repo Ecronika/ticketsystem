@@ -4,6 +4,7 @@ from enum import Enum
 
 __all__ = [
     "TicketStatus",
+    "WaitReason",
     "TicketPriority",
     "WorkerRole",
     "ApprovalStatus",
@@ -18,6 +19,18 @@ class TicketStatus(Enum):
     IN_BEARBEITUNG = "in_bearbeitung"
     WARTET = "wartet"
     ERLEDIGT = "erledigt"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class WaitReason(str, Enum):
+    """Reason a ticket is in status WARTET. Required whenever status=WARTET."""
+
+    KUNDE = "kunde"
+    LIEFERANT = "lieferant"
+    KOLLEGE = "kollege"
+    SONSTIGES = "sonstiges"
 
     def __str__(self) -> str:
         return self.value
