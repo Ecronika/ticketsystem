@@ -245,3 +245,23 @@ def test_change_pin_has_strength_meter(client, admin_worker):
     html = resp.get_data(as_text=True)
     assert 'id="pinStrengthBar"' in html
     assert 'id="pinStrengthText"' in html
+
+
+# ---------------------------------------------------------------------------
+# Task 3.4 – Public Ticket View: mini-header with return-path
+# ---------------------------------------------------------------------------
+
+def test_public_ticket_has_return_link(client, app):
+    """Public ticket view must show mini-header with 'Neues Ticket melden' return-path."""
+    from models import Ticket, db
+    with app.app_context():
+        t = Ticket(title="PublicViewTest")
+        db.session.add(t)
+        db.session.commit()
+        tid = t.id
+    # Public view does NOT require login
+    resp = client.get(f"/ticket/{tid}/public")
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+    assert "Neues Ticket melden" in html
+    assert f"#{tid}" in html
