@@ -265,3 +265,19 @@ def test_public_ticket_has_return_link(client, app):
     html = resp.get_data(as_text=True)
     assert "Neues Ticket melden" in html
     assert f"#{tid}" in html
+
+
+# ---------------------------------------------------------------------------
+# Task 4.1 – Help Offcanvas: client-side search
+# ---------------------------------------------------------------------------
+
+def test_help_offcanvas_has_search_input(client, admin_worker):
+    """Help offcanvas must have a searchable input and sections marked with help-section class."""
+    _login_as_admin(client, admin_worker)
+    # Dashboard (index) includes page_help with sections
+    resp = client.get("/")
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+    if "pageHelpOffcanvas" in html:
+        assert 'id="helpOffcanvasSearch"' in html, "search input missing"
+        assert "help-section" in html, "help sections must carry help-section class for filter"
