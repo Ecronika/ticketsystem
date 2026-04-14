@@ -130,6 +130,7 @@ canvas {
     --fs-xs: 0.7rem;     /* 11.2px */
     --fs-sm: 0.75rem;    /* 12px */
     --fs-meta: 0.8rem;   /* 12.8px */
+    --fs-body-sm: 0.875rem; /* 14px — Bootstrap small, fills gap */
     --fs-base: 1rem;     /* 16px */
     --fs-lg: 1.125rem;   /* 18px */
     --fs-xl: 1.25rem;    /* 20px */
@@ -1431,7 +1432,7 @@ textarea:focus-visible {
 .inline-select:hover, .inline-select:focus { background: var(--bg-surface-subtle); outline: none; box-shadow: 0 0 0 2px rgba(var(--bs-primary-rgb), 0.25); }
 
 /* Dashboard Tab Navigation */
-.dash-tab { border: none; background: transparent; padding: 0.6rem 1.2rem; font-weight: 600; font-size: 0.9rem; color: var(--text-muted); border-bottom: 3px solid transparent; transition: all 0.15s; cursor: pointer; }
+.dash-tab { border: none; background: transparent; padding: 0.6rem 1.2rem; font-weight: 600; font-size: var(--fs-body-sm); color: var(--text-muted); border-bottom: 3px solid transparent; transition: all 0.15s; cursor: pointer; }
 .dash-tab:hover { color: var(--text-main); }
 .dash-tab.active { color: var(--bs-primary); border-bottom-color: var(--bs-primary); }
 .dash-tab .tab-count { font-size: var(--fs-sm); padding: 0.15em 0.55em; border-radius: 10px; font-weight: 700; margin-left: 0.4rem; }
@@ -1489,7 +1490,7 @@ textarea:focus-visible {
 }
 .doc-preview-title {
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: var(--fs-body-sm);
     min-width: 0;
     flex: 1;
     margin-right: var(--space-4);
@@ -1576,7 +1577,7 @@ textarea:focus-visible {
 /* ========= Inline field validation ========= */
 .field-error {
     color: var(--bs-danger, #dc3545);
-    font-size: .875rem;
+    font-size: var(--fs-body-sm);
     margin-top: .25rem;
     display: block;
 }
@@ -1675,7 +1676,7 @@ select[aria-invalid="true"] {
 }
 
 .ticket-card-meta {
-    font-size: .875rem;
+    font-size: var(--fs-body-sm);
     color: var(--bs-secondary-color, #6c757d);
     display: flex;
     flex-wrap: wrap;
