@@ -673,6 +673,7 @@ def inject_globals() -> Dict[str, Any]:
         "MAX_UPLOAD_FILE_SIZE": MAX_UPLOAD_FILE_SIZE,
         "MAX_UPLOAD_TOTAL_SIZE": MAX_UPLOAD_TOTAL_SIZE,
         "MAX_UPLOAD_FILES": MAX_UPLOAD_FILES,
+        "current_year": datetime.utcnow().year,
     }
 
     endpoint = request.endpoint or ""
@@ -817,6 +818,19 @@ _PRIO_LABELS: Dict[int, str] = {
 def priority_label_filter(priority: int) -> str:
     """Translate priority integer to human-readable label."""
     return _PRIO_LABELS.get(priority, f"P{priority}")
+
+
+_PRIO_COLORS = {
+    TicketPriority.HOCH.value: "danger",
+    TicketPriority.MITTEL.value: "primary",
+    TicketPriority.NIEDRIG.value: "success",
+}
+
+
+@app.template_filter("priority_color")
+def priority_color_filter(priority: int) -> str:
+    """Return Bootstrap color key (danger/primary/success) for a priority."""
+    return _PRIO_COLORS.get(priority, "secondary")
 
 
 # ---------------------------------------------------------------------------

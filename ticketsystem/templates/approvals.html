@@ -18,7 +18,7 @@
         <i class="bi bi-shield-check text-success empty-state-icon"></i>
         <h5 class="empty-state-title">Keine ausstehenden Freigaben</h5>
         <p class="empty-state-text mb-3">Alle Vorgänge wurden geprüft.</p>
-        <a href="{{ ingress_path }}{{ url_for('main.index') }}" class="btn btn-outline-primary btn-sm">Zum Dashboard</a>
+        <a href="{{ ingress_path }}{{ url_for('main.index') }}" class="btn btn-primary btn-sm rounded-pill px-3">Zum Dashboard</a>
     </div>
     {% else %}
         {% for ticket in tickets %}
@@ -27,7 +27,8 @@
                 <div class="card-body p-4 d-flex flex-column">
                     <div class="d-flex justify-content-between align-items-start mb-3">
                         <div>
-                            <span class="badge bg-danger-subtle text-danger rounded-pill px-2 py-1 mb-2 fw-bold text-xs">
+                            {% set prio_color = ticket.priority|priority_color %}
+                            <span class="badge bg-{{ prio_color }}-subtle text-{{ prio_color }} rounded-pill px-2 py-1 mb-2 fw-bold text-xs">
                                 {{ ticket.priority|priority_label }}
                             </span>
                             <span class="badge bg-warning-subtle text-warning rounded-pill px-2 py-1 mb-2 fw-bold ms-1 text-xs">
@@ -90,28 +91,7 @@
 </nav>
 {% endif %}
 
-<!-- Reject Modal -->
-<div class="modal fade" id="rejectApprovalModal" tabindex="-1" aria-labelledby="rejectApprovalModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content modal-content-std">
-            <div class="modal-header modal-header-std">
-                <h5 class="modal-title fw-bold text-danger" id="rejectApprovalModalLabel"><i class="bi bi-x-circle-fill me-2"></i>Freigabe ablehnen</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-4">
-                <input type="hidden" id="rejectTicketId">
-                <div class="mb-3">
-                    <label class="form-label form-label-bold">Ablehnungsgrund (Pflichtfeld)</label>
-                    <textarea id="rejectReasonInput" class="form-control focus-ring focus-ring-danger border-danger-subtle" rows="3" placeholder="Bitte geben Sie an, warum das Ticket nicht freigegeben wurde..." required></textarea>
-                </div>
-            </div>
-            <div class="modal-footer modal-footer-std">
-                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-danger rounded-pill px-4" id="submitRejectBtn">Ablehnen</button>
-            </div>
-        </div>
-    </div>
-</div>
+{% include 'components/_reject_approval_modal.html' %}
 {% endblock %}
 
 {% block scripts %}

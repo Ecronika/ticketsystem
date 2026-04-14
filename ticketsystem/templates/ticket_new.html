@@ -13,7 +13,7 @@
                     <a href="{{ ingress_path }}{{ url_for('main.index') }}" class="btn btn-light btn-sm rounded-circle me-3" aria-label="Zurück zum Dashboard">
                         <i class="bi bi-arrow-left"></i>
                     </a>
-                    <h2 class="h4 fw-bold mb-0">Neues Ticket melden</h2>
+                    <h1 class="h4 fw-bold mb-0">Neues Ticket melden</h1>
                 </div>
                 {% set created_id = request.args.get('created') %}
                 {% if created_id %}

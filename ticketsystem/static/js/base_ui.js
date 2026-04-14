@@ -300,4 +300,14 @@
         resetTimers();
     })();
 
+    // Auto-focus first field when a modal with [data-autofocus-target] opens.
+    document.addEventListener('shown.bs.modal', function(evt) {
+        var modal = evt.target;
+        if (!modal || !modal.dataset) return;
+        var targetId = modal.dataset.autofocusTarget;
+        if (!targetId) return;
+        var el = modal.querySelector('#' + targetId);
+        if (el && typeof el.focus === 'function') el.focus();
+    });
+
 })();

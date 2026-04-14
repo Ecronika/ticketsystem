@@ -1,0 +1,32 @@
+{# Reject-Approval-Modal — verwendet von ticket_detail.html und approvals.html.
+   Die IDs (#rejectReasonInput, #submitRejectBtn, #rejectTicketId) werden von
+   static/js/ticket_detail.js angesprochen. #}
+<div class="modal fade" id="rejectApprovalModal" tabindex="-1"
+     aria-labelledby="rejectApprovalModalLabel" aria-hidden="true"
+     data-autofocus-target="rejectReasonInput">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content modal-content-std">
+            <div class="modal-header modal-header-std">
+                <h5 class="modal-title fw-bold text-danger" id="rejectApprovalModalLabel">
+                    <i class="bi bi-x-circle-fill me-2"></i>Freigabe ablehnen
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body p-4">
+                <input type="hidden" id="rejectTicketId">
+                <div class="mb-3">
+                    <label for="rejectReasonInput" class="form-label form-label-bold">Ablehnungsgrund (Pflichtfeld)</label>
+                    <textarea id="rejectReasonInput"
+                              class="form-control focus-ring focus-ring-danger border-danger-subtle"
+                              rows="3"
+                              placeholder="Bitte geben Sie an, warum das Ticket nicht freigegeben wurde..."
+                              required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer modal-footer-std">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-danger rounded-pill px-4" id="submitRejectBtn">Ablehnen</button>
+            </div>
+        </div>
+    </div>
+</div>
