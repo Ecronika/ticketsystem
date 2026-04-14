@@ -292,9 +292,15 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             const data = await resp.json();
             if (data.success) {
-                // Store message in sessionStorage so it survives the page reload
-                sessionStorage.setItem('bulk_flash', data.updated + ' Ticket(s) aktualisiert.');
-                location.reload();
+                // Patch the dashboard in place — refreshTableRows() swaps the tbody
+                // and cards, then flashes the rows whose outerHTML changed.
+                await refreshTableRows();
+                // Reset bulk-bar selection (the re-rendered rows no longer carry it).
+                document.querySelectorAll('.bulk-select-checkbox:checked').forEach(function(cb) { cb.checked = false; });
+                if (typeof updateBulkBar === 'function') updateBulkBar();
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                if (window.showUiAlert) window.showUiAlert(data.updated + ' Ticket(s) aktualisiert.', 'success');
             } else {
                 if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Unbekannt'), 'danger');
                 btn.disabled = false;
@@ -305,13 +311,6 @@ document.addEventListener('DOMContentLoaded', function() {
             btn.disabled = false;
             btn.innerHTML = originalHtml;
         }
-    }
-
-    // Show persisted bulk flash message after reload
-    const bulkFlash = sessionStorage.getItem('bulk_flash');
-    if (bulkFlash) {
-        sessionStorage.removeItem('bulk_flash');
-        if (window.showUiAlert) window.showUiAlert(bulkFlash, 'success');
     }
 
     document.addEventListener('change', function(e) {
