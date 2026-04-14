@@ -35,3 +35,18 @@ def test_trash_empty_state_no_redundant_paragraph(client, admin_worker):
     r = client.get("/admin/trash")
     assert r.status_code == 200
     assert 'Gelöschte Tickets erscheinen hier' not in r.data.decode('utf-8')
+
+
+# ---------------------------------------------------------------------------
+# Task 1.2 – Ticket-New: inline onclick → data-bs-dismiss
+# ---------------------------------------------------------------------------
+
+def test_ticket_new_banner_has_no_inline_onclick(client, admin_worker):
+    """Created-ticket success banner must not use inline onclick="this.closest".
+
+    Bootstrap's data-bs-dismiss="alert" is the idiomatic approach.
+    """
+    _login_as_admin(client, admin_worker)
+    r = client.get("/ticket/new?created=1")
+    assert r.status_code == 200
+    assert 'onclick="this.closest' not in r.data.decode('utf-8')
