@@ -5,12 +5,10 @@
 <div class="d-flex align-items-center justify-content-between mb-4 gap-3 flex-wrap">
     <div>
         <h1 class="h3 fw-bold mb-0">Meine Aufgaben</h1>
-        {% if urgent_count > 0 %}
-        <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-semibold mt-1 d-inline-flex align-items-center gap-1">
-            <i class="bi bi-exclamation-circle-fill"></i> {{ urgent_count }} Ticket{{ 's' if urgent_count != 1 }} benötigen Aufmerksamkeit
+        {% if urgent_count == 0 %}
+        <span class="text-muted small">
+            <i class="bi bi-check-circle-fill text-success me-1"></i>Keine dringenden Aufgaben.
         </span>
-        {% else %}
-        <span class="text-muted small"><i class="bi bi-check-circle-fill text-success me-1"></i>Keine dringenden Aufgaben.</span>
         {% endif %}
     </div>
     <form method="GET" class="d-flex align-items-center gap-2 bg-surface border p-2 rounded-pill shadow-sm flex-shrink-0">
