@@ -72,6 +72,12 @@
 
         <div class="text-center mt-5 mb-5 opacity-75">
             <p class="small text-muted mb-3">Dies ist eine öffentlich einsehbare Status-Seite für Ticket #{{ ticket.id }}.</p>
+            <p class="text-muted small mb-0">
+                <i class="bi bi-info-circle me-1"></i>
+                Haben Sie Ergänzungen zu diesem Ticket? Antworten Sie auf die
+                Bestätigungs-E-Mail oder kontaktieren Sie uns telefonisch — eine
+                direkte Antwort auf dieser Seite ist nicht möglich.
+            </p>
             <a href="{{ url_for('main.login') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-4">
                 <i class="bi bi-person-circle me-2"></i>Mitarbeiter-Login
             </a>
