@@ -66,7 +66,7 @@
                             {% endif %}
                         </span>
                     </div>
-                    {% if ticket.recurrence %}
+                    {% if ticket.recurrence and ticket.recurrence.rule %}
                     <div class="meta-chip">
                         <small class="meta-chip-label"><i class="bi bi-arrow-repeat me-1"></i>Serie</small>
                         <span class="fw-semibold small">{{ ticket.recurrence.rule|capitalize }}</span>
