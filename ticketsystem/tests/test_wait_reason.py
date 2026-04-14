@@ -69,3 +69,37 @@ def test_changing_wait_reason_while_wartet_updates(app, wartet_ticket):
         )
         t = db.session.get(Ticket, wartet_ticket)
         assert t.wait_reason == "lieferant"
+
+
+def _login_as_admin(client, admin_worker):
+    """Set session to simulate logged-in admin worker."""
+    with client.session_transaction() as s:
+        s["worker_id"] = admin_worker.id
+        s["is_admin"] = True
+        s["role"] = "admin"
+        s["worker_name"] = admin_worker.name
+
+
+def test_api_wartet_without_reason_returns_400(client, admin_worker, wartet_ticket):
+    """API status endpoint returns 400 when wartet without reason."""
+    _login_as_admin(client, admin_worker)
+    resp = client.post(
+        f"/api/ticket/{wartet_ticket}/status",
+        json={"status": "wartet"},
+        headers={"X-CSRFToken": "test"},
+    )
+    assert resp.status_code == 400
+    body = resp.get_json()
+    # @api_endpoint serializes DomainError.field as part of the errors array.
+    assert any(e.get("field") == "wait_reason" for e in (body.get("errors") or []))
+
+
+def test_api_wartet_with_reason_ok(client, admin_worker, wartet_ticket):
+    """API status endpoint accepts wartet with reason."""
+    _login_as_admin(client, admin_worker)
+    resp = client.post(
+        f"/api/ticket/{wartet_ticket}/status",
+        json={"status": "wartet", "wait_reason": "kunde"},
+        headers={"X-CSRFToken": "test"},
+    )
+    assert resp.status_code == 200
