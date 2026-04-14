@@ -185,3 +185,16 @@ def test_dashboard_hides_reason_badge_when_not_wartet(client, admin_worker, app)
     resp = client.get("/")
     html = resp.get_data(as_text=True)
     assert 'title="Wartet auf' not in html
+
+
+# ---------------------------------------------------------------------------
+# Task 3.1 – Login: client-side filter for worker-chip quick-select
+# ---------------------------------------------------------------------------
+
+def test_login_has_worker_chip_filter(client):
+    """Login page must render workerChipFilter search input."""
+    resp = client.get("/login")
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+    assert 'id="workerChipFilter"' in html
+    assert 'placeholder="Mitarbeiter suchen..."' in html

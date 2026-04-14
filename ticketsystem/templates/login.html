@@ -17,6 +17,17 @@ document.addEventListener('DOMContentLoaded', function() {
     pinInput.addEventListener('input', function(e) {
         this.value = this.value.replace(/[^0-9]/g, '');
     });
+
+    const chipFilter = document.getElementById('workerChipFilter');
+    if (chipFilter) {
+        chipFilter.addEventListener('input', function() {
+            const q = this.value.trim().toLowerCase();
+            document.querySelectorAll('.worker-chip').forEach(function(chip) {
+                const matches = !q || (chip.dataset.name || '').toLowerCase().includes(q);
+                chip.style.display = matches ? '' : 'none';
+            });
+        });
+    }
 });
 </script>
 {% endblock %}
@@ -34,6 +45,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="mb-3">
                         <label for="worker_name" class="form-label form-label-bold text-muted">Mitarbeiter wählen oder Name eingeben</label>
                         <input type="text" class="form-control form-control-lg" id="worker_name" name="worker_name" required autofocus autocomplete="username" placeholder="z.B. Schmidt">
+                        <input type="search" id="workerChipFilter"
+                               class="form-control form-control-sm mt-2"
+                               placeholder="Mitarbeiter suchen..."
+                               aria-label="Mitarbeiter-Schnellwahl filtern"
+                               autocomplete="off">
                         <div class="d-flex flex-wrap gap-2 mt-2">
                             {% for worker in workers %}
                             <button type="button" class="btn btn-outline-primary btn-sm rounded-pill py-1 px-3 shadow-sm worker-chip"
