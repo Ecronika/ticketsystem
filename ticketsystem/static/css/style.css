@@ -118,11 +118,23 @@ canvas {
     --z-modal: 1055;
     --z-navbar: 1035;
 
-    /* Typography Scale */
-    --fs-xxs: 0.65rem;
-    --fs-xs: 0.7rem;
-    --fs-sm: 0.75rem;
-    --fs-meta: 0.8rem;
+    /* Typography Scale (modular, 1.125 ratio ab base) */
+    --fs-xxs: 0.65rem;   /* 10.4px */
+    --fs-xs: 0.7rem;     /* 11.2px */
+    --fs-sm: 0.75rem;    /* 12px */
+    --fs-meta: 0.8rem;   /* 12.8px */
+    --fs-base: 1rem;     /* 16px */
+    --fs-lg: 1.125rem;   /* 18px */
+    --fs-xl: 1.25rem;    /* 20px */
+    --fs-2xl: 1.5rem;    /* 24px */
+    --fs-3xl: 1.875rem;  /* 30px */
+    --fs-4xl: 2.25rem;   /* 36px */
+
+    /* Line-Height Scale (RUI: tight für Headings, relaxed für Body) */
+    --lh-tight: 1.15;
+    --lh-snug: 1.3;
+    --lh-normal: 1.5;
+    --lh-relaxed: 1.625;
 
     /* Avatar Sizes */
     --avatar-xs: 20px;
