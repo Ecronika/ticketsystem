@@ -714,7 +714,7 @@ canvas {
         flex-shrink: 0;
         color: var(--text-muted);
         text-transform: uppercase;
-        font-size: 0.75rem;
+        font-size: var(--fs-sm);
     }
 }
 
@@ -1391,6 +1391,17 @@ textarea:focus-visible {
 .dash-table th:hover { color: var(--bs-primary); }
 .dash-table th .sort-icon { font-size: var(--fs-xs); opacity: 0.4; }
 .dash-table th.sorted .sort-icon { opacity: 1; color: var(--bs-primary); }
+
+/* RUI #1: Table headers as de-emphasized labels, data stays primary */
+.dash-table thead th,
+.table thead th {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    background-color: var(--bg-surface-subtle);
+}
 .dash-table td { vertical-align: middle; padding-top: var(--space-2); padding-bottom: var(--space-2); }
 .dash-table tr { transition: background 0.1s; }
 .dash-table tbody tr:hover { background: var(--bg-surface-subtle); }
