@@ -300,7 +300,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (typeof updateBulkBar === 'function') updateBulkBar();
                 btn.disabled = false;
                 btn.innerHTML = originalHtml;
-                if (window.showUiAlert) window.showUiAlert(data.updated + ' Ticket(s) aktualisiert.', 'success');
+                if (data.prev_state && Object.keys(data.prev_state).length > 0) {
+                    const prevState = data.prev_state;
+                    if (window.showUiAlert) {
+                        window.showUiAlert(
+                            data.updated + ' Ticket(s) aktualisiert.',
+                            'success',
+                            {
+                                undoLabel: 'Rückgängig',
+                                undoAction: async function() {
+                                    await fetch(ingress + '/api/tickets/bulk/restore', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                                        body: JSON.stringify({ prev_state: prevState }),
+                                    });
+                                    await refreshTableRows();
+                                }
+                            }
+                        );
+                    }
+                } else {
+                    if (window.showUiAlert) window.showUiAlert(data.updated + ' Ticket(s) aktualisiert.', 'success');
+                }
             } else {
                 if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Unbekannt'), 'danger');
                 btn.disabled = false;

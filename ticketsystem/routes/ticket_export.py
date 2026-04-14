@@ -7,7 +7,7 @@ from typing import Any
 from flask import Blueprint, Response, request, session, stream_with_context
 
 from enums import ELEVATED_ROLES, ApprovalStatus, TicketPriority, TicketStatus
-from extensions import db
+from extensions import db, limiter
 from models import Comment, Team, Ticket
 from routes.auth import worker_required, write_required
 from services._helpers import api_endpoint, api_error, api_ok
@@ -18,6 +18,7 @@ from utils import get_utc_now
 
 from ._helpers import (
     _PRIO_LABELS,
+    _check_ticket_access,
     _parse_date,
     _safe_int,
     is_approval_locked,
@@ -42,8 +43,33 @@ def _bulk_action_api() -> tuple[Response, int] | Response:
 
     worker_id = session.get("worker_id")
     author = session.get("worker_name", "System")
+
+    # Snapshot prev_state BEFORE applying reversible actions so the client can
+    # offer a one-click "Rückgängig" toast.
+    prev_state: dict[str, Any] | None = None
+    if action in ("status_change", "reassign", "set_priority"):
+        worker_role = session.get("role")
+        tickets_snapshot = [
+            db.session.get(Ticket, tid)
+            for tid in ticket_ids
+        ]
+        prev_state = {
+            str(t.id): {
+                "status": t.status,
+                "assigned_to_id": t.assigned_to_id,
+                "assigned_team_id": t.assigned_team_id,
+                "priority": t.priority,
+                "wait_reason": t.wait_reason,
+            }
+            for t in tickets_snapshot
+            if t and not t.is_deleted and t.is_accessible_by(worker_id, worker_role)
+        }
+
     updated = _execute_bulk_action(ticket_ids, action, data, worker_id, author)
-    return api_ok(updated=updated)
+    payload: dict[str, Any] = {"updated": updated}
+    if prev_state:
+        payload["prev_state"] = prev_state
+    return api_ok(**payload)
 
 
 def _execute_bulk_action(
@@ -138,6 +164,41 @@ def _bulk_set_priority(ticket: Ticket, data: dict[str, Any]) -> int:
         ticket.updated_at = get_utc_now()
         return 1
     return 0
+
+
+# ------------------------------------------------------------------
+# Bulk restore (undo for status_change / reassign / set_priority)
+# ------------------------------------------------------------------
+
+@worker_required
+@write_required
+@limiter.limit("20 per minute")
+@api_endpoint
+def _bulk_restore_state_api() -> tuple[Response, int] | Response:
+    """Restore a bulk before-state produced by a previous /api/tickets/bulk call."""
+    payload = request.get_json(silent=True) or {}
+    prev_state = payload.get("prev_state") or {}
+    if not isinstance(prev_state, dict):
+        return api_error("prev_state muss ein Objekt sein.", 400)
+    restored = 0
+    worker_id = session.get("worker_id")
+    role = session.get("role")
+    for ticket_id_str, state in prev_state.items():
+        try:
+            tid = int(ticket_id_str)
+        except (TypeError, ValueError):
+            continue
+        ticket = _check_ticket_access(tid, worker_id, role)
+        if not ticket:
+            continue
+        ticket.status = state.get("status", ticket.status)
+        ticket.assigned_to_id = state.get("assigned_to_id")
+        ticket.assigned_team_id = state.get("assigned_team_id")
+        ticket.priority = state.get("priority", ticket.priority)
+        ticket.wait_reason = state.get("wait_reason")
+        restored += 1
+    db.session.commit()
+    return api_ok(restored=restored)
 
 
 # ------------------------------------------------------------------
@@ -262,6 +323,10 @@ def register_routes(bp: Blueprint) -> None:
     bp.add_url_rule(
         "/api/tickets/bulk", "bulk_action_api",
         view_func=_bulk_action_api, methods=["POST"],
+    )
+    bp.add_url_rule(
+        "/api/tickets/bulk/restore", "bulk_restore_state",
+        view_func=_bulk_restore_state_api, methods=["POST"],
     )
     bp.add_url_rule(
         "/api/export/archive", "export_archive_csv",
