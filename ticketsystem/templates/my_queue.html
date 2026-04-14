@@ -56,7 +56,7 @@
                     {{ ticket.title }}
                 </a>
                 {% if ticket.is_confidential %}<i class="bi bi-lock-fill text-warning ms-1" title="Vertraulich"></i>{% endif %}
-                {% if ticket.recurrence %}<i class="bi bi-arrow-repeat text-primary ms-1" title="Serienticket"></i>{% endif %}
+                {% if ticket.recurrence and ticket.recurrence.rule %}<i class="bi bi-arrow-repeat text-primary ms-1" title="Serienticket"></i>{% endif %}
             </h3>
             <span class="text-meta x-small text-muted flex-shrink-0">#{{ ticket.id }}</span>
         </div>
