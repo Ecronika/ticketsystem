@@ -215,15 +215,10 @@ def _handle_failed_login(
     worker.failed_login_count += 1
     if worker.failed_login_count >= _MAX_FAILED_LOGINS:
         worker.locked_until = get_utc_now() + timedelta(minutes=_LOCKOUT_MINUTES)
-        flash(
-            "Zu viele Fehlversuche. Konto für 15 Minuten gesperrt.",
-            "danger",
-        )
+        flash("Account gesperrt. Admin kontaktieren.", "danger")
     else:
-        flash(
-            "Ungültige Zugangsdaten. Bitte versuchen Sie es erneut.",
-            "danger",
-        )
+        remaining = max(0, _MAX_FAILED_LOGINS - worker.failed_login_count)
+        flash(f"PIN ungültig. Noch {remaining} Versuche übrig.", "danger")
     db.session.commit()
     return render_template("login.html", workers=workers)
 

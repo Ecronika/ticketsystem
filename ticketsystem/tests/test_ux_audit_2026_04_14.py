@@ -198,3 +198,28 @@ def test_login_has_worker_chip_filter(client):
     html = resp.get_data(as_text=True)
     assert 'id="workerChipFilter"' in html
     assert 'placeholder="Mitarbeiter suchen..."' in html
+
+
+# ---------------------------------------------------------------------------
+# Task 3.2 – Login: surface remaining PIN attempts in flash message
+# ---------------------------------------------------------------------------
+
+def test_login_failed_pin_shows_remaining_attempts(client, app):
+    """After a failed login, the user should see how many attempts remain."""
+    from models import Worker, db
+    from services.worker_service import WorkerService
+
+    with app.app_context():
+        # Use a strong, non-blocklisted PIN (see CLAUDE.md note)
+        WorkerService.create_worker("LoginTest", "7391", role="worker")
+
+    # Attempt login with wrong PIN to trigger the remaining-attempts flash.
+    resp = client.post("/login", data={
+        "worker_name": "LoginTest",
+        "pin": "0000",  # wrong
+        "csrf_token": "test",
+    }, follow_redirects=True)
+    html = resp.get_data(as_text=True)
+    # Check for either "Noch X Versuche" (still has attempts) or "Account gesperrt"
+    assert ("Noch" in html and "Versuche" in html) or "gesperrt" in html.lower(), \
+        f"expected 'Noch X Versuche übrig' or 'Account gesperrt' in flash"
