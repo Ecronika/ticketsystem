@@ -499,9 +499,17 @@ canvas {
     color: rgba(255, 255, 255, 0.5) !important;
 }
 
-/* Ensure consistent card borders for separation */
+/* RUI #5: Cards use shadow OR border, not both. On white surfaces → shadow. */
 .card {
-    border: 1px solid var(--border-color) !important;
+    border: 1px solid transparent;
+    box-shadow: var(--card-shadow);
+}
+
+/* On subtle backgrounds, swap to border-only for clearer depth separation */
+.bg-surface-subtle .card,
+.card.card-flat {
+    border-color: var(--border-color);
+    box-shadow: none;
 }
 
 .text-theme-primary {
@@ -1740,4 +1748,23 @@ select[aria-invalid="true"] {
 @keyframes rowFlash {
     0%   { background-color: var(--bs-warning-bg-subtle, #fff3cd); }
     100% { background-color: transparent; }
+}
+
+/* =========================================
+   ELEVATION MAP (RUI #5 — consistent depth scale)
+   btn=xs, card=sm, dropdown=md, notification/modal=lg, global-modal=xl
+   ========================================= */
+.btn {
+    box-shadow: var(--shadow-xs);
+}
+.btn:disabled,
+.btn[aria-disabled="true"] {
+    box-shadow: none;
+}
+.dropdown-menu {
+    box-shadow: var(--shadow-md);
+}
+.notification-dropdown,
+.modal-content {
+    box-shadow: var(--shadow-lg);
 }
