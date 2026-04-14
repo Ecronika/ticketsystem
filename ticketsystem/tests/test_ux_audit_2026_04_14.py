@@ -85,3 +85,32 @@ def test_approvals_icon_link_has_aria_label(client, admin_worker, app):
     # Every anchor containing bi-arrow-up-right must carry aria-label
     for m in re.finditer(r'<a [^>]*bi-arrow-up-right[^>]*>', html):
         assert 'aria-label' in m.group(0), f"missing aria-label: {m.group(0)}"
+
+
+# ---------------------------------------------------------------------------
+# Task 1.4 – My Queue: Priority as text+icon chip, not only color border
+# ---------------------------------------------------------------------------
+
+def test_my_queue_shows_priority_as_text(client, admin_worker, app):
+    """Priority must be shown as text label, not only via border color (WCAG: color-only info)."""
+    _login_as_admin(client, admin_worker)
+
+    # Seed a high-priority ticket assigned to the logged-in admin
+    with app.app_context():
+        from models import Ticket, db
+        t = Ticket(
+            title="Prio-Test-1.4",
+            priority=1,  # HIGH
+            assigned_to_id=admin_worker.id,
+            status="offen",
+            due_date=None,
+        )
+        db.session.add(t)
+        db.session.commit()
+
+    resp = client.get("/my-queue")
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+
+    # HIGH priority ticket must show 'Hoch' text label
+    assert "Hoch" in html, "HIGH priority ticket must show 'Hoch' text label"
