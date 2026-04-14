@@ -44,10 +44,6 @@ secret.key
 instance/
 
 # Stable App Data
-ticketsystem/reports/*
-!ticketsystem/reports/.gitkeep
-ticketsystem/signatures/*
-!ticketsystem/signatures/.gitkeep
 ticketsystem/backups/*
 !ticketsystem/backups/.gitkeep
 ticketsystem/attachments/*

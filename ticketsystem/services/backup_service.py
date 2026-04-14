@@ -292,7 +292,6 @@ def _perform_restore_overwrite(data_dir: str, temp_dir: str) -> None:
     """Overwrite current data with restored data using safe renaming."""
     _restore_database_files(data_dir, temp_dir)
     _restore_config_file(data_dir, temp_dir)
-    _restore_directories(data_dir, temp_dir, ["signatures", "reports"])
 
 
 def _restore_database_files(data_dir: str, temp_dir: str) -> None:
@@ -332,19 +331,6 @@ def _restore_config_file(data_dir: str, temp_dir: str) -> None:
         shutil.copy2(src, os.path.join(data_dir, "config.yaml"))
 
 
-def _restore_directories(
-    data_dir: str, temp_dir: str, folders: List[str]
-) -> None:
-    """Copy sub-directories (signatures, reports) from the backup."""
-    for folder in folders:
-        src = os.path.join(temp_dir, folder)
-        dst = os.path.join(data_dir, folder)
-        if os.path.exists(src):
-            if os.path.exists(dst):
-                shutil.rmtree(dst)
-            shutil.copytree(src, dst)
-
-
 def _schedule_delayed_restart() -> None:
     """Trigger a background restart to apply the restored database."""
     def _delayed_restart() -> None:
@@ -369,8 +355,6 @@ def _write_zip_archive(backup_path: str, data_dir: str) -> None:
     with zipfile.ZipFile(backup_path, "w", zipfile.ZIP_DEFLATED) as zipf:
         _add_db_files(zipf, data_dir)
         _add_config_files(zipf, data_dir)
-        _add_directory_to_zip(zipf, os.path.join(data_dir, "signatures"), data_dir)
-        _add_directory_to_zip(zipf, os.path.join(data_dir, "reports"), data_dir)
 
 
 def _add_db_files(zipf: zipfile.ZipFile, data_dir: str) -> None:
@@ -392,19 +376,6 @@ def _add_config_files(zipf: zipfile.ZipFile, data_dir: str) -> None:
         zipf.write(config_path, "config.yaml")
     elif os.path.exists(ha_config_path):
         zipf.write(ha_config_path, "options.json")
-
-
-def _add_directory_to_zip(
-    zipf: zipfile.ZipFile, dir_path: str, data_dir: str
-) -> None:
-    """Add all files from a directory to a zip archive."""
-    if not os.path.exists(dir_path):
-        return
-    for root, _, files in os.walk(dir_path):
-        for filename in files:
-            file_path = os.path.join(root, filename)
-            arcname = os.path.relpath(file_path, data_dir)
-            zipf.write(file_path, arcname)
 
 
 def _retention_days() -> int:
