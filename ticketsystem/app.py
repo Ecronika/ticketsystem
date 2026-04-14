@@ -747,13 +747,20 @@ def inject_help() -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 @app.template_filter("local_time")
-def local_time_filter(dt: datetime | None) -> datetime | str:
-    """Localise UTC datetime to Europe/Berlin."""
+def local_time_filter(dt):
+    """Localise UTC datetime to Europe/Berlin.
+
+    Plain ``date`` objects (e.g. ``Ticket.due_date``, ``ChecklistItem.due_date``)
+    have no timezone and pass through unchanged — the downstream ``datetime``
+    filter calls ``strftime`` which works for both ``date`` and ``datetime``.
+    """
     if not dt:
         return ""
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(ZoneInfo("Europe/Berlin"))
+    if isinstance(dt, datetime):
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(ZoneInfo("Europe/Berlin"))
+    return dt
 
 
 @app.template_filter("datetime")

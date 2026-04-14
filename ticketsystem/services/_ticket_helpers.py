@@ -229,7 +229,7 @@ def apply_search_filter(query: Any, search: str) -> Any:
         comment_ids = (
             db.session.query(Comment.ticket_id)
             .filter(Comment.text.ilike(pattern))
-            .subquery()
+            .scalar_subquery()
         )
         query = query.filter(
             Ticket.title.ilike(pattern)

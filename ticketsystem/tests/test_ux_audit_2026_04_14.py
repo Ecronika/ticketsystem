@@ -307,3 +307,43 @@ def test_dashboard_hides_project_breadcrumb_for_nonproject_query(client, admin_w
     html = resp.get_data(as_text=True)
     # breadcrumb nav must not appear for a non-matching query
     assert 'aria-label="breadcrumb"' not in html
+
+
+# ---------------------------------------------------------------------------
+# Bugfix 2026-04-14: local_time filter must pass-through datetime.date objects
+# (AttributeError: 'datetime.date' object has no attribute 'tzinfo')
+# ---------------------------------------------------------------------------
+
+def test_local_time_filter_passes_date_objects_through(app):
+    """date objects have no tzinfo — the filter must not crash, must pass through."""
+    from datetime import date, datetime, timezone
+    with app.app_context():
+        local_time = app.jinja_env.filters["local_time"]
+        d = date(2026, 4, 14)
+        assert local_time(d) is d
+        # datetime still localises as before.
+        dt = datetime(2026, 4, 14, 10, 0, tzinfo=timezone.utc)
+        assert local_time(dt).tzinfo is not None
+        # Empty input stays empty.
+        assert local_time(None) == ""
+
+
+def test_ticket_detail_renders_when_checklist_item_has_due_date(client, admin_worker, app):
+    """Regression: ticket detail crashed 500 when checklist_item.due_date was set."""
+    from datetime import date
+    from models import Ticket, ChecklistItem, db
+    _login_as_admin(client, admin_worker)
+    with app.app_context():
+        t = Ticket(title="ChecklistDueDate-Bug")
+        db.session.add(t)
+        db.session.commit()
+        item = ChecklistItem(
+            ticket_id=t.id, title="Teilaufgabe mit Fälligkeit",
+            due_date=date(2026, 4, 20),
+        )
+        db.session.add(item)
+        db.session.commit()
+        tid = t.id
+    resp = client.get(f"/ticket/{tid}")
+    assert resp.status_code == 200
+    assert b"20.04.2026" in resp.data
