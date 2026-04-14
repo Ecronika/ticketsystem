@@ -87,6 +87,12 @@
         {% else %}
             <span class="small">{{ ticket.status|status_label }}</span>
         {% endif %}
+        {% if ticket.status == TicketStatus.WARTET.value and ticket.wait_reason %}
+        <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill x-small ms-1"
+              title="Wartet auf {{ ticket.wait_reason }}">
+            {{ ticket.wait_reason|capitalize }}
+        </span>
+        {% endif %}
     </td>
     <td class="text-end pe-3 small">
         {% if ticket.due_date %}
@@ -135,6 +141,12 @@
     <span class="badge status-{{ ticket.status }}">
       <span class="status-dot {{ ticket.status }} me-1"></span>{{ ticket.status|status_label }}
     </span>
+    {% if ticket.status == TicketStatus.WARTET.value and ticket.wait_reason %}
+    <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill"
+          title="Wartet auf {{ ticket.wait_reason }}">
+        {{ ticket.wait_reason|capitalize }}
+    </span>
+    {% endif %}
     <span class="badge priority-{{ prio_name }}">{{ ticket.priority|priority_label }}</span>
     {% if ticket.approval and ticket.approval.status == ApprovalStatus.PENDING.value %}
       <span class="badge badge-subtle-warning rounded-pill">FREIGABE</span>

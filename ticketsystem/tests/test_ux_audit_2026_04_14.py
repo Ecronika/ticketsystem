@@ -148,3 +148,40 @@ def test_sidebar_shows_wait_reason_badge_when_set(client, admin_worker, app):
     html = resp.get_data(as_text=True)
     assert "Wartet auf:" in html
     assert "Lieferant" in html
+
+
+# ---------------------------------------------------------------------------
+# Task 2.7 – Dashboard: wait_reason badge in row & mobile card
+# ---------------------------------------------------------------------------
+
+def test_dashboard_row_shows_wait_reason_badge(client, admin_worker, app):
+    """Dashboard table row must show wait_reason badge after status badge when status=WARTET."""
+    from models import Ticket, db
+    from enums import TicketStatus, WaitReason
+    _login_as_admin(client, admin_worker)
+    with app.app_context():
+        t = Ticket(title="WR-Row", status=TicketStatus.WARTET.value,
+                   wait_reason=WaitReason.KUNDE.value)
+        db.session.add(t)
+        db.session.commit()
+    resp = client.get("/")
+    html = resp.get_data(as_text=True)
+    # The reason appears capitalized (Kunde) with the Wartet-specific title attr.
+    assert "Wartet auf kunde" in html or 'title="Wartet auf kunde"' in html
+    assert "Kunde" in html
+
+
+def test_dashboard_hides_reason_badge_when_not_wartet(client, admin_worker, app):
+    """Dashboard must not show wait_reason badge when status != WARTET."""
+    from models import Ticket, db
+    from enums import TicketStatus
+    _login_as_admin(client, admin_worker)
+    with app.app_context():
+        # Status=offen → no wait_reason badge even if column has stale data.
+        t = Ticket(title="Non-Wartet", status=TicketStatus.OFFEN.value,
+                   wait_reason=None)
+        db.session.add(t)
+        db.session.commit()
+    resp = client.get("/")
+    html = resp.get_data(as_text=True)
+    assert 'title="Wartet auf' not in html
