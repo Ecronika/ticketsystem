@@ -79,5 +79,17 @@
         offcanvas.show();
       });
     });
+
+    // 3. Hilfe-Suche
+    var searchInput = document.getElementById('helpOffcanvasSearch');
+    if (searchInput) {
+      searchInput.addEventListener('input', function () {
+        var q = this.value.trim().toLowerCase();
+        document.querySelectorAll('.help-section').forEach(function (section) {
+          var hit = !q || section.textContent.toLowerCase().includes(q);
+          section.style.display = hit ? '' : 'none';
+        });
+      });
+    }
   });
 }());

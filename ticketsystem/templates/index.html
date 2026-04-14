@@ -1,5 +1,18 @@
 {% extends "base.html" %}
 
+{% block breadcrumbs %}
+{% if query and project_names is defined and query in project_names %}
+<nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb mb-0 small">
+        <li class="breadcrumb-item">
+            <a href="{{ ingress_path }}{{ url_for('main.projects') }}" class="text-decoration-none">Projekte</a>
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">{{ query }}</li>
+    </ol>
+</nav>
+{% endif %}
+{% endblock %}
+
 {% block styles %}{% endblock %}
 
 {% block scripts %}
@@ -300,7 +313,33 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (typeof updateBulkBar === 'function') updateBulkBar();
                 btn.disabled = false;
                 btn.innerHTML = originalHtml;
-                if (window.showUiAlert) window.showUiAlert(data.updated + ' Ticket(s) aktualisiert.', 'success');
+                if (data.prev_state && Object.keys(data.prev_state).length > 0) {
+                    const prevState = data.prev_state;
+                    if (window.showUiAlert) {
+                        window.showUiAlert(
+                            data.updated + ' Ticket(s) aktualisiert.',
+                            'success',
+                            {
+                                undoLabel: 'Rückgängig',
+                                undoAction: async function() {
+                                    const undoResp = await fetch(ingress + '/api/tickets/bulk/restore', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                                        body: JSON.stringify({ prev_state: prevState }),
+                                    });
+                                    if (!undoResp.ok) {
+                                        const errData = await undoResp.json().catch(function() { return {}; });
+                                        if (window.showUiAlert) window.showUiAlert('Rückgängig fehlgeschlagen: ' + (errData.error || undoResp.status), 'danger');
+                                        return;
+                                    }
+                                    await refreshTableRows();
+                                }
+                            }
+                        );
+                    }
+                } else {
+                    if (window.showUiAlert) window.showUiAlert(data.updated + ' Ticket(s) aktualisiert.', 'success');
+                }
             } else {
                 if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Unbekannt'), 'danger');
                 btn.disabled = false;

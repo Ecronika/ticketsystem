@@ -27,14 +27,19 @@
     // Signature: showUiAlert(msg, type = 'danger', opts = {})
     //   opts.undoUrl       — when set, renders a "Rückgängig" button in the toast.
     //                        Clicking POSTs to the URL with CSRF, reloads on success.
+    //   opts.undoAction    — alternative to undoUrl: an async function called on click.
+    //                        The toast is dismissed after the callback completes.
+    //                        Takes precedence over undoUrl when both are supplied.
     //   opts.undoLabel     — label for the undo button (default 'Rückgängig').
-    //   opts.timeout       — auto-dismiss ms (default 6000; 8000 when undoUrl set).
-    //   opts.onUndoSuccess — optional callback after successful undo (else reload).
+    //   opts.timeout       — auto-dismiss ms (default 6000; 8000 when undoUrl/undoAction set).
+    //   opts.onUndoSuccess — optional callback after successful undo (else reload). Only
+    //                        applies to the undoUrl path; undoAction handles its own flow.
     window.showUiAlert = function (msg, type, opts) {
         const safeTypes = ['danger', 'warning', 'success', 'info', 'primary', 'secondary'];
         const safeType = safeTypes.includes(type) ? type : 'danger';
         const options = opts || {};
-        const hasUndo = Boolean(options.undoUrl);
+        const hasUndoAction = typeof options.undoAction === 'function';
+        const hasUndo = hasUndoAction || Boolean(options.undoUrl);
         const timeout = options.timeout || (hasUndo ? 8000 : 6000);
 
         let container = document.querySelector('.position-fixed.top-0.end-0.p-3.z-toast');
@@ -60,7 +65,27 @@
         alertEl.appendChild(icon);
         alertEl.appendChild(msgNode);
 
-        if (hasUndo) {
+        if (hasUndoAction) {
+            // Client-side callback path: call undoAction() and dismiss the toast.
+            const undoBtn = document.createElement('button');
+            undoBtn.type = 'button';
+            undoBtn.className = 'btn btn-sm btn-link ms-2';
+            undoBtn.textContent = options.undoLabel || 'Rückgängig';
+            undoBtn.addEventListener('click', async function() {
+                undoBtn.disabled = true;
+                try {
+                    await options.undoAction();
+                } catch (_) {
+                    window.showUiAlert('Rückgängig fehlgeschlagen.', 'danger');
+                } finally {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        try { bootstrap.Alert.getOrCreateInstance(el).close(); } catch(e) { el.remove(); }
+                    }
+                }
+            });
+            alertEl.appendChild(undoBtn);
+        } else if (options.undoUrl) {
             const undoBtn = document.createElement('button');
             undoBtn.type = 'button';
             undoBtn.className = 'btn btn-sm btn-link ms-2 undo-action-btn';

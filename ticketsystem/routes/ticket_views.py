@@ -102,6 +102,18 @@ def _dashboard_view() -> str | Response:
     all_workers = get_active_workers()
     all_teams = get_all_teams()
 
+    project_names: set[str] = {
+        row[0]
+        for row in (
+            Ticket.query
+            .filter(Ticket.order_reference.isnot(None))
+            .with_entities(Ticket.order_reference)
+            .distinct()
+            .all()
+        )
+        if row[0]
+    }
+
     return render_template(
         "index.html",
         pagination=tickets_data["focus_pagination"],
@@ -120,6 +132,7 @@ def _dashboard_view() -> str | Response:
         sort_dir=sort_dir,
         per_page=per_page,
         days_horizon=days_horizon,
+        project_names=project_names,
     )
 
 

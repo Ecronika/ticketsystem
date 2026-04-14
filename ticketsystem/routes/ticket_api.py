@@ -97,6 +97,7 @@ def _update_status_api(ticket_id: int) -> tuple[Response, int] | Response:
 
     data: dict[str, Any] = request.get_json(silent=True) or {}
     new_status = data.get("status")
+    wait_reason = data.get("wait_reason")
     if not new_status:
         return api_error("Kein Status angegeben", 400)
 
@@ -114,7 +115,10 @@ def _update_status_api(ticket_id: int) -> tuple[Response, int] | Response:
             )
 
     author = session.get("worker_name", "System")
-    TicketCoreService.update_status(ticket_id, new_status, author, worker_id)
+    TicketCoreService.update_status(
+        ticket_id, new_status, author, worker_id,
+        wait_reason=wait_reason,
+    )
     return api_ok()
 
 

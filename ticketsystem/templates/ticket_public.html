@@ -2,6 +2,15 @@
 {% block title %}Status Ticket #{{ ticket.id }}{% endblock %}
 
 {% block content %}
+<nav aria-label="Top navigation" class="mb-3 d-flex justify-content-between align-items-center">
+    <span class="small text-muted">
+        <i class="bi bi-ticket-perforated me-1" aria-hidden="true"></i>Ticket-Status #{{ ticket.id }}
+    </span>
+    <a href="{{ ingress_path }}{{ url_for('main.ticket_new') }}"
+       class="btn btn-sm btn-outline-primary rounded-pill">
+        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Neues Ticket melden
+    </a>
+</nav>
 <div class="row g-4 d-flex justify-content-center">
     <div class="col-lg-8">
         <!-- Ticket Header Card -->

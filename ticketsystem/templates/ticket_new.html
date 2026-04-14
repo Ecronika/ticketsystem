@@ -30,7 +30,8 @@
                         {% if session.get('worker_id') %}
                         <a href="{{ ingress_path }}{{ url_for('main.index') }}" class="btn btn-sm btn-outline-success rounded-pill px-3">Dashboard</a>
                         {% endif %}
-                        <button type="button" class="btn btn-sm btn-link text-muted text-decoration-none ms-auto" onclick="this.closest('.alert').remove()">Schließen</button>
+                        <button type="button" class="btn btn-sm btn-link text-muted text-decoration-none ms-auto"
+                                data-bs-dismiss="alert" aria-label="Meldung schließen">Schließen</button>
                     </div>
                 </div>
                 {% endif %}

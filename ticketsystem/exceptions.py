@@ -29,11 +29,19 @@ class DomainError(Exception):
     status_code: int = 400
     field: Optional[str] = None
 
-    def __init__(self, message: str = "", *, field: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        message: str = "",
+        *,
+        field: Optional[str] = None,
+        status_code: Optional[int] = None,
+    ) -> None:
         super().__init__(message)
         self._user_message = message
         if field is not None:
             self.field = field
+        if status_code is not None:
+            self.status_code = status_code
 
     @property
     def user_message(self) -> str:
