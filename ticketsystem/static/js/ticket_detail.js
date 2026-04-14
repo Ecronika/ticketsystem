@@ -147,16 +147,19 @@ document.addEventListener('DOMContentLoaded', function() {
         toggleReminderField(newStatus);
     };
 
-    const sendStatusChange = async (newStatus, btn) => {
+    const sendStatusChange = async (newStatus, btn, waitReason) => {
         const original = statusHiddenSelect ? statusHiddenSelect.dataset.original : '';
         btn.disabled = true;
         btn.classList.add('opacity-50');
+
+        const payload = { status: newStatus };
+        if (waitReason) payload.wait_reason = waitReason;
 
         try {
             const response = await fetch(`${getIngress()}/api/ticket/${ticketId}/status`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                body: JSON.stringify({ status: newStatus })
+                body: JSON.stringify(payload)
             });
             const data = await response.json();
             if (data.success) {
@@ -175,11 +178,55 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
+    // --- Wait-Reason Popover for WARTET status ---
+    const waitReasonPopover = document.getElementById('waitReasonPopover');
+    let _pendingWartetBtn = null;
+
+    const showWaitReasonPopover = (btn) => {
+        _pendingWartetBtn = btn;
+        if (waitReasonPopover) waitReasonPopover.classList.remove('d-none');
+    };
+
+    const hideWaitReasonPopover = () => {
+        _pendingWartetBtn = null;
+        if (waitReasonPopover) waitReasonPopover.classList.add('d-none');
+    };
+
+    if (waitReasonPopover) {
+        waitReasonPopover.querySelectorAll('[data-wait-reason]').forEach(reasonBtn => {
+            reasonBtn.addEventListener('click', function() {
+                const reason = this.dataset.waitReason;
+                const triggerBtn = _pendingWartetBtn;
+                hideWaitReasonPopover();
+                if (triggerBtn) sendStatusChange('wartet', triggerBtn, reason);
+            });
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && !waitReasonPopover.classList.contains('d-none')) {
+                hideWaitReasonPopover();
+            }
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!waitReasonPopover.classList.contains('d-none') &&
+                !waitReasonPopover.contains(e.target) &&
+                e.target !== _pendingWartetBtn) {
+                hideWaitReasonPopover();
+            }
+        });
+    }
+
     if (statusSegmented) {
         statusSegmented.querySelectorAll('button').forEach(btn => {
             btn.addEventListener('click', function() {
                 if (this.classList.contains('active')) return;
-                sendStatusChange(this.dataset.status, this);
+                if (this.dataset.status === 'wartet') {
+                    showWaitReasonPopover(this);
+                } else {
+                    hideWaitReasonPopover();
+                    sendStatusChange(this.dataset.status, this);
+                }
             });
         });
     }

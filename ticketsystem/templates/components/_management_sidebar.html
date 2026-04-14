@@ -16,6 +16,23 @@
                         {{ 'disabled' if session.get('role') == 'viewer' }}
                         title="Warten auf externe Aktion (Lieferung, Rückruf, ...)">Wartet</button>
             </div>
+            <div id="waitReasonPopover" class="wait-reason-popover d-none border rounded-3 shadow-sm p-2 bg-surface mt-2"
+                 role="dialog" aria-label="Grund für Status 'Wartet'">
+                <small class="d-block fw-semibold mb-1 text-muted">Worauf wird gewartet?</small>
+                <div class="btn-group btn-group-sm w-100" role="group">
+                    <button type="button" class="btn btn-outline-secondary" data-wait-reason="kunde">Kunde</button>
+                    <button type="button" class="btn btn-outline-secondary" data-wait-reason="lieferant">Lieferant</button>
+                    <button type="button" class="btn btn-outline-secondary" data-wait-reason="kollege">Kollege</button>
+                    <button type="button" class="btn btn-outline-secondary" data-wait-reason="sonstiges">Sonstiges</button>
+                </div>
+            </div>
+            {% if ticket.status == TicketStatus.WARTET.value and ticket.wait_reason %}
+            <div class="mt-2">
+                <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill small">
+                    Wartet auf: {{ ticket.wait_reason|capitalize }}
+                </span>
+            </div>
+            {% endif %}
             {% if session.get('role') != 'viewer' %}
             <button type="button" class="btn btn-sm btn-outline-success w-100 {{ 'active' if ticket.status == TicketStatus.ERLEDIGT.value }}"
                     id="statusDoneBtn" data-status="{{ TicketStatus.ERLEDIGT.value }}">

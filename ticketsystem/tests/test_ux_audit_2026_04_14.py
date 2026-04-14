@@ -114,3 +114,37 @@ def test_my_queue_shows_priority_as_text(client, admin_worker, app):
 
     # HIGH priority ticket must show 'Hoch' text label
     assert "Hoch" in html, "HIGH priority ticket must show 'Hoch' text label"
+
+
+# ---------------------------------------------------------------------------
+# Task 2.6 – Sidebar: wait-reason popover markup
+# ---------------------------------------------------------------------------
+
+def test_sidebar_has_wait_reason_picker(client, admin_worker, app):
+    from models import Ticket, db
+    _login_as_admin(client, admin_worker)
+    with app.app_context():
+        t = Ticket(title="WR-UI-Test")
+        db.session.add(t)
+        db.session.commit()
+        tid = t.id
+    resp = client.get(f"/ticket/{tid}")
+    html = resp.get_data(as_text=True)
+    assert 'id="waitReasonPopover"' in html
+    for r in ("kunde", "lieferant", "kollege", "sonstiges"):
+        assert f'data-wait-reason="{r}"' in html, f"missing reason button: {r}"
+
+
+def test_sidebar_shows_wait_reason_badge_when_set(client, admin_worker, app):
+    from models import Ticket, db
+    from enums import TicketStatus, WaitReason
+    _login_as_admin(client, admin_worker)
+    with app.app_context():
+        t = Ticket(title="WR-badge", status=TicketStatus.WARTET.value, wait_reason=WaitReason.LIEFERANT.value)
+        db.session.add(t)
+        db.session.commit()
+        tid = t.id
+    resp = client.get(f"/ticket/{tid}")
+    html = resp.get_data(as_text=True)
+    assert "Wartet auf:" in html
+    assert "Lieferant" in html
