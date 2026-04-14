@@ -9,7 +9,9 @@ html {
    GLOBAL BASE STYLES
    ========================================= */
 body {
-    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, "Noto Sans", sans-serif,
+                 "Apple Color Emoji", "Segoe UI Emoji";
     background-color: var(--bg-body);
     color: var(--text-main);
     transition: background-color 0.3s ease, color 0.3s ease;
@@ -73,16 +75,23 @@ canvas {
 /* Standard: Light Mode */
 :root {
     --font-mono: ui-monospace, "Courier New", monospace;
-    --bg-body: #f5f5f0;
-    --bg-surface: #fdfcfb;
-    --bg-surface-subtle: #f8f9fa;
-    --text-main: #212529;
-    --text-muted: #5c636a;
-    --border-color: #dee2e6;
-    --input-border: #767676;
+    --bg-body: #f5f5f0;          /* warmes Off-White beibehalten (Marke) */
+    --bg-surface: #fdfcfb;       /* warmes Surface beibehalten */
+    --bg-surface-subtle: var(--gray-50);
+    --text-main: var(--gray-900);
+    --text-muted: var(--gray-500);          /* resaturiert, WCAG >= 4.5:1 auf weiss */
+    --border-color: var(--gray-200);
+    --input-border: var(--gray-400);        /* 3:1 non-text contrast, WCAG 1.4.11 */
     --focus-ring-width: var(--border-3);
     --focus-ring-color: #0d6efd;
     --focus-ring: var(--focus-ring-width) solid var(--focus-ring-color);
+    /* Navbar (independent of body theme) */
+    --navbar-bg: #1a1a1a;
+    --navbar-fg: #fff;
+    --navbar-fg-muted: rgb(255 255 255 / 70%);
+    --navbar-border: rgb(255 255 255 / 10%);
+    --navbar-hover-bg: rgb(255 255 255 / 5%);
+
     --btn-soft-bg: #eef4ff;
     --btn-soft-color: #1d4ed8;
     --btn-soft-border: #2563eb;
@@ -118,16 +127,35 @@ canvas {
     --z-modal: 1055;
     --z-navbar: 1035;
 
-    /* Typography Scale */
-    --fs-xxs: 0.65rem;
-    --fs-xs: 0.7rem;
-    --fs-sm: 0.75rem;
-    --fs-meta: 0.8rem;
+    /* Typography Scale (modular, 1.125 ratio ab base) */
+    --fs-xxs: 0.65rem;   /* 10.4px */
+    --fs-xs: 0.7rem;     /* 11.2px */
+    --fs-sm: 0.75rem;    /* 12px */
+    --fs-meta: 0.8rem;   /* 12.8px */
+    --fs-body-sm: 0.875rem; /* 14px — Bootstrap small, fills gap */
+    --fs-base: 1rem;     /* 16px */
+    --fs-lg: 1.125rem;   /* 18px */
+    --fs-xl: 1.25rem;    /* 20px */
+    --fs-2xl: 1.5rem;    /* 24px */
+    --fs-3xl: 1.875rem;  /* 30px */
+    --fs-4xl: 2.25rem;   /* 36px */
+
+    /* Line-Height Scale (RUI: tight für Headings, relaxed für Body) */
+    --lh-tight: 1.15;
+    --lh-snug: 1.3;
+    --lh-normal: 1.5;
+    --lh-relaxed: 1.625;
 
     /* Avatar Sizes */
     --avatar-xs: 20px;
     --avatar-sm: 32px;
     --avatar-md: 40px;
+
+    /* Icon sizes (RUI #6) */
+    --icon-sm: 1em;      /* inline in text */
+    --icon-md: 1.25em;   /* navigation */
+    --icon-lg: 1.5em;    /* feature/hero */
+    --icon-xl: 2em;      /* empty states */
 
     /* Sidebar */
     --sidebar-top: 4.5rem;
@@ -156,6 +184,18 @@ canvas {
     --space-8: 2rem;      /* 32px */
     --space-12: 3rem;     /* 48px */
     --space-16: 4rem;     /* 64px */
+
+    /* Gray scale (cool, slate-tinted — HSL 215° ~10% sat) */
+    --gray-50:  #f8fafc;
+    --gray-100: #f1f5f9;
+    --gray-200: #e2e8f0;
+    --gray-300: #cbd5e1;
+    --gray-400: #94a3b8;
+    --gray-500: #64748b;
+    --gray-600: #475569;
+    --gray-700: #334155;
+    --gray-800: #1e293b;
+    --gray-900: #0f172a;
 
     /* Border widths */
     --border-1: 1px;
@@ -224,10 +264,10 @@ canvas {
     --bg-body: #121212;
     --bg-surface: #1e1e1e;
     --bg-surface-subtle: #2d2d2d;
-    --text-main: #e0e0e0;
-    --text-muted: #b5bcc7;
-    --border-color: #333;
-    --input-border: #888888;
+    --text-main: var(--gray-100);       /* war #e0e0e0 */
+    --text-muted: var(--gray-400);      /* war #b5bcc7 — WCAG >= 4.5:1 auf #1e1e1e */
+    --border-color: var(--gray-700);    /* war #333 */
+    --input-border: var(--gray-500);    /* war #888888 */
     --focus-ring-width: var(--border-3);
     --focus-ring-color: #3b82f6;
     --focus-ring: var(--focus-ring-width) solid var(--focus-ring-color);
@@ -424,23 +464,21 @@ canvas {
     color: var(--color-info) !important;
 }
 
-/* --- NUCLEAR CONTRAST FIXES --- */
-
-/* Force Navbar to be readable (Dark background for navbar-dark) */
+/* --- Navbar — token-based, independent of body theme --- */
 .navbar-dark {
-    background-color: #1a1a1a !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: var(--navbar-bg);
+    border-bottom: 1px solid var(--navbar-border);
 }
 
 .navbar-dark .navbar-brand,
 .navbar-dark .nav-link {
-    color: #fff !important;
+    color: var(--navbar-fg);
     opacity: 0.9;
 }
 
 .navbar-dark .nav-link:hover {
     opacity: 1;
-    color: var(--color-primary, #0d6efd) !important;
+    color: var(--color-primary);
 }
 
 /* Fix Badge Contrast in Light Mode */
@@ -470,9 +508,17 @@ canvas {
     color: rgba(255, 255, 255, 0.5) !important;
 }
 
-/* Ensure consistent card borders for separation */
+/* RUI #5: Cards use shadow OR border, not both. On white surfaces → shadow. */
 .card {
-    border: 1px solid var(--border-color) !important;
+    border: 1px solid transparent;
+    box-shadow: var(--card-shadow);
+}
+
+/* On subtle backgrounds, swap to border-only for clearer depth separation */
+.bg-surface-subtle .card,
+.card.card-flat {
+    border-color: var(--border-color);
+    box-shadow: none;
 }
 
 .text-theme-primary {
@@ -685,7 +731,7 @@ canvas {
         flex-shrink: 0;
         color: var(--text-muted);
         text-transform: uppercase;
-        font-size: 0.75rem;
+        font-size: var(--fs-sm);
     }
 }
 
@@ -778,11 +824,11 @@ textarea:focus-visible {
 }
 
 /* === Typography Utilities === */
-.x-small { font-size: 0.75rem !important; line-height: 1.4; }
-.text-meta { color: var(--text-muted) !important; font-size: 0.8rem; }
+.x-small { font-size: var(--fs-sm) !important; line-height: 1.4; }
+.text-meta { color: var(--text-muted) !important; font-size: var(--fs-meta); }
 
 .fs-check-status {
-    font-size: 1.1rem;
+    font-size: var(--fs-lg);
 }
 
 .bg-surface {
@@ -801,8 +847,14 @@ textarea:focus-visible {
     letter-spacing: 0.5px;
 }
 
+/* Icon sizing utilities — use on <i class="bi ..."> */
+.icon-sm { font-size: var(--icon-sm); }
+.icon-md { font-size: var(--icon-md); }
+.icon-lg { font-size: var(--icon-lg); }
+.icon-xl { font-size: var(--icon-xl); }
+
 .status-label {
-    font-size: 1.25rem;
+    font-size: var(--fs-xl);
     font-weight: 800;
     line-height: 1;
     letter-spacing: -0.5px;
@@ -810,7 +862,7 @@ textarea:focus-visible {
 }
 
 .display-counter {
-    font-size: 3.5rem;
+    font-size: 3.5rem; /* hero metric — out-of-scale intentional */
     font-weight: 900;
     line-height: 1;
     letter-spacing: -2px;
@@ -946,7 +998,7 @@ textarea:focus-visible {
 .text-xxxs  { font-size: var(--fs-xxs) !important; }
 .text-xxs   { font-size: var(--fs-xxs) !important; }
 .text-xs    { font-size: var(--fs-xs) !important; }
-.meta-label { font-size: 0.6rem; line-height: 1; }
+.meta-label { font-size: var(--fs-xxs); line-height: 1; }
 
 /* =========================================
    AVATAR SCALE
@@ -1049,7 +1101,7 @@ textarea:focus-visible {
     border: none;
     background: #fff;
     color: #333;
-    font-size: 1.2rem;
+    font-size: var(--fs-lg);
     cursor: pointer;
     box-shadow: var(--shadow-md);
     display: flex;
@@ -1141,7 +1193,7 @@ textarea:focus-visible {
 }
 
 .kbd-hint {
-    font-size: 0.6rem;
+    font-size: var(--fs-xxs);
     pointer-events: none;
     line-height: 1.4;
 }
@@ -1201,7 +1253,7 @@ textarea:focus-visible {
 .fade-toggle.hidden { opacity: 0; pointer-events: none; }
 .max-w-85p      { max-width: 85%; }
 .lh-relaxed     { line-height: 1.6; }
-.table-compact  { font-size: 0.875rem; }
+.table-compact  { font-size: var(--fs-meta); }
 .col-w-60       { width: 60px; }
 .col-w-70       { width: 70px; }
 .col-w-80       { width: 80px; }
@@ -1272,7 +1324,7 @@ textarea:focus-visible {
     color: var(--text-muted);
 }
 .empty-state-icon {
-    font-size: 3rem;
+    font-size: 3rem; /* empty-state icon — out-of-scale intentional */
     opacity: 0.25;
     display: block;
     margin-bottom: var(--space-2);
@@ -1281,7 +1333,7 @@ textarea:focus-visible {
     margin-top: var(--space-3);
     color: var(--text-muted);
     font-weight: 700;
-    font-size: 1.25rem;
+    font-size: var(--fs-xl);
 }
 .empty-state-text {
     font-size: max(0.875rem, 14px);
@@ -1296,7 +1348,7 @@ textarea:focus-visible {
 }
 .meta-chip-label {
     color: var(--text-muted);
-    font-size: 0.6rem;
+    font-size: var(--fs-xxs);
     line-height: 1;
     text-transform: uppercase;
     display: block;
@@ -1357,11 +1409,22 @@ textarea:focus-visible {
 /* =========================================
    DASHBOARD TABLE
    ========================================= */
-.dash-table { font-size: 0.85rem; }
+.dash-table { font-size: var(--fs-meta); }
 .dash-table th { font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; border-bottom: 2px solid var(--bs-border-color); }
 .dash-table th:hover { color: var(--bs-primary); }
 .dash-table th .sort-icon { font-size: var(--fs-xs); opacity: 0.4; }
 .dash-table th.sorted .sort-icon { opacity: 1; color: var(--bs-primary); }
+
+/* RUI #1: Table headers as de-emphasized labels, data stays primary */
+.dash-table thead th,
+.table thead th {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    background-color: var(--bg-surface-subtle);
+}
 .dash-table td { vertical-align: middle; padding-top: var(--space-2); padding-bottom: var(--space-2); }
 .dash-table tr { transition: background 0.1s; }
 .dash-table tbody tr:hover { background: var(--bg-surface-subtle); }
@@ -1379,11 +1442,11 @@ textarea:focus-visible {
 .status-dot.erledigt { background: var(--bs-success); }
 
 /* Inline Select Styling */
-.inline-select { border: none; background: transparent; padding: 2px 4px; font-size: 0.82rem; cursor: pointer; border-radius: 6px; max-width: 140px; color: var(--text-main); }
+.inline-select { border: none; background: transparent; padding: 2px 4px; font-size: var(--fs-meta); cursor: pointer; border-radius: 6px; max-width: 140px; color: var(--text-main); }
 .inline-select:hover, .inline-select:focus { background: var(--bg-surface-subtle); outline: none; box-shadow: 0 0 0 2px rgba(var(--bs-primary-rgb), 0.25); }
 
 /* Dashboard Tab Navigation */
-.dash-tab { border: none; background: transparent; padding: 0.6rem 1.2rem; font-weight: 600; font-size: 0.9rem; color: var(--text-muted); border-bottom: 3px solid transparent; transition: all 0.15s; cursor: pointer; }
+.dash-tab { border: none; background: transparent; padding: 0.6rem 1.2rem; font-weight: 600; font-size: var(--fs-body-sm); color: var(--text-muted); border-bottom: 3px solid transparent; transition: all 0.15s; cursor: pointer; }
 .dash-tab:hover { color: var(--text-main); }
 .dash-tab.active { color: var(--bs-primary); border-bottom-color: var(--bs-primary); }
 .dash-tab .tab-count { font-size: var(--fs-sm); padding: 0.15em 0.55em; border-radius: 10px; font-weight: 700; margin-left: 0.4rem; }
@@ -1441,7 +1504,7 @@ textarea:focus-visible {
 }
 .doc-preview-title {
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: var(--fs-body-sm);
     min-width: 0;
     flex: 1;
     margin-right: var(--space-4);
@@ -1528,7 +1591,7 @@ textarea:focus-visible {
 /* ========= Inline field validation ========= */
 .field-error {
     color: var(--bs-danger, #dc3545);
-    font-size: .875rem;
+    font-size: var(--fs-body-sm);
     margin-top: .25rem;
     display: block;
 }
@@ -1606,7 +1669,7 @@ select[aria-invalid="true"] {
 }
 .ticket-card-select { margin-top: .15rem; flex-shrink: 0; }
 .ticket-card-title {
-    font-size: 1rem;
+    font-size: var(--fs-base);
     font-weight: 600;
     margin: 0;
     flex: 1;
@@ -1627,7 +1690,7 @@ select[aria-invalid="true"] {
 }
 
 .ticket-card-meta {
-    font-size: .875rem;
+    font-size: var(--fs-body-sm);
     color: var(--bs-secondary-color, #6c757d);
     display: flex;
     flex-wrap: wrap;
@@ -1671,7 +1734,7 @@ select[aria-invalid="true"] {
     border-top: 1px solid var(--bs-border-color, #dee2e6);
 }
 .workflow-section .sidebar-section-title {
-    font-size: .75rem;
+    font-size: var(--fs-sm);
     text-transform: uppercase;
     letter-spacing: .05em;
     color: var(--bs-secondary-color, #6c757d);
@@ -1700,4 +1763,23 @@ select[aria-invalid="true"] {
 @keyframes rowFlash {
     0%   { background-color: var(--bs-warning-bg-subtle, #fff3cd); }
     100% { background-color: transparent; }
+}
+
+/* =========================================
+   ELEVATION MAP (RUI #5 — consistent depth scale)
+   btn=xs, card=sm, dropdown=md, notification/modal=lg, global-modal=xl
+   ========================================= */
+.btn {
+    box-shadow: var(--shadow-xs);
+}
+.btn:disabled,
+.btn[aria-disabled="true"] {
+    box-shadow: none;
+}
+.dropdown-menu {
+    box-shadow: var(--shadow-md);
+}
+.notification-dropdown,
+.modal-content {
+    box-shadow: var(--shadow-lg);
 }
