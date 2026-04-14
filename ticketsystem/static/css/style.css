@@ -1168,6 +1168,20 @@ textarea:focus-visible {
 .color-scheme-dark { color-scheme: dark; }
 .navbar-z         { z-index: var(--z-navbar); }
 
+@media (max-width: 480px) {
+    .bulk-action-bar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        padding: .75rem !important;
+        gap: .5rem !important;
+    }
+    .bulk-action-bar .vr { display: none; }
+    .bulk-action-bar select,
+    .bulk-action-bar input[type="date"] {
+        width: 100% !important;
+    }
+}
+
 /* =========================================
    UTILITY HELPERS
    ========================================= */
