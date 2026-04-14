@@ -815,11 +815,11 @@ textarea:focus-visible {
 }
 
 /* === Typography Utilities === */
-.x-small { font-size: 0.75rem !important; line-height: 1.4; }
-.text-meta { color: var(--text-muted) !important; font-size: 0.8rem; }
+.x-small { font-size: var(--fs-sm) !important; line-height: 1.4; }
+.text-meta { color: var(--text-muted) !important; font-size: var(--fs-meta); }
 
 .fs-check-status {
-    font-size: 1.1rem;
+    font-size: var(--fs-lg);
 }
 
 .bg-surface {
@@ -839,7 +839,7 @@ textarea:focus-visible {
 }
 
 .status-label {
-    font-size: 1.25rem;
+    font-size: var(--fs-xl);
     font-weight: 800;
     line-height: 1;
     letter-spacing: -0.5px;
@@ -847,7 +847,7 @@ textarea:focus-visible {
 }
 
 .display-counter {
-    font-size: 3.5rem;
+    font-size: 3.5rem; /* hero metric — out-of-scale intentional */
     font-weight: 900;
     line-height: 1;
     letter-spacing: -2px;
@@ -983,7 +983,7 @@ textarea:focus-visible {
 .text-xxxs  { font-size: var(--fs-xxs) !important; }
 .text-xxs   { font-size: var(--fs-xxs) !important; }
 .text-xs    { font-size: var(--fs-xs) !important; }
-.meta-label { font-size: 0.6rem; line-height: 1; }
+.meta-label { font-size: var(--fs-xxs); line-height: 1; }
 
 /* =========================================
    AVATAR SCALE
@@ -1086,7 +1086,7 @@ textarea:focus-visible {
     border: none;
     background: #fff;
     color: #333;
-    font-size: 1.2rem;
+    font-size: var(--fs-lg);
     cursor: pointer;
     box-shadow: var(--shadow-md);
     display: flex;
@@ -1178,7 +1178,7 @@ textarea:focus-visible {
 }
 
 .kbd-hint {
-    font-size: 0.6rem;
+    font-size: var(--fs-xxs);
     pointer-events: none;
     line-height: 1.4;
 }
@@ -1238,7 +1238,7 @@ textarea:focus-visible {
 .fade-toggle.hidden { opacity: 0; pointer-events: none; }
 .max-w-85p      { max-width: 85%; }
 .lh-relaxed     { line-height: 1.6; }
-.table-compact  { font-size: 0.875rem; }
+.table-compact  { font-size: var(--fs-meta); }
 .col-w-60       { width: 60px; }
 .col-w-70       { width: 70px; }
 .col-w-80       { width: 80px; }
@@ -1309,7 +1309,7 @@ textarea:focus-visible {
     color: var(--text-muted);
 }
 .empty-state-icon {
-    font-size: 3rem;
+    font-size: 3rem; /* empty-state icon — out-of-scale intentional */
     opacity: 0.25;
     display: block;
     margin-bottom: var(--space-2);
@@ -1318,7 +1318,7 @@ textarea:focus-visible {
     margin-top: var(--space-3);
     color: var(--text-muted);
     font-weight: 700;
-    font-size: 1.25rem;
+    font-size: var(--fs-xl);
 }
 .empty-state-text {
     font-size: max(0.875rem, 14px);
@@ -1333,7 +1333,7 @@ textarea:focus-visible {
 }
 .meta-chip-label {
     color: var(--text-muted);
-    font-size: 0.6rem;
+    font-size: var(--fs-xxs);
     line-height: 1;
     text-transform: uppercase;
     display: block;
@@ -1394,7 +1394,7 @@ textarea:focus-visible {
 /* =========================================
    DASHBOARD TABLE
    ========================================= */
-.dash-table { font-size: 0.85rem; }
+.dash-table { font-size: var(--fs-meta); }
 .dash-table th { font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; border-bottom: 2px solid var(--bs-border-color); }
 .dash-table th:hover { color: var(--bs-primary); }
 .dash-table th .sort-icon { font-size: var(--fs-xs); opacity: 0.4; }
@@ -1427,7 +1427,7 @@ textarea:focus-visible {
 .status-dot.erledigt { background: var(--bs-success); }
 
 /* Inline Select Styling */
-.inline-select { border: none; background: transparent; padding: 2px 4px; font-size: 0.82rem; cursor: pointer; border-radius: 6px; max-width: 140px; color: var(--text-main); }
+.inline-select { border: none; background: transparent; padding: 2px 4px; font-size: var(--fs-meta); cursor: pointer; border-radius: 6px; max-width: 140px; color: var(--text-main); }
 .inline-select:hover, .inline-select:focus { background: var(--bg-surface-subtle); outline: none; box-shadow: 0 0 0 2px rgba(var(--bs-primary-rgb), 0.25); }
 
 /* Dashboard Tab Navigation */
@@ -1654,7 +1654,7 @@ select[aria-invalid="true"] {
 }
 .ticket-card-select { margin-top: .15rem; flex-shrink: 0; }
 .ticket-card-title {
-    font-size: 1rem;
+    font-size: var(--fs-base);
     font-weight: 600;
     margin: 0;
     flex: 1;
@@ -1719,7 +1719,7 @@ select[aria-invalid="true"] {
     border-top: 1px solid var(--bs-border-color, #dee2e6);
 }
 .workflow-section .sidebar-section-title {
-    font-size: .75rem;
+    font-size: var(--fs-sm);
     text-transform: uppercase;
     letter-spacing: .05em;
     color: var(--bs-secondary-color, #6c757d);
