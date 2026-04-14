@@ -433,8 +433,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // Single ticket: keep Undo-toast alive by avoiding full reload.
             softDeleteSingleWithUndo(ids[0], this, originalHtml);
         } else {
-            // Bulk delete: existing reload-based flow (Undo for N>1 is out of
-            // scope for this phase — requires a batch-restore endpoint).
+            // Bulk delete: DOM-patch flow via bulkPost (no Undo — N>1 undo
+            // would require a batch-restore endpoint, out of scope).
             bulkPost({ ticket_ids: ids, action: 'soft_delete' }, this, originalHtml);
         }
     });
