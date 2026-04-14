@@ -167,6 +167,48 @@ def test_bulk_set_due_date_has_no_prev_state(client, admin_worker, app):
     assert "prev_state" not in body
 
 
+def test_bulk_restore_rejects_invalid_status(client, admin_worker, app):
+    """Restore with an invalid status value must be silently skipped (ticket unchanged)."""
+    _login_as_admin(client, admin_worker)
+    with app.app_context():
+        t = Ticket(title="RestoreInvalid", status="offen", priority=2)
+        db.session.add(t)
+        db.session.commit()
+        tid = t.id
+    # Invalid status in prev_state — should be silently skipped (not applied).
+    client.post("/api/tickets/bulk/restore", json={
+        "prev_state": {str(tid): {
+            "status": "mondphase",  # invalid
+            "assigned_to_id": None, "assigned_team_id": None,
+            "priority": 2, "wait_reason": None,
+        }},
+    }, headers={"X-CSRFToken": "test"})
+    with app.app_context():
+        t = db.session.get(Ticket, tid)
+        assert t.status == "offen"  # unchanged
+
+
+def test_bulk_restore_emits_audit_comment_on_status_change(client, admin_worker, app):
+    """Restore must emit a STATUS_CHANGE audit comment when status is reverted."""
+    from models import Comment
+    _login_as_admin(client, admin_worker)
+    with app.app_context():
+        t = Ticket(title="RestoreAudit", status="in_bearbeitung", priority=2)
+        db.session.add(t)
+        db.session.commit()
+        tid = t.id
+    client.post("/api/tickets/bulk/restore", json={
+        "prev_state": {str(tid): {
+            "status": "offen", "assigned_to_id": None, "assigned_team_id": None,
+            "priority": 2, "wait_reason": None,
+        }},
+    }, headers={"X-CSRFToken": "test"})
+    with app.app_context():
+        comments = Comment.query.filter_by(ticket_id=tid, is_system_event=True).all()
+        assert any("Status geändert" in c.text for c in comments), \
+            "restore must emit a STATUS_CHANGE comment for audit trail"
+
+
 def test_bulk_restore_reverts_state(client, admin_worker, app):
     """POST /api/tickets/bulk/restore reverts ticket fields to prev_state."""
     _login_as_admin(client, admin_worker)

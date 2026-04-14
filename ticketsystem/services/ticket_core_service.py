@@ -897,6 +897,105 @@ class TicketCoreService:
         return new_ticket
 
     # ------------------------------------------------------------------
+    # Bulk restore (undo)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    @db_transaction
+    def restore_bulk_state(
+        prev_state: dict,
+        actor_name: str,
+        actor_id: Optional[int],
+    ) -> int:
+        """Restore ticket fields from a prev_state snapshot (bulk undo).
+
+        For each entry in *prev_state* (mapping ticket-id string → field dict):
+        - Validates status against TicketStatus; skips ticket if invalid.
+        - Validates priority is an int in {1, 2, 3}; skips ticket if invalid.
+        - Validates wait_reason when status == WARTET; skips ticket if invalid.
+        - Calls update_status (commit=False) for status changes so audit comments
+          and the WARTET invariant are enforced.
+        - Applies assignment and priority changes directly, updating updated_at.
+
+        Returns the count of successfully restored tickets.
+        Commit is handled by the @db_transaction decorator.
+        """
+        from enums import WaitReason
+
+        valid_statuses = {s.value for s in TicketStatus}
+        restored = 0
+
+        for ticket_id_str, state in prev_state.items():
+            try:
+                tid = int(ticket_id_str)
+            except (TypeError, ValueError):
+                continue
+
+            ticket = db.session.get(Ticket, tid)
+            if not ticket or ticket.is_deleted:
+                continue
+
+            # --- Validate status ---
+            new_status = state.get("status")
+            if new_status not in valid_statuses:
+                _logger.warning(
+                    "restore_bulk_state: invalid status %r for ticket %s, skipping",
+                    new_status, tid,
+                )
+                continue
+
+            # --- Validate priority ---
+            new_priority = state.get("priority")
+            try:
+                new_priority = int(new_priority)
+                TicketPriority(new_priority)
+            except (TypeError, ValueError):
+                _logger.warning(
+                    "restore_bulk_state: invalid priority %r for ticket %s, skipping",
+                    new_priority, tid,
+                )
+                continue
+
+            # --- Validate wait_reason when restoring to WARTET ---
+            wait_reason = state.get("wait_reason")
+            if new_status == TicketStatus.WARTET.value:
+                valid_reasons = {r.value for r in WaitReason}
+                if wait_reason not in valid_reasons:
+                    _logger.warning(
+                        "restore_bulk_state: invalid wait_reason %r for ticket %s "
+                        "with status WARTET, skipping",
+                        wait_reason, tid,
+                    )
+                    continue
+
+            # --- Apply status change through service (audit + invariants) ---
+            if ticket.status != new_status:
+                TicketCoreService.update_status(
+                    tid, new_status, actor_name, actor_id,
+                    wait_reason=wait_reason, commit=False,
+                )
+
+            # --- Apply assignment changes directly ---
+            new_assigned_to_id = state.get("assigned_to_id")
+            new_assigned_team_id = state.get("assigned_team_id")
+            if (ticket.assigned_to_id != new_assigned_to_id
+                    or ticket.assigned_team_id != new_assigned_team_id):
+                ticket.assigned_to_id = new_assigned_to_id
+                ticket.assigned_team_id = new_assigned_team_id
+                ticket.updated_at = get_utc_now()
+
+            # --- Apply priority change directly ---
+            if ticket.priority != new_priority:
+                ticket.priority = new_priority
+                ticket.updated_at = get_utc_now()
+
+            restored += 1
+
+        if restored:
+            db.session.commit()
+        return restored
+
+    # ------------------------------------------------------------------
     # Contact update
     # ------------------------------------------------------------------
 

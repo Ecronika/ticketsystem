@@ -309,11 +309,16 @@ document.addEventListener('DOMContentLoaded', function() {
                             {
                                 undoLabel: 'Rückgängig',
                                 undoAction: async function() {
-                                    await fetch(ingress + '/api/tickets/bulk/restore', {
+                                    const undoResp = await fetch(ingress + '/api/tickets/bulk/restore', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
                                         body: JSON.stringify({ prev_state: prevState }),
                                     });
+                                    if (!undoResp.ok) {
+                                        const errData = await undoResp.json().catch(function() { return {}; });
+                                        if (window.showUiAlert) window.showUiAlert('Rückgängig fehlgeschlagen: ' + (errData.error || undoResp.status), 'danger');
+                                        return;
+                                    }
                                     await refreshTableRows();
                                 }
                             }

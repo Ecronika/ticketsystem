@@ -26,6 +26,21 @@ from ._helpers import (
 
 
 # ------------------------------------------------------------------
+# Module-level helpers
+# ------------------------------------------------------------------
+
+def _snapshot_ticket_state(ticket: Ticket) -> dict:
+    """Return a reversible snapshot of the fields touched by bulk actions."""
+    return {
+        "status": ticket.status,
+        "assigned_to_id": ticket.assigned_to_id,
+        "assigned_team_id": ticket.assigned_team_id,
+        "priority": ticket.priority,
+        "wait_reason": ticket.wait_reason,
+    }
+
+
+# ------------------------------------------------------------------
 # Bulk actions
 # ------------------------------------------------------------------
 
@@ -54,13 +69,7 @@ def _bulk_action_api() -> tuple[Response, int] | Response:
             for tid in ticket_ids
         ]
         prev_state = {
-            str(t.id): {
-                "status": t.status,
-                "assigned_to_id": t.assigned_to_id,
-                "assigned_team_id": t.assigned_team_id,
-                "priority": t.priority,
-                "wait_reason": t.wait_reason,
-            }
+            str(t.id): _snapshot_ticket_state(t)
             for t in tickets_snapshot
             if t and not t.is_deleted and t.is_accessible_by(worker_id, worker_role)
         }
@@ -180,24 +189,27 @@ def _bulk_restore_state_api() -> tuple[Response, int] | Response:
     prev_state = payload.get("prev_state") or {}
     if not isinstance(prev_state, dict):
         return api_error("prev_state muss ein Objekt sein.", 400)
-    restored = 0
+
     worker_id = session.get("worker_id")
     role = session.get("role")
+
+    # Filter prev_state to only tickets the current worker may access.
+    accessible: dict[str, Any] = {}
     for ticket_id_str, state in prev_state.items():
         try:
             tid = int(ticket_id_str)
         except (TypeError, ValueError):
             continue
-        ticket = _check_ticket_access(tid, worker_id, role)
-        if not ticket:
-            continue
-        ticket.status = state.get("status", ticket.status)
-        ticket.assigned_to_id = state.get("assigned_to_id")
-        ticket.assigned_team_id = state.get("assigned_team_id")
-        ticket.priority = state.get("priority", ticket.priority)
-        ticket.wait_reason = state.get("wait_reason")
-        restored += 1
-    db.session.commit()
+        if _check_ticket_access(tid, worker_id, role):
+            accessible[ticket_id_str] = state
+
+    if not accessible:
+        return api_ok(restored=0)
+
+    actor_name = session.get("worker_name", "System")
+    restored = TicketCoreService.restore_bulk_state(
+        accessible, actor_name, worker_id,
+    )
     return api_ok(restored=restored)
 
 
