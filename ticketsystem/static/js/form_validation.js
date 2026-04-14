@@ -7,11 +7,28 @@
 (function () {
   "use strict";
 
+  // Opens every .collapse inside the form that contains a field the user has
+  // already filled in — prevents hidden "unsaved" fields from surprising users.
+  function openCollapsesWithDirtyFields(form) {
+    if (!form || typeof bootstrap === "undefined" || !bootstrap.Collapse) return;
+    form.querySelectorAll(".collapse").forEach(function (collapse) {
+      var hasValue = Array.from(collapse.querySelectorAll("input, select, textarea"))
+        .some(function (el) {
+          if (el.type === "checkbox" || el.type === "radio") return el.checked;
+          return el.value && String(el.value).trim().length > 0;
+        });
+      if (hasValue) {
+        bootstrap.Collapse.getOrCreateInstance(collapse).show();
+      }
+    });
+  }
+
   function attachValidation(form) {
     form.addEventListener(
       "submit",
       function (e) {
         if (!form.checkValidity()) {
+          openCollapsesWithDirtyFields(form);
           e.preventDefault();
           const firstInvalid = form.querySelector(":invalid");
           if (firstInvalid && typeof firstInvalid.focus === "function") {
