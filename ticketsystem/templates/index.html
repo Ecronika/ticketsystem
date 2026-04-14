@@ -322,56 +322,63 @@ document.addEventListener('DOMContentLoaded', function() {
         updateBulkBar();
     });
 
-    document.getElementById('bulkApplyBtn')?.addEventListener('click', function() {
-        const ids = getChecked();
-        const newStatus = document.getElementById('bulkStatusSelect').value;
-        if (!ids.length || !newStatus) {
-            if (window.showUiAlert) window.showUiAlert('Bitte Status auswählen.', 'warning');
-            return;
+    // --- Split-button bulk actions: select change triggers the action directly. ---
+    function buildBulkPayload(action, value, ids) {
+        if (action === 'status') {
+            return { ticket_ids: ids, action: 'status_change', new_status: value };
         }
-        bulkPost({ ticket_ids: ids, action: 'status_change', new_status: newStatus },
-                  this, '<i class="bi bi-check-lg me-1"></i>Status');
-    });
+        if (action === 'assign') {
+            const payload = { ticket_ids: ids, action: 'reassign', worker_id: null, team_id: null };
+            if (value === 'none') {
+                // unassign — both ids stay null
+            } else if (value.startsWith('team_')) {
+                payload.team_id = parseInt(value.replace('team_', ''));
+            } else {
+                payload.worker_id = parseInt(value);
+            }
+            return payload;
+        }
+        if (action === 'priority') {
+            return { ticket_ids: ids, action: 'set_priority', priority: parseInt(value) };
+        }
+        if (action === 'due_date') {
+            return { ticket_ids: ids, action: 'set_due_date', due_date: value };
+        }
+        return null;
+    }
 
-    document.getElementById('bulkAssignBtn')?.addEventListener('click', function() {
+    function applyBulkAction(action, value, triggerEl) {
         const ids = getChecked();
-        const val = document.getElementById('bulkAssignSelect')?.value;
-        if (!ids.length || !val) {
-            if (window.showUiAlert) window.showUiAlert('Bitte Mitarbeiter/Team auswählen.', 'warning');
+        if (!ids.length) {
+            if (window.showUiAlert) window.showUiAlert('Bitte zuerst Tickets auswählen.', 'warning');
+            if (triggerEl) triggerEl.value = '';  // reset so next change fires even for same value
             return;
         }
-        let payload = { ticket_ids: ids, action: 'reassign', worker_id: null, team_id: null };
-        if (val === 'none') {
-            // unassign
-        } else if (val.startsWith('team_')) {
-            payload.team_id = parseInt(val.replace('team_', ''));
-        } else {
-            payload.worker_id = parseInt(val);
-        }
-        bulkPost(payload, this, '<i class="bi bi-person-check me-1"></i>Zuweisen');
-    });
+        const payload = buildBulkPayload(action, value, ids);
+        if (!payload) return;
+        // bulkPost expects a button with innerHTML; the select has no innerHTML to restore,
+        // so we hand it a virtual "button" that mirrors disabled and receives the reset.
+        const virtualBtn = {
+            _el: triggerEl,
+            set disabled(v) { if (this._el) this._el.disabled = v; },
+            get disabled() { return this._el ? this._el.disabled : false; },
+            set innerHTML(_v) { /* no-op for <select>/<input> */ },
+            get innerHTML() { return ''; }
+        };
+        bulkPost(payload, virtualBtn, '').finally(function() {
+            if (triggerEl) triggerEl.value = '';
+        });
+    }
 
-    document.getElementById('bulkSetPriorityBtn')?.addEventListener('click', function() {
-        const ids = getChecked();
-        const prio = document.getElementById('bulkPrioritySelect')?.value;
-        if (!ids.length || !prio) {
-            if (window.showUiAlert) window.showUiAlert('Bitte Priorität und Tickets wählen.', 'warning');
-            return;
-        }
-        bulkPost({ ticket_ids: ids, action: 'set_priority', priority: parseInt(prio) },
-                  this, '<i class="bi bi-flag me-1"></i>Priorität setzen');
-    });
-
-    document.getElementById('bulkSetDueDateBtn')?.addEventListener('click', function() {
-        const ids = getChecked();
-        const due = document.getElementById('bulkDueDateInput')?.value;
-        if (!ids.length || !due) {
-            if (window.showUiAlert) window.showUiAlert('Bitte Datum und Tickets wählen.', 'warning');
-            return;
-        }
-        bulkPost({ ticket_ids: ids, action: 'set_due_date', due_date: due },
-                  this, '<i class="bi bi-calendar-check me-1"></i>Fälligkeit setzen');
-    });
+    const bulkBarForActions = document.getElementById('bulkActionBar');
+    if (bulkBarForActions) {
+        bulkBarForActions.addEventListener('change', function(e) {
+            const target = e.target;
+            if (!target || !target.dataset || !target.dataset.bulkAction) return;
+            if (!target.value) return;
+            applyBulkAction(target.dataset.bulkAction, target.value, target);
+        });
+    }
 
     async function softDeleteSingleWithUndo(ticketId, btn, originalHtml) {
         // Special path for N=1 soft-delete: skip the full-page reload so the
@@ -612,19 +619,21 @@ document.addEventListener('DOMContentLoaded', function() {
 <div id="bulkActionBar" class="d-none position-fixed bottom-0 start-50 translate-middle-x mb-4 bg-dark text-white rounded-4 shadow-lg px-4 py-3 align-items-center gap-2 flex-wrap bulk-action-bar">
     <span id="bulkCount" class="fw-bold small me-1">0 ausgewählt</span>
     <div class="vr bg-secondary opacity-50 mx-1"></div>
-    <select id="bulkStatusSelect" class="form-select form-select-sm bg-dark text-white border-secondary rounded-pill toast-btn">
-        <option value="" disabled selected>Status...</option>
+
+    <select id="bulkStatusSelect" data-bulk-action="status"
+            class="form-select form-select-sm bg-dark text-white border-secondary rounded-pill toast-btn"
+            aria-label="Status ändern">
+        <option value="" disabled selected>Status ändern…</option>
         <option value="offen">Offen</option>
         <option value="in_bearbeitung">In Bearbeitung</option>
         <option value="wartet">Wartet</option>
         <option value="erledigt">Erledigt</option>
     </select>
-    <button type="button" id="bulkApplyBtn" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold">
-        <i class="bi bi-check-lg me-1"></i>Status
-    </button>
-    <div class="vr bg-secondary opacity-50 mx-1"></div>
-    <select id="bulkAssignSelect" class="form-select form-select-sm bg-dark text-white border-secondary rounded-pill toast-btn">
-        <option value="" disabled selected>Zuweisen...</option>
+
+    <select id="bulkAssignSelect" data-bulk-action="assign"
+            class="form-select form-select-sm bg-dark text-white border-secondary rounded-pill toast-btn"
+            aria-label="Zuweisen">
+        <option value="" disabled selected>Zuweisen…</option>
         <option value="none">— Keine —</option>
         {% for w in workers %}
         <option value="{{ w.id }}">{{ w.name }}</option>
@@ -637,25 +646,22 @@ document.addEventListener('DOMContentLoaded', function() {
         </optgroup>
         {% endif %}
     </select>
-    <button type="button" id="bulkAssignBtn" class="btn btn-outline-light btn-sm rounded-pill px-3 fw-bold">
-        <i class="bi bi-person-check me-1"></i>Zuweisen
-    </button>
-    <div class="vr bg-secondary opacity-50 mx-1"></div>
-    <select id="bulkPrioritySelect" class="form-select form-select-sm bg-dark text-white border-secondary rounded-pill toast-btn">
-        <option value="" disabled selected>Priorität...</option>
+
+    <select id="bulkPrioritySelect" data-bulk-action="priority"
+            class="form-select form-select-sm bg-dark text-white border-secondary rounded-pill toast-btn"
+            aria-label="Priorität setzen">
+        <option value="" disabled selected>Priorität…</option>
         <option value="1">Hoch</option>
         <option value="2">Mittel</option>
         <option value="3">Niedrig</option>
     </select>
-    <button type="button" id="bulkSetPriorityBtn" class="btn btn-outline-warning btn-sm rounded-pill px-3 fw-bold">
-        <i class="bi bi-flag me-1"></i>Priorität
-    </button>
+
+    <input type="date" id="bulkDueDateInput" data-bulk-action="due_date"
+           class="form-control form-control-sm bg-dark text-white border-secondary rounded-pill toast-btn color-scheme-dark"
+           aria-label="Fälligkeit setzen" title="Fälligkeit setzen">
+
     <div class="vr bg-secondary opacity-50 mx-1"></div>
-    <input type="date" id="bulkDueDateInput" class="form-control form-control-sm bg-dark text-white border-secondary rounded-pill toast-btn color-scheme-dark" title="Fälligkeitsdatum setzen">
-    <button type="button" id="bulkSetDueDateBtn" class="btn btn-outline-info btn-sm rounded-pill px-3 fw-bold">
-        <i class="bi bi-calendar-check me-1"></i>Fälligkeit
-    </button>
-    <div class="vr bg-secondary opacity-50 mx-1"></div>
+
     <button type="button" id="bulkDeleteBtn" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold">
         <i class="bi bi-trash me-1"></i>Löschen
     </button>
