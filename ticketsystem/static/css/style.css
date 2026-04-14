@@ -1674,3 +1674,16 @@ select[aria-invalid="true"] {
 .shortcut-help-dialog::backdrop {
     background: rgba(0, 0, 0, 0.4);
 }
+
+/* Briefly highlight ticket rows whose content changed during live polling. */
+.dash-table tr.flash-updated {
+    animation: rowFlash 1.5s ease-out;
+}
+.ticket-cards .ticket-card.flash-updated,
+.ticket-cards [role="listitem"].flash-updated {
+    animation: rowFlash 1.5s ease-out;
+}
+@keyframes rowFlash {
+    0%   { background-color: var(--bs-warning-bg-subtle, #fff3cd); }
+    100% { background-color: transparent; }
+}

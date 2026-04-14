@@ -14,6 +14,28 @@ document.addEventListener('DOMContentLoaded', function() {
     let refreshing = false;
 
     // --- Silent table-row refresh ---
+    // Capture each ticket row's current rendered HTML so we can diff after the swap.
+    function snapshotRows(container) {
+        const map = {};
+        if (!container) return map;
+        container.querySelectorAll('[data-ticket-id]').forEach(function(el) {
+            map[el.dataset.ticketId] = el.outerHTML;
+        });
+        return map;
+    }
+
+    // After a DOM swap, add a short flash-updated class to rows whose outerHTML changed.
+    function flashChanged(container, prevMap) {
+        if (!container) return;
+        container.querySelectorAll('[data-ticket-id]').forEach(function(el) {
+            const prev = prevMap[el.dataset.ticketId];
+            if (prev && prev !== el.outerHTML) {
+                el.classList.add('flash-updated');
+                setTimeout(function() { el.classList.remove('flash-updated'); }, 1500);
+            }
+        });
+    }
+
     async function refreshTableRows() {
         if (refreshing) return;
         refreshing = true;
@@ -24,9 +46,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await r.json();
             if (!data || !data.success) return;
             const tbody = document.querySelector('#dashTable tbody');
-            if (tbody && typeof data.rows_html === 'string') tbody.innerHTML = data.rows_html;
             const cards = document.querySelector('.ticket-cards');
+            const prevRowMap = snapshotRows(tbody);
+            const prevCardMap = snapshotRows(cards);
+            if (tbody && typeof data.rows_html === 'string') tbody.innerHTML = data.rows_html;
             if (cards && typeof data.cards_html === 'string') cards.innerHTML = data.cards_html;
+            flashChanged(tbody, prevRowMap);
+            flashChanged(cards, prevCardMap);
         } catch(e) {}
         finally { refreshing = false; }
     }
