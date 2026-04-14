@@ -5,6 +5,7 @@ profile / out-of-office settings.
 """
 
 import hashlib
+import re
 import secrets
 from datetime import datetime, timedelta
 from functools import wraps
@@ -40,6 +41,19 @@ _TIMING_DUMMY_HASH: str = generate_password_hash("__timing_guard__")
 _MAX_FAILED_LOGINS = 5
 _LOCKOUT_MINUTES = 15
 
+# Accepts an ingress prefix like "/api/hassio_ingress/<slug>" (or empty).
+# Rejects values that would escape to another origin
+# (e.g. "//evil.com", "https://evil.com", "\\evil.com").
+_INGRESS_PREFIX_RE = re.compile(r"^/[A-Za-z0-9_\-/]*$")
+
+
+def _safe_ingress_prefix() -> str:
+    """Read and validate the X-Ingress-Path header; return '' if unsafe."""
+    raw = request.headers.get("X-Ingress-Path", "")
+    if not raw:
+        return ""
+    return raw if _INGRESS_PREFIX_RE.match(raw) else ""
+
 
 # ------------------------------------------------------------------
 # URL / redirect helpers
@@ -56,13 +70,13 @@ def is_safe_url(target: str) -> bool:
     if test_url.scheme in ("http", "https") and ref_url.netloc == test_url.netloc:
         return True
 
-    ingress: str = request.headers.get("X-Ingress-Path", "")
+    ingress: str = _safe_ingress_prefix()
     return bool(ingress and target.startswith(ingress))
 
 
 def redirect_to(endpoint: str, **kwargs: Any) -> WerkzeugResponse:
     """Ingress-aware redirect helper."""
-    ingress: str = request.headers.get("X-Ingress-Path", "")
+    ingress: str = _safe_ingress_prefix()
     target: str = url_for(endpoint, **kwargs)
 
     if ingress.endswith("/") and target.startswith("/"):
@@ -138,8 +152,8 @@ def _deny(
 # ------------------------------------------------------------------
 
 def _ingress_redirect(endpoint: str) -> WerkzeugResponse:
-    """Build a redirect using the raw ingress prefix."""
-    ingress: str = request.headers.get("X-Ingress-Path", "")
+    """Build a redirect using the validated ingress prefix."""
+    ingress: str = _safe_ingress_prefix()
     return redirect(f"{ingress}{url_for(endpoint)}")
 
 

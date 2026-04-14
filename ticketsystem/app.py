@@ -49,6 +49,7 @@ from metrics import (
     HTTP_REQUESTS_TOTAL,
 )
 from routes import main_bp
+from routes.auth import is_safe_url
 from routes.metrics import metrics_bp
 from services import BackupService
 from services.backup_service import is_maintenance_mode
@@ -877,7 +878,8 @@ def rate_limit_exceeded(_exc: HTTPException) -> tuple[WerkzeugResponse, int]:
     """Handle 429 Too Many Requests from Flask-Limiter."""
     app.logger.warning("Rate limit exceeded: %s", request.path)
     flash("Zu viele Versuche. Bitte 1 Minute warten.", "warning")
-    next_url = request.referrer or url_for("main.index")
+    referrer = request.referrer
+    next_url = referrer if referrer and is_safe_url(referrer) else url_for("main.index")
     return redirect(next_url), 429
 
 
