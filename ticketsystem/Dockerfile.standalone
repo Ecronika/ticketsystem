@@ -28,6 +28,9 @@ RUN mkdir -p /data
 
 EXPOSE 5000
 
+HEALTHCHECK --interval=30s --timeout=15s --start-period=30s --retries=5 \
+    CMD curl -f http://127.0.0.1:5000/health || exit 1
+
 # App direkt über gunicorn starten (ohne s6-overlay)
 # --access-logfile - aktiviert Request-Logging in docker logs
 # --error-logfile - aktiviert Fehler-Logging in docker logs

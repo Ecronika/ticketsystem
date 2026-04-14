@@ -1,6 +1,3 @@
-version: '3.8'
-
-
 services:
   ticket-app:
     container_name: ticket_app

@@ -1,0 +1,54 @@
+# --- Secrets & Live-Daten (NIE ins Image!) ---
+secret.key
+werkzeug.db
+werkzeug.db-shm
+werkzeug.db-wal
+*.sqlite
+*.sqlite3
+attachments/
+backups/
+data/
+instance/
+
+# --- VCS / IDE / Caches ---
+.git/
+.gitignore
+.gitattributes
+.pytest_cache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.mypy_cache/
+.ruff_cache/
+
+# --- Tests & Dev-Tooling (Image braucht sie nicht) ---
+tests/
+.pylintrc
+.isort.cfg
+requirements-dev.txt
+final_polish.py
+score_check.py
+verify_setup.py
+
+# --- Logs & lokale Env-Dateien ---
+*.log
+.env
+.env.local
+.env.*
+
+# --- Dev-Dokumentation (UX-/UI-Audits etc.) ---
+UX_AUDIT_*.md
+UI_AUDIT_*.md
+*_PLAN.md
+*_POST.md
+README.md
+
+# --- Standalone-Build: HA-Addon-Artefakte ausschließen ---
+# (Der HA-Dockerfile referenziert rootfs/ und config.yaml explizit per COPY,
+#  diese Einträge greifen daher nur beim Standalone-Build, der COPY . . nutzt.)
+# WICHTIG: Werden hier nicht ignoriert, da HA-Dockerfile sie braucht:
+#   rootfs/, config.yaml
+# Nur Dateien, die NIEMAND im Image braucht:
+build.yaml
+cloudflared/

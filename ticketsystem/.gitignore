@@ -38,9 +38,6 @@ ENV/
 .env
 .flaskenv
 
-# Docker
-.dockerignore
-
 # IDEs
 .vscode/
 .idea/
