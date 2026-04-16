@@ -161,6 +161,9 @@ canvas {
     --sidebar-top: 4.5rem;
     --sidebar-max-w: 360px;
 
+    /* Form max-width (optimale Lesezeilenlänge ~65 Zeichen) */
+    --form-max-width: 65ch;
+
     /* Kanban */
     --kanban-primary-bg: rgba(37, 99, 235, 0.12);
 
@@ -1148,6 +1151,14 @@ textarea:focus-visible {
    ONE-OFF COMPONENT CLASSES
    ========================================= */
 .progress-thin    { height: 8px; }
+
+/* Form-Card: zentrierte Card mit optimaler Lesezeilenlänge.
+   Verwenden auf einspaltigen Formular-Containern (ticket_new, settings, setup ...). */
+.form-card {
+    max-width: var(--form-max-width);
+    margin-left: auto;
+    margin-right: auto;
+}
 .btn-icon-sm {
     min-width: 44px;
     min-height: 44px;

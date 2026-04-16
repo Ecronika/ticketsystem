@@ -115,6 +115,33 @@
         }, timeout);
     };
 
+    // Extracts the most user-friendly error message from a fetch response.
+    // - resp.ok => returns null (caller treats as success)
+    // - resp present => tries JSON body's "error" field, else maps HTTP code
+    // - resp null/missing => assumes network failure
+    window.extractApiError = async function(resp) {
+        if (resp && resp.ok) return null;
+        if (resp) {
+            try {
+                const data = await resp.clone().json();
+                if (data && data.error) return data.error;
+            } catch (_) { /* non-JSON body */ }
+            const httpMap = {
+                400: 'Ungültige Eingabe.',
+                401: 'Sitzung abgelaufen. Bitte neu anmelden.',
+                403: 'Keine Berechtigung für diese Aktion.',
+                404: 'Eintrag nicht gefunden.',
+                409: 'Konflikt: Der Eintrag wurde inzwischen geändert.',
+                413: 'Datei zu groß.',
+                429: 'Zu viele Anfragen. Bitte kurz warten.',
+                500: 'Serverfehler. Bitte erneut versuchen.',
+                503: 'Dienst momentan nicht erreichbar.'
+            };
+            return httpMap[resp.status] || ('Fehler ' + resp.status + '.');
+        }
+        return 'Netzwerkfehler. Bitte Verbindung prüfen.';
+    };
+
     // Promise-based Confirm Function
     window.showConfirm = function(title, message, isDanger = true) {
         return new Promise((resolve) => {
