@@ -14,7 +14,7 @@ import sqlite3
 import stat
 import sys
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from logging.handlers import QueueHandler, QueueListener, RotatingFileHandler
 from typing import Any, Dict
 from zoneinfo import ZoneInfo
@@ -675,6 +675,7 @@ def inject_globals() -> Dict[str, Any]:
         "MAX_UPLOAD_TOTAL_SIZE": MAX_UPLOAD_TOTAL_SIZE,
         "MAX_UPLOAD_FILES": MAX_UPLOAD_FILES,
         "current_year": datetime.utcnow().year,
+        "today_iso": date.today().isoformat(),
     }
 
     endpoint = request.endpoint or ""

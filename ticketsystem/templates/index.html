@@ -137,11 +137,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (window.showUiAlert) window.showUiAlert('Status aktualisiert.', 'success');
                     } else {
                         sel.value = original;
-                        if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Unbekannt'), 'danger');
+                        if (window.showUiAlert) window.showUiAlert(data.error || 'Aktion fehlgeschlagen.', 'danger');
                     }
                 } catch(e) {
                     sel.value = original;
-                    if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.', 'danger');
+                    if (window.showUiAlert) window.showUiAlert('Netzwerkfehler. Bitte Verbindung prüfen.', 'danger');
                 }
                 sel.disabled = false;
             }
@@ -171,11 +171,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (window.showUiAlert) window.showUiAlert('Zuweisung aktualisiert.', 'success');
                     } else {
                         sel.value = original;
-                        if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Unbekannt'), 'danger');
+                        if (window.showUiAlert) window.showUiAlert(data.error || 'Aktion fehlgeschlagen.', 'danger');
                     }
                 } catch(e) {
                     sel.value = original;
-                    if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.', 'danger');
+                    if (window.showUiAlert) window.showUiAlert('Netzwerkfehler. Bitte Verbindung prüfen.', 'danger');
                 }
                 sel.disabled = false;
             }
@@ -203,11 +203,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         btn.remove();
                         if (window.showUiAlert) window.showUiAlert('Ticket Ihnen zugewiesen.', 'success');
                     } else {
-                        if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Unbekannt'), 'danger');
+                        if (window.showUiAlert) window.showUiAlert(data.error || 'Aktion fehlgeschlagen.', 'danger');
                         btn.disabled = false;
                     }
                 } catch(e) {
-                    if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.', 'danger');
+                    if (window.showUiAlert) window.showUiAlert('Netzwerkfehler. Bitte Verbindung prüfen.', 'danger');
                     btn.disabled = false;
                 }
             }
@@ -297,12 +297,20 @@ document.addEventListener('DOMContentLoaded', function() {
     async function bulkPost(payload, btn, originalHtml) {
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>...';
+        let resp = null;
         try {
-            const resp = await fetch(ingress + '/api/tickets/bulk', {
+            resp = await fetch(ingress + '/api/tickets/bulk', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
                 body: JSON.stringify(payload)
             });
+            const errMsg = await window.extractApiError(resp);
+            if (errMsg) {
+                if (window.showUiAlert) window.showUiAlert(errMsg, 'danger');
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                return;
+            }
             const data = await resp.json();
             if (data.success) {
                 // Patch the dashboard in place — refreshTableRows() swaps the tbody
@@ -328,8 +336,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                         body: JSON.stringify({ prev_state: prevState }),
                                     });
                                     if (!undoResp.ok) {
-                                        const errData = await undoResp.json().catch(function() { return {}; });
-                                        if (window.showUiAlert) window.showUiAlert('Rückgängig fehlgeschlagen: ' + (errData.error || undoResp.status), 'danger');
+                                        const undoErr = await window.extractApiError(undoResp);
+                                        if (window.showUiAlert) window.showUiAlert('Rückgängig fehlgeschlagen: ' + undoErr, 'danger');
                                         return;
                                     }
                                     await refreshTableRows();
@@ -341,12 +349,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (window.showUiAlert) window.showUiAlert(data.updated + ' Ticket(s) aktualisiert.', 'success');
                 }
             } else {
-                if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Unbekannt'), 'danger');
+                if (window.showUiAlert) window.showUiAlert(data.error || 'Aktion fehlgeschlagen.', 'danger');
                 btn.disabled = false;
                 btn.innerHTML = originalHtml;
             }
         } catch (e) {
-            if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.', 'danger');
+            if (window.showUiAlert) window.showUiAlert('Netzwerkfehler. Bitte Verbindung prüfen.', 'danger');
             btn.disabled = false;
             btn.innerHTML = originalHtml;
         }
@@ -386,7 +394,19 @@ document.addEventListener('DOMContentLoaded', function() {
         return null;
     }
 
-    function applyBulkAction(action, value, triggerEl) {
+    function bulkConfirmMessage(action, value, count) {
+        const labelMap = {
+            status:   { offen: 'Offen', in_bearbeitung: 'In Bearbeitung', wartet: 'Wartet', erledigt: 'Erledigt' },
+            priority: { '1': 'Hoch', '2': 'Mittel', '3': 'Niedrig' }
+        };
+        if (action === 'status')   return `${count} Ticket(s) auf Status "${labelMap.status[value] || value}" setzen?`;
+        if (action === 'priority') return `${count} Ticket(s) auf Priorität "${labelMap.priority[value] || value}" setzen?`;
+        if (action === 'assign')   return `${count} Ticket(s) neu zuweisen?`;
+        if (action === 'due_date') return `${count} Ticket(s) auf Fälligkeit ${value} setzen?`;
+        return `${count} Ticket(s) ändern?`;
+    }
+
+    async function applyBulkAction(action, value, triggerEl) {
         const ids = getChecked();
         if (!ids.length) {
             if (window.showUiAlert) window.showUiAlert('Bitte zuerst Tickets auswählen.', 'warning');
@@ -395,6 +415,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         const payload = buildBulkPayload(action, value, ids);
         if (!payload) return;
+        if (window.showConfirm) {
+            const ok = await window.showConfirm(
+                'Massenaktion bestätigen',
+                bulkConfirmMessage(action, value, ids.length),
+                false  // not a destructive action — primary-blue confirm button
+            );
+            if (!ok) {
+                if (triggerEl) triggerEl.value = '';
+                return;
+            }
+        }
         // bulkPost expects a button with innerHTML; the select has no innerHTML to restore,
         // so we hand it a virtual "button" that mirrors disabled and receives the reset.
         const virtualBtn = {
@@ -449,12 +480,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     window.showUiAlert('Ticket gelöscht.', 'success', { undoUrl: restoreUrl });
                 }
             } else {
-                if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Unbekannt'), 'danger');
+                if (window.showUiAlert) window.showUiAlert(data.error || 'Aktion fehlgeschlagen.', 'danger');
                 btn.disabled = false;
                 btn.innerHTML = originalHtml;
             }
         } catch (e) {
-            if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.', 'danger');
+            if (window.showUiAlert) window.showUiAlert('Netzwerkfehler. Bitte Verbindung prüfen.', 'danger');
             btn.disabled = false;
             btn.innerHTML = originalHtml;
         }
@@ -699,6 +730,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     <input type="date" id="bulkDueDateInput" data-bulk-action="due_date"
            class="form-control form-control-sm bg-dark text-white border-secondary rounded-pill toast-btn color-scheme-dark"
+           min="{{ today_iso }}"
            aria-label="Fälligkeit setzen" title="Fälligkeit setzen">
 
     <div class="vr bg-secondary opacity-50 mx-1"></div>
