@@ -294,7 +294,7 @@ def _after_ticket_created(ticket: Ticket) -> Response:
     )
 
     if not session.get("worker_id"):
-        return redirect_to("main.ticket_new", created=ticket.id)
+        return redirect_to("main.ticket_public", ticket_id=ticket.id, new=1)
 
     flash(Markup(f"Ticket {link_html} erfolgreich erstellt!"), "success")
     return redirect_to("main.index")
