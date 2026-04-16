@@ -76,7 +76,14 @@
         </div>
 
         <section class="mb-4 sidebar-section workflow-section" id="approvalSection" aria-labelledby="workflow-heading">
-            <h6 id="workflow-heading" class="sidebar-section-title">Workflow</h6>
+            <button type="button" class="sidebar-collapse-toggle d-lg-none w-100"
+                    data-bs-toggle="collapse" data-bs-target="#sidebarWorkflowBody"
+                    aria-controls="sidebarWorkflowBody" aria-expanded="false">
+                <span id="workflow-heading-mobile" class="sidebar-section-title mb-0">Workflow</span>
+                <i class="bi bi-chevron-down sidebar-collapse-chevron" aria-hidden="true"></i>
+            </button>
+            <h6 id="workflow-heading" class="sidebar-section-title d-none d-lg-block">Workflow</h6>
+            <div class="collapse d-lg-block" id="sidebarWorkflowBody">
             {% set a = ticket.approval %}
             {% if a and a.status == ApprovalStatus.PENDING.value %}
                 <div class="approval-indicator border-warning small">
@@ -118,14 +125,22 @@
                 <button class="btn btn-sm btn-outline-primary w-100 request-approval-btn" data-ticket-id="{{ ticket.id }}">Freigabe anfordern</button>
                 {% endif %}
             {% endif %}
+            </div>
         </section>
 
         <hr class="text-muted opacity-25">
 
         <!-- Kundenkontakt -->
-        <div class="mb-2 px-1">
+        <section class="mb-2 px-1 sidebar-section" aria-labelledby="contact-heading">
+            <button type="button" class="sidebar-collapse-toggle d-lg-none w-100"
+                    data-bs-toggle="collapse" data-bs-target="#sidebarContactBody"
+                    aria-controls="sidebarContactBody" aria-expanded="false">
+                <span class="sidebar-section-title mb-0">Kundenkontakt</span>
+                <i class="bi bi-chevron-down sidebar-collapse-chevron" aria-hidden="true"></i>
+            </button>
+            <div class="collapse d-lg-block" id="sidebarContactBody">
             <div class="d-flex align-items-center justify-content-between mb-2">
-                <small class="meta-chip-label ls-wide">Kundenkontakt</small>
+                <small id="contact-heading" class="meta-chip-label ls-wide d-none d-lg-inline">Kundenkontakt</small>
                 {% if session.get('role') != WorkerRole.VIEWER.value %}
                 <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-muted" data-bs-toggle="collapse" data-bs-target="#contactEditForm" aria-expanded="false" id="contactEditToggle">
                     <i class="bi bi-pencil-square text-meta"></i>
@@ -209,7 +224,8 @@
                 </div>
             </div>
             {% endif %}
-        </div>
+            </div>
+        </section>
 
         <hr class="text-muted opacity-25">
 

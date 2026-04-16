@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Projekte & Baustellen{% endblock %}
+{% block title %}Projekte{% endblock %}
 
 {% block content %}
 <nav aria-label="Breadcrumb" class="mb-3">
     <ol class="breadcrumb mb-0 small">
         <li class="breadcrumb-item"><a href="{{ ingress_path }}{{ url_for('main.index') }}" class="text-decoration-none">Dashboard</a></li>
-        <li class="breadcrumb-item active" aria-current="page">Projekte & Baustellen</li>
+        <li class="breadcrumb-item active" aria-current="page">Projekte</li>
     </ol>
 </nav>
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="h4 fw-bold mb-0">Projekte & Baustellen</h2>
+    <h2 class="h4 fw-bold mb-0">Projekte</h2>
     <!-- FEAT-13: CSV Export -->
     <a href="{{ ingress_path }}{{ url_for('main.export_projects_csv') }}" class="btn btn-outline-secondary rounded-pill px-3">
         <i class="bi bi-download me-1"></i> CSV Export
