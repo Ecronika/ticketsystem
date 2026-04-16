@@ -114,6 +114,22 @@ class TicketApprovalService:
         ))
         db.session.commit()
         _send_approval_emails(ticket.id, worker_name)
+        from enums import WorkerRole
+        elevated = Worker.query.filter(
+            Worker.role.in_([
+                WorkerRole.ADMIN.value,
+                WorkerRole.HR.value,
+                WorkerRole.MANAGEMENT.value,
+            ]),
+            Worker.is_active.is_(True),
+        ).all()
+        from services.ticket_core_service import TicketCoreService
+        for w in elevated:
+            TicketCoreService.create_notification(
+                user_id=w.id,
+                message=f"Ticket #{ticket.id} wartet auf Freigabe.",
+                link=f"/ticket/{ticket.id}",
+            )
         return True, "Freigabe angefragt."
 
     # ------------------------------------------------------------------
