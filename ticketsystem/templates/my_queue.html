@@ -127,10 +127,10 @@
   {% set col3_tickets = groups.this_week + groups.upcoming + groups.no_due_date + groups.later %}
 {% endif %}
 
-<div class="row g-4 flex-nowrap flex-lg-wrap overflow-auto pb-4 custom-scrollbar">
+<div class="row g-4 pb-4">
 
     <!-- COL 1: Sofort Handeln (Rot) -->
-    <div class="col-11 col-md-6 col-lg-4">
+    <div class="col-12 col-md-6 col-lg-4">
         <div class="column-header rounded-top p-2 mb-2 d-flex justify-content-between align-items-center kanban-header--danger">
              <h2 class="h6 fw-bold mb-0 text-uppercase tracking-wide">
                 <i class="bi bi-exclamation-triangle-fill me-2"></i>Sofort Handeln
@@ -150,7 +150,7 @@
     </div>
 
     <!-- COL 2: Heute Erledigen (Blau) -->
-    <div class="col-11 col-md-6 col-lg-4">
+    <div class="col-12 col-md-6 col-lg-4">
         <div class="column-header rounded-top p-2 mb-2 d-flex justify-content-between align-items-center kanban-header--primary">
              <h2 class="h6 fw-bold mb-0 text-uppercase tracking-wide">
                 <i class="bi bi-star-fill me-2"></i>Heute Erledigen
@@ -170,7 +170,7 @@
     </div>
 
     <!-- COL 3: Woche & Zukunft (Grau) -->
-    <div class="col-11 col-md-6 col-lg-4">
+    <div class="col-12 col-md-6 col-lg-4">
         <div class="column-header rounded-top p-2 mb-2 d-flex justify-content-between align-items-center kanban-header--neutral">
              <h2 class="h6 fw-bold mb-0 text-uppercase tracking-wide">
                 <i class="bi bi-calendar-week me-2"></i>Woche & Zukunft
