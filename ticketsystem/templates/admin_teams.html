@@ -89,9 +89,10 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="p-4 text-center text-muted small">
-                    <i class="bi bi-people fs-1 d-block mb-2 opacity-25"></i>
-                    Es wurden noch keine Teams erstellt.
+                <div class="empty-state">
+                    <i class="bi bi-people empty-state-icon" aria-hidden="true"></i>
+                    <h5 class="empty-state-title">Noch keine Teams</h5>
+                    <p class="empty-state-text mb-0">Erstelle ein Team, um Tickets an Gruppen zuzuweisen.</p>
                 </div>
                 {% endif %}
             </div>
