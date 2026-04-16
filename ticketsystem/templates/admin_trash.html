@@ -87,9 +87,9 @@
             </table>
         </div>
         {% else %}
-        <div class="text-center py-5 text-muted">
-            <i class="bi bi-trash3 display-4 mb-3 opacity-25 d-block"></i>
-            <p class="h6 fw-bold text-secondary mb-1">Der Papierkorb ist leer.</p>
+        <div class="empty-state">
+            <i class="bi bi-trash3 empty-state-icon" aria-hidden="true"></i>
+            <h5 class="empty-state-title">Der Papierkorb ist leer.</h5>
         </div>
         {% endif %}
     </div>
