@@ -17,18 +17,19 @@
                         <div class="input-group">
                             <input type="password" class="form-control form-control-lg text-center" id="new_pin" name="new_pin"
                                 required pattern="[0-9]*" inputmode="numeric" placeholder="****" minlength="4"
-                                autocomplete="new-password" autofocus>
+                                autocomplete="new-password" autofocus
+                                aria-describedby="pinStrengthText">
                             <button type="button" class="btn btn-outline-secondary px-3 pin-toggle" data-target="new_pin" aria-label="PIN anzeigen/verbergen">
                                 <i class="bi bi-eye"></i>
                             </button>
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label for="new_pin" class="form-label form-label-bold text-muted">PIN-Stärke</label>
-                        <div class="progress progress-thin" role="progressbar" aria-label="PIN-Stärke">
+                        <span class="form-label form-label-bold text-muted d-block" id="pinStrengthLabel">PIN-Stärke</span>
+                        <div class="progress progress-thin" role="progressbar" aria-labelledby="pinStrengthLabel" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
                             <div id="pinStrengthBar" class="progress-bar bg-danger" style="width: 0%;"></div>
                         </div>
-                        <small id="pinStrengthText" class="text-muted">PIN eingeben…</small>
+                        <small id="pinStrengthText" class="text-muted" aria-live="polite">PIN eingeben…</small>
                     </div>
                     <div class="mb-3">
                         <label for="new_pin_confirm" class="form-label form-label-bold text-muted">Neuen PIN bestätigen</label>
@@ -72,6 +73,7 @@
         const s = score(input.value);
         bar.style.width = s.pct + '%';
         bar.className = 'progress-bar ' + s.cls;
+        bar.parentElement.setAttribute('aria-valuenow', s.pct);
         txt.textContent = s.label;
     });
 })();

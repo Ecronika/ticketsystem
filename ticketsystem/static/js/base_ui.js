@@ -268,7 +268,9 @@
             
             const isPassword = input.type === 'password';
             input.type = isPassword ? 'text' : 'password';
-            
+            btn.setAttribute('aria-label', isPassword ? 'PIN verbergen' : 'PIN anzeigen');
+            btn.setAttribute('aria-pressed', String(isPassword));
+
             const icon = btn.querySelector('i');
             if (icon) {
                 icon.classList.toggle('bi-eye', !isPassword);
