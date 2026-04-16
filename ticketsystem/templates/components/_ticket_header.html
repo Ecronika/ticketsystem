@@ -6,11 +6,11 @@
                 <div class="d-flex align-items-center mb-2">
                     <h1 class="h3 fw-bold mb-0 me-auto" id="staticTitle">{{ ticket.title }}</h1>
                     {% if session.get('role') != 'viewer' %}
-                    <button type="button" class="btn btn-sm btn-link text-secondary text-decoration-none rounded-circle p-1 ms-2" id="editTicketBtn" aria-label="Ticket bearbeiten" title="Bearbeiten">
+                    <button type="button" class="btn btn-sm btn-link btn-icon-sm text-secondary text-decoration-none rounded-circle ms-2" id="editTicketBtn" aria-label="Ticket bearbeiten" title="Bearbeiten">
                         <i class="bi bi-pencil-square"></i>
                     </button>
                     <div class="dropdown ms-1">
-                        <button class="btn btn-sm btn-link text-secondary text-decoration-none rounded-circle p-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Weitere Aktionen">
+                        <button class="btn btn-sm btn-link btn-icon-sm text-secondary text-decoration-none rounded-circle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Weitere Aktionen">
                             <i class="bi bi-three-dots-vertical"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-3">

@@ -53,31 +53,39 @@ document.addEventListener('DOMContentLoaded', function() {
     var duplicateBtn = document.getElementById('duplicateTicketBtn');
     if (!duplicateBtn) return;
 
-    duplicateBtn.addEventListener('click', function() {
+    duplicateBtn.addEventListener('click', async function() {
         var btn = this;
         btn.disabled = true;
         var orig = btn.innerHTML;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>';
 
-        fetch(ingress + '/api/ticket/' + ticketId + '/duplicate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
-        })
-        .then(function(resp) { return resp.json(); })
-        .then(function(data) {
+        var resp = null;
+        try {
+            resp = await fetch(ingress + '/api/ticket/' + ticketId + '/duplicate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
+            });
+            var errMsg = await window.extractApiError(resp);
+            if (errMsg) {
+                if (window.showUiAlert) window.showUiAlert(errMsg, 'danger');
+                btn.disabled = false;
+                btn.innerHTML = orig;
+                return;
+            }
+            var data = await resp.json();
             if (data.success && data.ticket_id) {
                 window.location.href = ingress + '/ticket/' + data.ticket_id;
             } else {
-                if (window.showUiAlert) window.showUiAlert('Fehler: ' + (data.error || 'Duplizierung fehlgeschlagen'), 'danger');
+                if (window.showUiAlert) window.showUiAlert(data.error || 'Duplizierung fehlgeschlagen.', 'danger');
                 btn.disabled = false;
                 btn.innerHTML = orig;
             }
-        })
-        .catch(function() {
-            if (window.showUiAlert) window.showUiAlert('Netzwerkfehler beim Duplizieren.', 'danger');
+        } catch (e) {
+            var msg = await window.extractApiError(resp);
+            if (window.showUiAlert) window.showUiAlert(msg, 'danger');
             btn.disabled = false;
             btn.innerHTML = orig;
-        });
+        }
     });
 });
 </script>
