@@ -102,10 +102,10 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="7" class="text-center py-5 text-muted">
-                            <i class="bi bi-archive display-4 mb-2 opacity-25"></i>
-                            <p class="h6 text-secondary fw-bold">Das Archiv ist noch leer.</p>
-                            <p class="small opacity-75">Hier erscheinen Tickets erst, wenn sie als "Erledigt" markiert wurden.</p>
+                        <td colspan="7" class="empty-state">
+                            <i class="bi bi-archive empty-state-icon" aria-hidden="true"></i>
+                            <h5 class="empty-state-title">Das Archiv ist noch leer.</h5>
+                            <p class="empty-state-text mb-0">Hier erscheinen Tickets erst, wenn sie als "Erledigt" markiert wurden.</p>
                         </td>
                     </tr>
                     {% endfor %}

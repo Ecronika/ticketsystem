@@ -9,12 +9,12 @@
     {{ render_ticket_row(ticket) }}
 {% else %}
 <tr>
-    <td colspan="8" class="text-center py-5 text-muted">
-        <i class="bi bi-ticket-perforated display-4 mb-2 opacity-25 d-block"></i>
-        <p class="h6 fw-bold text-secondary mb-1">Keine Tickets gefunden.</p>
-        <p class="small opacity-75 mb-3">Das System ist bereit.</p>
+    <td colspan="8" class="empty-state">
+        <i class="bi bi-ticket-perforated empty-state-icon" aria-hidden="true"></i>
+        <h5 class="empty-state-title">Keine Tickets gefunden.</h5>
+        <p class="empty-state-text mb-3">Das System ist bereit.</p>
         <a href="{{ ingress_path }}{{ url_for('main.ticket_new') }}" class="btn btn-primary rounded-pill px-4 shadow-sm btn-sm">
-            <i class="bi bi-plus-circle me-1"></i>Neues Ticket
+            <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>Neues Ticket
         </a>
     </td>
 </tr>
