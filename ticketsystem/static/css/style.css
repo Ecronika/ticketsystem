@@ -616,6 +616,36 @@ canvas {
     color: #d0d0d0 !important;
 }
 
+/* Dark-Mode Tonal-Pendants für farbige Subtle-Badges.
+   Light: Dark-Text auf hell-getöntem BG.
+   Dark:  Hell-Text auf dunkel-getöntem BG (jeweils ≥4.5:1 Kontrast).
+   Hex-Werte aus Tailwind-Skala (z.B. blue-900/blue-200). */
+[data-theme="dark"] .badge-subtle-primary {
+    background-color: #1e3a8a !important;  /* blue-900 */
+    color: #bfdbfe !important;             /* blue-200, CR ≈ 8:1 */
+    border-color: rgba(147, 197, 253, 0.3);
+}
+[data-theme="dark"] .badge-subtle-success {
+    background-color: #14532d !important;  /* green-900 */
+    color: #bbf7d0 !important;             /* green-200 */
+    border-color: rgba(187, 247, 208, 0.3);
+}
+[data-theme="dark"] .badge-subtle-warning {
+    background-color: #713f12 !important;  /* yellow-900 */
+    color: #fef08a !important;             /* yellow-200 */
+    border-color: rgba(254, 240, 138, 0.3);
+}
+[data-theme="dark"] .badge-subtle-danger {
+    background-color: #7f1d1d !important;  /* red-900 */
+    color: #fecaca !important;             /* red-200 */
+    border-color: rgba(254, 202, 202, 0.3);
+}
+[data-theme="dark"] .badge-subtle-info {
+    background-color: #164e63 !important;  /* cyan-900 */
+    color: #a5f3fc !important;             /* cyan-200 */
+    border-color: rgba(165, 243, 252, 0.3);
+}
+
 [data-theme="hc"] .badge-subtle-info,
 [data-theme="hc"] .badge-subtle-primary,
 [data-theme="hc"] .badge-subtle-success,
@@ -1228,7 +1258,30 @@ textarea:focus-visible {
 }
 .checkbox-wrapper { width: 24px; height: 24px; }
 .checklist-check  { width: 1.5rem !important; height: 1.5rem !important; }
-.bulk-action-bar  { z-index: 1050; max-width: 95vw; }
+/* Login-Header + Bulk-Bar bleiben in beiden Themes dunkle "Strong-Contrast"-
+   Elemente. Bootstrap 5.3 flippt --bs-dark im Dark-Theme zu Hellgrau (würde
+   white-on-light → unleserlich). --navbar-bg/-fg ist theme-agnostisch dunkel. */
+.login-card-header {
+    background-color: var(--navbar-bg);
+    color: var(--navbar-fg);
+}
+
+.bulk-action-bar  {
+    z-index: 1050;
+    max-width: 95vw;
+    background-color: var(--navbar-bg) !important;
+    color: var(--navbar-fg) !important;
+}
+.bulk-action-bar .form-select,
+.bulk-action-bar .form-control {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    color: var(--navbar-fg) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+}
+.bulk-action-bar .form-select option {
+    background-color: var(--navbar-bg);
+    color: var(--navbar-fg);
+}
 .toast-btn        { width: auto; min-height: 44px; }
 .color-scheme-dark { color-scheme: dark; }
 .navbar-z         { z-index: var(--z-navbar); }
