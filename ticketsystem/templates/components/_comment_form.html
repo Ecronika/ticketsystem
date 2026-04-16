@@ -4,6 +4,7 @@
         <form id="commentForm" action="{{ ingress_path }}{{ url_for('main.add_comment', ticket_id=ticket.id) }}" method="POST" data-validate>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             <div class="input-group mb-2 position-relative">
+                <label for="commentTextarea" class="visually-hidden">Kommentar (Pflichtfeld)</label>
                 <textarea id="commentTextarea" name="text" class="form-control textarea-auto" rows="1" placeholder="Was gibt es neues? @Name für Erwähnung (Pflichtfeld *)" required autocomplete="off"></textarea>
                 <button type="submit" class="btn btn-primary px-4 d-lg-none">
                     <i class="bi bi-send"></i>
@@ -24,9 +25,8 @@
                         </button>
                         {% endfor %}
                         {% for shortcut in wait_shortcuts %}
-                        {% set wait_label = shortcut|replace('Wartet auf: ', '⏳ ') %}
-                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill py-1 px-3 shortcut-btn" data-shortcut="{{ wait_label }}">
-                            {{ wait_label }}
+                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill py-1 px-3 shortcut-btn" data-shortcut="{{ shortcut }}">
+                            <i class="bi bi-hourglass-split me-1" aria-hidden="true"></i>{{ shortcut|replace('Wartet auf: ', '') }}
                         </button>
                         {% endfor %}
                     </div>
