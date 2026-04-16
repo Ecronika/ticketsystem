@@ -1,11 +1,13 @@
 {% extends "base.html" %}
+{% block title %}PIN vergessen{% endblock %}
 
 {% block content %}
+<h1 class="visually-hidden">PIN zurücksetzen</h1>
 <div class="row justify-content-center mt-5">
     <div class="col-md-6 col-lg-4">
         <div class="card shadow border-primary">
             <div class="card-header bg-primary text-white">
-                <h4 class="mb-0"><i class="bi bi-envelope-arrow-up"></i> PIN vergessen</h4>
+                <h4 class="mb-0"><i class="bi bi-envelope-arrow-up" aria-hidden="true"></i> PIN vergessen</h4>
             </div>
             <div class="card-body">
                 <p class="text-muted small mb-3">Wählen Sie Ihren Namen aus. Wenn eine E-Mail-Adresse hinterlegt ist, erhalten Sie einen Link zum Zurücksetzen Ihres PINs.</p>
@@ -13,7 +15,7 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                     <div class="mb-3">
                         <label for="worker_id" class="form-label form-label-bold">Mitarbeiter</label>
-                        <select name="worker_id" id="worker_id" class="form-select" required>
+                        <select name="worker_id" id="worker_id" class="form-select form-select-lg" required>
                             <option value="" disabled selected>-- Bitte wählen --</option>
                             {% for w in workers %}
                             <option value="{{ w.id }}">{{ w.name }}</option>
