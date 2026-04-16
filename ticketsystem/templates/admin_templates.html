@@ -76,8 +76,10 @@
                         </div>
                     </div>
                     {% else %}
-                    <div class="p-4 text-center text-muted small">
-                        Es wurden noch keine Checklisten-Vorlagen erstellt.
+                    <div class="empty-state">
+                        <i class="bi bi-card-checklist empty-state-icon" aria-hidden="true"></i>
+                        <h5 class="empty-state-title">Noch keine Vorlagen</h5>
+                        <p class="empty-state-text mb-0">Erstelle eine Vorlage für wiederkehrende Checklisten.</p>
                     </div>
                     {% endfor %}
                 </div>

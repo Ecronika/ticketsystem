@@ -2,6 +2,15 @@
 
 {% block title %}API-Schlüssel{% endblock %}
 
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb mb-0 small">
+        <li class="breadcrumb-item"><a href="{{ ingress_path }}{{ url_for('main.index') }}" class="text-decoration-none">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Admin › API-Schlüssel</li>
+    </ol>
+</nav>
+{% endblock %}
+
 {% block content %}
 <div class="row mb-4 align-items-center">
     <div class="col">
@@ -33,7 +42,7 @@
     <div class="card-body p-0">
         {% if keys %}
         <div class="table-responsive">
-            <table class="table table-hover mb-0 align-middle">
+            <table class="table table-hover mb-0 align-middle table-responsive-cards">
                 <thead class="table-light">
                     <tr>
                         <th class="ps-4">Name</th>
