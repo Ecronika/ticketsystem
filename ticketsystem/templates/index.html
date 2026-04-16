@@ -25,6 +25,10 @@ document.addEventListener('DOMContentLoaded', function() {
     let lastCount = parseInt("{{ pagination.total or 0 }}");
     let lastUpdated = null;
     let refreshing = false;
+    // Exponential backoff for poll failures (Baustellen-Kontext: schwaches Netz).
+    // Reset auf POLL_INTERVAL bei Erfolg, max 60s zwischen Retries.
+    let pollDelay = POLL_INTERVAL;
+    const POLL_MAX = 60000;
 
     // --- Silent table-row refresh ---
     // Capture each ticket row's current rendered HTML so we can diff after the swap.
@@ -72,11 +76,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- Polling (silently refreshes rows on change) ---
     async function updateDashboard() {
-        if (document.hidden) return;
+        if (document.hidden) {
+            scheduleNextPoll();
+            return;
+        }
         try {
             const r = await fetch(ingress + '/api/dashboard/summary');
+            if (!r.ok) throw new Error('HTTP ' + r.status);
             const data = await r.json();
-            if (!data.success) return;
+            if (!data.success) throw new Error('API error');
+            // Erfolg: Backoff zurücksetzen
+            pollDelay = POLL_INTERVAL;
             const changed = data.counts.summary !== lastCount ||
                 (data.last_updated && lastUpdated && data.last_updated !== lastUpdated);
             if (changed) {
@@ -87,7 +97,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (rl) rl.dataset.refreshedAt = new Date().toISOString();
             }
             if (!lastUpdated) lastUpdated = data.last_updated;
-        } catch(e) {}
+        } catch(e) {
+            // Fehler: Wartezeit verdoppeln (max 60s), schont Akku/Netz auf der Baustelle
+            pollDelay = Math.min(POLL_MAX, pollDelay * 2);
+        }
+        scheduleNextPoll();
+    }
+    function scheduleNextPoll() {
+        setTimeout(updateDashboard, pollDelay);
     }
 
     // --- Relative "last refreshed" label ---
@@ -110,7 +127,8 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => { if (data.success) { lastCount = data.counts.summary; lastUpdated = data.last_updated; } })
         .catch(() => {});
 
-    setInterval(updateDashboard, POLL_INTERVAL);
+    // Rekursiver Schedule statt setInterval — erlaubt dynamischen Backoff
+    scheduleNextPoll();
 
     // --- Delegated table events (survive DOM swaps after silent refresh) ---
     const dashTable = document.getElementById('dashTable');

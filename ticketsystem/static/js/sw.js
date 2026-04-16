@@ -1,14 +1,25 @@
-const CACHE_NAME = 'ticketsystem-v1.23.0';
+const CACHE_NAME = 'ticketsystem-v1.24.0';
+// Statische Assets, die für offline-fähigen Erststart vorab gecacht werden.
+// In Home-Assistant-Ingress-Setups schlägt der hartkodierte Pfad evtl. fehl —
+// deswegen werden zusätzlich im fetch-Handler alle erfolgreich abgerufenen
+// /static/-Responses on-the-fly in den Cache geschrieben.
 const ASSETS = [
   '/static/css/style.css',
   '/static/js/base_ui.js',
-  '/static/js/theme_init.js'
+  '/static/js/theme_init.js',
+  '/static/js/focus_trap.js',
+  '/static/js/form_validation.js',
+  '/static/js/shortcuts.js',
+  '/static/js/notifications.js',
+  '/static/js/help.js'
 ];
 
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(ASSETS);
+      // addAll() bricht ab, wenn auch nur eine URL fehlschlägt (z.B. unter
+      // Ingress-Präfix). Einzelnes add() ist fehlertoleranter.
+      return Promise.all(ASSETS.map(url => cache.add(url).catch(() => null)));
     })
   );
   self.skipWaiting();
@@ -26,11 +37,20 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // Cache-first for static assets
+  // Cache-first für statische Assets. Bei Cache-Miss: holen, dann in den
+  // Cache schreiben — dadurch füllt sich der Cache auch unter Ingress-Pfaden,
+  // wo die addAll-Vorab-Befüllung u.U. nicht greift.
   if (url.pathname.includes('/static/')) {
     event.respondWith(
-      caches.match(event.request).then(response => {
-        return response || fetch(event.request);
+      caches.match(event.request).then(cached => {
+        if (cached) return cached;
+        return fetch(event.request).then(response => {
+          if (response && response.ok && response.type === 'basic') {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          }
+          return response;
+        });
       })
     );
   } else {
