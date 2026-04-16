@@ -1754,6 +1754,33 @@ select[aria-invalid="true"] {
     margin-bottom: .5rem;
 }
 
+/* Mobile-Collapse-Toggle für Sidebar-Sections (Workflow, Kontakt).
+   Auf >=lg (992px) ist Toggle ausgeblendet (d-lg-none) und Body via
+   d-lg-block dauerhaft sichtbar — keine extra Tap-Aktion nötig. */
+.sidebar-collapse-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: transparent;
+    border: 0;
+    padding: var(--space-2) 0;
+    color: var(--text-main);
+    text-align: left;
+}
+.sidebar-collapse-toggle:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+}
+.sidebar-collapse-chevron {
+    transition: transform var(--duration-base) var(--ease-standard);
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+}
+.sidebar-collapse-toggle[aria-expanded="true"] .sidebar-collapse-chevron {
+    transform: rotate(180deg);
+}
+
 /* Shortcut-Hilfe-Dialog */
 .shortcut-help-dialog {
     border: 1px solid var(--bs-border-color, #dee2e6);
