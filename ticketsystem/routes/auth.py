@@ -634,6 +634,14 @@ def _update_ooo(worker: Worker) -> None:
         if delegate_id != worker.id:
             worker.delegate_to_id = delegate_id
             db.session.commit()
+            if worker.is_out_of_office and worker.delegate_to_id:
+                from services.ticket_core_service import TicketCoreService
+                TicketCoreService.create_notification(
+                    user_id=worker.delegate_to_id,
+                    message=f"{worker.name} hat dich als Vertreter eingetragen. Neue Tickets werden an dich weitergeleitet.",
+                    link="/my-queue",
+                )
+                db.session.commit()
             return
     worker.delegate_to_id = None
     db.session.commit()
