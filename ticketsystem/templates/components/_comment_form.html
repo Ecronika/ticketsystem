@@ -5,12 +5,13 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             <div class="input-group mb-2 position-relative">
                 <label for="commentTextarea" class="visually-hidden">Kommentar (Pflichtfeld)</label>
-                <textarea id="commentTextarea" name="text" class="form-control textarea-auto" rows="1" placeholder="Was gibt es neues? @Name für Erwähnung (Pflichtfeld *)" required autocomplete="off"></textarea>
+                <textarea id="commentTextarea" name="text" class="form-control textarea-auto" rows="1" placeholder="Was gibt es neues? @Name für Erwähnung (Pflichtfeld *)" required autocomplete="off"
+                          role="combobox" aria-autocomplete="list" aria-controls="mentionDropdown" aria-expanded="false"></textarea>
                 <button type="submit" class="btn btn-primary px-4 d-lg-none">
                     <i class="bi bi-send"></i>
                 </button>
                 <!-- @mention autocomplete dropdown -->
-                <ul id="mentionDropdown" class="dropdown-menu shadow-sm mention-dropdown"></ul>
+                <ul id="mentionDropdown" class="dropdown-menu shadow-sm mention-dropdown" role="listbox"></ul>
             </div>
             
             <div class="d-flex justify-content-between align-items-center">
@@ -67,6 +68,7 @@
     function closeDrop() {
         dropdown.style.display = 'none';
         dropdown.innerHTML = '';
+        textarea.setAttribute('aria-expanded', 'false');
         mentionStart = -1;
     }
 
@@ -77,6 +79,7 @@
         matches.forEach(name => {
             const li = document.createElement('li');
             li.className = 'dropdown-item py-1 px-3 small cursor-pointer';
+            li.setAttribute('role', 'option');
             li.style.cursor = 'pointer';
             li.textContent = '@' + name;
             li.addEventListener('mousedown', function(e) {
@@ -90,6 +93,7 @@
         dropdown.style.display = 'block';
         dropdown.style.top = (textarea.offsetTop + textarea.offsetHeight) + 'px';
         dropdown.style.left = textarea.offsetLeft + 'px';
+        textarea.setAttribute('aria-expanded', 'true');
     }
 
     function insertMention(name) {
