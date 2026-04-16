@@ -781,6 +781,16 @@ canvas {
     border-right: none;
 }
 
+/* Mobile: list-group-flush horizontal padding reduzieren (24px -> 16px),
+   damit auf 375px-Viewport mehr Content-Breite bleibt (Workload, Profile,
+   admin_templates). */
+@media (max-width: 575.98px) {
+    .list-group-flush > .list-group-item.px-4 {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+}
+
 /* --- Accessibility Focus Indicators (WCAG 2.2) --- */
 a:focus-visible,
 button:focus-visible,
