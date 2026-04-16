@@ -574,12 +574,14 @@ document.addEventListener('DOMContentLoaded', function() {
         <span class="tab-count bg-surface-subtle text-muted">{{ summary_counts.offen + summary_counts.in_bearbeitung + summary_counts.wartet }}</span>
     </a>
     <a href="{{ ingress_path }}{{ url_for('main.index', tab='unassigned', q=query) }}" class="dash-tab text-decoration-none {{ 'active' if active_tab == 'unassigned' }}">
-        <i class="bi bi-person-x me-1 text-danger"></i>Unzugewiesen
+        <i class="bi bi-person-x me-1 text-danger" aria-hidden="true"></i>Unzugewiesen
         <span class="tab-count {{ 'bg-danger text-white' if summary_counts.unassigned > 0 else 'bg-surface-subtle text-muted' }}">{{ summary_counts.unassigned }}</span>
+        {% if summary_counts.unassigned > 0 %}<span class="visually-hidden"> – Aufmerksamkeit erforderlich</span>{% endif %}
     </a>
     <a href="{{ ingress_path }}{{ url_for('main.index', tab='callback', q=query) }}" class="dash-tab text-decoration-none {{ 'active' if active_tab == 'callback' }}">
-        <i class="bi bi-telephone-forward me-1 text-warning"></i>Rückruf
+        <i class="bi bi-telephone-forward me-1 text-warning" aria-hidden="true"></i>Rückruf
         <span class="tab-count {{ 'bg-warning text-dark' if summary_counts.callback_pending > 0 else 'bg-surface-subtle text-muted' }}">{{ summary_counts.callback_pending }}</span>
+        {% if summary_counts.callback_pending > 0 %}<span class="visually-hidden"> – Aufmerksamkeit erforderlich</span>{% endif %}
     </a>
 </div>
 
