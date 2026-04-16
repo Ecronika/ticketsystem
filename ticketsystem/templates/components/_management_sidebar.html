@@ -184,6 +184,11 @@
                     {% endif %}
                 </div>
                 {% endif %}
+                {% if c and c.callback_requested and session.get('role') != 'viewer' %}
+                <button type="button" class="btn btn-sm btn-outline-success w-100 mt-2 rounded-pill" id="callbackDoneBtn" data-ticket-id="{{ ticket.id }}">
+                    <i class="bi bi-telephone-check me-1"></i>Rückruf erledigt
+                </button>
+                {% endif %}
                 {% if not c or (not c.name and not c.channel and not c.phone and not c.email) %}
                 <span class="x-small text-muted fst-italic">Keine Angaben</span>
                 {% endif %}

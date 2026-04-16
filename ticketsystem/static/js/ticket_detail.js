@@ -419,6 +419,37 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // --- Callback Done Button ---
+    const callbackDoneBtn = document.getElementById('callbackDoneBtn');
+    if (callbackDoneBtn) {
+        callbackDoneBtn.addEventListener('click', async function() {
+            const tId = this.dataset.ticketId;
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Wird gespeichert...';
+
+            try {
+                const resp = await fetch(`${getIngress()}/api/ticket/${tId}/callback-done`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    window.showUiAlert('Rückruf als erledigt markiert.', 'success');
+                    this.remove();
+                } else {
+                    const errMsg = window.extractApiError ? window.extractApiError(data) : (data.error || 'Unbekannter Fehler');
+                    window.showUiAlert('Fehler: ' + errMsg);
+                    this.disabled = false;
+                    this.innerHTML = '<i class="bi bi-telephone-check me-1"></i>Rückruf erledigt';
+                }
+            } catch (e) {
+                window.showUiAlert('Netzwerkfehler.');
+                this.disabled = false;
+                this.innerHTML = '<i class="bi bi-telephone-check me-1"></i>Rückruf erledigt';
+            }
+        });
+    }
 });
 
 window.approveTicket = async function(tId) {
