@@ -437,12 +437,9 @@ canvas {
 
 /* Fix missing focus ring for hidden radio buttons (WCAG 2.2) */
 .btn-check:focus-visible+.btn {
-    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-    /* Bootstrap Default Focus */
-    border-color: var(--color-primary);
-    z-index: 1;
     outline: var(--focus-ring);
     outline-offset: 2px;
+    z-index: 1;
 }
 
 /* --- Theme Application (Global Setup) --- */
@@ -1152,9 +1149,8 @@ textarea:focus-visible {
    ========================================= */
 .progress-thin    { height: 8px; }
 .btn-icon-sm {
-    width: 32px;
-    height: 32px;
-    min-height: 32px;
+    min-width: 44px;
+    min-height: 44px;
     padding: 0;
     display: inline-flex;
     align-items: center;
@@ -1175,6 +1171,12 @@ textarea:focus-visible {
 /* Attachment tiles & delete button */
 .attachment-tile {
     position: relative;
+}
+.attachment-tile > a > img {
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    width: 100%;
+    height: auto;
 }
 .attachment-delete-btn {
     opacity: 0.85;
@@ -1216,7 +1218,7 @@ textarea:focus-visible {
 .checkbox-wrapper { width: 24px; height: 24px; }
 .checklist-check  { width: 1.5rem !important; height: 1.5rem !important; }
 .bulk-action-bar  { z-index: 1050; max-width: 95vw; }
-.toast-btn        { width: auto; min-height: 34px; }
+.toast-btn        { width: auto; min-height: 44px; }
 .color-scheme-dark { color-scheme: dark; }
 .navbar-z         { z-index: var(--z-navbar); }
 
