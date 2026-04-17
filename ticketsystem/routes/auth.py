@@ -413,8 +413,8 @@ def _change_pin_view() -> str | WerkzeugResponse:
         )
         worker.needs_pin_change = False
         db.session.commit()
-        flash("PIN erfolgreich geändert.", "success")
-        return redirect_to("main.index")
+        flash("Willkommen im Ticketsystem! Dein neuer PIN ist aktiv.", "success")
+        return redirect_to("main.my_queue")
 
     return render_template("change_pin.html")
 
@@ -634,6 +634,14 @@ def _update_ooo(worker: Worker) -> None:
         if delegate_id != worker.id:
             worker.delegate_to_id = delegate_id
             db.session.commit()
+            if worker.is_out_of_office and worker.delegate_to_id:
+                from services.ticket_core_service import TicketCoreService
+                TicketCoreService.create_notification(
+                    user_id=worker.delegate_to_id,
+                    message=f"{worker.name} hat dich als Vertreter eingetragen. Neue Tickets werden an dich weitergeleitet.",
+                    link="/my-queue",
+                )
+                db.session.commit()
             return
     worker.delegate_to_id = None
     db.session.commit()

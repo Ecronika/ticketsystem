@@ -419,6 +419,37 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // --- Callback Done Button ---
+    const callbackDoneBtn = document.getElementById('callbackDoneBtn');
+    if (callbackDoneBtn) {
+        callbackDoneBtn.addEventListener('click', async function() {
+            const tId = this.dataset.ticketId;
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Wird gespeichert...';
+
+            try {
+                const resp = await fetch(`${getIngress()}/api/ticket/${tId}/callback-done`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    window.showUiAlert('Rückruf als erledigt markiert.', 'success');
+                    this.remove();
+                } else {
+                    const errMsg = window.extractApiError ? window.extractApiError(data) : (data.error || 'Unbekannter Fehler');
+                    window.showUiAlert('Fehler: ' + errMsg);
+                    this.disabled = false;
+                    this.innerHTML = '<i class="bi bi-telephone-check me-1"></i>Rückruf erledigt';
+                }
+            } catch (e) {
+                window.showUiAlert('Netzwerkfehler.');
+                this.disabled = false;
+                this.innerHTML = '<i class="bi bi-telephone-check me-1"></i>Rückruf erledigt';
+            }
+        });
+    }
 });
 
 window.approveTicket = async function(tId) {
@@ -1139,6 +1170,36 @@ document.addEventListener('DOMContentLoaded', function() {
             xhr.open('POST', ingress + '/api/ticket/' + ticketId + '/attachments');
             xhr.setRequestHeader('X-CSRFToken', csrfToken);
             xhr.send(fd);
+        });
+    }
+
+    // ── Stop Recurrence ──────────────────────────────────────────────
+    var stopRecBtn = document.getElementById('stopRecurrenceBtn');
+    if (stopRecBtn) {
+        stopRecBtn.addEventListener('click', async function() {
+            var ok = window.showConfirm
+                ? await window.showConfirm('Serie stoppen', 'Zukünftige Serien-Tickets werden nicht mehr erstellt. Fortfahren?', true)
+                : confirm('Serie stoppen?');
+            if (!ok) return;
+            var btn = this;
+            btn.disabled = true;
+            try {
+                var resp = await fetch(ingress + '/api/ticket/' + btn.dataset.ticketId + '/recurrence/stop', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
+                });
+                var errMsg = await window.extractApiError(resp);
+                if (errMsg) {
+                    if (window.showUiAlert) window.showUiAlert(errMsg, 'danger');
+                    btn.disabled = false;
+                    return;
+                }
+                if (window.showUiAlert) window.showUiAlert('Serie gestoppt.', 'success');
+                btn.outerHTML = '<span class="badge bg-secondary-subtle text-secondary x-small ms-1">gestoppt</span>';
+            } catch(e) {
+                if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.', 'danger');
+                btn.disabled = false;
+            }
         });
     }
 });

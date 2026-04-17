@@ -11,6 +11,12 @@
         <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Neues Ticket melden
     </a>
 </nav>
+{% if request.args.get('new') == '1' %}
+<div class="alert alert-success d-flex align-items-center mb-3" role="alert">
+    <i class="bi bi-check-circle-fill me-2" aria-hidden="true"></i>
+    <div>Ticket erfolgreich erstellt! Sie können den Status jederzeit auf dieser Seite verfolgen.</div>
+</div>
+{% endif %}
 <div class="row g-4 d-flex justify-content-center">
     <div class="col-lg-8">
         <!-- Ticket Header Card -->

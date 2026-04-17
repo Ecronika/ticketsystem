@@ -70,6 +70,15 @@
                     <div class="meta-chip">
                         <small class="meta-chip-label"><i class="bi bi-arrow-repeat me-1"></i>Serie</small>
                         <span class="fw-semibold small">{{ ticket.recurrence.rule|capitalize }}</span>
+                        {% if ticket.recurrence.is_active %}
+                            {% if session.get('role') != 'viewer' %}
+                            <button type="button" class="btn btn-link btn-sm text-danger p-0 ms-2" id="stopRecurrenceBtn" data-ticket-id="{{ ticket.id }}" title="Serie stoppen">
+                                <i class="bi bi-stop-circle" aria-hidden="true"></i>
+                            </button>
+                            {% endif %}
+                        {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary x-small ms-1">gestoppt</span>
+                        {% endif %}
                     </div>
                     {% endif %}
                 </div>

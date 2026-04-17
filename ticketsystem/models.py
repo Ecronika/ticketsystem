@@ -292,6 +292,7 @@ class TicketRecurrence(db.Model):
     )
     rule = db.Column(db.String(50), nullable=False)
     next_date = db.Column(db.DateTime, nullable=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
 
     def __repr__(self) -> str:
         return f"<TicketRecurrence ticket={self.ticket_id} rule={self.rule!r}>"

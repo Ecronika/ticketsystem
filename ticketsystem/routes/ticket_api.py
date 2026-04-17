@@ -20,7 +20,9 @@ from flask import (
 
 from enums import TicketPriority, TicketStatus
 from extensions import Config, db, limiter
-from models import Attachment
+from exceptions import DomainError
+from models import Attachment, Comment, Ticket
+from utils import get_utc_now
 from routes.auth import (
     admin_or_management_required,
     admin_required,
@@ -482,6 +484,70 @@ def _restore_ticket_api(ticket_id: int) -> Response:
     return api_ok()
 
 
+@worker_required
+@write_required
+@limiter.limit("20 per minute")
+@api_endpoint
+def _callback_done_api(ticket_id: int) -> tuple[Response, int] | Response:
+    """Mark an open callback as done."""
+    worker_id = session.get("worker_id")
+    role = session.get("role")
+    ticket = _check_ticket_access(ticket_id, worker_id, role)
+    if not ticket:
+        return api_error("Keine Berechtigung", 403)
+
+    contact = ticket.contact
+    if not contact:
+        raise DomainError("Kein Kontakt vorhanden.", 400)
+    if not contact.callback_requested:
+        raise DomainError("Kein offener Rückruf vorhanden.", 400)
+
+    contact.callback_requested = False
+    contact.callback_due = None
+
+    author = session.get("worker_name", "System")
+    db.session.add(Comment(
+        ticket_id=ticket_id,
+        author=author,
+        author_id=worker_id,
+        text="Rückruf durchgeführt.",
+        is_system_event=True,
+        event_type="CALLBACK_DONE",
+    ))
+    ticket.updated_at = get_utc_now()
+    db.session.commit()
+    return api_ok()
+
+
+@worker_required
+@write_required
+@api_endpoint
+def _stop_recurrence_api(ticket_id: int) -> tuple[Response, int] | Response:
+    """Deactivate the recurrence rule for this ticket."""
+    ticket = db.session.get(Ticket, ticket_id)
+    if not ticket:
+        raise DomainError("Ticket nicht gefunden.", 404)
+    rec = ticket.recurrence
+    if not rec or not rec.rule:
+        raise DomainError("Kein Serienticket.", 409)
+    if not rec.is_active:
+        raise DomainError("Serie bereits gestoppt.", 409)
+    rec.is_active = False
+    author = session.get("worker_name", "System")
+    worker_id = session.get("worker_id")
+    db.session.add(Comment(
+        ticket_id=ticket_id,
+        author=author,
+        author_id=worker_id,
+        text="Serie deaktiviert.",
+        is_system_event=True,
+        event_type="RECURRENCE_STOPPED",
+    ))
+    ticket.updated_at = get_utc_now()
+    db.session.commit()
+    return api_ok()
+
+
 def register_routes(bp: Blueprint) -> None:
     """Register API routes for ticket operations."""
     bp.add_url_rule(
@@ -544,4 +610,13 @@ def register_routes(bp: Blueprint) -> None:
     bp.add_url_rule(
         "/api/ticket/<int:ticket_id>/restore", "restore_ticket_api",
         view_func=_restore_ticket_api, methods=["POST"],
+    )
+    bp.add_url_rule(
+        "/api/ticket/<int:ticket_id>/callback-done", "callback_done_api",
+        view_func=_callback_done_api, methods=["POST"],
+    )
+    bp.add_url_rule(
+        "/api/ticket/<int:ticket_id>/recurrence/stop",
+        "stop_recurrence_api",
+        view_func=_stop_recurrence_api, methods=["POST"],
     )

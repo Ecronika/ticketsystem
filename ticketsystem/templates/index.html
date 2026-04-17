@@ -629,7 +629,7 @@ document.addEventListener('DOMContentLoaded', function() {
     </a>
     <a href="{{ ingress_path }}{{ url_for('main.index', tab='callback', q=query) }}" class="dash-tab text-decoration-none {{ 'active' if active_tab == 'callback' }}">
         <i class="bi bi-telephone-forward me-1 text-warning" aria-hidden="true"></i>Rückruf
-        <span class="tab-count {{ 'bg-warning text-dark' if summary_counts.callback_pending > 0 else 'bg-surface-subtle text-muted' }}">{{ summary_counts.callback_pending }}</span>
+        <span class="tab-count {{ 'bg-danger text-white animate-pulse' if summary_counts.callback_pending > 0 else 'bg-surface-subtle text-muted' }}">{{ summary_counts.callback_pending }}</span>
         {% if summary_counts.callback_pending > 0 %}<span class="visually-hidden"> – Aufmerksamkeit erforderlich</span>{% endif %}
     </a>
 </div>

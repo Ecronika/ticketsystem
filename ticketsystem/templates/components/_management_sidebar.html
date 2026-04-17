@@ -176,13 +176,28 @@
                 </a></div>
                 {% endif %}
                 {% if c and c.callback_requested %}
-                <div class="mt-1 d-flex align-items-center gap-1 {% if c.callback_due and c.callback_due < now %}text-danger fw-bold{% else %}text-warning-emphasis{% endif %}">
-                    <i class="bi bi-telephone-forward small"></i>
-                    <span class="x-small fw-bold">Rückruf erforderlich</span>
-                    {% if c.callback_due %}
-                    <span class="x-small ms-1">bis {{ c.callback_due|local_time|datetime('%d.%m. %H:%M') }}</span>
+                <div class="mt-1" data-callback-display>
+                    {% if c.callback_due and c.callback_due < now %}
+                    <span class="callback-overdue-badge">
+                        <i class="bi bi-telephone-forward"></i>
+                        Rückruf ÜBERFÄLLIG
+                        <span class="ms-1">{{ c.callback_due|local_time|datetime('%d.%m. %H:%M') }}</span>
+                    </span>
+                    {% else %}
+                    <div class="d-flex align-items-center gap-1 text-warning-emphasis">
+                        <i class="bi bi-telephone-forward small"></i>
+                        <span class="x-small fw-bold">Rückruf erforderlich</span>
+                        {% if c.callback_due %}
+                        <span class="x-small ms-1">bis {{ c.callback_due|local_time|datetime('%d.%m. %H:%M') }}</span>
+                        {% endif %}
+                    </div>
                     {% endif %}
                 </div>
+                {% endif %}
+                {% if c and c.callback_requested and session.get('role') != 'viewer' %}
+                <button type="button" class="btn btn-sm btn-outline-success w-100 mt-2 rounded-pill" id="callbackDoneBtn" data-ticket-id="{{ ticket.id }}">
+                    <i class="bi bi-telephone-check me-1"></i>Rückruf erledigt
+                </button>
                 {% endif %}
                 {% if not c or (not c.name and not c.channel and not c.phone and not c.email) %}
                 <span class="x-small text-muted fst-italic">Keine Angaben</span>

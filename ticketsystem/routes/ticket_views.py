@@ -52,8 +52,10 @@ def _dashboard_view() -> str | Response:
     search = request.args.get("q", "").strip()
     status_filter = request.args.get("status", "")
     page = request.args.get("page", 1, type=int)
-    per_page = request.args.get("per_page", 25, type=int)
-    per_page = min(max(per_page, 10), 100)  # clamp 10..100
+    ua = request.headers.get("User-Agent", "")
+    default_pp = 10 if any(k in ua.lower() for k in ("mobile", "android", "iphone")) else 25
+    per_page = request.args.get("per_page", default_pp, type=int)
+    per_page = min(max(per_page, 5), 100)
     assigned_to_me = request.args.get("assigned_to_me") == "1"
     unassigned_only = request.args.get("unassigned") == "1"
     callback_pending = request.args.get("callback_pending") == "1"
@@ -294,7 +296,7 @@ def _after_ticket_created(ticket: Ticket) -> Response:
     )
 
     if not session.get("worker_id"):
-        return redirect_to("main.ticket_new", created=ticket.id)
+        return redirect_to("main.ticket_public", ticket_id=ticket.id, new=1)
 
     flash(Markup(f"Ticket {link_html} erfolgreich erstellt!"), "success")
     return redirect_to("main.index")
@@ -502,8 +504,10 @@ def _dashboard_rows_api() -> Response:
     search = request.args.get("q", "").strip()
     status_filter = request.args.get("status", "")
     page = request.args.get("page", 1, type=int)
-    per_page = request.args.get("per_page", 25, type=int)
-    per_page = min(max(per_page, 10), 100)
+    ua = request.headers.get("User-Agent", "")
+    default_pp = 10 if any(k in ua.lower() for k in ("mobile", "android", "iphone")) else 25
+    per_page = request.args.get("per_page", default_pp, type=int)
+    per_page = min(max(per_page, 5), 100)
     unassigned_only = request.args.get("unassigned") == "1"
     callback_pending = request.args.get("callback_pending") == "1"
     assigned_worker_id = request.args.get("worker_id", type=int)
