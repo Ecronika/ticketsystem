@@ -38,7 +38,7 @@ body {
 }
 
 .table td .d-flex.gap-1 {
-    gap: var(--space-2) !important;
+    gap: var(--space-2);
 }
 
 /* =========================================
@@ -47,21 +47,13 @@ body {
 .small,
 small,
 .text-muted {
-    font-size: max(0.875rem, 14px) !important;
+    font-size: max(0.875rem, 14px);
 }
 
 .btn,
 .form-control,
 .form-select {
     min-height: var(--touch-target-min);
-}
-
-@media (max-width: 768px) {
-    input,
-    select,
-    textarea {
-        font-size: 16px !important;
-    }
 }
 
 canvas {
@@ -254,7 +246,7 @@ canvas {
 }
 
 .z-toast {
-    z-index: var(--z-toast) !important;
+    z-index: var(--z-toast);
 }
 
 /* Dark Mode (Ergonomisch, kein reines Schwarz) */
@@ -300,7 +292,7 @@ canvas {
 
 /* Thicker borders for Low Vision in Dark Mode */
 [data-theme="dark"] .card .border-start {
-    border-left-width: 4px !important;
+    border-left-width: 4px;
 }
 
 /* Approval-Indicator Borders: Bootstrap border-success/warning/danger
@@ -425,7 +417,7 @@ canvas {
     color: var(--color-primary);
 }
 
-/* Fix Badge Contrast in Light Mode */
+/* Fix Badge Contrast in Light Mode — Bootstrap .bg-*-subtle uses !important */
 [data-bs-theme="light"] .badge.bg-primary-subtle {
     color: #0d6efd !important;
     background-color: rgba(13, 110, 253, 0.15) !important;
@@ -455,7 +447,7 @@ canvas {
 }
 
 .bg-surface-subtle {
-    background-color: var(--bg-surface-subtle) !important;
+    background-color: var(--bg-surface-subtle);
 }
 
 /* Badge Subtle Utilities — Spezifität statt !important.
@@ -531,7 +523,7 @@ canvas {
 
 .card,
 .modal-content {
-    background-color: var(--bg-surface) !important;
+    background-color: var(--bg-surface);
     color: var(--text-main);
     border-color: var(--border-color);
 }
@@ -593,6 +585,13 @@ canvas {
 
 /* === UX Phase 3: Responsive Table-to-Cards Fallback === */
 @media (max-width: 768px) {
+    /* iOS Zoom Prevention */
+    input,
+    select,
+    textarea {
+        font-size: 16px !important;
+    }
+
     .table-responsive-cards thead {
         display: none;
     }
@@ -669,7 +668,7 @@ textarea:focus-visible {
 }
 
 /* === Typography Utilities === */
-.x-small { font-size: var(--fs-sm) !important; line-height: 1.4; }
+.x-small { font-size: var(--fs-sm); line-height: 1.4; }
 .text-meta { color: var(--text-muted) !important; font-size: var(--fs-meta); }
 
 .bg-surface {
@@ -687,11 +686,11 @@ textarea:focus-visible {
     transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 .bg-white-hover:hover {
-    background-color: rgba(255, 255, 255, 0.1) !important;
+    background-color: rgba(255, 255, 255, 0.1);
     box-shadow: var(--shadow-sm);
 }
 [data-theme="dark"] .bg-white-hover:hover {
-    background-color: rgba(255, 255, 255, 0.05) !important;
+    background-color: rgba(255, 255, 255, 0.05);
 }
 
 /* --- WCAG 2.3.3: Reduced Motion --- */
@@ -726,7 +725,7 @@ textarea:focus-visible {
 
 /* --- v1.6.0: WCAG 2.2 AA & Dashboard Scanning Fixes --- */
 .alert .btn-close { min-width: var(--touch-target-min); min-height: var(--touch-target-min); }
-.border-danger.border-3 { border-left-width: 6px !important; }
+.border-danger.border-3 { border-left-width: 6px; }
 .sticky-top { z-index: 1030; }
 .sticky-top [tabindex], .sticky-top a, .sticky-top select, .sticky-top button { scroll-margin-top: 6rem; }
 
@@ -737,15 +736,23 @@ textarea:focus-visible {
 }
 @media (hover: hover) and (pointer: fine) {
     .hover-card:hover {
-        box-shadow: var(--shadow-md) !important;
+        box-shadow: var(--shadow-md);
         transform: translateY(-1px);
+    }
+    .attachment-tile:hover .attachment-delete-btn {
+        opacity: 1;
+        box-shadow: var(--shadow-sm);
+    }
+    .hover-elevate:hover {
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-2px);
     }
 }
 /* === Kanban Priority Left Stripe (v1.21) === */
-.card-prio-high    { border-left: 3px solid var(--color-danger)  !important; }
-.card-prio-medium  { border-left: 3px solid var(--color-warning) !important; }
-.card-prio-low     { border-left: 3px solid var(--color-info)    !important; }
-.card-prio-reminder { border-left: 3px solid var(--color-primary) !important; }
+.card-prio-high    { border-left: 3px solid var(--color-danger); }
+.card-prio-medium  { border-left: 3px solid var(--color-warning); }
+.card-prio-low     { border-left: 3px solid var(--color-info); }
+.card-prio-reminder { border-left: 3px solid var(--color-primary); }
 
 /* Animate Pulse (Notification Badge) */
 @keyframes pulse-scale {
@@ -767,9 +774,9 @@ textarea:focus-visible {
 /* =========================================
    TYPOGRAPHY SCALE
    ========================================= */
-.text-xxxs  { font-size: var(--fs-xxs) !important; }
-.text-xxs   { font-size: var(--fs-xxs) !important; }
-.text-xs    { font-size: var(--fs-xs) !important; }
+.text-xxxs  { font-size: var(--fs-xxs); }
+.text-xxs   { font-size: var(--fs-xxs); }
+.text-xs    { font-size: var(--fs-xs); }
 .meta-label { font-size: var(--fs-xxs); line-height: 1; }
 
 /* =========================================
@@ -811,12 +818,13 @@ textarea:focus-visible {
 }
 .cursor-zoom-in { cursor: zoom-in; }
 .cursor-pointer { cursor: pointer; }
-.border-dashed  { border-style: dashed !important; }
+.border-dashed  { border-style: dashed; }
 .ls-wide        { letter-spacing: 0.05em; }
 
 /* =========================================
    LAYOUT COMPONENTS
    ========================================= */
+/* Bootstrap .sticky-top sets top:0 !important — override needed */
 .sticky-sidebar {
     top: var(--sidebar-top) !important;
     max-width: var(--sidebar-max-w);
@@ -965,12 +973,6 @@ textarea:focus-visible {
     backdrop-filter: blur(2px);
     transition: opacity 0.15s ease, box-shadow 0.15s ease;
 }
-@media (hover: hover) and (pointer: fine) {
-    .attachment-tile:hover .attachment-delete-btn {
-        opacity: 1;
-        box-shadow: var(--shadow-sm);
-    }
-}
 [data-theme="dark"] .attachment-delete-btn {
     background: rgba(0, 0, 0, 0.6);
 }
@@ -997,7 +999,7 @@ textarea:focus-visible {
     pointer-events: none;
 }
 .checkbox-wrapper { width: 24px; height: 24px; }
-.checklist-check  { width: 1.5rem !important; height: 1.5rem !important; }
+.checklist-check  { width: 1.5rem; height: 1.5rem; }
 /* Login-Header + Bulk-Bar bleiben in beiden Themes dunkle "Strong-Contrast"-
    Elemente. Bootstrap 5.3 flippt --bs-dark im Dark-Theme zu Hellgrau (würde
    white-on-light → unleserlich). --navbar-bg/-fg ist theme-agnostisch dunkel. */
@@ -1014,9 +1016,9 @@ textarea:focus-visible {
 }
 .bulk-action-bar .form-select,
 .bulk-action-bar .form-control {
-    background-color: rgba(255, 255, 255, 0.08) !important;
-    color: var(--navbar-fg) !important;
-    border-color: rgba(255, 255, 255, 0.2) !important;
+    background-color: rgba(255, 255, 255, 0.08);
+    color: var(--navbar-fg);
+    border-color: rgba(255, 255, 255, 0.2);
 }
 .bulk-action-bar .form-select option {
     background-color: var(--navbar-bg);
@@ -1046,12 +1048,6 @@ textarea:focus-visible {
 .hover-elevate {
     transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
-@media (hover: hover) and (pointer: fine) {
-    .hover-elevate:hover {
-        box-shadow: var(--shadow-lg) !important;
-        transform: translateY(-2px);
-    }
-}
 .transition-all { transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease; }
 .min-h-44       { min-height: var(--touch-target-min); }
 .min-w-130      { min-width: 130px; }
@@ -1078,9 +1074,9 @@ textarea:focus-visible {
 
 /* --- Card Standard: shadow-sm border-0 rounded-4 --- */
 .card-std {
-    box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075) !important;
-    border: 0 !important;
-    border-radius: var(--radius-lg) !important;
+    box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075);
+    border: 0;
+    border-radius: var(--radius-lg);
 }
 
 /* --- Card Header Standard: border-0 py-3 px-4 bg-surface-subtle --- */
@@ -1092,9 +1088,9 @@ textarea:focus-visible {
 
 /* --- Modal Content Standard: border-0 rounded-4 shadow --- */
 .modal-content-std {
-    border: 0 !important;
-    border-radius: var(--radius-lg) !important;
-    box-shadow: 0 1rem 3rem rgba(0, 0, 0, .175) !important;
+    border: 0;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, .175);
 }
 
 /* --- Modal Header Standard: border-0 pb-0 --- */
@@ -1123,7 +1119,7 @@ textarea:focus-visible {
     color: var(--text-muted);
 }
 .empty-state-icon {
-    font-size: 3rem; /* empty-state icon — out-of-scale intentional */
+    font-size: 3rem; /* Bewusst außerhalb der Type-Scale für visuelle Prominenz */
     opacity: 0.25;
     display: block;
     margin-bottom: var(--space-2);
@@ -1154,7 +1150,7 @@ textarea:focus-visible {
 }
 /* --- Status Badge Bordered: badge bg-*-subtle text-* border border-*-subtle text-xxs --- */
 .badge-status {
-    font-size: var(--fs-xxs) !important;
+    font-size: var(--fs-xxs);
     border: 1px solid;
     padding: 0.25em 0.5em;
 }
@@ -1248,7 +1244,7 @@ textarea:focus-visible {
 .dash-tab { border: none; background: transparent; padding: 0.6rem 1.2rem; font-weight: 600; font-size: var(--fs-body-sm); color: var(--text-muted); border-bottom: 3px solid transparent; transition: color 0.15s, border-bottom-color 0.15s; cursor: pointer; }
 .dash-tab:hover { color: var(--text-main); }
 .dash-tab.active { color: var(--bs-primary); border-bottom-color: var(--bs-primary); }
-.dash-tab .tab-count { font-size: var(--fs-sm); padding: 0.15em 0.55em; border-radius: 10px; font-weight: 700; margin-left: 0.4rem; }
+.dash-tab .tab-count { font-size: var(--fs-sm); padding: 0.15em 0.55em; border-radius: var(--radius-lg); font-weight: 700; margin-left: 0.4rem; }
 
 /* Bulk Mode Checkboxes */
 .bulk-col { display: none; width: 40px; }
