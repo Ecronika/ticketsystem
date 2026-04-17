@@ -80,7 +80,7 @@
               {% if smtp.smtp_password %}
               <button type="submit" name="action" value="clear_smtp_password"
                       class="btn btn-outline-danger" title="Passwort löschen"
-                      onclick="return confirm('SMTP-Passwort wirklich entfernen?')">
+                      data-confirm data-confirm-title="SMTP-Passwort löschen?" data-confirm-message="SMTP-Passwort wirklich entfernen?">
                 <i class="bi bi-trash"></i>
               </button>
               {% endif %}

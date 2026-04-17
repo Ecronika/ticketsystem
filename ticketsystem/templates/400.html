@@ -12,7 +12,7 @@
             <p>{{ error | default('Die Sitzung ist abgelaufen oder die Anfrage war fehlerhaft. Bitte laden Sie die Seite neu und versuchen Sie es noch einmal.') }}</p>
         </div>
         <div class="mt-4 d-flex justify-content-center gap-3">
-            <button id="reloadBtn" class="btn btn-outline-warning btn-lg px-4">
+            <button id="reloadBtn" class="btn btn-outline-warning btn-lg px-4" aria-label="Seite neu laden">
                 <i class="bi bi-arrow-clockwise"></i> Seite neu laden
             </button>
             <a href="{{ url_for('main.index') }}" class="btn btn-primary btn-lg px-4">
