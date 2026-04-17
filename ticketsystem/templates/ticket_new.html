@@ -192,14 +192,15 @@
                         </button>
                     </div>
 
-                    <div class="collapse" id="advancedOptions">
+                    <div class="collapse {{ 'show' if request.args.get('order_reference') }}" id="advancedOptions">
                         <div class="row">
                             <!-- Spalte 1: Referenzen & Metadaten -->
                             <div class="col-md-6">
                                 <h6 class="fw-bold text-muted mb-3 border-bottom pb-2">Referenzen</h6>
                                 <div class="mb-3">
                                     <label for="order_reference" class="form-label fw-bold">Kunden- / Auftragsnummer {{ help_icon(HELP['ticket_new']['fields']['order_reference']) }}</label>
-                                    <input type="text" class="form-control form-control-lg" id="order_reference" name="order_reference" 
+                                    <input type="text" class="form-control form-control-lg" id="order_reference" name="order_reference"
+                                           value="{{ request.args.get('order_reference', '') }}"
                                            placeholder="z.B. A-2024-123">
                                 </div>
 
