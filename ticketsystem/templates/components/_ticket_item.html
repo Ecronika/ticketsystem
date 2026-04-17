@@ -72,8 +72,16 @@
         {% endif %}
     </td>
     <td class="text-center">
+        {% if session.get('role') != 'viewer' %}
+        <select class="inline-priority-select inline-select" data-ticket-id="{{ ticket.id }}" data-original="{{ ticket.priority }}">
+            <option value="1" {{ 'selected' if ticket.priority == 1 }}>Hoch</option>
+            <option value="2" {{ 'selected' if ticket.priority == 2 }}>Mittel</option>
+            <option value="3" {{ 'selected' if ticket.priority == 3 }}>Niedrig</option>
+        </select>
+        {% else %}
         <span class="prio-dot {{ 'high' if ticket.priority == 1 else 'medium' if ticket.priority == 2 else 'low' }}"
               title="{{ ticket.priority|priority_label }}"></span>
+        {% endif %}
     </td>
     <td class="text-center">
         <span class="status-dot {{ ticket.status }} me-1"></span>

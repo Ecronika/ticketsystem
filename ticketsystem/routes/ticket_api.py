@@ -125,6 +125,50 @@ def _update_status_api(ticket_id: int) -> tuple[Response, int] | Response:
 
 
 # ------------------------------------------------------------------
+# Priority API (inline change from dashboard)
+# ------------------------------------------------------------------
+
+@worker_required
+@write_required
+@limiter.limit("20 per minute")
+@api_endpoint
+def _update_priority_api(ticket_id: int) -> tuple[Response, int] | Response:
+    """AJAX inline priority update from dashboard table."""
+    worker_id = session.get("worker_id")
+    role = session.get("role")
+    ticket = _check_ticket_access(ticket_id, worker_id, role)
+    if not ticket:
+        return api_error("Keine Berechtigung", 403)
+
+    lock_err = check_approval_lock(ticket_id=ticket_id)
+    if lock_err:
+        return lock_err
+
+    data: dict[str, Any] = request.get_json(silent=True) or {}
+    new_prio = data.get("priority")
+    if new_prio is None:
+        return api_error("Keine Priorität angegeben.", 400)
+
+    try:
+        TicketPriority(int(new_prio))
+    except (ValueError, TypeError):
+        return api_error(f"Ungültige Priorität: {new_prio}", 400)
+
+    author = session.get("worker_name", "System")
+    ticket.priority = int(new_prio)
+    ticket.updated_at = get_utc_now()
+    new_label = {1: "Hoch", 2: "Mittel", 3: "Niedrig"}.get(int(new_prio), str(new_prio))
+    TicketCoreService.add_comment(
+        ticket_id,
+        f"Priorität geändert auf {new_label}.",
+        author,
+        is_system_event=True,
+    )
+    db.session.commit()
+    return api_ok()
+
+
+# ------------------------------------------------------------------
 # Assignment APIs
 # ------------------------------------------------------------------
 
@@ -561,6 +605,10 @@ def register_routes(bp: Blueprint) -> None:
     bp.add_url_rule(
         "/api/ticket/<int:ticket_id>/status", "update_status",
         view_func=_update_status_api, methods=["POST"],
+    )
+    bp.add_url_rule(
+        "/api/ticket/<int:ticket_id>/priority", "update_priority",
+        view_func=_update_priority_api, methods=["POST"],
     )
     bp.add_url_rule(
         "/api/ticket/<int:ticket_id>/assign", "assign_ticket_api",

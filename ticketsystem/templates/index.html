@@ -164,6 +164,34 @@ document.addEventListener('DOMContentLoaded', function() {
                 sel.disabled = false;
             }
 
+            // Inline Priority Change
+            if (e.target.classList.contains('inline-priority-select')) {
+                const sel = e.target;
+                const ticketId = sel.dataset.ticketId;
+                const newPrio = sel.value;
+                const original = sel.dataset.original;
+                sel.disabled = true;
+                try {
+                    const resp = await fetch(ingress + '/api/ticket/' + ticketId + '/priority', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                        body: JSON.stringify({ priority: parseInt(newPrio) })
+                    });
+                    const data = await resp.json();
+                    if (data.success) {
+                        sel.dataset.original = newPrio;
+                        if (window.showUiAlert) window.showUiAlert('Priorität aktualisiert.', 'success');
+                    } else {
+                        sel.value = original;
+                        if (window.showUiAlert) window.showUiAlert(data.error || 'Aktion fehlgeschlagen.', 'danger');
+                    }
+                } catch(e) {
+                    sel.value = original;
+                    if (window.showUiAlert) window.showUiAlert('Netzwerkfehler. Bitte Verbindung prüfen.', 'danger');
+                }
+                sel.disabled = false;
+            }
+
             // Inline Assignment Change
             if (e.target.classList.contains('inline-assign-select')) {
                 const sel = e.target;
