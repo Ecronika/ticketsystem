@@ -74,8 +74,8 @@
               <input type="password" class="form-control" id="smtp_password" name="smtp_password"
                      placeholder="{{ '••••••••  (leer lassen = unverändert)' if smtp.smtp_password else 'Passwort eingeben' }}"
                      autocomplete="new-password">
-              <button type="button" class="btn btn-outline-secondary" id="togglePwBtn" title="Passwort anzeigen">
-                <i class="bi bi-eye" id="togglePwIcon"></i>
+              <button type="button" class="btn btn-outline-secondary" id="togglePwBtn" title="Passwort anzeigen" aria-label="Passwort anzeigen oder verbergen">
+                <i class="bi bi-eye" id="togglePwIcon" aria-hidden="true"></i>
               </button>
               {% if smtp.smtp_password %}
               <button type="submit" name="action" value="clear_smtp_password"
