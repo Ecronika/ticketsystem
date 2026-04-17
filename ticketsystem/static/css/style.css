@@ -1,68 +1,6 @@
-/* =========================================
-   WCAG A-06: Sticky-Navbar Scroll Offset
-   ========================================= */
-html {
-    scroll-padding-top: 70px;
-}
-
-/* =========================================
-   GLOBAL BASE STYLES
-   ========================================= */
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-                 "Helvetica Neue", Arial, "Noto Sans", sans-serif,
-                 "Apple Color Emoji", "Segoe UI Emoji";
-    background-color: var(--bg-body);
-    color: var(--text-main);
-    transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-.card {
-    transition: background-color 0.3s ease;
-}
-
-/* Touch-friendly button groups */
-.btn-group .btn {
-    padding-left: 1.2rem;
-    padding-right: 1.2rem;
-}
-
-/* === WCAG 2.5.8 / Shopfloor-Ergonomie: Touch Targets in Tabellen === */
-.table .btn {
-    min-width: var(--touch-target-min);
-    min-height: var(--touch-target-min);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.375rem 0.75rem;
-}
-
-.table td .d-flex.gap-1 {
-    gap: var(--space-2);
-}
-
-/* =========================================
-   ACCESSIBILITY (Focus, Motion, Touch)
-   ========================================= */
-.small,
-small,
-.text-muted {
-    font-size: max(0.875rem, 14px);
-}
-
-.btn,
-.form-control,
-.form-select {
-    min-height: var(--touch-target-min);
-}
-
-canvas {
-    -webkit-tap-highlight-color: transparent;
-}
-
-/* =========================================
-   CSS ARCHITECTURE & TOKENS
-   ========================================= */
+/* ================================================================
+   1. SETTINGS — CSS Custom Properties & Design Tokens
+   ================================================================ */
 
 /* Standard: Light Mode */
 :root {
@@ -245,10 +183,6 @@ canvas {
     --badge-radius: var(--radius-pill);
 }
 
-.z-toast {
-    z-index: var(--z-toast);
-}
-
 /* Dark Mode (Ergonomisch, kein reines Schwarz) */
 [data-theme="dark"] {
     --bg-body: #121212;
@@ -285,25 +219,10 @@ canvas {
     --border-info-subtle: rgb(108 207 246 / 50%);
     --badge-info-text: var(--color-info);
     --focus-shadow: 0 0 0 0.25rem rgb(59 130 246 / 25%);
-    
+
     /* Force navbar background in dark mode if Bootstrap fails */
     --nav-bg: #1a1a1a;
 }
-
-/* Thicker borders for Low Vision in Dark Mode */
-[data-theme="dark"] .card .border-start {
-    border-left-width: 4px;
-}
-
-/* Approval-Indicator Borders: Bootstrap border-success/warning/danger
-   werden im Dark-Mode nicht auto-invertiert (2.9:1 → soll ≥4.5:1). */
-[data-theme="dark"] .approval-indicator.border-success { border-color: #2ecc71; }
-[data-theme="dark"] .approval-indicator.border-warning { border-color: #f1c40f; }
-[data-theme="dark"] .approval-indicator.border-danger  { border-color: #e74c3c; }
-
-/* Upload-Komprimierungs-Overlay: theme-aware statt inline-hardcoded. */
-.compress-overlay { background: rgba(255, 255, 255, 0.9); }
-[data-theme="dark"] .compress-overlay { background: rgba(0, 0, 0, 0.85); }
 
 /* High Contrast Mode (Halation-reduziert) */
 [data-theme="hc"] {
@@ -350,141 +269,7 @@ canvas {
     --focus-shadow: none;
 }
 
-/* =========================================
-   SYSTEMATIC STATES (audit finding: disabled/invalid missing)
-   ========================================= */
-
-/* Disabled state — buttons */
-.btn:disabled,
-.btn[aria-disabled="true"],
-.btn.disabled {
-    opacity: 0.65;
-    cursor: not-allowed;
-    pointer-events: none;
-}
-
-/* Disabled state — form controls */
-.form-control:disabled,
-.form-select:disabled,
-.form-check-input:disabled {
-    background-color: var(--bg-surface-subtle);
-    color: var(--text-muted);
-    cursor: not-allowed;
-    opacity: 0.7;
-}
-
-/* Invalid state — accepts Bootstrap .is-invalid AND aria-invalid */
-.form-control.is-invalid,
-.form-control[aria-invalid="true"],
-.form-select.is-invalid,
-.form-select[aria-invalid="true"] {
-    border-color: var(--color-danger);
-    box-shadow: 0 0 0 0.25rem rgb(220 38 38 / 25%);
-}
-
-/* HC mode: outline instead of coloured shadow */
-[data-theme="hc"] .form-control.is-invalid,
-[data-theme="hc"] .form-control[aria-invalid="true"],
-[data-theme="hc"] .form-select.is-invalid,
-[data-theme="hc"] .form-select[aria-invalid="true"] {
-    outline: var(--border-3) solid var(--color-danger);
-    box-shadow: none;
-}
-
-/* Fix missing focus ring for hidden radio buttons (WCAG 2.2) */
-.btn-check:focus-visible+.btn {
-    outline: var(--focus-ring);
-    outline-offset: 2px;
-    z-index: 1;
-}
-
-/* --- Theme Application (Global Setup) --- */
-
-/* --- Navbar — token-based, independent of body theme --- */
-.navbar-dark {
-    background-color: var(--navbar-bg);
-    border-bottom: 1px solid var(--navbar-border);
-}
-
-.navbar-dark .navbar-brand,
-.navbar-dark .nav-link {
-    color: var(--navbar-fg);
-    opacity: 0.9;
-}
-
-.navbar-dark .nav-link:hover {
-    opacity: 1;
-    color: var(--color-primary);
-}
-
-/* Fix Badge Contrast in Light Mode — Bootstrap .bg-*-subtle uses !important */
-[data-bs-theme="light"] .badge.bg-primary-subtle {
-    color: #0d6efd !important;
-    background-color: rgba(13, 110, 253, 0.15) !important;
-}
-
-[data-bs-theme="light"] .badge.bg-danger-subtle {
-    color: #b91c1c !important;
-    background-color: rgba(185, 28, 28, 0.15) !important;
-}
-
-/* Fix Bento Card Contrast (Add Worker) */
-.card.bg-dark.text-white {
-    background-color: #1a1a1a !important;
-    color: #ffffff !important;
-}
-
-/* RUI #5: Cards use shadow OR border, not both. On white surfaces → shadow. */
-.card {
-    border: 1px solid transparent;
-    box-shadow: var(--card-shadow);
-}
-
-/* On subtle backgrounds, swap to border-only for clearer depth separation */
-.bg-surface-subtle .card {
-    border-color: var(--border-color);
-    box-shadow: none;
-}
-
-.bg-surface-subtle {
-    background-color: var(--bg-surface-subtle);
-}
-
-/* Badge Subtle Utilities — Spezifität statt !important.
-   Custom-Klassen konfligieren nicht mit Bootstrap .bg-* (eigene Namen).
-   [data-theme] Attribut-Selektor hat höhere Spezifität als Basis-Klasse. */
-.badge-subtle-primary {
-    background-color: rgba(37, 99, 235, 0.12);
-    color: #1d4ed8; /* CR ≈ 4.5:1 */
-    border: 1px solid rgba(37, 99, 235, 0.2);
-}
-.badge-subtle-success {
-    background-color: rgba(20, 108, 67, 0.12);
-    color: #146c43;
-    border: 1px solid rgba(20, 108, 67, 0.2);
-}
-.badge-subtle-warning {
-    background-color: rgba(133, 100, 4, 0.12);
-    color: #856404;
-    border: 1px solid rgba(133, 100, 4, 0.2);
-}
-.badge-subtle-danger {
-    background-color: rgba(220, 38, 38, 0.12);
-    color: #dc2626;
-    border: 1px solid rgba(220, 38, 38, 0.2);
-}
-.badge-subtle-secondary {
-    background-color: var(--bg-surface-subtle);
-    color: #4a5056;
-    border: 1px solid var(--border-color);
-}
-
-[data-theme="dark"] .badge-subtle-secondary {
-    background-color: #333;
-    color: #d0d0d0;
-}
-
-/* Dark-Mode Tonal-Pendants (Tailwind blue-900/blue-200 etc., ≥4.5:1 CR). */
+/* Dark-Mode badge-subtle theme overrides */
 [data-theme="dark"] .badge-subtle-primary {
     background-color: #1e3a8a;
     color: #bfdbfe;
@@ -505,6 +290,11 @@ canvas {
     color: #fecaca;
     border-color: rgba(254, 202, 202, 0.3);
 }
+[data-theme="dark"] .badge-subtle-secondary {
+    background-color: #333;
+    color: #d0d0d0;
+}
+
 /* HC-Mode: !important bewusst beibehalten — muss alles überschreiben. */
 [data-theme="hc"] .badge-subtle-primary,
 [data-theme="hc"] .badge-subtle-success,
@@ -515,10 +305,171 @@ canvas {
     border: 1px solid currentColor !important;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Theme Switches                                                             */
+/* Thicker borders for Low Vision in Dark Mode */
+[data-theme="dark"] .card .border-start {
+    border-left-width: 4px;
+}
+
+/* Approval-Indicator Borders: Bootstrap border-success/warning/danger
+   werden im Dark-Mode nicht auto-invertiert (2.9:1 → soll ≥4.5:1). */
+[data-theme="dark"] .approval-indicator.border-success { border-color: #2ecc71; }
+[data-theme="dark"] .approval-indicator.border-warning { border-color: #f1c40f; }
+[data-theme="dark"] .approval-indicator.border-danger  { border-color: #e74c3c; }
+
+/* Upload-Komprimierungs-Overlay: theme-aware statt inline-hardcoded. */
+.compress-overlay { background: rgba(255, 255, 255, 0.9); }
+[data-theme="dark"] .compress-overlay { background: rgba(0, 0, 0, 0.85); }
+
+/* Dark/HC table striping overrides */
+[data-theme="dark"] .table,
+[data-theme="hc"] .table {
+    --bs-table-striped-bg: rgb(255 255 255 / 5%);
+    --bs-table-hover-bg: rgb(255 255 255 / 7.5%);
+}
+
+/* HC mode: outline instead of coloured shadow */
+[data-theme="hc"] .form-control:focus,
+[data-theme="hc"] .form-select:focus {
+    box-shadow: none;
+    outline: var(--focus-ring);
+    outline-offset: 2px;
+}
+
+[data-theme="hc"] .form-control.is-invalid,
+[data-theme="hc"] .form-control[aria-invalid="true"],
+[data-theme="hc"] .form-select.is-invalid,
+[data-theme="hc"] .form-select[aria-invalid="true"] {
+    outline: var(--border-3) solid var(--color-danger);
+    box-shadow: none;
+}
+
+/* Fix Badge Contrast in Light Mode — Bootstrap .bg-*-subtle uses !important */
+[data-bs-theme="light"] .badge.bg-primary-subtle {
+    color: #0d6efd !important;
+    background-color: rgba(13, 110, 253, 0.15) !important;
+}
+
+[data-bs-theme="light"] .badge.bg-danger-subtle {
+    color: #b91c1c !important;
+    background-color: rgba(185, 28, 28, 0.15) !important;
+}
+
+/* Dark-mode lightbox & attachment overrides */
+[data-theme="dark"] #lightboxDialog::backdrop {
+    background: rgba(0, 0, 0, 0.9);
+}
+[data-theme="dark"] .lightbox-close {
+    background: var(--bg-surface);
+    color: var(--text-main);
+}
+[data-theme="dark"] .attachment-delete-btn {
+    background: rgba(0, 0, 0, 0.6);
+}
+[data-theme="dark"] .doc-preview-dialog {
+    background: var(--bg-surface);
+}
+[data-theme="dark"] .bg-white-hover:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* ================================================================
+   2. GENERIC — Reset, Box-Model, Global Baseline
+   ================================================================ */
+
+html {
+    scroll-padding-top: 70px;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, "Noto Sans", sans-serif,
+                 "Apple Color Emoji", "Segoe UI Emoji";
+    background-color: var(--bg-body);
+    color: var(--text-main);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+canvas {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* WCAG 2.3.3: Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Accessibility Focus Indicators (WCAG 2.2) */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: 2px;
+}
+
+/* ================================================================
+   3. ELEMENTS — Bare HTML Tag Selectors & Bootstrap Base Overrides
+   ================================================================ */
+
+.card {
+    transition: background-color 0.3s ease;
+}
+
+/* Touch-friendly button groups */
+.btn-group .btn {
+    padding-left: 1.2rem;
+    padding-right: 1.2rem;
+}
+
+/* WCAG 2.5.8 / Shopfloor-Ergonomie: Touch Targets in Tabellen */
+.table .btn {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.375rem 0.75rem;
+}
+
+.table td .d-flex.gap-1 {
+    gap: var(--space-2);
+}
+
+.small,
+small,
 .text-muted {
-    color: var(--text-muted) !important;
+    font-size: max(0.875rem, 14px);
+}
+
+.btn,
+.form-control,
+.form-select {
+    min-height: var(--touch-target-min);
+}
+
+/* RUI #5: Cards use shadow OR border, not both. On white surfaces → shadow. */
+.card {
+    border: 1px solid transparent;
+    box-shadow: var(--card-shadow);
+}
+
+/* On subtle backgrounds, swap to border-only for clearer depth separation */
+.bg-surface-subtle .card {
+    border-color: var(--border-color);
+    box-shadow: none;
+}
+
+.bg-surface-subtle {
+    background-color: var(--bg-surface-subtle);
 }
 
 .card,
@@ -556,14 +507,40 @@ canvas {
     box-shadow: var(--focus-shadow);
 }
 
-[data-theme="hc"] .form-control:focus,
-[data-theme="hc"] .form-select:focus {
-    box-shadow: none;
-    outline: var(--focus-ring);
-    outline-offset: 2px;
+/* Disabled state — buttons */
+.btn:disabled,
+.btn[aria-disabled="true"],
+.btn.disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
-/* --- Bootstrap Component Overrides --- */
+/* Disabled state — form controls */
+.form-control:disabled,
+.form-select:disabled,
+.form-check-input:disabled {
+    background-color: var(--bg-surface-subtle);
+    color: var(--text-muted);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* Invalid state — accepts Bootstrap .is-invalid AND aria-invalid */
+.form-control.is-invalid,
+.form-control[aria-invalid="true"],
+.form-select.is-invalid,
+.form-select[aria-invalid="true"] {
+    border-color: var(--color-danger);
+    box-shadow: 0 0 0 0.25rem rgb(220 38 38 / 25%);
+}
+
+/* Fix missing focus ring for hidden radio buttons (WCAG 2.2) */
+.btn-check:focus-visible+.btn {
+    outline: var(--focus-ring);
+    outline-offset: 2px;
+    z-index: 1;
+}
 
 .table {
     color: var(--text-main);
@@ -575,60 +552,6 @@ canvas {
     /* Zebra-Striping für Lesbarkeit (visuelle Ruhe bei dichten Daten) */
     --bs-table-striped-bg: rgb(0 0 0 / 3%);
     --bs-table-hover-bg: rgb(13 110 253 / 5%);
-}
-
-[data-theme="dark"] .table,
-[data-theme="hc"] .table {
-    --bs-table-striped-bg: rgb(255 255 255 / 5%);
-    --bs-table-hover-bg: rgb(255 255 255 / 7.5%);
-}
-
-/* === UX Phase 3: Responsive Table-to-Cards Fallback === */
-@media (max-width: 768px) {
-    /* iOS Zoom Prevention */
-    input,
-    select,
-    textarea {
-        font-size: 16px !important;
-    }
-
-    .table-responsive-cards thead {
-        display: none;
-    }
-
-    .table-responsive-cards tbody tr {
-        display: block;
-        margin-bottom: var(--space-4);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-md);
-        background-color: var(--bg-surface);
-        padding: var(--space-2);
-    }
-
-    .table-responsive-cards tbody td {
-        display: flex !important; /* Force visibility even if d-none on desktop */
-        justify-content: space-between;
-        align-items: center;
-        text-align: right;
-        border-bottom: 1px solid var(--border-color);
-        padding: var(--space-3) var(--space-2);
-    }
-
-    .table-responsive-cards tbody td:last-child {
-        border-bottom: 0;
-        justify-content: center;
-    }
-
-    .table-responsive-cards tbody td::before {
-        content: attr(data-label);
-        font-weight: bold;
-        text-align: left;
-        padding-right: var(--space-4);
-        flex-shrink: 0;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        font-size: var(--fs-sm);
-    }
 }
 
 .table> :not(caption)>*>* {
@@ -647,65 +570,7 @@ canvas {
     border-right: none;
 }
 
-/* Mobile: list-group-flush horizontal padding reduzieren (24px -> 16px),
-   damit auf 375px-Viewport mehr Content-Breite bleibt (Workload, Profile,
-   admin_templates). */
-@media (max-width: 575.98px) {
-    .list-group-flush > .list-group-item.px-4 {
-        padding-left: 1rem;
-        padding-right: 1rem;
-    }
-}
-
-/* --- Accessibility Focus Indicators (WCAG 2.2) --- */
-a:focus-visible,
-button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
-    outline: var(--focus-ring);
-    outline-offset: 2px;
-}
-
-/* === Typography Utilities === */
-.x-small { font-size: var(--fs-sm); line-height: 1.4; }
-.text-meta { color: var(--text-muted) !important; font-size: var(--fs-meta); }
-
-.bg-surface {
-    background-color: var(--bg-surface);
-}
-
-.tracking-wide {
-    letter-spacing: 0.5px;
-}
-
-/* Icon sizing utilities — use on <i class="bi ..."> */
-.icon-sm { font-size: var(--icon-sm); }
-
-.bg-white-hover {
-    transition: background-color 0.2s ease, box-shadow 0.2s ease;
-}
-.bg-white-hover:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    box-shadow: var(--shadow-sm);
-}
-[data-theme="dark"] .bg-white-hover:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-}
-
-/* --- WCAG 2.3.3: Reduced Motion --- */
-@media (prefers-reduced-motion: reduce) {
-
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-        scroll-behavior: auto !important;
-    }
-}
-/* --- WCAG 2.5.5: Touch Target Size (Pagination) --- */
+/* WCAG 2.5.5: Touch Target Size (Pagination) */
 .pagination .page-link {
     min-width: var(--touch-target-min);
     min-height: var(--touch-target-min);
@@ -714,7 +579,37 @@ textarea:focus-visible {
     justify-content: center;
 }
 
-/* Fix 3: dvh – Dynamic Viewport Height für iOS Safari (URL-Bar-Kompensation)
+/* Fix Bento Card Contrast (Add Worker) */
+.card.bg-dark.text-white {
+    background-color: #1a1a1a !important;
+    color: #ffffff !important;
+}
+
+/* Elevation Map (RUI #5 — consistent depth scale)
+   btn=xs, card=sm, dropdown=md, notification/modal=lg, global-modal=xl */
+.btn {
+    box-shadow: var(--shadow-xs);
+}
+.btn:disabled,
+.btn[aria-disabled="true"] {
+    box-shadow: none;
+}
+.dropdown-menu {
+    box-shadow: var(--shadow-md);
+}
+.notification-dropdown,
+.modal-content {
+    box-shadow: var(--shadow-lg);
+}
+
+/* Inline field validation */
+input[aria-invalid="true"],
+textarea[aria-invalid="true"],
+select[aria-invalid="true"] {
+    border-color: var(--bs-danger, #dc3545);
+}
+
+/* Fix dvh – Dynamic Viewport Height für iOS Safari (URL-Bar-Kompensation)
    Graceful Degradation – sauberes Progressive Enhancement ohne !important:
    100vh = Fallback für iOS < 15.4
    100dvh = moderne Browser (WebKit ab iOS 15.4, Blink ab Chrome 108) */
@@ -723,177 +618,236 @@ textarea:focus-visible {
     min-height: 100dvh;
 }
 
-/* --- v1.6.0: WCAG 2.2 AA & Dashboard Scanning Fixes --- */
 .alert .btn-close { min-width: var(--touch-target-min); min-height: var(--touch-target-min); }
 .border-danger.border-3 { border-left-width: 6px; }
 .sticky-top { z-index: 1030; }
 .sticky-top [tabindex], .sticky-top a, .sticky-top select, .sticky-top button { scroll-margin-top: 6rem; }
 
-/* v1.11.3: My Queue UI Enhancements */
-.hover-card {
-    transition: box-shadow 0.15s ease, transform 0.15s ease;
-    cursor: pointer;
-}
-@media (hover: hover) and (pointer: fine) {
-    .hover-card:hover {
-        box-shadow: var(--shadow-md);
-        transform: translateY(-1px);
-    }
-    .attachment-tile:hover .attachment-delete-btn {
-        opacity: 1;
-        box-shadow: var(--shadow-sm);
-    }
-    .hover-elevate:hover {
-        box-shadow: var(--shadow-lg);
-        transform: translateY(-2px);
-    }
-}
-/* === Kanban Priority Left Stripe (v1.21) === */
-.card-prio-high    { border-left: 3px solid var(--color-danger); }
-.card-prio-medium  { border-left: 3px solid var(--color-warning); }
-.card-prio-low     { border-left: 3px solid var(--color-info); }
-.card-prio-reminder { border-left: 3px solid var(--color-primary); }
+/* ================================================================
+   4. COMPONENTS — Discrete UI Blocks
+   ================================================================ */
 
-/* Animate Pulse (Notification Badge) */
-@keyframes pulse-scale {
-    0%, 100% { transform: translate(-50%, -50%) scale(1); }
-    50%       { transform: translate(-50%, -50%) scale(1.25); }
-}
-.animate-pulse {
-    animation: pulse-scale 1.8s ease infinite;
+/* --- Navbar — token-based, independent of body theme --- */
+.navbar-dark {
+    background-color: var(--navbar-bg);
+    border-bottom: 1px solid var(--navbar-border);
 }
 
-/* Lightbox Dialog Backdrop */
-#lightboxDialog::backdrop {
-    background: rgba(0, 0, 0, 0.8);
-}
-[data-theme="dark"] #lightboxDialog::backdrop {
-    background: rgba(0, 0, 0, 0.9);
+.navbar-dark .navbar-brand,
+.navbar-dark .nav-link {
+    color: var(--navbar-fg);
+    opacity: 0.9;
 }
 
-/* =========================================
-   TYPOGRAPHY SCALE
-   ========================================= */
-.text-xxxs  { font-size: var(--fs-xxs); }
-.text-xxs   { font-size: var(--fs-xxs); }
-.text-xs    { font-size: var(--fs-xs); }
-.meta-label { font-size: var(--fs-xxs); line-height: 1; }
-
-/* =========================================
-   AVATAR SCALE
-   ========================================= */
-.avatar-xs,
-.avatar-sm,
-.avatar-md {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+.navbar-dark .nav-link:hover {
+    opacity: 1;
+    color: var(--color-primary);
 }
-.avatar-xs { width: var(--avatar-xs); height: var(--avatar-xs); font-size: var(--fs-xxs); }
-.avatar-sm { width: var(--avatar-sm); height: var(--avatar-sm); font-size: var(--fs-xs); }
-.avatar-md { width: var(--avatar-md); height: var(--avatar-md); font-size: var(--fs-meta); }
 
-/* =========================================
-   SCROLL & OVERFLOW UTILITIES
-   ========================================= */
-.scroll-y-auto  { overflow-y: auto; }
-.max-h-250  { max-height: 250px; }
-.max-h-400  { max-height: 400px; }
-.max-h-50vh { max-height: 50vh; }
-.max-w-160  { max-width: 160px; }
-.max-w-200  { max-width: 200px; }
-.max-w-280  { max-width: 280px; }
+/* --- Dashboard Table --- */
+.dash-table { font-size: var(--fs-meta); }
+.dash-table th { font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; border-bottom: 2px solid var(--bs-border-color); }
+.dash-table th:hover { color: var(--bs-primary); }
+.dash-table th .sort-icon { font-size: var(--fs-xs); opacity: 0.4; }
+.dash-table th.sorted .sort-icon { opacity: 1; color: var(--bs-primary); }
 
-/* =========================================
-   TEXT UTILITIES
-   ========================================= */
-.text-pre-wrap { white-space: pre-wrap; }
-.line-clamp-3 {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+/* RUI #1: Table headers as de-emphasized labels, data stays primary */
+.dash-table thead th,
+.table thead th {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    background-color: var(--bg-surface-subtle);
 }
-.cursor-zoom-in { cursor: zoom-in; }
-.cursor-pointer { cursor: pointer; }
-.border-dashed  { border-style: dashed; }
-.ls-wide        { letter-spacing: 0.05em; }
+.dash-table td { vertical-align: middle; padding-top: var(--space-2); padding-bottom: var(--space-2); }
+.dash-table tr { transition: background 0.1s; }
+.dash-table tbody tr:hover { background: var(--bg-surface-subtle); }
+.dash-table .title-link { color: var(--text-main); text-decoration: none; font-weight: 600; }
+.dash-table .title-link:hover { color: var(--bs-primary); text-decoration: underline; }
 
-/* =========================================
-   LAYOUT COMPONENTS
-   ========================================= */
+/* Dashboard Tab Navigation */
+.dash-tab { border: none; background: transparent; padding: 0.6rem 1.2rem; font-weight: 600; font-size: var(--fs-body-sm); color: var(--text-muted); border-bottom: 3px solid transparent; transition: color 0.15s, border-bottom-color 0.15s; cursor: pointer; }
+.dash-tab:hover { color: var(--text-main); }
+.dash-tab.active { color: var(--bs-primary); border-bottom-color: var(--bs-primary); }
+.dash-tab .tab-count { font-size: var(--fs-sm); padding: 0.15em 0.55em; border-radius: var(--radius-lg); font-weight: 700; margin-left: 0.4rem; }
+
+/* Inline Select Styling */
+.inline-select { border: none; background: transparent; padding: var(--space-1) var(--space-2); font-size: var(--fs-meta); cursor: pointer; border-radius: var(--radius-sm); max-width: 140px; color: var(--text-main); }
+.inline-select:hover, .inline-select:focus { background: var(--bg-surface-subtle); outline: none; box-shadow: 0 0 0 2px rgba(var(--bs-primary-rgb), 0.25); }
+
+/* Bulk Mode Checkboxes */
+.bulk-col { display: none; width: 40px; }
+.bulk-mode .bulk-col { display: table-cell; }
+.bulk-mode .bulk-col-header { display: table-cell; }
+
+/* Row High-Priority Highlight */
+.dash-table tr.prio-high { border-left: 3px solid var(--bs-danger); }
+
+/* --- Sidebar --- */
 /* Bootstrap .sticky-top sets top:0 !important — override needed */
 .sticky-sidebar {
     top: var(--sidebar-top) !important;
     max-width: var(--sidebar-max-w);
 }
-.notification-dropdown {
-    width: 320px;
-    max-width: 100vw;
-    max-height: 400px;
-    overflow-y: auto;
-}
-.mention-dropdown {
-    display: none;
-    position: absolute;
-    z-index: var(--z-modal);
-    max-height: 200px;
-    overflow-y: auto;
-    min-width: 200px;
-}
-.textarea-auto {
-    resize: none;
-    overflow: hidden;
-}
-.min-w-190 { min-width: 190px; }
 
-/* =========================================
-   LIGHTBOX
-   ========================================= */
-.lightbox-dialog {
-    border: none;
-    background: transparent;
-    padding: 0;
-    max-width: 90vw;
-    max-height: 90vh;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+/* Sidebar Approval Block: border-start border-3 ps-3 py-2 mb-2 small */
+.approval-indicator {
+    border-left: 3px solid;
+    padding-left: var(--space-3);
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+    margin-bottom: var(--space-2);
+    font-size: max(0.875rem, 14px);
 }
-.lightbox-img {
-    max-width: 90vw;
-    max-height: 85vh;
-    border-radius: var(--radius-lg);
-    display: block;
-}
-.lightbox-close {
-    position: absolute;
-    top: -12px;
-    right: -12px;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: none;
-    background: #fff;
-    color: #333;
-    font-size: var(--fs-lg);
-    cursor: pointer;
-    box-shadow: var(--shadow-md);
+
+/* Mobile-Collapse-Toggle für Sidebar-Sections (Workflow, Kontakt).
+   Auf >=lg (992px) ist Toggle ausgeblendet (d-lg-none) und Body via
+   d-lg-block dauerhaft sichtbar — keine extra Tap-Aktion nötig. */
+.sidebar-collapse-toggle {
     display: flex;
     align-items: center;
-    justify-content: center;
-}
-[data-theme="dark"] .lightbox-close {
-    background: var(--bg-surface);
+    justify-content: space-between;
+    background: transparent;
+    border: 0;
+    padding: var(--space-2) 0;
     color: var(--text-main);
+    text-align: left;
+}
+.sidebar-collapse-toggle:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+}
+.sidebar-collapse-chevron {
+    transition: transform var(--duration-base) var(--ease-standard);
+    font-size: var(--fs-sm);
+    color: var(--text-muted);
+}
+.sidebar-collapse-toggle[aria-expanded="true"] .sidebar-collapse-chevron {
+    transform: rotate(180deg);
 }
 
-/* =========================================
-   KANBAN HEADERS (my_queue.html)
-   ========================================= */
+/* Workflow-Section (Freigabe) im Management-Sidebar —
+   optisch klar vom Status-Button-Block getrennt. */
+.workflow-section {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--bs-border-color, #dee2e6);
+}
+.workflow-section .sidebar-section-title {
+    font-size: var(--fs-sm);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--bs-secondary-color, #6c757d);
+    margin-bottom: .5rem;
+}
+
+/* --- Card-Std / Modal-Std / Card-Header-Std --- */
+
+/* Card Standard: shadow-sm border-0 rounded-4 */
+.card-std {
+    box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075);
+    border: 0;
+    border-radius: var(--radius-lg);
+}
+
+/* Card Header Standard: border-0 py-3 px-4 bg-surface-subtle */
+.card-header-std {
+    border: 0;
+    padding: var(--space-3) var(--space-6);
+    background-color: var(--bg-surface-subtle);
+}
+
+/* Modal Content Standard: border-0 rounded-4 shadow */
+.modal-content-std {
+    border: 0;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, .175);
+}
+
+/* Modal Header Standard: border-0 pb-0 */
+.modal-header-std {
+    border: 0;
+    padding-bottom: 0;
+}
+
+/* Modal Footer Standard: border-0 pt-0 */
+.modal-footer-std {
+    border: 0;
+    padding-top: 0;
+}
+
+/* --- Badges --- */
+
+/* Badge Subtle Utilities — Spezifität statt !important.
+   Custom-Klassen konfligieren nicht mit Bootstrap .bg-* (eigene Namen).
+   [data-theme] Attribut-Selektor hat höhere Spezifität als Basis-Klasse. */
+.badge-subtle-primary {
+    background-color: rgba(37, 99, 235, 0.12);
+    color: #1d4ed8; /* CR ≈ 4.5:1 */
+    border: 1px solid rgba(37, 99, 235, 0.2);
+}
+.badge-subtle-success {
+    background-color: rgba(20, 108, 67, 0.12);
+    color: #146c43;
+    border: 1px solid rgba(20, 108, 67, 0.2);
+}
+.badge-subtle-warning {
+    background-color: rgba(133, 100, 4, 0.12);
+    color: #856404;
+    border: 1px solid rgba(133, 100, 4, 0.2);
+}
+.badge-subtle-danger {
+    background-color: rgba(220, 38, 38, 0.12);
+    color: #dc2626;
+    border: 1px solid rgba(220, 38, 38, 0.2);
+}
+.badge-subtle-secondary {
+    background-color: var(--bg-surface-subtle);
+    color: #4a5056;
+    border: 1px solid var(--border-color);
+}
+
+/* Status Badge Bordered: badge bg-*-subtle text-* border border-*-subtle text-xxs */
+.badge-status {
+    font-size: var(--fs-xxs);
+    border: 1px solid;
+    padding: 0.25em 0.5em;
+}
+.badge-status-danger {
+    background-color: rgba(var(--bs-danger-rgb), 0.1);
+    color: var(--bs-danger);
+    border-color: rgba(var(--bs-danger-rgb), 0.25);
+}
+.badge-status-warning {
+    background-color: rgba(var(--bs-warning-rgb), 0.1);
+    color: var(--bs-warning);
+    border-color: rgba(var(--bs-warning-rgb), 0.25);
+}
+.badge-status-success {
+    background-color: rgba(var(--bs-success-rgb), 0.1);
+    color: var(--bs-success);
+    border-color: rgba(var(--bs-success-rgb), 0.25);
+}
+.badge-status-primary {
+    background-color: rgba(var(--bs-primary-rgb), 0.1);
+    color: var(--bs-primary);
+    border-color: rgba(var(--bs-primary-rgb), 0.25);
+}
+.badge-status-secondary {
+    background-color: var(--bg-surface-subtle);
+    color: var(--text-muted);
+    border-color: var(--border-color);
+}
+
+/* --- Kanban --- */
+.card-prio-high    { border-left: 3px solid var(--color-danger); }
+.card-prio-medium  { border-left: 3px solid var(--color-warning); }
+.card-prio-low     { border-left: 3px solid var(--color-info); }
+.card-prio-reminder { border-left: 3px solid var(--color-primary); }
+
 .kanban-header--danger {
     background-color: var(--bg-danger-subtle);
     color: var(--text-danger-override, var(--color-danger));
@@ -912,42 +866,23 @@ textarea:focus-visible {
 .badge-kanban--danger  { background-color: var(--color-danger); color: white; }
 .badge-kanban--primary { background-color: var(--color-primary); color: white; }
 
-/* =========================================
-   PRIORITY BAR (workload)
-   ========================================= */
-.prio-bar {
-    width: 4px;
-    height: 38px;
-    flex-shrink: 0;
-    border-radius: var(--radius-sm);
-}
-.prio-bar--high   { background-color: var(--color-danger); }
-.prio-bar--medium { background-color: var(--color-warning); }
-.prio-bar--low    { background-color: var(--color-success); }
-
-/* =========================================
-   ONE-OFF COMPONENT CLASSES
-   ========================================= */
-.progress-thin    { height: 8px; }
-
-/* Form-Card: zentrierte Card mit optimaler Lesezeilenlänge.
-   Verwenden auf einspaltigen Formular-Containern (ticket_new, settings, setup ...). */
-.form-card {
-    max-width: var(--form-max-width);
-    margin-left: auto;
-    margin-right: auto;
-}
-.btn-icon-sm {
-    min-width: 44px;
-    min-height: 44px;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: var(--fs-xs);
-    line-height: 1;
+/* Kanban Empty Column Placeholder */
+.kanban-empty {
+    color: var(--text-muted);
+    font-size: max(0.875rem, 14px);
+    text-align: center;
+    padding: var(--space-6);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    opacity: 0.5;
+    background-color: var(--bg-surface);
 }
 
+/* --- Checklists --- */
+.checkbox-wrapper { width: 24px; height: 24px; }
+.checklist-check  { width: 1.5rem; height: 1.5rem; }
+
+/* --- Attachments --- */
 /* Attachments collapse chevron (CSS-only via aria-expanded) */
 #attachmentsCollapseToggle .collapse-chevron {
     transition: transform 0.2s ease;
@@ -973,146 +908,19 @@ textarea:focus-visible {
     backdrop-filter: blur(2px);
     transition: opacity 0.15s ease, box-shadow 0.15s ease;
 }
-[data-theme="dark"] .attachment-delete-btn {
-    background: rgba(0, 0, 0, 0.6);
+
+/* --- Comment History --- */
+/* Chevron rotation for Bootstrap collapse toggles */
+[data-bs-toggle="collapse"] .chevron,
+[aria-expanded] .chevron {
+    display: inline-block;
+    transition: transform .15s ease;
+}
+[aria-expanded="true"] .chevron {
+    transform: rotate(180deg);
 }
 
-.kbd-hint {
-    font-size: var(--fs-xxs);
-    pointer-events: none;
-    line-height: 1.4;
-}
-.offcanvas-help   { width: min(420px, 92vw); }
-.desc-wrapper {
-    max-height: 120px;
-    overflow: hidden;
-    position: relative;
-    transition: max-height 0.3s ease;
-}
-.desc-gradient {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 40px;
-    background: linear-gradient(transparent, var(--bg-surface-subtle, #f8f9fa));
-    pointer-events: none;
-}
-.checkbox-wrapper { width: 24px; height: 24px; }
-.checklist-check  { width: 1.5rem; height: 1.5rem; }
-/* Login-Header + Bulk-Bar bleiben in beiden Themes dunkle "Strong-Contrast"-
-   Elemente. Bootstrap 5.3 flippt --bs-dark im Dark-Theme zu Hellgrau (würde
-   white-on-light → unleserlich). --navbar-bg/-fg ist theme-agnostisch dunkel. */
-.login-card-header {
-    background-color: var(--navbar-bg);
-    color: var(--navbar-fg);
-}
-
-.bulk-action-bar  {
-    z-index: 1050;
-    max-width: 95vw;
-    background-color: var(--navbar-bg) !important;
-    color: var(--navbar-fg) !important;
-}
-.bulk-action-bar .form-select,
-.bulk-action-bar .form-control {
-    background-color: rgba(255, 255, 255, 0.08);
-    color: var(--navbar-fg);
-    border-color: rgba(255, 255, 255, 0.2);
-}
-.bulk-action-bar .form-select option {
-    background-color: var(--navbar-bg);
-    color: var(--navbar-fg);
-}
-.toast-btn        { width: auto; min-height: 44px; }
-.color-scheme-dark { color-scheme: dark; }
-.navbar-z         { z-index: var(--z-navbar); }
-
-@media (max-width: 480px) {
-    .bulk-action-bar {
-        flex-direction: column !important;
-        align-items: stretch !important;
-        padding: .75rem !important;
-        gap: .5rem !important;
-    }
-    .bulk-action-bar .vr { display: none; }
-    .bulk-action-bar select,
-    .bulk-action-bar input[type="date"] {
-        width: 100% !important;
-    }
-}
-
-/* =========================================
-   UTILITY HELPERS
-   ========================================= */
-.hover-elevate {
-    transition: box-shadow 0.2s ease, transform 0.2s ease;
-}
-.transition-all { transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease; }
-.min-h-44       { min-height: var(--touch-target-min); }
-.min-w-130      { min-width: 130px; }
-.fade-toggle     { transition: opacity 0.2s; }
-.fade-toggle.hidden { opacity: 0; pointer-events: none; }
-.max-w-85p      { max-width: 85%; }
-.lh-relaxed     { line-height: 1.6; }
-.table-compact  { font-size: var(--fs-meta); }
-.col-w-60       { width: 60px; }
-.col-w-70       { width: 70px; }
-.col-w-80       { width: 80px; }
-.col-w-110      { width: 110px; }
-.col-w-130      { width: 130px; }
-.col-w-140      { width: 140px; }
-.col-w-160      { width: 160px; }
-.col-w-200      { width: 200px; }
-
-/* =========================================
-   SEMANTIC COMPONENT CLASSES
-   De-duplicated patterns from templates.
-   Each class replaces a common multi-utility
-   chain used in 10+ places.
-   ========================================= */
-
-/* --- Card Standard: shadow-sm border-0 rounded-4 --- */
-.card-std {
-    box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075);
-    border: 0;
-    border-radius: var(--radius-lg);
-}
-
-/* --- Card Header Standard: border-0 py-3 px-4 bg-surface-subtle --- */
-.card-header-std {
-    border: 0;
-    padding: var(--space-3) var(--space-6);
-    background-color: var(--bg-surface-subtle);
-}
-
-/* --- Modal Content Standard: border-0 rounded-4 shadow --- */
-.modal-content-std {
-    border: 0;
-    border-radius: var(--radius-lg);
-    box-shadow: 0 1rem 3rem rgba(0, 0, 0, .175);
-}
-
-/* --- Modal Header Standard: border-0 pb-0 --- */
-.modal-header-std {
-    border: 0;
-    padding-bottom: 0;
-}
-
-/* --- Modal Footer Standard: border-0 pt-0 --- */
-.modal-footer-std {
-    border: 0;
-    padding-top: 0;
-}
-
-/* --- Form Label Bold: form-label small fw-bold --- */
-.form-label-bold {
-    font-size: max(0.875rem, 14px);
-    font-weight: 700;
-    margin-bottom: var(--space-2);
-}
-
-/* --- Empty State Container --- */
+/* --- Empty State --- */
 .empty-state {
     text-align: center;
     padding: var(--space-12) var(--space-4);
@@ -1148,85 +956,8 @@ textarea:focus-visible {
     text-transform: uppercase;
     display: block;
 }
-/* --- Status Badge Bordered: badge bg-*-subtle text-* border border-*-subtle text-xxs --- */
-.badge-status {
-    font-size: var(--fs-xxs);
-    border: 1px solid;
-    padding: 0.25em 0.5em;
-}
-.badge-status-danger {
-    background-color: rgba(var(--bs-danger-rgb), 0.1);
-    color: var(--bs-danger);
-    border-color: rgba(var(--bs-danger-rgb), 0.25);
-}
-.badge-status-warning {
-    background-color: rgba(var(--bs-warning-rgb), 0.1);
-    color: var(--bs-warning);
-    border-color: rgba(var(--bs-warning-rgb), 0.25);
-}
-.badge-status-success {
-    background-color: rgba(var(--bs-success-rgb), 0.1);
-    color: var(--bs-success);
-    border-color: rgba(var(--bs-success-rgb), 0.25);
-}
-.badge-status-primary {
-    background-color: rgba(var(--bs-primary-rgb), 0.1);
-    color: var(--bs-primary);
-    border-color: rgba(var(--bs-primary-rgb), 0.25);
-}
-.badge-status-secondary {
-    background-color: var(--bg-surface-subtle);
-    color: var(--text-muted);
-    border-color: var(--border-color);
-}
-/* --- Sidebar Approval Block: border-start border-3 ps-3 py-2 mb-2 small --- */
-.approval-indicator {
-    border-left: 3px solid;
-    padding-left: var(--space-3);
-    padding-top: var(--space-2);
-    padding-bottom: var(--space-2);
-    margin-bottom: var(--space-2);
-    font-size: max(0.875rem, 14px);
-}
 
-/* --- Kanban Empty Column Placeholder --- */
-.kanban-empty {
-    color: var(--text-muted);
-    font-size: max(0.875rem, 14px);
-    text-align: center;
-    padding: var(--space-6);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    opacity: 0.5;
-    background-color: var(--bg-surface);
-}
-
-/* =========================================
-   DASHBOARD TABLE
-   ========================================= */
-.dash-table { font-size: var(--fs-meta); }
-.dash-table th { font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; border-bottom: 2px solid var(--bs-border-color); }
-.dash-table th:hover { color: var(--bs-primary); }
-.dash-table th .sort-icon { font-size: var(--fs-xs); opacity: 0.4; }
-.dash-table th.sorted .sort-icon { opacity: 1; color: var(--bs-primary); }
-
-/* RUI #1: Table headers as de-emphasized labels, data stays primary */
-.dash-table thead th,
-.table thead th {
-    font-size: var(--fs-xs);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
-    background-color: var(--bg-surface-subtle);
-}
-.dash-table td { vertical-align: middle; padding-top: var(--space-2); padding-bottom: var(--space-2); }
-.dash-table tr { transition: background 0.1s; }
-.dash-table tbody tr:hover { background: var(--bg-surface-subtle); }
-.dash-table .title-link { color: var(--text-main); text-decoration: none; font-weight: 600; }
-.dash-table .title-link:hover { color: var(--bs-primary); text-decoration: underline; }
-
-/* Priority & Status Dots */
+/* --- Priority & Status Dots --- */
 .prio-dot, .status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
 .prio-dot.high { background: var(--bs-danger); }
 .prio-dot.medium { background: var(--bs-primary); }
@@ -1236,25 +967,57 @@ textarea:focus-visible {
 .status-dot.wartet { background: var(--bs-secondary); }
 .status-dot.erledigt { background: var(--bs-success); }
 
-/* Inline Select Styling */
-.inline-select { border: none; background: transparent; padding: var(--space-1) var(--space-2); font-size: var(--fs-meta); cursor: pointer; border-radius: var(--radius-sm); max-width: 140px; color: var(--text-main); }
-.inline-select:hover, .inline-select:focus { background: var(--bg-surface-subtle); outline: none; box-shadow: 0 0 0 2px rgba(var(--bs-primary-rgb), 0.25); }
+/* --- Priority Bar (workload) --- */
+.prio-bar {
+    width: 4px;
+    height: 38px;
+    flex-shrink: 0;
+    border-radius: var(--radius-sm);
+}
+.prio-bar--high   { background-color: var(--color-danger); }
+.prio-bar--medium { background-color: var(--color-warning); }
+.prio-bar--low    { background-color: var(--color-success); }
 
-/* Dashboard Tab Navigation */
-.dash-tab { border: none; background: transparent; padding: 0.6rem 1.2rem; font-weight: 600; font-size: var(--fs-body-sm); color: var(--text-muted); border-bottom: 3px solid transparent; transition: color 0.15s, border-bottom-color 0.15s; cursor: pointer; }
-.dash-tab:hover { color: var(--text-main); }
-.dash-tab.active { color: var(--bs-primary); border-bottom-color: var(--bs-primary); }
-.dash-tab .tab-count { font-size: var(--fs-sm); padding: 0.15em 0.55em; border-radius: var(--radius-lg); font-weight: 700; margin-left: 0.4rem; }
+/* --- Lightbox --- */
+#lightboxDialog::backdrop {
+    background: rgba(0, 0, 0, 0.8);
+}
+.lightbox-dialog {
+    border: none;
+    background: transparent;
+    padding: 0;
+    max-width: 90vw;
+    max-height: 90vh;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+.lightbox-img {
+    max-width: 90vw;
+    max-height: 85vh;
+    border-radius: var(--radius-lg);
+    display: block;
+}
+.lightbox-close {
+    position: absolute;
+    top: -12px;
+    right: -12px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: #fff;
+    color: #333;
+    font-size: var(--fs-lg);
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 
-/* Bulk Mode Checkboxes */
-.bulk-col { display: none; width: 40px; }
-.bulk-mode .bulk-col { display: table-cell; }
-.bulk-mode .bulk-col-header { display: table-cell; }
-
-/* Row High-Priority Highlight */
-.dash-table tr.prio-high { border-left: 3px solid var(--bs-danger); }
-
-/* ===== PDF Preview Dialog ===== */
+/* --- PDF Preview Dialog --- */
 .doc-preview-dialog {
     border: none;
     border-radius: var(--radius-lg);
@@ -1269,9 +1032,6 @@ textarea:focus-visible {
 }
 .doc-preview-dialog::backdrop {
     background: rgba(0, 0, 0, 0.7);
-}
-[data-theme="dark"] .doc-preview-dialog {
-    background: var(--bg-surface);
 }
 .doc-preview-container {
     display: flex;
@@ -1303,118 +1063,33 @@ textarea:focus-visible {
     width: 100%;
 }
 
-/* ===== Print Styles =====
-   !important ist hier BEWUSST eingesetzt: Print-Isolation muss alle
-   Screen-Styles überschreiben, unabhängig von Spezifität oder Theme.
-   Das ist ein etabliertes Pattern (Bootstrap macht es genauso). */
-@media print {
-    /* Hide non-essential UI elements */
-    .navbar, footer, .breadcrumb, #bulkActionBar,
-    .btn, button, .modal, #commentForm,
-    .form-control, .form-select, select,
-    .select-feedback-wrapper .select-spinner,
-    #lightboxDialog, #docPreviewDialog, .no-print, .checklist-delete,
-    #advancedChecklistOptions, #apply-template-btn,
-    #apply-template-select, .reset-pin-section,
-    #contactEditToggle, #contactEditForm {
-        display: none !important;
-    }
-    /* Attachments: show collapsed content, hide interactive elements */
-    #attachmentsCollapseBody.collapse {
-        display: block !important;
-        height: auto !important;
-    }
-    #uploadZone,
-    .attachment-delete-btn,
-    #toggleUploadZone,
-    #attachmentsCollapseToggle .collapse-chevron {
-        display: none !important;
-    }
-    #attachmentsCollapseToggle {
-        display: flex !important;
-    }
-    /* Reset background and ensure readable text */
-    body {
-        background: white !important;
-        color: black !important;
-        font-size: 11pt;
-    }
-    .card {
-        border: 1px solid #ccc !important;
-        box-shadow: none !important;
-        break-inside: avoid;
-    }
-    .card-body { padding: var(--space-2) !important; }
-    /* Full width layout */
-    .container { max-width: 100% !important; padding: 0 !important; }
-    .row { display: block !important; }
-    .col-lg-8, .col-xl-9, .col-lg-4, .col-xl-3 {
-        width: 100% !important;
-        max-width: 100% !important;
-        flex: none !important;
-    }
-    /* Ensure sidebar prints after main content */
-    .order-1 { order: 2 !important; }
-    .order-2 { order: 1 !important; }
-    /* Keep links visible */
-    a { color: black !important; text-decoration: none !important; }
-    a[href]:after { content: none !important; }
-    /* Checklist items visible */
-    .checklist-item { break-inside: avoid; }
-    .form-check-input { appearance: auto !important; -webkit-appearance: auto !important; }
-    /* Page setup */
-    @page { margin: 1.5cm; size: A4; }
+/* --- Bulk Action Bar --- */
+/* Login-Header + Bulk-Bar bleiben in beiden Themes dunkle "Strong-Contrast"-
+   Elemente. Bootstrap 5.3 flippt --bs-dark im Dark-Theme zu Hellgrau (würde
+   white-on-light → unleserlich). --navbar-bg/-fg ist theme-agnostisch dunkel. */
+.bulk-action-bar  {
+    z-index: 1050;
+    max-width: 95vw;
+    background-color: var(--navbar-bg) !important;
+    color: var(--navbar-fg) !important;
+}
+.bulk-action-bar .form-select,
+.bulk-action-bar .form-control {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: var(--navbar-fg);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+.bulk-action-bar .form-select option {
+    background-color: var(--navbar-bg);
+    color: var(--navbar-fg);
 }
 
-/* Chevron rotation for Bootstrap collapse toggles */
-[data-bs-toggle="collapse"] .chevron,
-[aria-expanded] .chevron {
-    display: inline-block;
-    transition: transform .15s ease;
-}
-[aria-expanded="true"] .chevron {
-    transform: rotate(180deg);
-}
-
-/* ========= Inline field validation ========= */
-input[aria-invalid="true"],
-textarea[aria-invalid="true"],
-select[aria-invalid="true"] {
-    border-color: var(--bs-danger, #dc3545);
-}
-
-/* ============= Priority icons (color + form for a11y) =============
-   Grayscale-/Colorblind-User erkennen die Priorität nicht an der Farbe
-   allein. Ein Form-Icon (Pfeil hoch / Balken / Pfeil runter) wird per
-   CSS ::before vor dem Badge-Text eingefügt, damit die Information
-   auch ohne Farbe lesbar bleibt. */
-.priority-hoch::before,
-.priority-mittel::before {
-    content: "";
-    display: inline-block;
-    width: .85em;
-    height: .85em;
-    margin-right: .35em;
-    vertical-align: -0.1em;
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: contain;
-}
-.priority-hoch::before {
-    /* Arrow up — high */
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23dc3545'><path d='M8 1l5 5h-3v9H6V6H3z'/></svg>");
-}
-.priority-mittel::before {
-    /* Equal bars — mid */
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%230d6efd'><path d='M2 6h12v2H2zM2 10h12v2H2z'/></svg>");
-}
-/* ============= Ticket-Card (Mobile <900px) =============
-   Dual-Render-Strategie: Auf Desktop/Tablet (>=900px) rendert `index.html`
+/* --- Ticket Card (Mobile) --- */
+/* Dual-Render-Strategie: Auf Desktop/Tablet (>=900px) rendert `index.html`
    die klassische Tabelle (`.ticket-table-wrapper`), auf Mobile die Cards
    (`.ticket-cards`). Beide Varianten teilen sich `focus_tickets` und die
    `bulk-select-checkbox`-Klasse — das bestehende Bulk-Aktionen-JS
-   funktioniert unverändert.
-*/
+   funktioniert unverändert. */
 .ticket-cards {
     display: none;  /* Default: versteckt; wird per Media-Query <900px sichtbar. */
     flex-direction: column;
@@ -1487,64 +1162,60 @@ select[aria-invalid="true"] {
     outline-offset: -2px;
 }
 
-/* ============= Breakpoint-Switching =============
-   < 900px  → nur Cards sichtbar, Tabelle aus.
-   900-1199 → Tabelle sichtbar, aber Kontakt/Zuständig-Spalten ausgeblendet
-              (Platz für wichtige Infos).
-   >=1200px → alles sichtbar.
-*/
-@media (max-width: 899.98px) {
-    .ticket-table-wrapper { display: none; }
-    .ticket-cards { display: flex; }
+/* --- Shortcut Help Dialog --- */
+.shortcut-help-dialog {
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: .5rem;
+    padding: 1.5rem;
+    max-width: 480px;
+}
+.shortcut-help-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.4);
 }
 
-@media (min-width: 900px) and (max-width: 1199.98px) {
-    .ticket-table-wrapper .hide-on-tablet { display: none !important; }
+/* --- Form Validation --- */
+input[aria-invalid="true"],
+textarea[aria-invalid="true"],
+select[aria-invalid="true"] {
+    border-color: var(--bs-danger, #dc3545);
 }
 
-/* Workflow-Section (Freigabe) im Management-Sidebar —
-   optisch klar vom Status-Button-Block getrennt. */
-.workflow-section {
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--bs-border-color, #dee2e6);
+/* --- Priority Icons (color + form for a11y) ---
+   Grayscale-/Colorblind-User erkennen die Priorität nicht an der Farbe
+   allein. Ein Form-Icon (Pfeil hoch / Balken / Pfeil runter) wird per
+   CSS ::before vor dem Badge-Text eingefügt, damit die Information
+   auch ohne Farbe lesbar bleibt. */
+.priority-hoch::before,
+.priority-mittel::before {
+    content: "";
+    display: inline-block;
+    width: .85em;
+    height: .85em;
+    margin-right: .35em;
+    vertical-align: -0.1em;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
 }
-.workflow-section .sidebar-section-title {
-    font-size: var(--fs-sm);
-    text-transform: uppercase;
-    letter-spacing: .05em;
-    color: var(--bs-secondary-color, #6c757d);
-    margin-bottom: .5rem;
+.priority-hoch::before {
+    /* Arrow up — high */
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23dc3545'><path d='M8 1l5 5h-3v9H6V6H3z'/></svg>");
 }
-
-/* Mobile-Collapse-Toggle für Sidebar-Sections (Workflow, Kontakt).
-   Auf >=lg (992px) ist Toggle ausgeblendet (d-lg-none) und Body via
-   d-lg-block dauerhaft sichtbar — keine extra Tap-Aktion nötig. */
-.sidebar-collapse-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: transparent;
-    border: 0;
-    padding: var(--space-2) 0;
-    color: var(--text-main);
-    text-align: left;
-}
-.sidebar-collapse-toggle:focus-visible {
-    outline: var(--focus-ring);
-    outline-offset: 2px;
-    border-radius: var(--radius-sm);
-}
-.sidebar-collapse-chevron {
-    transition: transform var(--duration-base) var(--ease-standard);
-    font-size: var(--fs-sm);
-    color: var(--text-muted);
-}
-.sidebar-collapse-toggle[aria-expanded="true"] .sidebar-collapse-chevron {
-    transform: rotate(180deg);
+.priority-mittel::before {
+    /* Equal bars — mid */
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%230d6efd'><path d='M2 6h12v2H2zM2 10h12v2H2z'/></svg>");
 }
 
-/* Overdue-callback alarm badge in ticket sidebar */
+/* --- Login Card Header --- */
+.login-card-header {
+    background-color: var(--navbar-bg);
+    color: var(--navbar-fg);
+}
+
+/* --- Compress Overlay --- */
+/* (theme-aware overrides in Settings layer) */
+
+/* --- Callback Overdue Badge --- */
 .callback-overdue-badge {
     display: inline-flex;
     align-items: center;
@@ -1558,45 +1229,380 @@ select[aria-invalid="true"] {
     animation: pulse-scale 1.8s ease infinite;
 }
 
-/* Shortcut-Hilfe-Dialog */
-.shortcut-help-dialog {
-    border: 1px solid var(--bs-border-color, #dee2e6);
-    border-radius: .5rem;
-    padding: 1.5rem;
-    max-width: 480px;
+/* --- Form Card --- */
+/* Form-Card: zentrierte Card mit optimaler Lesezeilenlänge.
+   Verwenden auf einspaltigen Formular-Containern (ticket_new, settings, setup ...). */
+.form-card {
+    max-width: var(--form-max-width);
+    margin-left: auto;
+    margin-right: auto;
 }
-.shortcut-help-dialog::backdrop {
-    background: rgba(0, 0, 0, 0.4);
+
+/* --- Description Wrapper --- */
+.desc-wrapper {
+    max-height: 120px;
+    overflow: hidden;
+    position: relative;
+    transition: max-height 0.3s ease;
+}
+.desc-gradient {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: linear-gradient(transparent, var(--bg-surface-subtle, #f8f9fa));
+    pointer-events: none;
+}
+
+/* --- Notification Dropdown --- */
+.notification-dropdown {
+    width: 320px;
+    max-width: 100vw;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* --- Mention Dropdown --- */
+.mention-dropdown {
+    display: none;
+    position: absolute;
+    z-index: var(--z-modal);
+    max-height: 200px;
+    overflow-y: auto;
+    min-width: 200px;
+}
+
+/* --- Textarea Auto --- */
+.textarea-auto {
+    resize: none;
+    overflow: hidden;
+}
+
+/* --- Hover Card (My Queue) --- */
+.hover-card {
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+    cursor: pointer;
+}
+
+/* --- Hover Elevate --- */
+.hover-elevate {
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+/* --- One-off Component Classes --- */
+.progress-thin    { height: 8px; }
+.btn-icon-sm {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--fs-xs);
+    line-height: 1;
+}
+.toast-btn        { width: auto; min-height: 44px; }
+.kbd-hint {
+    font-size: var(--fs-xxs);
+    pointer-events: none;
+    line-height: 1.4;
+}
+.offcanvas-help   { width: min(420px, 92vw); }
+
+/* --- Avatar Scale --- */
+.avatar-xs,
+.avatar-sm,
+.avatar-md {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.avatar-xs { width: var(--avatar-xs); height: var(--avatar-xs); font-size: var(--fs-xxs); }
+.avatar-sm { width: var(--avatar-sm); height: var(--avatar-sm); font-size: var(--fs-xs); }
+.avatar-md { width: var(--avatar-md); height: var(--avatar-md); font-size: var(--fs-meta); }
+
+/* --- Form Label Bold --- */
+.form-label-bold {
+    font-size: max(0.875rem, 14px);
+    font-weight: 700;
+    margin-bottom: var(--space-2);
+}
+
+/* ================================================================
+   5. UTILITIES — Single-Purpose Helper Classes
+   ================================================================ */
+
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+.text-meta { color: var(--text-muted) !important; font-size: var(--fs-meta); }
+.x-small { font-size: var(--fs-sm); line-height: 1.4; }
+.text-xxxs  { font-size: var(--fs-xxs); }
+.text-xxs   { font-size: var(--fs-xxs); }
+.text-xs    { font-size: var(--fs-xs); }
+.meta-label { font-size: var(--fs-xxs); line-height: 1; }
+
+.z-toast {
+    z-index: var(--z-toast);
+}
+
+.transition-all { transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease; }
+.fade-toggle     { transition: opacity 0.2s; }
+.fade-toggle.hidden { opacity: 0; pointer-events: none; }
+
+.cursor-zoom-in { cursor: zoom-in; }
+.cursor-pointer { cursor: pointer; }
+.border-dashed  { border-style: dashed; }
+
+.text-pre-wrap { white-space: pre-wrap; }
+.line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.color-scheme-dark { color-scheme: dark; }
+.navbar-z         { z-index: var(--z-navbar); }
+.lh-relaxed     { line-height: 1.6; }
+
+.bg-surface {
+    background-color: var(--bg-surface);
+}
+
+.bg-white-hover {
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+.bg-white-hover:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    box-shadow: var(--shadow-sm);
+}
+
+.min-h-44       { min-height: var(--touch-target-min); }
+.min-w-130      { min-width: 130px; }
+.min-w-190 { min-width: 190px; }
+
+/* Scroll & Overflow Utilities */
+.scroll-y-auto  { overflow-y: auto; }
+.max-h-250  { max-height: 250px; }
+.max-h-400  { max-height: 400px; }
+.max-h-50vh { max-height: 50vh; }
+.max-w-160  { max-width: 160px; }
+.max-w-200  { max-width: 200px; }
+.max-w-280  { max-width: 280px; }
+.max-w-85p      { max-width: 85%; }
+
+.ls-wide        { letter-spacing: 0.05em; }
+.tracking-wide {
+    letter-spacing: 0.5px;
+}
+
+/* Icon sizing utilities — use on <i class="bi ..."> */
+.icon-sm { font-size: var(--icon-sm); }
+
+.table-compact  { font-size: var(--fs-meta); }
+.col-w-60       { width: 60px; }
+.col-w-70       { width: 70px; }
+.col-w-80       { width: 80px; }
+.col-w-110      { width: 110px; }
+.col-w-130      { width: 130px; }
+.col-w-140      { width: 140px; }
+.col-w-160      { width: 160px; }
+.col-w-200      { width: 200px; }
+
+/* ================================================================
+   6. OVERRIDES — Responsive, Print & Interaction Media Queries
+   ================================================================ */
+
+/* Breakpoint-Switching: < 900px → nur Cards sichtbar, Tabelle aus.
+   900-1199 → Tabelle sichtbar, aber Kontakt/Zuständig-Spalten ausgeblendet
+   (Platz für wichtige Infos). >=1200px → alles sichtbar. */
+@media (max-width: 899.98px) {
+    .ticket-table-wrapper { display: none; }
+    .ticket-cards { display: flex; }
+}
+
+@media (min-width: 900px) and (max-width: 1199.98px) {
+    .ticket-table-wrapper .hide-on-tablet { display: none !important; }
+}
+
+/* UX Phase 3: Responsive Table-to-Cards Fallback + iOS Zoom Prevention */
+@media (max-width: 768px) {
+    /* iOS Zoom Prevention */
+    input,
+    select,
+    textarea {
+        font-size: 16px !important;
+    }
+
+    .table-responsive-cards thead {
+        display: none;
+    }
+
+    .table-responsive-cards tbody tr {
+        display: block;
+        margin-bottom: var(--space-4);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        background-color: var(--bg-surface);
+        padding: var(--space-2);
+    }
+
+    .table-responsive-cards tbody td {
+        display: flex !important; /* Force visibility even if d-none on desktop */
+        justify-content: space-between;
+        align-items: center;
+        text-align: right;
+        border-bottom: 1px solid var(--border-color);
+        padding: var(--space-3) var(--space-2);
+    }
+
+    .table-responsive-cards tbody td:last-child {
+        border-bottom: 0;
+        justify-content: center;
+    }
+
+    .table-responsive-cards tbody td::before {
+        content: attr(data-label);
+        font-weight: bold;
+        text-align: left;
+        padding-right: var(--space-4);
+        flex-shrink: 0;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        font-size: var(--fs-sm);
+    }
+}
+
+/* Mobile: list-group-flush horizontal padding reduzieren (24px -> 16px),
+   damit auf 375px-Viewport mehr Content-Breite bleibt (Workload, Profile,
+   admin_templates). */
+@media (max-width: 575.98px) {
+    .list-group-flush > .list-group-item.px-4 {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+}
+
+/* Bulk-bar mobile */
+@media (max-width: 480px) {
+    .bulk-action-bar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        padding: .75rem !important;
+        gap: .5rem !important;
+    }
+    .bulk-action-bar .vr { display: none; }
+    .bulk-action-bar select,
+    .bulk-action-bar input[type="date"] {
+        width: 100% !important;
+    }
+}
+
+/* Desktop hover effects */
+@media (hover: hover) and (pointer: fine) {
+    .hover-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-1px);
+    }
+    .attachment-tile:hover .attachment-delete-btn {
+        opacity: 1;
+        box-shadow: var(--shadow-sm);
+    }
+    .hover-elevate:hover {
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-2px);
+    }
+}
+
+/* Print Styles
+   !important ist hier BEWUSST eingesetzt: Print-Isolation muss alle
+   Screen-Styles überschreiben, unabhängig von Spezifität oder Theme.
+   Das ist ein etabliertes Pattern (Bootstrap macht es genauso). */
+@media print {
+    /* Hide non-essential UI elements */
+    .navbar, footer, .breadcrumb, #bulkActionBar,
+    .btn, button, .modal, #commentForm,
+    .form-control, .form-select, select,
+    .select-feedback-wrapper .select-spinner,
+    #lightboxDialog, #docPreviewDialog, .no-print, .checklist-delete,
+    #advancedChecklistOptions, #apply-template-btn,
+    #apply-template-select, .reset-pin-section,
+    #contactEditToggle, #contactEditForm {
+        display: none !important;
+    }
+    /* Attachments: show collapsed content, hide interactive elements */
+    #attachmentsCollapseBody.collapse {
+        display: block !important;
+        height: auto !important;
+    }
+    #uploadZone,
+    .attachment-delete-btn,
+    #toggleUploadZone,
+    #attachmentsCollapseToggle .collapse-chevron {
+        display: none !important;
+    }
+    #attachmentsCollapseToggle {
+        display: flex !important;
+    }
+    /* Reset background and ensure readable text */
+    body {
+        background: white !important;
+        color: black !important;
+        font-size: 11pt;
+    }
+    .card {
+        border: 1px solid #ccc !important;
+        box-shadow: none !important;
+        break-inside: avoid;
+    }
+    .card-body { padding: var(--space-2) !important; }
+    /* Full width layout */
+    .container { max-width: 100% !important; padding: 0 !important; }
+    .row { display: block !important; }
+    .col-lg-8, .col-xl-9, .col-lg-4, .col-xl-3 {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: none !important;
+    }
+    /* Ensure sidebar prints after main content */
+    .order-1 { order: 2 !important; }
+    .order-2 { order: 1 !important; }
+    /* Keep links visible */
+    a { color: black !important; text-decoration: none !important; }
+    a[href]:after { content: none !important; }
+    /* Checklist items visible */
+    .checklist-item { break-inside: avoid; }
+    .form-check-input { appearance: auto !important; -webkit-appearance: auto !important; }
+    /* Page setup */
+    @page { margin: 1.5cm; size: A4; }
+}
+
+/* ================================================================
+   7. ANIMATIONS — Keyframes
+   ================================================================ */
+
+@keyframes pulse-scale {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50%       { transform: translate(-50%, -50%) scale(1.25); }
+}
+.animate-pulse {
+    animation: pulse-scale 1.8s ease infinite;
 }
 
 /* Briefly highlight ticket rows whose content changed during live polling. */
+@keyframes rowFlash {
+    0%   { background-color: var(--bs-warning-bg-subtle, #fff3cd); }
+    100% { background-color: transparent; }
+}
 .dash-table tr.flash-updated {
     animation: rowFlash 1.5s ease-out;
 }
 .ticket-cards .ticket-card.flash-updated,
 .ticket-cards [role="listitem"].flash-updated {
     animation: rowFlash 1.5s ease-out;
-}
-@keyframes rowFlash {
-    0%   { background-color: var(--bs-warning-bg-subtle, #fff3cd); }
-    100% { background-color: transparent; }
-}
-
-/* =========================================
-   ELEVATION MAP (RUI #5 — consistent depth scale)
-   btn=xs, card=sm, dropdown=md, notification/modal=lg, global-modal=xl
-   ========================================= */
-.btn {
-    box-shadow: var(--shadow-xs);
-}
-.btn:disabled,
-.btn[aria-disabled="true"] {
-    box-shadow: none;
-}
-.dropdown-menu {
-    box-shadow: var(--shadow-md);
-}
-.notification-dropdown,
-.modal-content {
-    box-shadow: var(--shadow-lg);
 }
