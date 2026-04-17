@@ -276,9 +276,11 @@ document.addEventListener('DOMContentLoaded', function() {
             bar.classList.remove('d-none');
             bar.classList.add('d-flex');
             countEl.textContent = ids.length + ' ausgewählt';
+            document.body.style.paddingBottom = (bar.offsetHeight + 24) + 'px';
         } else {
             bar.classList.add('d-none');
             bar.classList.remove('d-flex');
+            document.body.style.paddingBottom = '';
         }
         // Sync select-all checkbox state
         const allCbs = document.querySelectorAll('.bulk-select-checkbox');

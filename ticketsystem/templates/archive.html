@@ -47,8 +47,13 @@
                     <input type="date" name="end_date" class="form-control border-0 bg-surface-subtle rounded-3 small py-1" value="{{ end_date }}">
                 </div>
             </div>
-            <div class="col-md-12 col-lg-2 d-grid">
-                <button type="submit" class="btn btn-secondary rounded-pill px-3">Suchen</button>
+            <div class="col-md-12 col-lg-2 d-flex gap-2">
+                <button type="submit" class="btn btn-secondary rounded-pill px-3 flex-grow-1">Suchen</button>
+                {% if query or author or start_date or end_date %}
+                <a href="{{ ingress_path }}{{ url_for('main.archive') }}" class="btn btn-outline-secondary rounded-pill px-3" title="Filter zurücksetzen">
+                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                </a>
+                {% endif %}
             </div>
         </form>
     </div>
