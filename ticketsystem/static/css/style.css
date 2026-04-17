@@ -448,62 +448,62 @@ canvas {
     background-color: var(--bg-surface-subtle) !important;
 }
 
-/* Badge Subtle Utilities - Consolidated & WCAG AA Optimized */
+/* Badge Subtle Utilities — Spezifität statt !important.
+   Custom-Klassen konfligieren nicht mit Bootstrap .bg-* (eigene Namen).
+   [data-theme] Attribut-Selektor hat höhere Spezifität als Basis-Klasse. */
 .badge-subtle-primary {
-    background-color: rgba(37, 99, 235, 0.12) !important;
-    color: #1d4ed8 !important; /* CR ≈ 4.5:1 */
+    background-color: rgba(37, 99, 235, 0.12);
+    color: #1d4ed8; /* CR ≈ 4.5:1 */
     border: 1px solid rgba(37, 99, 235, 0.2);
 }
 .badge-subtle-success {
-    background-color: rgba(20, 108, 67, 0.12) !important;
-    color: #146c43 !important;
+    background-color: rgba(20, 108, 67, 0.12);
+    color: #146c43;
     border: 1px solid rgba(20, 108, 67, 0.2);
 }
 .badge-subtle-warning {
-    background-color: rgba(133, 100, 4, 0.12) !important;
-    color: #856404 !important;
+    background-color: rgba(133, 100, 4, 0.12);
+    color: #856404;
     border: 1px solid rgba(133, 100, 4, 0.2);
 }
 .badge-subtle-danger {
-    background-color: rgba(220, 38, 38, 0.12) !important;
-    color: #dc2626 !important;
+    background-color: rgba(220, 38, 38, 0.12);
+    color: #dc2626;
     border: 1px solid rgba(220, 38, 38, 0.2);
 }
 .badge-subtle-secondary {
-    background-color: var(--bg-surface-subtle) !important;
-    color: #4a5056 !important;
+    background-color: var(--bg-surface-subtle);
+    color: #4a5056;
     border: 1px solid var(--border-color);
 }
 
 [data-theme="dark"] .badge-subtle-secondary {
-    background-color: #333 !important;
-    color: #d0d0d0 !important;
+    background-color: #333;
+    color: #d0d0d0;
 }
 
-/* Dark-Mode Tonal-Pendants für farbige Subtle-Badges.
-   Light: Dark-Text auf hell-getöntem BG.
-   Dark:  Hell-Text auf dunkel-getöntem BG (jeweils ≥4.5:1 Kontrast).
-   Hex-Werte aus Tailwind-Skala (z.B. blue-900/blue-200). */
+/* Dark-Mode Tonal-Pendants (Tailwind blue-900/blue-200 etc., ≥4.5:1 CR). */
 [data-theme="dark"] .badge-subtle-primary {
-    background-color: #1e3a8a !important;  /* blue-900 */
-    color: #bfdbfe !important;             /* blue-200, CR ≈ 8:1 */
+    background-color: #1e3a8a;
+    color: #bfdbfe;
     border-color: rgba(147, 197, 253, 0.3);
 }
 [data-theme="dark"] .badge-subtle-success {
-    background-color: #14532d !important;  /* green-900 */
-    color: #bbf7d0 !important;             /* green-200 */
+    background-color: #14532d;
+    color: #bbf7d0;
     border-color: rgba(187, 247, 208, 0.3);
 }
 [data-theme="dark"] .badge-subtle-warning {
-    background-color: #713f12 !important;  /* yellow-900 */
-    color: #fef08a !important;             /* yellow-200 */
+    background-color: #713f12;
+    color: #fef08a;
     border-color: rgba(254, 240, 138, 0.3);
 }
 [data-theme="dark"] .badge-subtle-danger {
-    background-color: #7f1d1d !important;  /* red-900 */
-    color: #fecaca !important;             /* red-200 */
+    background-color: #7f1d1d;
+    color: #fecaca;
     border-color: rgba(254, 202, 202, 0.3);
 }
+/* HC-Mode: !important bewusst beibehalten — muss alles überschreiben. */
 [data-theme="hc"] .badge-subtle-primary,
 [data-theme="hc"] .badge-subtle-success,
 [data-theme="hc"] .badge-subtle-warning,
@@ -1042,7 +1042,7 @@ textarea:focus-visible {
         transform: translateY(-2px);
     }
 }
-.transition-all { transition: all 0.2s ease; }
+.transition-all { transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease; }
 .min-h-44       { min-height: var(--touch-target-min); }
 .min-w-130      { min-width: 130px; }
 .fade-toggle     { transition: opacity 0.2s; }
@@ -1231,11 +1231,11 @@ textarea:focus-visible {
 .status-dot.erledigt { background: var(--bs-success); }
 
 /* Inline Select Styling */
-.inline-select { border: none; background: transparent; padding: 2px 4px; font-size: var(--fs-meta); cursor: pointer; border-radius: 6px; max-width: 140px; color: var(--text-main); }
+.inline-select { border: none; background: transparent; padding: var(--space-1) var(--space-2); font-size: var(--fs-meta); cursor: pointer; border-radius: var(--radius-sm); max-width: 140px; color: var(--text-main); }
 .inline-select:hover, .inline-select:focus { background: var(--bg-surface-subtle); outline: none; box-shadow: 0 0 0 2px rgba(var(--bs-primary-rgb), 0.25); }
 
 /* Dashboard Tab Navigation */
-.dash-tab { border: none; background: transparent; padding: 0.6rem 1.2rem; font-weight: 600; font-size: var(--fs-body-sm); color: var(--text-muted); border-bottom: 3px solid transparent; transition: all 0.15s; cursor: pointer; }
+.dash-tab { border: none; background: transparent; padding: 0.6rem 1.2rem; font-weight: 600; font-size: var(--fs-body-sm); color: var(--text-muted); border-bottom: 3px solid transparent; transition: color 0.15s, border-bottom-color 0.15s; cursor: pointer; }
 .dash-tab:hover { color: var(--text-main); }
 .dash-tab.active { color: var(--bs-primary); border-bottom-color: var(--bs-primary); }
 .dash-tab .tab-count { font-size: var(--fs-sm); padding: 0.15em 0.55em; border-radius: 10px; font-weight: 700; margin-left: 0.4rem; }
@@ -1297,7 +1297,10 @@ textarea:focus-visible {
     width: 100%;
 }
 
-/* ===== Print Styles ===== */
+/* ===== Print Styles =====
+   !important ist hier BEWUSST eingesetzt: Print-Isolation muss alle
+   Screen-Styles überschreiben, unabhängig von Spezifität oder Theme.
+   Das ist ein etabliertes Pattern (Bootstrap macht es genauso). */
 @media print {
     /* Hide non-essential UI elements */
     .navbar, footer, .breadcrumb, #bulkActionBar,
