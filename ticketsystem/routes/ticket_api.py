@@ -519,6 +519,35 @@ def _callback_done_api(ticket_id: int) -> tuple[Response, int] | Response:
     return api_ok()
 
 
+@worker_required
+@write_required
+@api_endpoint
+def _stop_recurrence_api(ticket_id: int) -> tuple[Response, int] | Response:
+    """Deactivate the recurrence rule for this ticket."""
+    ticket = db.session.get(Ticket, ticket_id)
+    if not ticket:
+        raise DomainError("Ticket nicht gefunden.", 404)
+    rec = ticket.recurrence
+    if not rec or not rec.rule:
+        raise DomainError("Kein Serienticket.", 409)
+    if not rec.is_active:
+        raise DomainError("Serie bereits gestoppt.", 409)
+    rec.is_active = False
+    author = session.get("worker_name", "System")
+    worker_id = session.get("worker_id")
+    db.session.add(Comment(
+        ticket_id=ticket_id,
+        author=author,
+        author_id=worker_id,
+        text="Serie deaktiviert.",
+        is_system_event=True,
+        event_type="RECURRENCE_STOPPED",
+    ))
+    ticket.updated_at = get_utc_now()
+    db.session.commit()
+    return api_ok()
+
+
 def register_routes(bp: Blueprint) -> None:
     """Register API routes for ticket operations."""
     bp.add_url_rule(
@@ -585,4 +614,9 @@ def register_routes(bp: Blueprint) -> None:
     bp.add_url_rule(
         "/api/ticket/<int:ticket_id>/callback-done", "callback_done_api",
         view_func=_callback_done_api, methods=["POST"],
+    )
+    bp.add_url_rule(
+        "/api/ticket/<int:ticket_id>/recurrence/stop",
+        "stop_recurrence_api",
+        view_func=_stop_recurrence_api, methods=["POST"],
     )

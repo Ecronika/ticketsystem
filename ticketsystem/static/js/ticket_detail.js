@@ -1172,4 +1172,34 @@ document.addEventListener('DOMContentLoaded', function() {
             xhr.send(fd);
         });
     }
+
+    // ── Stop Recurrence ──────────────────────────────────────────────
+    var stopRecBtn = document.getElementById('stopRecurrenceBtn');
+    if (stopRecBtn) {
+        stopRecBtn.addEventListener('click', async function() {
+            var ok = window.showConfirm
+                ? await window.showConfirm('Serie stoppen', 'Zukünftige Serien-Tickets werden nicht mehr erstellt. Fortfahren?', true)
+                : confirm('Serie stoppen?');
+            if (!ok) return;
+            var btn = this;
+            btn.disabled = true;
+            try {
+                var resp = await fetch(ingress + '/api/ticket/' + btn.dataset.ticketId + '/recurrence/stop', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
+                });
+                var errMsg = await window.extractApiError(resp);
+                if (errMsg) {
+                    if (window.showUiAlert) window.showUiAlert(errMsg, 'danger');
+                    btn.disabled = false;
+                    return;
+                }
+                if (window.showUiAlert) window.showUiAlert('Serie gestoppt.', 'success');
+                btn.outerHTML = '<span class="badge bg-secondary-subtle text-secondary x-small ms-1">gestoppt</span>';
+            } catch(e) {
+                if (window.showUiAlert) window.showUiAlert('Netzwerkfehler.', 'danger');
+                btn.disabled = false;
+            }
+        });
+    }
 });

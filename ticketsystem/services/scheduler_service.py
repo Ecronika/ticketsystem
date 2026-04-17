@@ -53,7 +53,12 @@ def _fetch_due_recurring_tickets(now: object) -> List[Ticket]:
     """Return all non-deleted recurring tickets whose next date is due."""
     return Ticket.query.filter(
         Ticket.is_deleted.is_(False),
-        Ticket.recurrence.has(TicketRecurrence.next_date <= now),
+        Ticket.recurrence.has(
+            db.and_(
+                TicketRecurrence.next_date <= now,
+                TicketRecurrence.is_active.is_(True),
+            )
+        ),
     ).all()
 
 
