@@ -20,10 +20,10 @@
                  role="dialog" aria-label="Grund für Status 'Wartet'">
                 <small class="d-block fw-semibold mb-1 text-muted">Worauf wird gewartet?</small>
                 <div class="btn-group btn-group-sm w-100" role="group">
-                    <button type="button" class="btn btn-outline-secondary" data-wait-reason="kunde">Kunde</button>
-                    <button type="button" class="btn btn-outline-secondary" data-wait-reason="lieferant">Lieferant</button>
-                    <button type="button" class="btn btn-outline-secondary" data-wait-reason="kollege">Kollege</button>
-                    <button type="button" class="btn btn-outline-secondary" data-wait-reason="sonstiges">Sonstiges</button>
+                    <button type="button" class="btn btn-outline-secondary" data-wait-reason="kunde" title="Ticket wartet auf Rückmeldung des Kunden">Kunde</button>
+                    <button type="button" class="btn btn-outline-secondary" data-wait-reason="lieferant" title="Ticket wartet auf Lieferung oder Materialbereitstellung">Lieferant</button>
+                    <button type="button" class="btn btn-outline-secondary" data-wait-reason="kollege" title="Ticket wartet auf internen Input von einem Kollegen">Kollege</button>
+                    <button type="button" class="btn btn-outline-secondary" data-wait-reason="sonstiges" title="Ticket wartet auf eine andere externe Aktion">Sonstiges</button>
                 </div>
             </div>
             {% if ticket.status == TicketStatus.WARTET.value and ticket.wait_reason %}
