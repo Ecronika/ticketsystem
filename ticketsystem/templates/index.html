@@ -573,6 +573,19 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
 });
+
+// --- Ctrl+A / Cmd+A: select all bulk checkboxes when bulk mode is active ---
+document.addEventListener('keydown', function(e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+        const bulkCheckboxes = document.querySelectorAll('.bulk-select-checkbox');
+        if (bulkCheckboxes.length > 0 && bulkCheckboxes[0].offsetParent !== null) {
+            e.preventDefault();
+            const allChecked = Array.from(bulkCheckboxes).every(cb => cb.checked);
+            bulkCheckboxes.forEach(cb => cb.checked = !allChecked);
+            if (typeof updateBulkBar === 'function') updateBulkBar();
+        }
+    }
+});
 </script>
 {% endblock %}
 

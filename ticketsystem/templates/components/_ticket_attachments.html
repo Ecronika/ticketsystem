@@ -10,7 +10,7 @@
                     id="attachmentsCollapseToggle">
                 <i class="bi bi-chevron-right me-1 collapse-chevron"></i>
                 <h2 class="h6 fw-bold mb-0 d-inline">Anh&auml;nge</h2>
-                <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill ms-2"
+                <span class="badge badge-subtle-secondary rounded-pill ms-2"
                       id="attachmentCountBadge">{{ ticket.attachments|length }}</span>
             </button>
             {% if session.get('role') != 'viewer' %}

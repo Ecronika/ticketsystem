@@ -65,12 +65,12 @@
         {% if ticket.order_reference or ticket.tags %}
         <div class="d-flex flex-wrap gap-1 mb-2">
             {% if ticket.order_reference %}
-            <span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal x-small position-relative z-1">
+            <span class="badge badge-subtle-secondary fw-normal x-small position-relative z-1">
                 <i class="bi bi-hash"></i>{{ ticket.order_reference }}
             </span>
             {% endif %}
             {% for tag in ticket.tags %}
-            <span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal x-small position-relative z-1">
+            <span class="badge badge-subtle-secondary fw-normal x-small position-relative z-1">
                 {{ tag.name }}
             </span>
             {% endfor %}
@@ -82,7 +82,7 @@
             <div class="d-flex align-items-center gap-1 position-relative z-1">
                 {# Status: Offen = neutral (nicht rot!), andere wie bisher #}
                 <span class="badge x-small fw-semibold border-0
-                    {{ 'bg-secondary-subtle text-secondary-emphasis' if ticket.status == TicketStatus.OFFEN.value
+                    {{ 'badge-subtle-secondary' if ticket.status == TicketStatus.OFFEN.value
                     else 'badge-subtle-primary' if ticket.status == TicketStatus.IN_BEARBEITUNG.value
                     else 'badge-subtle-warning' if ticket.status == TicketStatus.WARTET.value
                     else 'badge-subtle-success' }}">
