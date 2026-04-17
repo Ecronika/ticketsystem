@@ -413,8 +413,8 @@ def _change_pin_view() -> str | WerkzeugResponse:
         )
         worker.needs_pin_change = False
         db.session.commit()
-        flash("PIN erfolgreich geändert.", "success")
-        return redirect_to("main.index")
+        flash("Willkommen im Ticketsystem! Dein neuer PIN ist aktiv.", "success")
+        return redirect_to("main.my_queue")
 
     return render_template("change_pin.html")
 
