@@ -866,6 +866,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const dialog = document.getElementById('lightboxDialog');
                 if (img && dialog) {
                     img.src = trigger.dataset.fullSrc;
+                    const sourceImg = trigger.querySelector('img');
+                    img.alt = (sourceImg && sourceImg.alt) ? sourceImg.alt : 'Vergrößerte Ansicht';
                     dialog.showModal();
                     if (typeof window.trapFocus === 'function') window.trapFocus(dialog);
                 }

@@ -675,7 +675,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- Mobile-Card-Darstellung (< 900 px). Nutzt denselben `focus_tickets`-Kontext
      wie die Tabelle. Sichtbarkeit wird per CSS-Media-Query geschaltet. -->
-<div class="ticket-cards" role="list" aria-label="Tickets">
+<div class="ticket-cards" role="list" aria-label="Tickets" aria-live="polite">
     {% include "components/_dashboard_cards.html" %}
 </div>
 
@@ -698,7 +698,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <th class="text-end pe-3 col-w-80 {{ 'sorted' if sort_by == 'due_date' }}">{{ sort_link('due_date', 'Fällig') }}</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody aria-live="polite">
                     {% include "components/_dashboard_rows.html" %}
                 </tbody>
             </table>

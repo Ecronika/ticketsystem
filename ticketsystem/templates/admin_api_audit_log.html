@@ -22,8 +22,8 @@
         <form action="{{ ingress_path }}{{ url_for('admin._api_audit_log') }}" method="GET"
               class="row g-2 align-items-end">
             <div class="col-sm-4">
-                <label class="form-label form-label-bold small">Ergebnis (Outcome)</label>
-                <select name="outcome" class="form-select form-select-sm">
+                <label class="form-label form-label-bold small" for="audit-filter-outcome">Ergebnis (Outcome)</label>
+                <select name="outcome" id="audit-filter-outcome" class="form-select form-select-sm">
                     <option value="">— Alle —</option>
                     <option value="success" {{ 'selected' if selected_outcome == 'success' }}>success</option>
                     <option value="auth_failed" {{ 'selected' if selected_outcome == 'auth_failed' }}>auth_failed</option>
@@ -33,8 +33,8 @@
                 </select>
             </div>
             <div class="col-sm-4">
-                <label class="form-label form-label-bold small">API-Schlüssel</label>
-                <select name="key_id" class="form-select form-select-sm">
+                <label class="form-label form-label-bold small" for="audit-filter-key">API-Schlüssel</label>
+                <select name="key_id" id="audit-filter-key" class="form-select form-select-sm">
                     <option value="">— Alle Schlüssel —</option>
                     {% for k in keys %}
                     <option value="{{ k.id }}" {{ 'selected' if selected_key_id == k.id }}>
@@ -81,7 +81,10 @@
                 </thead>
                 <tbody>
                     {% for entry in pagination.items %}
-                    <tr class="entry-row" onclick="toggleDetail('det-{{ entry.id }}')" style="cursor:pointer">
+                    <tr class="entry-row" role="button" tabindex="0" aria-label="Details anzeigen"
+                        onclick="toggleDetail('det-{{ entry.id }}')"
+                        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDetail('det-{{ entry.id }}')}"
+                        style="cursor:pointer">
                         <td class="ps-3 text-muted small">▸</td>
                         <td class="text-nowrap small text-muted">
                             {{ entry.timestamp | local_time | datetime }}

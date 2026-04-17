@@ -39,11 +39,11 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"
+<script defer src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"
         integrity="sha384-HZZ/fukV+9G8gwTNjN7zQDG0Sp7MsZy5DDN6VfY3Be7V9dvQpEpR2jF2HlyFUUjU"
         crossorigin="anonymous"></script>
-<script src="{{ ingress_path }}{{ url_for('static', filename='js/file_upload.js') }}?v={{ config.VERSION }}"></script>
-<script src="{{ ingress_path }}{{ url_for('static', filename='js/ticket_detail.js') }}?v={{ config.VERSION }}"></script>
+<script defer src="{{ ingress_path }}{{ url_for('static', filename='js/file_upload.js') }}?v={{ config.VERSION }}"></script>
+<script defer src="{{ ingress_path }}{{ url_for('static', filename='js/ticket_detail.js') }}?v={{ config.VERSION }}"></script>
 <script nonce="{{ g.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     var csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';

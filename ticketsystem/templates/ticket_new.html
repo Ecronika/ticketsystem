@@ -280,7 +280,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ ingress_path }}{{ url_for('static', filename='js/file_upload.js') }}?v={{ config.VERSION }}"></script>
+<script defer src="{{ ingress_path }}{{ url_for('static', filename='js/file_upload.js') }}?v={{ config.VERSION }}"></script>
 <script nonce="{{ g.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     const input = document.getElementById('attachment-input');

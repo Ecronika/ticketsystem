@@ -3,9 +3,12 @@
   "short_name": "Tickets",
   "description": "Enterprise Ticket System for Workshop & Production",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#0d6efd",
+  "categories": ["productivity", "business"],
   "icons": [
     {
       "src": "/static/img/icon-192.png",
