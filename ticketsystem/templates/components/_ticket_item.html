@@ -93,6 +93,12 @@
             {{ ticket.wait_reason|capitalize }}
         </span>
         {% endif %}
+        {% if ticket.approval and ticket.approval.status == ApprovalStatus.PENDING.value %}
+        <span class="badge bg-warning text-dark x-small rounded-pill ms-1" title="Wartet auf Freigabe">
+            <i class="bi bi-hourglass-split" aria-hidden="true"></i>
+            <span class="visually-hidden">Wartet auf Freigabe</span>
+        </span>
+        {% endif %}
     </td>
     <td class="text-end pe-3 small">
         {% if ticket.due_date %}
