@@ -263,7 +263,7 @@ canvas {
     --bg-surface: #1e1e1e;
     --bg-surface-subtle: #2d2d2d;
     --text-main: var(--gray-100);       /* war #e0e0e0 */
-    --text-muted: var(--gray-400);      /* war #b5bcc7 — WCAG >= 4.5:1 auf #1e1e1e */
+    --text-muted: #b4bcc7;              /* ≥4.5:1 auf allen Dark-Surfaces (#121212, #1e1e1e, #2d2d2d) */
     --border-color: var(--gray-700);    /* war #333 */
     --input-border: var(--gray-500);    /* war #888888 */
     --focus-ring-width: var(--border-3);
@@ -302,6 +302,16 @@ canvas {
 [data-theme="dark"] .card .border-start {
     border-left-width: 4px !important;
 }
+
+/* Approval-Indicator Borders: Bootstrap border-success/warning/danger
+   werden im Dark-Mode nicht auto-invertiert (2.9:1 → soll ≥4.5:1). */
+[data-theme="dark"] .approval-indicator.border-success { border-color: #2ecc71; }
+[data-theme="dark"] .approval-indicator.border-warning { border-color: #f1c40f; }
+[data-theme="dark"] .approval-indicator.border-danger  { border-color: #e74c3c; }
+
+/* Upload-Komprimierungs-Overlay: theme-aware statt inline-hardcoded. */
+.compress-overlay { background: rgba(255, 255, 255, 0.9); }
+[data-theme="dark"] .compress-overlay { background: rgba(0, 0, 0, 0.85); }
 
 /* High Contrast Mode (Halation-reduziert) */
 [data-theme="hc"] {
