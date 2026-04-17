@@ -9,7 +9,11 @@
                 <h4 class="mb-0"><i class="bi bi-shield-lock-fill" aria-hidden="true"></i> PIN ändern erforderlich</h4>
             </div>
             <div class="card-body">
-                <p class="text-muted small">Zu Ihrer Sicherheit müssen Sie Ihren PIN bei der ersten Anmeldung oder nach einem Reset ändern.</p>
+                {% if request.args.get('first_login') %}
+                <p class="text-muted small">Willkommen! Dies ist deine erste Anmeldung. Wähle einen persönlichen PIN (nur Ziffern, mind. 4), den du dir merken kannst.</p>
+                {% else %}
+                <p class="text-muted small">Zu deiner Sicherheit muss der PIN nach einem Reset geändert werden.</p>
+                {% endif %}
                 <form method="POST">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                     <div class="mb-3">
