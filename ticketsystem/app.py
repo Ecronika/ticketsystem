@@ -265,12 +265,14 @@ if os.environ.get("RUN_SCHEDULER", "1") == "1" and not scheduler.running:
                 schedule_recurring_job,
                 schedule_reminder_job,
                 schedule_sla_job,
+                schedule_timezone_adjustment_job,
             )
             from services.api_retention_service import schedule_api_retention_jobs
             schedule_recurring_job(app)
             schedule_sla_job(app)
             schedule_reminder_job(app)
             schedule_api_retention_jobs(app)
+            schedule_timezone_adjustment_job(app)
 
         atexit.register(scheduler.shutdown)
     except RuntimeError as exc:

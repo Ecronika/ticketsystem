@@ -124,6 +124,32 @@ def reschedule_sla_job() -> None:
         _logger.error("Failed to reschedule SLA job: %s", exc)
 
 
+def process_timezone_adjustment(app: Flask) -> None:
+    """Daily job (00:05 UTC): re-schedule the SLA job for DST changes."""
+    with app.app_context():
+        try:
+            reschedule_sla_job()
+        except Exception as exc:
+            _logger.error("Timezone adjustment failed: %s", exc)
+
+
+def schedule_timezone_adjustment_job(app: Flask) -> None:
+    """Register the daily timezone adjustment job (00:05 UTC)."""
+    try:
+        from extensions import scheduler
+        scheduler.add_job(
+            id="timezone_adjustment_job",
+            func=lambda: process_timezone_adjustment(app),
+            trigger="cron",
+            hour=0,
+            minute=5,
+            replace_existing=True,
+        )
+        _logger.info("Scheduled job: timezone_adjustment at 00:05 UTC")
+    except Exception as exc:
+        _logger.error("Failed to schedule timezone adjustment job: %s", exc)
+
+
 # ---------------------------------------------------------------------------
 # Recurring tickets
 # ---------------------------------------------------------------------------
@@ -489,19 +515,27 @@ def _notify_reminder_tickets(tickets: List[Ticket], now: object) -> int:
 # ---------------------------------------------------------------------------
 
 def schedule_sla_job(app: Flask) -> None:
-    """Register the SLA escalation job (daily at 07:00 UTC)."""
+    """Register the SLA escalation job at the configured local time."""
     try:
         from extensions import scheduler
+
+        send_time = SystemSettings.get_setting(
+            "report_send_time", _DEFAULT_SEND_TIME,
+        )
+        utc_hour, utc_minute = _local_time_to_utc(send_time)
 
         scheduler.add_job(
             id="process_sla_escalations_job",
             func=lambda: process_sla_escalations(app),
             trigger="cron",
-            hour=7,
-            minute=0,
+            hour=utc_hour,
+            minute=utc_minute,
             replace_existing=True,
         )
-        _logger.info("Scheduled job: process_sla_escalations at 07:00")
+        _logger.info(
+            "Scheduled job: process_sla_escalations at %s local (%02d:%02d UTC)",
+            send_time, utc_hour, utc_minute,
+        )
     except Exception as exc:
         _logger.error("Failed to schedule SLA escalation job: %s", exc)
 
