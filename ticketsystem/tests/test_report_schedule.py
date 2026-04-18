@@ -157,3 +157,27 @@ class TestReportSettingsAdmin:
         }, follow_redirects=True)
         assert resp.status_code == 200
         assert db_session.get(CustomHoliday, hid) is None
+
+
+class TestSlaJobGuardIntegration:
+    """Integration test: SLA job respects report-day settings."""
+
+    def test_sla_job_skips_on_weekend(self, app, db_session):
+        """SLA job does nothing when today is a non-report day."""
+        from models import SystemSettings, Comment
+        from services.scheduler_service import process_sla_escalations
+        SystemSettings.set_setting("report_weekdays", "1,2,3,4,5")
+
+        # Mock today as Saturday
+        saturday = datetime(2026, 4, 25, 8, 0, tzinfo=ZoneInfo("Europe/Berlin"))
+        with patch("services.scheduler_service.datetime") as mock_dt:
+            mock_dt.now.return_value = saturday
+            mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
+
+            process_sla_escalations(app)
+
+        # No tickets should have been escalated (job returned early)
+        system_comments = Comment.query.filter_by(
+            event_type="SLA_ESCALATION"
+        ).all()
+        assert len(system_comments) == 0
