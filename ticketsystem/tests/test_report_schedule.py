@@ -102,3 +102,58 @@ class TestReportDayGuard:
             db_session.commit()
         assert _is_report_day(date(2026, 4, 20)) is True
         assert _is_report_day(date(2026, 4, 25)) is False
+
+
+class TestReportSettingsAdmin:
+    """Tests for admin settings route — report schedule section."""
+
+    def _login_admin(self, client, admin_worker):
+        """Log in as admin via session."""
+        with client.session_transaction() as sess:
+            sess["worker_id"] = admin_worker.id
+            sess["worker_name"] = admin_worker.name
+            sess["worker_role"] = "admin"
+
+    def test_save_report_settings(self, app, client, admin_worker, db_session):
+        """Saving report schedule settings persists to SystemSettings."""
+        from models import SystemSettings
+        self._login_admin(client, admin_worker)
+        resp = client.post("/admin/settings", data={
+            "action": "save_report_schedule",
+            "report_send_time": "09:00",
+            "report_weekdays": ["1", "2", "3", "4", "5"],
+            "report_federal_state": "BY",
+        }, follow_redirects=True)
+        assert resp.status_code == 200
+        assert SystemSettings.get_setting("report_send_time") == "09:00"
+        assert SystemSettings.get_setting("report_weekdays") == "1,2,3,4,5"
+        assert SystemSettings.get_setting("report_federal_state") == "BY"
+
+    def test_add_custom_holiday(self, app, client, admin_worker, db_session):
+        """Adding a custom holiday creates DB entries."""
+        self._login_admin(client, admin_worker)
+        resp = client.post("/admin/settings", data={
+            "action": "add_custom_holiday",
+            "holiday_start": "2026-12-24",
+            "holiday_end": "2026-12-26",
+            "holiday_label": "Weihnachtsferien",
+        }, follow_redirects=True)
+        assert resp.status_code == 200
+        holidays_list = CustomHoliday.query.all()
+        assert len(holidays_list) == 3  # 24., 25., 26.
+        assert all(h.label == "Weihnachtsferien" for h in holidays_list)
+
+    def test_delete_custom_holiday(self, app, client, admin_worker, db_session):
+        """Deleting a custom holiday removes it from DB."""
+        self._login_admin(client, admin_worker)
+        h = CustomHoliday(date=date(2026, 5, 1), label="Test")
+        db_session.add(h)
+        db_session.commit()
+        hid = h.id
+
+        resp = client.post("/admin/settings", data={
+            "action": "delete_custom_holiday",
+            "holiday_id": str(hid),
+        }, follow_redirects=True)
+        assert resp.status_code == 200
+        assert db_session.get(CustomHoliday, hid) is None

@@ -26,6 +26,7 @@ from models import (
     ChecklistTemplate,
     ChecklistTemplateItem,
     Comment,
+    CustomHoliday,
     SystemSettings,
     Team,
     Worker,
@@ -370,7 +371,23 @@ def settings() -> str | WerkzeugResponse:
     current: dict[str, str] = {
         key: SystemSettings.get_setting(key, "") for key in _SMTP_KEYS
     }
-    return render_template("settings.html", smtp=current)
+    report_cfg = {
+        "send_time": SystemSettings.get_setting("report_send_time", "07:00"),
+        "weekdays": SystemSettings.get_setting("report_weekdays", "1,2,3,4,5"),
+        "federal_state": SystemSettings.get_setting("report_federal_state", ""),
+    }
+    custom_holidays = (
+        CustomHoliday.query.order_by(CustomHoliday.date).all()
+    )
+
+    from services.scheduler_service import FEDERAL_STATES
+    return render_template(
+        "settings.html",
+        smtp=current,
+        report_cfg=report_cfg,
+        custom_holidays=custom_holidays,
+        federal_states=FEDERAL_STATES,
+    )
 
 
 def _dispatch_settings_action() -> WerkzeugResponse | None:
@@ -385,6 +402,12 @@ def _dispatch_settings_action() -> WerkzeugResponse | None:
         flash("SMTP-Passwort wurde entfernt.", "success")
     elif action == "generate_tokens":
         return _generate_tokens()
+    elif action == "save_report_schedule":
+        _save_report_schedule()
+    elif action == "add_custom_holiday":
+        _add_custom_holiday()
+    elif action == "delete_custom_holiday":
+        _delete_custom_holiday()
     return None
 
 
@@ -425,6 +448,112 @@ def _test_smtp() -> None:
             "(Details im Log).",
             "danger",
         )
+
+
+def _save_report_schedule() -> None:
+    """Persist report schedule settings and reschedule the SLA job."""
+    send_time = request.form.get("report_send_time", "07:00").strip()
+    weekdays = ",".join(request.form.getlist("report_weekdays"))
+    federal_state = request.form.get("report_federal_state", "").strip()
+
+    SystemSettings.set_setting("report_send_time", send_time)
+    SystemSettings.set_setting("report_weekdays", weekdays or "1,2,3,4,5")
+    if federal_state:
+        SystemSettings.set_setting("report_federal_state", federal_state)
+    else:
+        setting = SystemSettings.query.filter_by(
+            key="report_federal_state",
+        ).first()
+        if setting:
+            db.session.delete(setting)
+            db.session.commit()
+
+    try:
+        from services.scheduler_service import reschedule_sla_job
+        reschedule_sla_job()
+    except Exception:
+        pass  # Scheduler may not be running in dev/test
+
+    flash("Berichtsversand-Einstellungen gespeichert.", "success")
+
+
+def _add_custom_holiday() -> None:
+    """Add one or more custom holidays (date range + label)."""
+    from datetime import date, timedelta
+
+    start_str = request.form.get("holiday_start", "").strip()
+    end_str = request.form.get("holiday_end", "").strip()
+    label = request.form.get("holiday_label", "").strip()
+
+    if not start_str or not label:
+        flash("Datum und Bezeichnung sind Pflichtfelder.", "warning")
+        return
+
+    try:
+        start = date.fromisoformat(start_str)
+        end = date.fromisoformat(end_str) if end_str else start
+    except ValueError:
+        flash("Ungültiges Datumsformat.", "danger")
+        return
+
+    if end < start:
+        flash("Enddatum darf nicht vor dem Startdatum liegen.", "warning")
+        return
+
+    added = 0
+    current = start
+    while current <= end:
+        existing = CustomHoliday.query.filter_by(date=current).first()
+        if not existing:
+            db.session.add(CustomHoliday(date=current, label=label))
+            added += 1
+        current += timedelta(days=1)
+
+    if added > 0:
+        db.session.commit()
+        flash(f"{added} freie(r) Tag(e) hinzugefügt.", "success")
+    else:
+        flash("Alle Tage waren bereits eingetragen.", "info")
+
+
+def _delete_custom_holiday() -> None:
+    """Delete a single custom holiday by ID."""
+    hid = request.form.get("holiday_id")
+    if not hid:
+        return
+    holiday = db.session.get(CustomHoliday, int(hid))
+    if holiday:
+        db.session.delete(holiday)
+        db.session.commit()
+        flash(
+            f"Freier Tag ({holiday.date.strftime('%d.%m.%Y')}) entfernt.",
+            "success",
+        )
+
+
+@admin_bp.route("/holiday-preview")
+@admin_required
+def holiday_preview() -> WerkzeugResponse:
+    """Return the next 5 federal holidays as JSON for the preview widget."""
+    import holidays as holidays_lib
+    from datetime import date
+    from flask import jsonify
+
+    state = request.args.get("state", "")
+    if not state:
+        return jsonify(holidays=[])
+
+    today = date.today()
+    de = holidays_lib.Germany(subdiv=state, years=[today.year, today.year + 1])
+    upcoming = sorted(
+        [(d, name) for d, name in de.items() if d >= today],
+        key=lambda x: x[0],
+    )[:5]
+
+    return jsonify(holidays=[
+        {"date": d.strftime("%d.%m.%Y"), "name": name}
+        for d, name in upcoming
+    ])
 
 
 # ------------------------------------------------------------------
