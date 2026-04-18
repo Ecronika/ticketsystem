@@ -59,6 +59,21 @@ class SystemSettings(db.Model):
 
 
 # ---------------------------------------------------------------------------
+# Custom Holidays
+# ---------------------------------------------------------------------------
+
+class CustomHoliday(db.Model):
+    """Additional company holidays beyond federal state holidays."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.Date, unique=True, nullable=False)
+    label = db.Column(db.String(100), nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<CustomHoliday {self.date} {self.label!r}>"
+
+
+# ---------------------------------------------------------------------------
 # Worker
 # ---------------------------------------------------------------------------
 
