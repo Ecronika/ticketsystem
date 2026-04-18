@@ -215,6 +215,137 @@
     </div>
   </div>
 </div>
+
+<!-- Report Schedule Configuration -->
+<div class="row g-4 mt-0" id="report-schedule">
+  <div class="col-lg-7">
+    <div class="card card-std">
+      <div class="card-header card-header-std">
+        <h2 class="h5 fw-bold mb-0"><i class="bi bi-calendar-check text-primary me-2"></i>Berichtsversand</h2>
+      </div>
+      <div class="card-body px-4 pb-4">
+        <p class="text-secondary small mb-3">
+          Steuert, wann der SLA-Eskalationsbericht verschickt wird. An nicht-aktiven Tagen pausiert der gesamte Job.
+        </p>
+        <form method="post" autocomplete="off" novalidate>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="save_report_schedule">
+
+          <div class="row g-3 mb-3">
+            <div class="col-sm-4">
+              <label for="report_send_time" class="form-label fw-semibold small">Versandzeit</label>
+              <input type="time" class="form-control" id="report_send_time"
+                     name="report_send_time" value="{{ report_cfg.send_time }}">
+              <div class="form-text">Europe/Berlin (MEZ/MESZ)</div>
+            </div>
+            <div class="col-sm-8">
+              <label class="form-label fw-semibold small">Bundesland (Feiertage)</label>
+              <select class="form-select" name="report_federal_state" id="report_federal_state">
+                <option value="">— Kein Feiertagsfilter —</option>
+                {% for code, name in federal_states.items() %}
+                <option value="{{ code }}" {{ 'selected' if report_cfg.federal_state == code else '' }}>{{ name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Aktive Wochentage</label>
+            <div class="d-flex flex-wrap gap-3">
+              {% set active_days = report_cfg.weekdays.split(',') %}
+              {% set day_names = [('1','Mo'), ('2','Di'), ('3','Mi'), ('4','Do'), ('5','Fr'), ('6','Sa'), ('7','So')] %}
+              {% for val, label in day_names %}
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="report_weekdays"
+                       value="{{ val }}" id="wd_{{ val }}"
+                       {{ 'checked' if val in active_days else '' }}>
+                <label class="form-check-label small" for="wd_{{ val }}">{{ label }}</label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div id="holiday-preview" class="mb-3" style="display:none;">
+            <label class="form-label fw-semibold small">Nächste Feiertage</label>
+            <ul class="list-unstyled small text-muted mb-0" id="holiday-list"></ul>
+          </div>
+
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-floppy me-1"></i>Berichtsversand speichern
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Holidays -->
+  <div class="col-lg-5">
+    <div class="card card-std">
+      <div class="card-header card-header-std">
+        <h2 class="h5 fw-bold mb-0"><i class="bi bi-calendar-x text-warning me-2"></i>Zusätzliche freie Tage</h2>
+      </div>
+      <div class="card-body px-4 pb-4">
+        <form method="post" autocomplete="off" novalidate class="mb-3">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="add_custom_holiday">
+          <div class="row g-2 mb-2">
+            <div class="col-6">
+              <label for="holiday_start" class="form-label fw-semibold small">Von</label>
+              <input type="date" class="form-control form-control-sm" id="holiday_start"
+                     name="holiday_start" required>
+            </div>
+            <div class="col-6">
+              <label for="holiday_end" class="form-label fw-semibold small">Bis (optional)</label>
+              <input type="date" class="form-control form-control-sm" id="holiday_end"
+                     name="holiday_end">
+            </div>
+          </div>
+          <div class="mb-2">
+            <label for="holiday_label" class="form-label fw-semibold small">Bezeichnung</label>
+            <input type="text" class="form-control form-control-sm" id="holiday_label"
+                   name="holiday_label" placeholder="z. B. Betriebsferien" required>
+          </div>
+          <button type="submit" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-plus-circle me-1"></i>Hinzufügen
+          </button>
+        </form>
+
+        {% if custom_holidays %}
+        <table class="table table-sm small mb-0">
+          <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Bezeichnung</th>
+              <th class="text-end">Aktion</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for h in custom_holidays %}
+            <tr>
+              <td>{{ h.date.strftime('%d.%m.%Y') }}</td>
+              <td>{{ h.label }}</td>
+              <td class="text-end">
+                <form method="post" class="d-inline">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="action" value="delete_custom_holiday">
+                  <input type="hidden" name="holiday_id" value="{{ h.id }}">
+                  <button type="submit" class="btn btn-sm btn-outline-danger p-0 px-1"
+                          title="Entfernen">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted small mb-0">Keine zusätzlichen freien Tage eingetragen.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -228,6 +359,30 @@
       pwInput.type = show ? 'text' : 'password';
       toggleIcon.className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
     });
+  }
+
+  // Holiday preview
+  const stateSelect = document.getElementById('report_federal_state');
+  const previewDiv = document.getElementById('holiday-preview');
+  const holidayList = document.getElementById('holiday-list');
+  if (stateSelect && previewDiv) {
+    stateSelect.addEventListener('change', () => {
+      const state = stateSelect.value;
+      if (!state) { previewDiv.style.display = 'none'; return; }
+      fetch('{{ ingress_path }}{{ url_for("admin.holiday_preview") }}?state=' + encodeURIComponent(state))
+        .then(r => r.json())
+        .then(data => {
+          holidayList.innerHTML = '';
+          data.holidays.forEach(h => {
+            const li = document.createElement('li');
+            li.textContent = h.date + ' \u2014 ' + h.name;
+            holidayList.appendChild(li);
+          });
+          previewDiv.style.display = '';
+        })
+        .catch(() => { previewDiv.style.display = 'none'; });
+    });
+    if (stateSelect.value) stateSelect.dispatchEvent(new Event('change'));
   }
 </script>
 {% endblock %}
