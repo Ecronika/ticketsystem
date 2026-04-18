@@ -8,12 +8,17 @@ import logging
 from collections import defaultdict
 from typing import Dict, List
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from dateutil.relativedelta import relativedelta
 from flask import Flask
 
+import holidays as holidays_lib
+
 from enums import TicketPriority, TicketStatus
 from extensions import db
-from models import Comment, Ticket, TicketRecurrence, Worker
+from models import Comment, Ticket, TicketRecurrence, Worker, SystemSettings
 from services.email_service import EmailService
 from services._ticket_helpers import _OPEN_STATUSES, _RECURRENCE_INCREMENTS
 from services.checklist_service import ChecklistService
@@ -24,6 +29,99 @@ _logger = logging.getLogger(__name__)
 
 _GRACE_DAYS: Dict[int, int] = {1: 0, 2: 1, 3: 3}
 _ANTI_SPAM_HOURS = 23
+
+_DEFAULT_SEND_TIME = "07:00"
+_DEFAULT_WEEKDAYS = "1,2,3,4,5"
+_BERLIN_TZ = ZoneInfo("Europe/Berlin")
+
+FEDERAL_STATES = {
+    "BW": "Baden-Württemberg",
+    "BY": "Bayern",
+    "BE": "Berlin",
+    "BB": "Brandenburg",
+    "HB": "Bremen",
+    "HH": "Hamburg",
+    "HE": "Hessen",
+    "MV": "Mecklenburg-Vorpommern",
+    "NI": "Niedersachsen",
+    "NW": "Nordrhein-Westfalen",
+    "RP": "Rheinland-Pfalz",
+    "SL": "Saarland",
+    "SN": "Sachsen",
+    "ST": "Sachsen-Anhalt",
+    "SH": "Schleswig-Holstein",
+    "TH": "Thüringen",
+}
+
+
+def _get_allowed_weekdays() -> set[int]:
+    """Return the set of allowed ISO weekdays (1=Mon .. 7=Sun) from settings."""
+    raw = SystemSettings.get_setting("report_weekdays", _DEFAULT_WEEKDAYS)
+    try:
+        return {int(d.strip()) for d in raw.split(",") if d.strip()}
+    except (ValueError, AttributeError):
+        return {1, 2, 3, 4, 5}
+
+
+def _is_report_day(check_date: object) -> bool:
+    """Return True if *check_date* is a valid report-sending day.
+
+    Checks: configured weekdays, federal state holidays, custom holidays.
+    The job is skipped entirely on non-report days (weekends, holidays).
+    """
+    from models import CustomHoliday
+
+    weekday = check_date.isoweekday()
+    if weekday not in _get_allowed_weekdays():
+        return False
+
+    state = SystemSettings.get_setting("report_federal_state")
+    if state:
+        de_holidays = holidays_lib.Germany(
+            subdiv=state, years=check_date.year,
+        )
+        if check_date in de_holidays:
+            return False
+
+    if CustomHoliday.query.filter_by(date=check_date).first():
+        return False
+
+    return True
+
+
+def _local_time_to_utc(local_hhmm: str) -> tuple[int, int]:
+    """Convert a local HH:MM string (Europe/Berlin) to UTC (hour, minute).
+
+    Uses tomorrow's date to determine the correct DST offset for
+    scheduling purposes.
+    """
+    from datetime import timedelta
+    h, m = (int(x) for x in local_hhmm.split(":"))
+    tomorrow = (datetime.now(_BERLIN_TZ) + timedelta(days=1)).date()
+    local_dt = datetime(tomorrow.year, tomorrow.month, tomorrow.day, h, m,
+                        tzinfo=_BERLIN_TZ)
+    utc_dt = local_dt.astimezone(ZoneInfo("UTC"))
+    return utc_dt.hour, utc_dt.minute
+
+
+def reschedule_sla_job() -> None:
+    """Re-schedule the SLA job to the configured local time (UTC-converted)."""
+    from extensions import scheduler
+    send_time = SystemSettings.get_setting("report_send_time", _DEFAULT_SEND_TIME)
+    utc_hour, utc_minute = _local_time_to_utc(send_time)
+    try:
+        scheduler.reschedule_job(
+            "process_sla_escalations_job",
+            trigger="cron",
+            hour=utc_hour,
+            minute=utc_minute,
+        )
+        _logger.info(
+            "Rescheduled SLA job: %s local -> %02d:%02d UTC",
+            send_time, utc_hour, utc_minute,
+        )
+    except Exception as exc:
+        _logger.error("Failed to reschedule SLA job: %s", exc)
 
 
 # ---------------------------------------------------------------------------
@@ -140,8 +238,15 @@ def process_sla_escalations(app: Flask) -> None:
     Instead of sending one email per ticket, this job collects all escalated
     tickets and sends a **single digest email per worker** as a daily status
     report.  Admins receive a separate digest for all high-priority tickets.
+
+    The job is skipped entirely on non-report days (weekends, holidays).
     """
     with app.app_context():
+        today = datetime.now(_BERLIN_TZ).date()
+        if not _is_report_day(today):
+            _logger.info("SLA job skipped: %s is not a report day.", today)
+            return
+
         now = get_utc_now()
         try:
             overdue_tickets = _fetch_overdue_tickets(now)
